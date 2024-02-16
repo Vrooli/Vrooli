@@ -38,6 +38,7 @@ type CommandTransitionTrack = {
  */
 export const handleCommandTransition = ({
     curr,
+    prev,
     section,
     buffer,
     onCommit,
@@ -46,17 +47,17 @@ export const handleCommandTransition = ({
     onStart,
 }: CommandTransitionTrack & {
     curr: string,
+    prev: string,
     onCommit: (section: CommandSection, text: string | number | null) => unknown,
     onComplete: () => unknown, // When a full command (including any actions/props) is completed
     onCancel: () => unknown, // When a full command is cancelled. Typically only when there's a problem with the beginning slash command 
     onStart: () => unknown, // When a full command is started
 }): CommandTransitionTrack => {
-    const previousChar = buffer[buffer.length - 1];
 
     // Handle each section type
     if (section === "outside") {
         // Start a command if there's a slash without a previous character
-        if (curr === "/" && (!previousChar || isWhitespace(previousChar) || isNewline(previousChar))) {
+        if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev))) {
             onStart();
             return { section: "command", buffer: "" }; // Don't include the slash in the buffer
         }
@@ -110,10 +111,10 @@ export const handleCommandTransition = ({
         }
         // Handle slash
         if (curr === "/") {
-            console.log('in section action found slash', buffer, curr, isWhitespace(previousChar));
+            console.log('in section action found slash', buffer, curr, isWhitespace(prev));
             // If previous character is not a whitespace, it's not a valid action 
             // or start of a new command
-            if (!isWhitespace(previousChar)) {
+            if (!isWhitespace(prev)) {
                 onComplete();
                 return { section: "outside", buffer: "" };
             }
@@ -134,7 +135,7 @@ export const handleCommandTransition = ({
         // Complete if it's not an alpha-numeric character
         if (!isAlphaNum(curr)) {
             // Commit action if previous character was whitespace
-            if (isWhitespace(previousChar)) {
+            if (isWhitespace(prev)) {
                 onCommit("action", buffer);
             }
             onComplete();
@@ -157,7 +158,7 @@ export const handleCommandTransition = ({
         if (curr === "/") {
             // If previous character is not a whitespace, it's not a valid action 
             // or start of a new command
-            if (!isWhitespace(previousChar)) {
+            if (!isWhitespace(prev)) {
                 onComplete();
                 return { section: "outside", buffer: "" };
             }
@@ -313,6 +314,7 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
     for (let i = 0; i < inputString.length; i++) {
         const { section, buffer } = handleCommandTransition({
             curr: inputString[i],
+            prev: i > 0 ? inputString[i - 1] : "\n", // Pretend there's a newline at the beginning
             section: currentSection,
             buffer: currentBuffer,
             onCommit: (section, text) => onCommit(section, text, i),
@@ -326,6 +328,7 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
     // Call with newline to commit the last command
     handleCommandTransition({
         curr: "\n",
+        prev: inputString.length > 0 ? inputString[inputString.length - 1] : "\n",
         section: currentSection,
         buffer: currentBuffer,
         onCommit: (section, text) => onCommit(section, text, inputString.length),

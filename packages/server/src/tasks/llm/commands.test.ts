@@ -99,6 +99,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -113,6 +114,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -127,6 +129,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: `'`,
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -141,6 +144,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: `"`,
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -155,6 +159,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '=',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -169,6 +174,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -183,6 +189,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '1',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -197,6 +204,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -211,6 +219,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -225,6 +234,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -239,6 +249,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -255,6 +266,7 @@ describe('handleCommandTransition', () => {
         const buffer = "asdf";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -269,6 +281,7 @@ describe('handleCommandTransition', () => {
         const buffer = "1234";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -283,6 +296,7 @@ describe('handleCommandTransition', () => {
         const buffer = "!@#$";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -297,6 +311,7 @@ describe('handleCommandTransition', () => {
         const buffer = "🙌💃";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
             buffer,
             onCommit,
@@ -308,10 +323,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: buffer + "/" });
     });
     test('starts a command when buffer is empty', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -321,10 +338,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'command', buffer: "" });
     });
     test('starts a command after a newline', () => {
+        const buffer = 'asdf\n';
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
-            buffer: 'asdf\n',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -334,10 +353,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'command', buffer: "" });
     });
     test('starts a command after whitespace - space', () => {
+        const buffer = 'asdf ';
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
-            buffer: 'asdf ',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -347,10 +368,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'command', buffer: "" });
     });
     test('starts a command after whitespace - tab', () => {
+        const buffer = 'asdf\t';
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'outside',
-            buffer: 'asdf\t',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -363,6 +386,7 @@ describe('handleCommandTransition', () => {
         const buffer = "test"
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'command',
             buffer,
             onCommit,
@@ -377,6 +401,7 @@ describe('handleCommandTransition', () => {
         const buffer = "test"
         const result = handleCommandTransition({
             curr: '1',
+            prev: buffer[buffer.length - 1],
             section: 'command',
             buffer,
             onCommit,
@@ -388,23 +413,27 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'command', buffer: buffer + "1" });
     });
     test('commmits on newline', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('command', 'test');
+        expect(onCommit).toHaveBeenCalledWith('command', buffer);
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('resets to outside on other alphabets', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -414,10 +443,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('resets to outside on emojis', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -427,10 +458,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('resets to outside on symbols', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -442,49 +475,57 @@ describe('handleCommandTransition', () => {
 
     // Pending (when we're not sure if it's an action or a property yet) tests
     test('starts pending actionwhen we encounter the first space after a command - space', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('command', 'test');
+        expect(onCommit).toHaveBeenCalledWith('command', buffer);
         expect(result).toEqual({ section: 'action', buffer: '' });
     });
     test('starts pending action when we encounter the first space after a command - tab', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('command', 'test');
+        expect(onCommit).toHaveBeenCalledWith('command', buffer);
         expect(result).toEqual({ section: 'action', buffer: '' });
     });
     test('does not start pending action for newline', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('command', 'test');
+        expect(onCommit).toHaveBeenCalledWith('command', buffer);
         expect(result).toEqual({ section: 'outside', buffer: "" });
     });
     test('does not start pending action for other alphabets', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -494,10 +535,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: "" });
     });
     test('does not start pending action for emojis', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -507,10 +550,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: "" });
     });
     test('does not start pending action for symbols', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'command',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -520,10 +565,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: "" });
     });
     test('cancels pending action on other alphabets', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -533,10 +580,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: "" });
     });
     test('cancels pending action on emojis', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -546,10 +595,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: "" });
     });
     test('cancels pending action on symbols', () => {
+        const buffer = 'test';
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -561,77 +612,89 @@ describe('handleCommandTransition', () => {
 
     // Action tests
     test('commits pending action buffer to action on whitespace - space', () => {
+        const buffer = 'create';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'create',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('action', 'create');
+        expect(onCommit).toHaveBeenCalledWith('action', buffer);
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits pending action buffer to action on whitespace - tab', () => {
+        const buffer = 'create';
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'create',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('action', 'create');
+        expect(onCommit).toHaveBeenCalledWith('action', buffer);
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits pending action buffer to action on newline', () => {
+        const buffer = 'create';
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'create',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('action', 'create');
+        expect(onCommit).toHaveBeenCalledWith('action', buffer);
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
 
     // Property name tests
     test('commits pending action buffer to property name on equals sign', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '=',
+            prev: buffer[buffer.length - 1],
             section: 'action',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('propName', 'name');
+        expect(onCommit).toHaveBeenCalledWith('propName', buffer);
         expect(result).toEqual({ section: 'propValue', buffer: '' });
     });
     test('commits property name buffer to property name on equals sign', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '=',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
             onStart,
         });
-        expect(onCommit).toHaveBeenCalledWith('propName', 'name');
+        expect(onCommit).toHaveBeenCalledWith('propName', buffer);
         expect(result).toEqual({ section: 'propValue', buffer: '' });
     });
     test('cancels property name buffer on whitespace - space', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -641,10 +704,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property name buffer on whitespace - tab', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -654,10 +719,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property name buffer on newline', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -667,10 +734,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property name buffer on other alphabets', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -680,10 +749,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property name buffer on emojis', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -693,10 +764,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property name buffer on symbols', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -706,10 +779,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property name buffer on slash', () => {
+        const buffer = 'name';
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'propName',
-            buffer: 'name',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -721,10 +796,12 @@ describe('handleCommandTransition', () => {
 
     // Property value tests
     test('starts property value on single quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: "'",
+            prev: buffer[buffer.length - 1],
             section: 'propValue', // Should already be marked as propValue because of the equals sign
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -735,10 +812,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: `'` });
     });
     test('starts property value on double quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '"',
+            prev: buffer[buffer.length - 1],
             section: 'propValue', // Should already be marked as propValue because of the equals sign
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -749,10 +828,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: `"` });
     });
     test('continues property value if buffer + curr might be a number - test 1', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '1',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -762,10 +843,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '1' });
     });
     test('continues property value if buffer + curr might be a number - test 2', () => {
+        const buffer = "-";
         const result = handleCommandTransition({
             curr: '1',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -775,10 +858,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '-1' });
     });
     test('continues property value if buffer + curr might be a number - test 3', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '.',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -788,10 +873,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '.' });
     });
     test('continues property value if buffer + curr might be a number - test 4', () => {
+        const buffer = "3";
         const result = handleCommandTransition({
             curr: '.',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '3',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -801,10 +888,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '3.' });
     });
     test('cancels property value if buffer + curr is an invalid number - test 1', () => {
+        const buffer = "-";
         const result = handleCommandTransition({
             curr: '-',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -814,10 +903,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if buffer + curr is an invalid number - test 2', () => {
+        const buffer = "1";
         const result = handleCommandTransition({
             curr: '-',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '1',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -827,10 +918,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if buffer + curr is an invalid number - test 3', () => {
+        const buffer = "3.";
         const result = handleCommandTransition({
             curr: '.',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '3.',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -840,10 +933,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if buffer + curr is an invalid number - test 4', () => {
+        const buffer = "1.2";
         const result = handleCommandTransition({
             curr: '.',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '1.2',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -853,10 +948,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('continues property value if buffer + curr might be null - test 1', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: 'n',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -866,10 +963,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: 'n' });
     });
     test('continues property value if buffer + curr might be null - test 2', () => {
+        const buffer = "nul";
         const result = handleCommandTransition({
             curr: 'l',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: 'nul',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -879,10 +978,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: 'null' });
     });
     test('cancels property value if buffer + curr is not null', () => {
+        const buffer = "null";
         const result = handleCommandTransition({
             curr: 'l',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: 'null',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -892,10 +993,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if letter before quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -905,10 +1008,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if whitespace before quote - space', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -918,10 +1023,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if whitespace before quote - tab', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -931,10 +1038,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if newline before quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -944,10 +1053,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if other alphabets before quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -957,10 +1068,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if emojis before quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -970,10 +1083,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if symbols before quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -983,10 +1098,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels property value if slash before quote', () => {
+        const buffer = "";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -996,10 +1113,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('continues property value if already in quotes - letter with single quote start', () => {
+        const buffer = "'";
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1009,10 +1128,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'a" });
     });
     test('continues property value if already in quotes - letter with double quote start', () => {
+        const buffer = '"';
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '"',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1022,10 +1143,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '"a' });
     });
     test('continues property value if already in quotes - letter with single quote start and other text in buffer', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1035,10 +1158,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'testa" });
     });
     test('continues property value if already in quotes - other language', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1048,10 +1173,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'test你" });
     });
     test('continues property value if already in quotes - emoji', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1061,10 +1188,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'test👋" });
     });
     test('continues property value if already in quotes - symbol', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1074,10 +1203,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'test!" });
     });
     test('continues property value if already in quotes - slash', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: '/',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1087,10 +1218,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'test/" });
     });
     test('continues property value if already in quotes - newline', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1100,10 +1233,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'test\n" });
     });
     test('continues property value if already in quotes - space', () => {
+        const buffer = '"test';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '"test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1113,10 +1248,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '"test ' });
     });
     test('continues property value if already in quotes - tab', () => {
+        const buffer = '"test';
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '"test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1126,10 +1263,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '"test\t' });
     });
     test('continues property value when curr is a different quote type than the starting quote - double with single start', () => {
+        const buffer = "'";
         const result = handleCommandTransition({
             curr: '"',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1139,10 +1278,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: "'\"" });
     });
     test('continues property value when curr is a different quote type than the starting quote - single with double start', () => {
+        const buffer = '"';
         const result = handleCommandTransition({
             curr: "'",
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '"',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1152,10 +1293,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: '"\'' });
     });
     test('continues property value for escaped characters - curr is escape character, buffer is quote', () => {
+        const buffer = "'";
         const result = handleCommandTransition({
             curr: '\\',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1165,10 +1308,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: `'\\` });
     });
     test('continues property value for escaped characters - curr is single quote, buffer is double quote and escape character', () => {
+        const buffer = `"\\`;
         const result = handleCommandTransition({
             curr: `"`,
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: `"\\`,
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1178,10 +1323,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: `"\\"` });
     });
     test('continues property value for escaped characters - curr is single quote, buffer is single quote and escape character', () => {
+        const buffer = `'\\`;
         const result = handleCommandTransition({
             curr: `'`,
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: `'\\`,
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1191,10 +1338,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: `'\\'` });
     });
     test('completes property value for an even number of escape characters', () => {
+        const buffer = `'\\\\`;
         const result = handleCommandTransition({
             curr: `'`,
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: `'\\\\`,
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1204,10 +1353,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('continues property value for an odd number of escape characters', () => {
+        const buffer = `'\\\\\\`;
         const result = handleCommandTransition({
             curr: `'`,
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: `'\\\\\\`,
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1217,10 +1368,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propValue', buffer: `'\\\\\\'` });
     });
     test('commits property value on closing quote - single quote', () => {
+        const buffer = "'test";
         const result = handleCommandTransition({
             curr: "'",
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: "'test",
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1230,10 +1383,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits property value on closing quote - double quote', () => {
+        const buffer = '"test';
         const result = handleCommandTransition({
             curr: '"',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '"test',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1243,10 +1398,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits number property value on space - test 1', () => {
+        const buffer = '123';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '123',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1256,10 +1413,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits number property value on space - test 2', () => {
+        const buffer = '-123';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-123',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1269,10 +1428,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits number property value on space - test 3', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: ' ',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1282,10 +1443,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits number property value on tab', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: '\t',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1295,10 +1458,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: '' });
     });
     test('commits number property value on newline', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: '\n',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1308,10 +1473,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels number property value on letter', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: 'a',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1321,10 +1488,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels number property value on other alphabet', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: '你',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1334,10 +1503,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels number property value on emoji', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: '👋',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
@@ -1347,10 +1518,12 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'outside', buffer: '' });
     });
     test('cancels number property value on symbol', () => {
+        const buffer = '-1.23';
         const result = handleCommandTransition({
             curr: '!',
+            prev: buffer[buffer.length - 1],
             section: 'propValue',
-            buffer: '-1.23',
+            buffer,
             onCommit,
             onComplete,
             onCancel,
