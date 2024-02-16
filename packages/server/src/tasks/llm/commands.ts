@@ -124,6 +124,7 @@ export const handleCommandTransition = ({
             }
             // Start a new command
             onComplete();
+            onStart();
             return { section: "command", buffer: "" };
         }
         // If it's an equals sign, commit as a property name 
@@ -152,7 +153,7 @@ export const handleCommandTransition = ({
         // Commit on equals sign
         if (curr === "=") {
             onCommit("propName", buffer);
-            return { section: 'propValue', buffer: "" };
+            return { section: "propValue", buffer: "" };
         }
         // Handle slash
         if (curr === "/") {
@@ -164,6 +165,7 @@ export const handleCommandTransition = ({
             }
             // Start a new command. Do not commit the buffer, as it won't have an accompanying value
             onComplete();
+            onStart();
             return { section: "command", buffer: "" };
         }
         // Handle whitespace
@@ -179,7 +181,7 @@ export const handleCommandTransition = ({
         // Complete on newline or non alpha-numeric characters
         if (isNewline(curr) || !isAlphaNum(curr)) {
             onComplete();
-            return { section: 'outside', buffer: '' };
+            return { section: "outside", buffer: "" };
         }
         // Complete if the buffer is too long
         if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
@@ -197,11 +199,11 @@ export const handleCommandTransition = ({
         if (isQuote && buffer[0] === curr && !isEscaped) {
             console.log('leaving quotes')
             onCommit("propValue", buffer.slice(1)); // Exclude outer quotes
-            return { section: 'propName', buffer: '' };
+            return { section: "propName", buffer: "" };
         }
         // Check if entering quotes
         if (!isInQuote && isQuote && buffer.length === 0) {
-            return { section: 'propValue', buffer: curr };
+            return { section: "propValue", buffer: curr };
         }
         // Allow anything inside quotes
         if (isInQuote) {
@@ -225,15 +227,15 @@ export const handleCommandTransition = ({
                 onCommit("propValue", isNumber ? +buffer : null);
                 if (isNewline(curr)) {
                     onComplete();
-                    return { section: 'outside', buffer: '' };
+                    return { section: "outside", buffer: "" };
                 }
-                return { section: "propName", buffer: '' };
+                return { section: "propName", buffer: "" };
             }
         }
         // Otherwise it's invalid, so complete the command
         console.log('propvalue was invalid')
         onComplete();
-        return { section: 'outside', buffer: '' };
+        return { section: "outside", buffer: "" };
     }
 
     // Otherwise, continue buffering
@@ -280,21 +282,17 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
 
     /** When one part of the command is committed */
     const onCommit = (section: CommandSection, text: string | number | null, index: number) => {
+        console.log('in on commit', section, text, index)
+        if (!currentCommand) return;
         if (section === 'command') {
-            const start = index - (text + "").length - 1; // - 1; // Need to add an extra character for the slash TODO remove?
-            currentCommand = {
-                command: text + "",
-                action: null,
-                properties: [],
-                start,
-                end: index,
-            };
-        } else if (section === 'action' && currentCommand) {
+            currentCommand.command = text + "";
+            currentCommand.end = index;
+        } else if (section === 'action') {
             currentCommand.action = text + "";
             currentCommand.end = index;
-        } else if (section === 'propName' && currentCommand) {
+        } else if (section === 'propName') {
             currentCommand?.properties.push(text);
-        } else if (section === 'propValue' && currentCommand) {
+        } else if (section === 'propValue') {
             currentCommand?.properties.push(text);
             currentCommand.end = typeof text === "string" ? index + 1 : index; // Add 1 for quote
         }
@@ -322,6 +320,9 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
             onStart: () => onStart(i),
             onCancel,
         });
+        // if (currentCommand && !["outside", "propName"].includes(section) && buffer.length > currentBuffer.length) {
+        //     (currentCommand as LlmCommand).end = i + 1;
+        // }
         currentSection = section;
         currentBuffer = buffer;
     }

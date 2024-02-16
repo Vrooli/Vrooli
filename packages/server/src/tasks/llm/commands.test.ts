@@ -1839,8 +1839,9 @@ describe('extractCommands', () => {
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
-            ...getStartEnd(input, input),
+            ...getStartEnd(input, "/command\tprop1=123 prop2='value' prop3=null"),
         }];
+        console.log('in handles command with properties test 7')
         const commands = extractCommands(input);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
@@ -1851,7 +1852,7 @@ describe('extractCommands', () => {
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
-            ...getStartEnd(input, input),
+            ...getStartEnd(input, "/command prop1=123 prop2='value' prop3=null"),
         }];
         const commands = extractCommands(input);
         expect(commands).toEqual(expected);
@@ -1863,7 +1864,7 @@ describe('extractCommands', () => {
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: `val\\'u"e`, prop3: null }),
-            ...getStartEnd(input, input),
+            ...getStartEnd(input, `/command prop1=123 prop2='val\\'u"e' prop3=null`),
         }];
         const commands = extractCommands(input);
         expect(commands).toEqual(expected);
@@ -1875,7 +1876,7 @@ describe('extractCommands', () => {
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
-            ...getStartEnd(input, input),
+            ...getStartEnd(input, "/command prop1=123 prop2='value' prop3=null"),
         }];
         const commands = extractCommands(input);
         expect(commands).toEqual(expected);
