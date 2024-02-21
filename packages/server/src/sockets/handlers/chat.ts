@@ -1,8 +1,8 @@
 import { Server, Socket } from "socket.io";
-import { assertRequestFrom } from "../auth/request";
-import { logger } from "../events/logger";
-import { rateLimitSocket } from "../middleware";
-import { withPrisma } from "../utils/withPrisma";
+import { assertRequestFrom } from "../../auth/request";
+import { logger } from "../../events/logger";
+import { rateLimitSocket } from "../../middleware";
+import { withPrisma } from "../../utils/withPrisma";
 
 type SocketCallbackSuccess = (data: { success?: boolean; error?: string }) => void;
 type SocketCallbackResponse<T> = (data: { response?: T; error?: string }) => void;

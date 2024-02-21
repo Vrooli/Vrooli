@@ -165,10 +165,10 @@ describe('getUnstructuredTaskConfig', () => {
     });
 
     test('works for a language that\'s not in the config', async () => {
-        const taskConfig = await getUnstructuredTaskConfig('RoutineCreate', botSettings1, 'nonexistent-language');
+        const taskConfig = await getUnstructuredTaskConfig("RoutineAdd", botSettings1, 'nonexistent-language');
         expect(taskConfig).toBeDefined();
         // Since it falls back to English, compare it with the English config for the same action
-        const englishConfig = await getUnstructuredTaskConfig('RoutineCreate', botSettings1, DEFAULT_LANGUAGE);
+        const englishConfig = await getUnstructuredTaskConfig("RoutineAdd", botSettings1, DEFAULT_LANGUAGE);
         expect(taskConfig).toEqual(englishConfig);
     });
 
@@ -206,10 +206,10 @@ describe('getStructuredTaskConfig', () => {
     });
 
     test('works for a language that\'s not in the config', async () => {
-        const taskConfig = await getStructuredTaskConfig('RoutineCreate', botSettings1, 'nonexistent-language');
+        const taskConfig = await getStructuredTaskConfig("RoutineAdd", botSettings1, 'nonexistent-language');
         expect(taskConfig).toBeDefined();
         // Since it falls back to English, compare it with the English config for the same action
-        const englishConfig = await getStructuredTaskConfig('RoutineCreate', botSettings1, DEFAULT_LANGUAGE);
+        const englishConfig = await getStructuredTaskConfig("RoutineAdd", botSettings1, DEFAULT_LANGUAGE);
         expect(taskConfig).toEqual(englishConfig);
     });
 

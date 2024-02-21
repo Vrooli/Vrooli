@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
-import { server } from "./server";
-import { safeOrigins } from "./utils";
+import { server } from "../server";
+import { safeOrigins } from "../utils";
 
 // Create the WebSocket server and attach it to the HTTP server
 export const io = new Server(server, {

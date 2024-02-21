@@ -1,6 +1,6 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
-import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse, socket } from "api";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode, listenEvent, ServerResponse, socket } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -289,19 +289,19 @@ const ChatForm = ({
     // Handle websocket events
     useEffect(() => {
         // When a message is received, add it to the chat
-        socket.on("message", (message: ChatMessage) => {
+        listenEvent("addMessage", (message) => {
             addMessages([message]);
         });
         // When a message is updated, update it in the chat
-        socket.on("editMessage", (message: ChatMessage) => {
+        listenEvent("editMessage", (message) => {
             editMessage(message);
         });
         // When a message is deleted, remove it from the chat
-        socket.on("deleteMessage", (id: string) => {
-            removeMessages([id]);
+        listenEvent("deleteMessage", ({ messageId }) => {
+            removeMessages([messageId]);
         });
         // Show the status of users typing
-        socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
+        listenEvent("typing", ({ starting, stopping }) => {
             // Add every user that's typing
             const newTyping = [...usersTyping];
             for (const id of starting ?? []) {
@@ -323,7 +323,9 @@ const ChatForm = ({
         // TODO add participants joining/leaving, making sure to update matching chat cache in cookies
         return () => {
             // Remove chat-specific event handlers
-            socket.off("message");
+            socket.off("addMessage");
+            socket.off("editMessage");
+            socket.off("deleteMessage");
             socket.off("typing");
         };
     }, [addMessages, editMessage, existing.participants, handleUpdate, message, removeMessages, session, usersTyping]);

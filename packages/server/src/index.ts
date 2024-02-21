@@ -10,13 +10,14 @@ import * as auth from "./auth/request";
 import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
-import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
-import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
+import { chatSocketHandlers } from "./sockets/handlers/chat";
+import { notificationSocketHandlers } from "./sockets/handlers/notification";
+import { io } from "./sockets/io";
 import { setupEmailQueue, setupExportQueue, setupImportQueue, setupLlmQueue, setupPushQueue, setupSmsQueue } from "./tasks";
 import { setupDatabase } from "./utils/setupDatabase";
 

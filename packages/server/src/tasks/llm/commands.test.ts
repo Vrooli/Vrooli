@@ -617,7 +617,7 @@ describe('handleCommandTransition', () => {
 
     // Action tests
     test('commits pending action buffer to action on whitespace - space', () => {
-        const buffer = 'create';
+        const buffer = 'add';
         const result = handleCommandTransition({
             curr: ' ',
             prev: buffer[buffer.length - 1],
@@ -632,7 +632,7 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: [] });
     });
     test('commits pending action buffer to action on whitespace - tab', () => {
-        const buffer = 'create';
+        const buffer = 'add';
         const result = handleCommandTransition({
             curr: '\t',
             prev: buffer[buffer.length - 1],
@@ -647,7 +647,7 @@ describe('handleCommandTransition', () => {
         expect(result).toEqual({ section: 'propName', buffer: [] });
     });
     test('commits pending action buffer to action on newline', () => {
-        const buffer = 'create';
+        const buffer = 'add';
         const result = handleCommandTransition({
             curr: '\n',
             prev: buffer[buffer.length - 1],
@@ -2128,13 +2128,13 @@ describe('filterInvalidCommands', () => {
         const potentialCommands: MaybeLlmCommand[] = [{
             task: null,
             command: "routine",
-            action: "create",
+            action: "add",
             properties: null,
             start: 0,
             end: 10
         }];
         const taskConfig = {
-            actions: ["create"],
+            actions: ["add"],
             properties: [],
             commands: { "routine": 'Valid Command Description' }
         };
@@ -2147,13 +2147,13 @@ describe('filterInvalidCommands', () => {
         const potentialCommands: MaybeLlmCommand[] = [{
             task: "asjflkdjslafkjslaf" as LlmTask,
             command: "routine",
-            action: "create",
+            action: "add",
             properties: null,
             start: 0,
             end: 10
         }];
         const taskConfig = {
-            actions: ["create"],
+            actions: ["add"],
             properties: [],
             commands: { "routine": 'Valid Command Description' }
         };
@@ -2164,9 +2164,9 @@ describe('filterInvalidCommands', () => {
 
     test('filters out commands not listed in taskConfig', async () => {
         const potentialCommands: MaybeLlmCommand[] = [{
-            task: "RoutineCreate",
+            task: "RoutineAdd",
             command: "routine",
-            action: "create",
+            action: "add",
             properties: null,
             start: 0,
             end: 10
@@ -2183,7 +2183,7 @@ describe('filterInvalidCommands', () => {
 
     test('removes invalid actions from commands', async () => {
         const potentialCommands: MaybeLlmCommand[] = [{
-            task: "RoutineCreate",
+            task: "RoutineAdd",
             command: "routine",
             action: "fkdjsalfsda",
             properties: null,
@@ -2191,7 +2191,7 @@ describe('filterInvalidCommands', () => {
             end: 10
         }];
         const taskConfig = {
-            actions: ["create", "update", "find"],
+            actions: ["add", "update", "find"],
             properties: [],
             commands: { "routine": 'Valid Command Description' }
         };
@@ -2203,7 +2203,7 @@ describe('filterInvalidCommands', () => {
 
     test('filters out invalid properties from commands, when action is null', async () => {
         const potentialCommands: MaybeLlmCommand[] = [{
-            task: "RoutineCreate",
+            task: "RoutineAdd",
             command: "routine",
             action: null,
             properties: { 'invalidProperty': 'value' },
@@ -2211,7 +2211,7 @@ describe('filterInvalidCommands', () => {
             end: 10
         }];
         const taskConfig = {
-            actions: ["create", "update"],
+            actions: ["add", "update"],
             properties: [{ name: 'validProperty', is_required: false }],
             commands: { "routine": 'Valid Command Description' }
         };
@@ -2224,36 +2224,36 @@ describe('filterInvalidCommands', () => {
 
     test('filters out invalid properties from commands, when action is defined', async () => {
         const potentialCommands: MaybeLlmCommand[] = [{
-            task: "RoutineCreate",
+            task: "RoutineAdd",
             command: "routine",
-            action: "create",
+            action: "add",
             properties: { 'invalidProperty': 'value' },
             start: 0,
             end: 10
         }];
         const taskConfig = {
-            actions: ["create", "update"],
+            actions: ["add", "update"],
             properties: [{ name: 'validProperty', is_required: false }],
             commands: { "routine": 'Valid Command Description' }
         };
 
         const result = await filterInvalidCommands(potentialCommands, taskConfig);
         expect(result[0].command).toBe("routine");
-        expect(result[0].action).toBe('create');
+        expect(result[0].action).toBe('add');
         expect(result[0].properties).toEqual({});
     });
 
     test('identifies missing required properties', async () => {
         const potentialCommands: MaybeLlmCommand[] = [{
-            task: "RoutineCreate",
+            task: "RoutineAdd",
             command: "routine",
-            action: "create",
+            action: "add",
             properties: {},
             start: 0,
             end: 10
         }];
         const taskConfig = {
-            actions: ["create", "update"],
+            actions: ["add", "update"],
             properties: [{ name: 'requiredProperty', is_required: true }],
             commands: { "routine": 'Valid Command Description' }
         };
@@ -2264,15 +2264,15 @@ describe('filterInvalidCommands', () => {
 
     test('accepts valid commands with correct properties and actions', async () => {
         const potentialCommands: MaybeLlmCommand[] = [{
-            task: "RoutineCreate",
+            task: "RoutineAdd",
             command: "routine",
-            action: "create",
+            action: "add",
             properties: { 'validProperty': 'value' },
             start: 0,
             end: 10
         }];
         const taskConfig = {
-            actions: ["create", "update"],
+            actions: ["add", "update"],
             properties: [{ name: 'validProperty', is_required: true }],
             commands: { "routine": 'Valid Command Description' }
         };

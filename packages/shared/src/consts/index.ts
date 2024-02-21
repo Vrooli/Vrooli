@@ -6,5 +6,6 @@ export * from "./businessData";
 export * from "./commonTypes";
 export * from "./maxObjects";
 export * from "./model";
+export * from "./socketEvents";
 export * from "./ui";
 

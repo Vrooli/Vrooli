@@ -1,6 +1,6 @@
 import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode, socket } from "api";
+import { fetchLazyWrapper, hasErrorCode, listenEvent, socket } from "api";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -374,20 +374,20 @@ export const DashboardView = ({
     // Handle websocket events
     useEffect(() => {
         // When a message is received, add it to the chat
-        socket.on("message", (message: ChatMessage) => {
+        listenEvent("addMessage", (message) => {
             console.log("got websocket message!!!", message);
             addMessages([message]);
         });
         // When a message is updated, update it in the chat
-        socket.on("editMessage", (message: ChatMessage) => {
+        listenEvent("editMessage", (message) => {
             editMessage(message);
         });
         // When a message is deleted, remove it from the chat
-        socket.on("deleteMessage", (id: string) => {
-            removeMessages([id]);
+        listenEvent("deleteMessage", ({ messageId }) => {
+            removeMessages([messageId]);
         });
         // Show the status of users typing
-        socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
+        listenEvent("typing", ({ starting, stopping }) => {
             // Add every user that's typing
             const newTyping = [...usersTyping];
             for (const id of starting ?? []) {
@@ -408,7 +408,9 @@ export const DashboardView = ({
         });
         return () => {
             // Remove chat-specific event handlers
-            socket.off("message");
+            socket.off("addMessage");
+            socket.off("editMessage");
+            socket.off("deleteMessage");
             socket.off("typing");
         };
     }, [chat.participants, setChat, message, session, usersTyping, addMessages, editMessage, removeMessages]);

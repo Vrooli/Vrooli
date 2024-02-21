@@ -1,14 +1,9 @@
+import { BotCreateInput, BotUpdateInput, ToBotSettingsPropBot, pascalCase, toBotSettings, uuid } from "@local/shared";
+import { noEmptyString, validNumber } from "../../../builders/noNull";
+import { logger } from "../../../events/logger";
+import { CommandToTask, LlmCommandData, LlmCommandProperty, LlmTask, LlmTaskUnstructuredConfig, llmTasks } from "../config";
 
-type Property = {
-    name: string,
-    type?: string,
-    description?: string,
-    example?: string,
-    examples?: string[],
-    is_required?: boolean
-};
-
-const config = {
+export const config = {
     __response_formats_with_actions: {
         one_command: "/${command} ${action}",
         multiple_commands: "/${command} ${action} /${command} ${action}",
@@ -22,16 +17,16 @@ const config = {
         suggested_commands: "suggested: [/${command}, /${command}]",
     },
     __response_formats_with_properties: {
-        one_command: "/${command} ${property1}=${value1} ${property2}=${value2}",
-        multiple_commands: "/${command} ${property1}=${value1}, /${command} ${property2}=${value2}",
+        one_command: "/${command} ${property1}='some_string' ${property2}=123",
+        multiple_commands: "/${command} ${property1}=null, /${command} ${property2}='another_string'",
         no_command: "${content}",
-        suggested_commands: "suggested: [/${command}, /${command}]",
+        suggested_commands: "suggested: [/${command} ${property1}='${value1}', /${command} ${property2}='${value2}']",
     },
     __response_formats_with_actions_and_properties: {
-        one_command: "/${command} ${action} ${property1}=${value1} ${property2}=${value2}",
-        multiple_commands: "/${command} ${action} ${property1}=${value1}, /${command} ${action} ${property2}=${value2}",
+        one_command: "/${command} ${action} ${property1}='some_string' ${property2}=123",
+        multiple_commands: "/${command} ${action} ${property1}=null, /${command} ${action} ${property2}='another_string'",
         no_command: "${content}",
-        suggested_commands: "suggested: [/${command} ${action} ${property1}=${value1}, /${command} ${action} ${property2}=${value2}]",
+        suggested_commands: "suggested: [/${command} ${action} ${property1}='${value1}', /${command} ${action} ${property2}='${value2}']",
     },
     __rules: [
         "Try to use commands when possible. This is the only way you can perform real actions.",
@@ -40,22 +35,19 @@ const config = {
         "In general, a command can be used when the user wants to perform an action. For example, if a user asks 'What's the weather?', you can respond with `/routine find`.",
         "When not using a command, you can provide suggested commands at the end of the message. Never suggest more than 4 commands.",
     ],
-    __pick_properties(selectedFields: [string, boolean | undefined][], __botFields: Record<string, Omit<Property, "name">>) {
+    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmCommandProperty, "name">>) {
         return selectedFields.map(([fieldName, isRequired]) => ({
-            ...__botFields[fieldName],
+            ...__availableFields[fieldName],
             name: fieldName,
-            is_required: isRequired !== undefined ? isRequired : __botFields[fieldName].is_required,
+            is_required: isRequired !== undefined ? isRequired : __availableFields[fieldName].is_required,
         }));
     },
-    __define_commands: ({
+    __construct_context: ({
         actions,
         properties,
         commands,
-    }: {
-        actions?: string[],
-        properties?: (string | Property)[],
-        commands: Record<string, string>,
-    }) => ({
+        ...rest
+    }: LlmTaskUnstructuredConfig) => ({
         commands: {
             prefix: "/",
             list: Object.keys(commands),
@@ -85,20 +77,78 @@ const config = {
                     })),
         } : undefined,
         _response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
+        ...rest,
     }),
-    ApiCreate: () => ({
-
+    __apiProperties: {
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        // TODO continue
+    },
+    ApiAdd: () => ({
+        commands: {
+            create: "Create an API with the provided properties."
+        },
+        properties: config.__pick_properties([
+            ["name", true],
+            ["description", false],
+            //...
+        ], config.__apiProperties),
+        rules: config.__rules,
     }),
     ApiDelete: () => ({
-
+        commands: {
+            delete: "Permanently delete an API. Ensure this is intended before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
     }),
     ApiFind: () => ({
-
+        commands: {
+            find: "Search for existing APIs."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+                examples: ["WeatherAPI", "weather information"],
+            },
+            {
+                name: "endpoint",
+                is_required: false,
+                description: "The endpoint of the API.",
+            }
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
     }),
     ApiUpdate: () => ({
-
+        commands: {
+            update: "Update an API with the provided properties."
+        },
+        properties: config.__pick_properties([
+            ["name", false],
+            ["description", false],
+            //...
+        ], config.__apiProperties),
+        rules: config.__rules,
     }),
     __bot_properties: {
+        id: {
+            description: "The ID of the bot.",
+            type: "uuid",
+        },
         name: {
             example: "Elon Musk",
         },
@@ -132,226 +182,659 @@ const config = {
             example: "0.5",
         },
     },
-    BotCreate: () => ({
-        ...config.__define_commands({
-            commands: {
-                create: "Create a bot with the provided properties."
-            },
-            properties: config.__pick_properties([
-                ["name", true],
-                ["occupation", false],
-                ["persona", false],
-                ["startingMessage", false],
-                ["tone", false],
-                ["keyPhrases", false],
-                ["domainKnowledge", false],
-                ["bias", false],
-                ["creativity", false],
-                ["verbosity", false],
-            ], config.__bot_properties),
-        }),
+    BotAdd: () => ({
+        commands: {
+            create: "Create a bot with the provided properties."
+        },
+        properties: config.__pick_properties([
+            ["name", true],
+            ["occupation", false],
+            ["persona", false],
+            ["startingMessage", false],
+            ["tone", false],
+            ["keyPhrases", false],
+            ["domainKnowledge", false],
+            ["bias", false],
+            ["creativity", false],
+            ["verbosity", false],
+        ], config.__bot_properties),
         rules: config.__rules,
     }),
     BotDelete: () => ({
-        ...config.__define_commands({
-            commands: {
-                delete: "Permanentely delete a bot. Make sure you want to do this before proceeding."
-            },
-            properties: [
-                {
-                    name: "id",
-                    type: "uuid",
-                }
-            ],
-        }),
+        commands: {
+            delete: "Permanentely delete a bot. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
         rules: config.__rules,
     }),
     BotFind: () => ({
-        ...config.__define_commands({
-            commands: {
-                find: "Look for an existing bot."
-            },
-            properties: [
-                {
-                    name: "searchString",
-                    is_required: false,
-                    description: "A string to search for the bot, such as the name or occupation.",
-                    examples: ["Elon Musk", "entrepreneur"],
+        commands: {
+            find: "Look for existing bots."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or occupation.",
+                examples: ["Elon Musk", "entrepreneur"],
 
-                },
-                {
-                    name: "memberInOrganizationId",
-                    type: "uuid",
-                    is_required: false,
-                    description: "The ID of the organization the bot is a member of.",
-                }
-            ],
-        }),
+            },
+            {
+                name: "memberInOrganizationId",
+                type: "uuid",
+                is_required: false,
+                description: "The ID of the organization the bot is a member of.",
+            }
+        ],
         rules: [
             ...config.__rules,
             "Must include at least one search parameter (property).",
         ],
     }),
     BotUpdate: () => ({
-        ...config.__define_commands({
-            commands: {
-                create: "Update a bot with the provided properties."
-            },
-            properties: config.__pick_properties([
-                ["name", false],
-                ["occupation", false],
-                ["persona", false],
-                ["startingMessage", false],
-                ["tone", false],
-                ["keyPhrases", false],
-                ["domainKnowledge", false],
-                ["bias", false],
-                ["creativity", false],
-                ["verbosity", false],
-            ], config.__bot_properties),
-        }),
+        commands: {
+            create: "Update a bot with the provided properties."
+        },
+        properties: config.__pick_properties([
+            ["id", true],
+            ["name", false],
+            ["occupation", false],
+            ["persona", false],
+            ["startingMessage", false],
+            ["tone", false],
+            ["keyPhrases", false],
+            ["domainKnowledge", false],
+            ["bias", false],
+            ["creativity", false],
+            ["verbosity", false],
+        ], config.__bot_properties),
         rules: config.__rules,
     }),
-    MembersCreate: () => ({
-
+    __memberProperties: {
+        // TODO
+    },
+    MembersAdd: () => ({
+        commands: {
+            create: "Create member with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__memberProperties),
+        rules: config.__rules,
     }),
     MembersDelete: () => ({
-
-    }),
-    MembersFind: () => ({
-
-    }),
-    MembersUpdate: () => ({
-
-    }),
-    NoteCreate: () => ({
-
-    }),
-    NoteDelete: () => ({
-
-    }),
-    NoteFind: () => ({
-
-    }),
-    NoteUpdate: () => ({
-
-    }),
-    ProjectCreate: () => ({
-
-    }),
-    ProjectDelete: () => ({
-
-    }),
-    ProjectFind: () => ({
-
-    }),
-    ProjectUpdate: () => ({
-
-    }),
-    ReminderCreate: () => ({
-
-    }),
-    ReminderDelete: () => ({
-
-    }),
-    ReminderFind: () => ({
-
-    }),
-    ReminderUpdate: () => ({
-
-    }),
-    RoleCreate: () => ({
-
-    }),
-    RoleDelete: () => ({
-
-    }),
-    RoleFind: () => ({
-
-    }),
-    RoleUpdate: () => ({
-
-    }),
-    RoutineCreate: () => ({
-
-    }),
-    RoutineDelete: () => ({
-
-    }),
-    RoutineFind: () => ({
-
-    }),
-    RoutineUpdate: () => ({
-
-    }),
-    ScheduleCreate: () => ({
-
-    }),
-    ScheduleDelete: () => ({
-
-    }),
-    ScheduleFind: () => ({
-
-    }),
-    ScheduleUpdate: () => ({
-
-    }),
-    SmartContractCreate: () => ({
-
-    }),
-    SmartContractDelete: () => ({
-
-    }),
-    SmartContractFind: () => ({
-
-    }),
-    SmartContractUpdate: () => ({
-
-    }),
-    StandardCreate: () => ({
-
-    }),
-    StandardDelete: () => ({
-
-    }),
-    StandardFind: () => ({
-
-    }),
-    StandardUpdate: () => ({
-
-    }),
-    Start: () => ({
-        ...config.__define_commands({
-            actions: ["add", "find", "update", "delete"],
-            commands: {
-                note: "Store information that you want to remember. Can add, find, update, and delete.",
-                reminder: "Remind you of something at a specific time, or act as a checklist. Can add, find, update, and delete.",
-                schedule: "Schedule an event, such as a routine. Can add, find, update, and delete.",
-                routine: "Complete a series of tasks, either through automation or manual completion. Can add, find, update, and delete.",
-                project: "Organize notes, routines, projects, apis, smart contracts, standards, and organizations. Can add, find, update, and delete.",
-                organization: "Own the same types of data as users/bots, and come with a team of members with group messaging. Can add, find, update, and delete.",
-                role: "Define permissions for members (users/bots) in organizations. Can add, find, update, and delete.",
-                bot: "Customized AI assistant. Can ad, find, update, and delete.",
-                user: "Another user on the platform. Can find.",
-                standard: "Define data structure or LLM prompt. Allow for interoperability between subroutines and other applications. Can add, find, update, and delete.",
-                api: "Connect to other applications. Can add, find, update, and delete.",
-                smart_contract: "Define a trustless agreement. Can add, find, update, and delete.",
-            },
-        }),
+        commands: {
+            delete: "Permanently remove members from a team. Ensure this is intended before proceeding. Note that this will not delete the bot/users themselves."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
         rules: config.__rules,
     }),
-    TeamCreate: () => ({
+    MembersFind: () => ({
+        commands: {
+            find: "Look for existing members."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name.",
+                examples: ["Elon Musk", "Joe Smith"],
 
+            },
+            {
+                name: "organizationId",
+                type: "uuid",
+                is_required: false,
+                description: "The ID of the organization the member is a member of.",
+            }
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    MembersUpdate: () => ({
+        commands: {
+            update: "Update a member with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__memberProperties),
+        rules: config.__rules,
+    }),
+    __noteProperties: {
+        // TODO
+    },
+    NoteAdd: () => ({
+        commands: {
+            create: "Create a note with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__noteProperties),
+        rules: config.__rules,
+    }),
+    NoteDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a note. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    NoteFind: () => ({
+        commands: {
+            find: "Look for existing notes."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    NoteUpdate: () => ({
+        commands: {
+            update: "Update a note with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__noteProperties),
+        rules: config.__rules,
+    }),
+    __projectProperties: {
+        // TODO
+    },
+    ProjectAdd: () => ({
+        commands: {
+            create: "Create a project with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__projectProperties),
+        rules: config.__rules,
+    }),
+    ProjectDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a project. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    ProjectFind: () => ({
+        commands: {
+            find: "Look for existing projects."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    ProjectUpdate: () => ({
+        commands: {
+            update: "Update a project with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__projectProperties),
+        rules: config.__rules,
+    }),
+    __reminderProperties: {
+        // TODO
+    },
+    ReminderAdd: () => ({
+        commands: {
+            create: "Create a reminder with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__reminderProperties),
+        rules: config.__rules,
+    }),
+    ReminderDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a reminder. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    ReminderFind: () => ({
+        commands: {
+            find: "Look for existing reminders."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    ReminderUpdate: () => ({
+        commands: {
+            update: "Update a reminder with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__reminderProperties),
+        rules: config.__rules,
+    }),
+    __roleProperties: {
+        // TODO
+    },
+    RoleAdd: () => ({
+        commands: {
+            create: "Create a role with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__roleProperties),
+        rules: config.__rules,
+    }),
+    RoleDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a role. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    RoleFind: () => ({
+        commands: {
+            find: "Look for existing roles."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    RoleUpdate: () => ({
+        commands: {
+            update: "Update a role with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__roleProperties),
+        rules: config.__rules,
+    }),
+    __routineProperties: {
+        // TODO
+    },
+    RoutineAdd: () => ({
+        commands: {
+            create: "Create a routine with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__routineProperties),
+        rules: config.__rules,
+    }),
+    RoutineDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a routine. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    RoutineFind: () => ({
+        commands: {
+            find: "Look for existing routines."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    RoutineUpdate: () => ({
+        commands: {
+            update: "Update a routine with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__routineProperties),
+        rules: config.__rules,
+    }),
+    __scheduleProperties: {
+        // TODO
+    },
+    ScheduleAdd: () => ({
+        commands: {
+            create: "Create a schedule with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__scheduleProperties),
+        rules: config.__rules,
+    }),
+    ScheduleDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a schedule. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    ScheduleFind: () => ({
+        commands: {
+            find: "Look for existing schedules."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    ScheduleUpdate: () => ({
+        commands: {
+            update: "Update a schedule with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__scheduleProperties),
+        rules: config.__rules,
+    }),
+    __smartContractProperties: {
+        // TODO
+    },
+    SmartContractAdd: () => ({
+        commands: {
+            create: "Create a smart contract with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__smartContractProperties),
+        rules: config.__rules,
+    }),
+    SmartContractDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a smart contract. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    SmartContractFind: () => ({
+        commands: {
+            find: "Look for existing smart contracts."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    SmartContractUpdate: () => ({
+        commands: {
+            update: "Update a smart contract with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__smartContractProperties),
+        rules: config.__rules,
+    }),
+    __standardProperties: {
+        // TODO
+    },
+    StandardAdd: () => ({
+        commands: {
+            create: "Create a standard with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__standardProperties),
+        rules: config.__rules,
+    }),
+    StandardDelete: () => ({
+        commands: {
+            delete: "Permanentely delete a standard. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
+    }),
+    StandardFind: () => ({
+        commands: {
+            find: "Look for existing standards."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    StandardUpdate: () => ({
+        commands: {
+            update: "Update a standard with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__standardProperties),
+        rules: config.__rules,
+    }),
+    Start: () => ({
+        actions: ["add", "find", "update", "delete"],
+        commands: {
+            note: "Store information that you want to remember. Can add, find, update, and delete.",
+            reminder: "Remind you of something at a specific time, or act as a checklist. Can add, find, update, and delete.",
+            schedule: "Schedule an event, such as a routine. Can add, find, update, and delete.",
+            routine: "Complete a series of tasks, either through automation or manual completion. Can add, find, update, and delete.",
+            project: "Organize notes, routines, projects, apis, smart contracts, standards, and organizations. Can add, find, update, and delete.",
+            organization: "Own the same types of data as users/bots, and come with a team of members with group messaging. Can add, find, update, and delete.",
+            role: "Define permissions for members (users/bots) in organizations. Can add, find, update, and delete.",
+            bot: "Customized AI assistant. Can ad, find, update, and delete.",
+            user: "Another user on the platform. Can find.",
+            standard: "Define data structure or LLM prompt. Allow for interoperability between subroutines and other applications. Can add, find, update, and delete.",
+            api: "Connect to other applications. Can add, find, update, and delete.",
+            smart_contract: "Define a trustless agreement. Can add, find, update, and delete.",
+        },
+        rules: config.__rules,
+    }),
+    __teamProperties: {
+        // TODO
+    },
+    TeamAdd: () => ({
+        commands: {
+            create: "Create a team with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__teamProperties),
+        rules: config.__rules,
     }),
     TeamDelete: () => ({
-
+        commands: {
+            delete: "Permanentely delete a team. Make sure you want to do this before proceeding."
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            }
+        ],
+        rules: config.__rules,
     }),
     TeamFind: () => ({
+        commands: {
+            find: "Look for existing teams."
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
 
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
     }),
     TeamUpdate: () => ({
-
+        commands: {
+            update: "Update a team with the provided properties."
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__teamProperties),
+        rules: config.__rules,
     }),
 };
 
-export default config;
+export const convert = {
+    BotAdd: (data: LlmCommandData): BotCreateInput => ({
+        id: uuid(),
+        isBotDepictingPerson: false,
+        isPrivate: false,
+        name: noEmptyString(data.name) ?? "Bot",
+        botSettings: JSON.stringify({
+            creativity: validNumber(data.creativity, 0),
+            verbosity: validNumber(data.verbosity, 0),
+            translations: {
+                en: {
+                    occupation: noEmptyString(data.occupation),
+                    persona: noEmptyString(data.persona),
+                    startingMessage: noEmptyString(data.startingMessage),
+                    tone: noEmptyString(data.tone),
+                    keyPhrases: noEmptyString(data.keyPhrases),
+                    domainKnowledge: noEmptyString(data.domainKnowledge),
+                    bias: noEmptyString(data.bias),
+                }
+            }
+
+        })
+    }),
+    BotUpdate: (data: LlmCommandData, existing: ToBotSettingsPropBot): BotUpdateInput => {
+        const settings = toBotSettings(existing, logger);
+        return {
+            id: data.id + "",
+            name: noEmptyString(data.name),
+            botSettings: JSON.stringify({
+                translations: {
+                    // Add other existing translations
+                    en: {
+                        occupation: noEmptyString(data.occupation, "existing.asdfasdf"), //TODO finish
+                        persona: data.persona,
+                        startingMessage: data.startingMessage,
+                        tone: data.tone,
+                        keyPhrases: data.keyPhrases,
+                        domainKnowledge: data.domainKnowledge,
+                        bias: data.bias,
+                        creativity: data.creativity,
+                        verbosity: data.verbosity,
+                    }
+                }
+
+            }),
+        }
+    },
+};
+
+export const commandToTask: CommandToTask = (command, action) => {
+    let result: string;
+    if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
+    else result = pascalCase(command)
+    if (llmTasks.includes(result as LlmTask)) return result as LlmTask;
+    return null;
+}
