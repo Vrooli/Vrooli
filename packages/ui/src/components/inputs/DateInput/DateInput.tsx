@@ -15,7 +15,7 @@ function formatForDateTimeLocal(dateStr, type) {
     const date = new Date(dateStr);
 
     // Check if date is Invalid Date
-    if (isNaN(date.getTime())) {
+    if (!isFinite(date.getTime())) {
         throw new Error("Invalid date format");
     }
 

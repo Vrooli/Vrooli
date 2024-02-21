@@ -19,7 +19,7 @@ describe("fetchAndMapPlaceholder", () => {
 
         prismaMock = mockPrisma({
             User: [
-                { id: "123", profile: { id: "456", address: { id: "789" } } },
+                { id: "123-321", profile: { id: "456", address: { id: "789" } } },
             ],
         });
 
@@ -31,15 +31,15 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     it("should fetch and return the correct ID for a new placeholder", async () => {
-        const placeholder = "user|123.prof|profile";
+        const placeholder = "user|123-321.prof|profile";
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
         expect(placeholderToIdMap[placeholder]).toBe("456"); // The profile's ID
     });
 
     it("should return the cached ID for an already processed placeholder", async () => {
-        placeholderToIdMap["user|123.prof|profile"] = "420"; // Cache an ID
+        placeholderToIdMap["user|123-321.prof|profile"] = "420"; // Cache an ID
 
-        const placeholder = "user|123.prof|profile";
+        const placeholder = "user|123-321.prof|profile";
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
 
         expect(placeholderToIdMap[placeholder]).toBe("420"); // The cached ID
@@ -54,7 +54,7 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     it("should handle nested relations correctly", async () => {
-        const placeholder = "user|123.prof|profile.addr|address";
+        const placeholder = "user|123-321.prof|profile.addr|address";
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
 
         expect(placeholderToIdMap[placeholder]).toBe("789"); // The address's ID
@@ -82,14 +82,14 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     it("should handle non-existing relation type in placeholder", async () => {
-        const placeholder = "user|123.nonExistingRelation|value";
+        const placeholder = "user|123-321.nonExistingRelation|value";
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
 
         expect(placeholderToIdMap[placeholder]).toBeNull(); // Non-existing relation type
     });
 
     it("should handle valid relation type but invalid relation in placeholder", async () => {
-        const placeholder = "user|123.prof|invalidRelation";
+        const placeholder = "user|123-321.prof|invalidRelation";
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
 
         expect(placeholderToIdMap[placeholder]).toBeNull(); // Valid relation type but invalid relation

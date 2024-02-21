@@ -16,7 +16,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
         search = search.replace(/([^&=]+)=([^&]*)/g, (match, key, value) => {
             if (value.startsWith("\"") || value.includes("%") || value === "true" || value === "false") return match;
             // Check for numbers and null
-            if (!isNaN(Number(value))) {
+            if (isFinite(Number(value))) {
                 return `${key}=${value}`;
             } else if (value === "null") {
                 return `${key}=null`;

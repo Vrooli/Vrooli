@@ -1,14 +1,21 @@
+import { logger } from "../../events/logger";
+import { CommandToTask, LlmCommandProperty, LlmTask, LlmTaskUnstructuredConfig, llmTasks } from "./config";
+
 export type LlmCommand = {
+    task: LlmTask;
     command: string;
     action: string | null;
     properties: {
         [key: string]: string | number | null;
     } | null;
     start: number;
-    end?: number;
-}
+    end: number;
+};
+export type MaybeLlmCommand = Omit<LlmCommand, "task"> & {
+    task: LlmTask | null;
+};
 /** Properties stored as an array of [key, value, key, value, ...] */
-type CurrentLlmCommand = Omit<LlmCommand, "properties"> & {
+type CurrentLlmCommand = Omit<LlmCommand, "properties" | "task"> & {
     properties: (string | number | null)[];
 };
 
@@ -226,7 +233,7 @@ export const handleCommandTransition = ({
         // Only numbers and null are allowed outside quotes
         const bufferString = buffer.join("");
         const withCurr = bufferString + curr;
-        const maybeNumber = !isWhitespace(curr) && !isNewline(curr) && ((buffer.length === 0 && ["-", "."].includes(curr)) || !Number.isNaN(+withCurr));
+        const maybeNumber = !isWhitespace(curr) && !isNewline(curr) && ((buffer.length === 0 && ["-", "."].includes(curr)) || Number.isFinite(+withCurr));
         const maybeNull = "null".startsWith(withCurr);
         if (maybeNumber || maybeNull) {
             buffer.push(curr);
@@ -236,7 +243,7 @@ export const handleCommandTransition = ({
         if (isWhitespace(curr) || isNewline(curr)) {
             // We've already accounted for quotes (i.e. strings). So we can only commit 
             // if it's a valid number or null
-            const isNumber = !Number.isNaN(+bufferString) && buffer.length > 0;
+            const isNumber = Number.isFinite(+bufferString) && buffer.length > 0;
             const isNull = bufferString === "null";
             if (isNumber || isNull) {
                 onCommit("propValue", isNumber ? +bufferString : null);
@@ -267,18 +274,23 @@ export const handleCommandTransition = ({
  * be ignored when comparing them to the available commands.
  * 
  * @param inputString The string containing one or more commands to be parsed.
- * @returns An array of Command objects, each containing the command, action (if any), and an object of properties (if any).
+ * @param commandToTask A function for converting a command and action to a valid task name.
+ * @returns An array of Command objects, each containing the command, action (if any), an object of properties (if any), 
+ * and the the task the command is associated with (if valid).
  */
-export const extractCommands = (inputString: string): LlmCommand[] => {
-    const commands: LlmCommand[] = [];
+export const extractCommands = (inputString: string, commandToTask: CommandToTask): MaybeLlmCommand[] => {
+    const commands: MaybeLlmCommand[] = [];
     let currentCommand: CurrentLlmCommand | null = null;
 
     /** When the full command is completed */
     const onComplete = () => {
         if (!currentCommand) return;
+        const action = (currentCommand.action && currentCommand.action.length) ? currentCommand.action : null;
+        const task = commandToTask(currentCommand.command, action);
         commands.push({
             ...currentCommand,
-            action: (currentCommand.action && currentCommand.action.length) ? currentCommand.action : null,
+            task,
+            action,
             // Convert properties array to object
             properties: currentCommand.properties.reduce((obj, item, index) => {
                 if (index % 2 === 0) { // Even index, property name
@@ -314,6 +326,7 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
             action: null,
             properties: [],
             start,
+            end: start,
         }
     }
     const onCancel = () => {
@@ -349,4 +362,96 @@ export const extractCommands = (inputString: string): LlmCommand[] => {
     });
 
     return commands;
+};
+
+/**
+ * Filters out invalid commands based on the task and language.
+ * 
+ * @param potentialCommands The array of potential commands extracted from the input string.
+ * @param taskConfig The unstructured task configuration object, containing information about 
+ * the available commands, actions, and properties.
+ * @returns An array of valid commands after filtering out the invalid ones, and removing any invlaid 
+ * actions and properties.
+ */
+export const filterInvalidCommands = async (
+    potentialCommands: MaybeLlmCommand[],
+    taskConfig: LlmTaskUnstructuredConfig,
+): Promise<LlmCommand[]> => {
+    const result: LlmCommand[] = [];
+
+    // Loop through each potential command
+    for (const command of potentialCommands) {
+        let modifiedCommand = { ...command };
+
+        // If the task is not a valid task, skip it
+        if (!command.task || !llmTasks.includes(command.task)) continue;
+
+        // If the command is not in the task configuration, skip it
+        if (!taskConfig.commands.hasOwnProperty(command.command)) continue;
+
+        // If the command has an invalid action, remove the action
+        if (command.action && (!taskConfig.actions || !taskConfig.actions.includes(command.action))) {
+            modifiedCommand.action = null;
+        }
+
+        // If the command has properties, filter out the invalid ones and check for required properties
+        if (command.properties) {
+            // Remove the properties so that we can add the valid ones back
+            modifiedCommand.properties = {};
+
+            // Identify all required properties from the task configuration to ensure they are present
+            const requiredProperties = taskConfig.properties?.filter(prop => typeof prop === 'object' && prop.is_required).map(prop => (prop as LlmCommandProperty).name) ?? [];
+
+            // Check each property in the command
+            Object.entries(command.properties).forEach(([key, value]) => {
+                const propertyConfig = taskConfig.properties?.find(prop => (typeof prop === 'object' ? prop.name : prop) === key);
+
+                // If the property config exists, keep the property
+                if (propertyConfig) {
+                    modifiedCommand.properties![key] = value;
+                    // Remove the property from requiredProperties if it's present and valid, indicating it's not missing
+                    const requiredIndex = requiredProperties.indexOf(key);
+                    if (requiredIndex !== -1) requiredProperties.splice(requiredIndex, 1);
+                }
+            });
+
+            // After checking all properties, if any required properties are still missing, mark the command as having missing required properties
+            if (requiredProperties.length > 0) {
+                logger.error(`Command "${command.command}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
+            }
+            // Otherwise, the command is valid
+            else {
+                result.push(modifiedCommand as LlmCommand);
+            }
+        } else {
+            // If the command has no properties, it's still valid as long as it doesn't require any
+            const requiresProperties = taskConfig.properties?.some(prop => typeof prop === 'object' && prop.is_required) ?? false;
+            if (!requiresProperties) {
+                result.push(modifiedCommand as LlmCommand);
+            }
+        }
+    }
+
+    return result;
+};
+
+/**
+ * Removes commands from a string
+ * @param inputString The string containing the commands to be removed
+ * @param commands The commands to be removed
+ * @returns The string with the commands removed
+ */
+export const removeCommands = (inputString: string, commands: LlmCommand[]): string => {
+    // Start with the full input string
+    let resultString = inputString;
+
+    // Iterate through the commands array backwards
+    for (let i = commands.length - 1; i >= 0; i--) {
+        const command = commands[i];
+
+        // Use the start and end indices to slice the string and remove the command
+        resultString = resultString.slice(0, command.start) + resultString.slice(command.end);
+    }
+
+    return resultString;
 };

@@ -1,4 +1,4 @@
-import { FindByIdInput, Standard, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionUpdateInput } from "@local/shared";
+import { FindByIdInput, Standard, StandardCreateInput, StandardSearchInput, StandardUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -8,11 +8,11 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 export type EndpointsStandard = {
     Query: {
         standard: GQLEndpoint<FindByIdInput, FindOneResult<Standard>>;
-        standards: GQLEndpoint<StandardVersionSearchInput, FindManyResult<StandardVersion>>;
+        standards: GQLEndpoint<StandardSearchInput, FindManyResult<Standard>>;
     },
     Mutation: {
-        standardCreate: GQLEndpoint<StandardVersionCreateInput, CreateOneResult<StandardVersion>>;
-        standardUpdate: GQLEndpoint<StandardVersionUpdateInput, UpdateOneResult<StandardVersion>>;
+        standardCreate: GQLEndpoint<StandardCreateInput, CreateOneResult<Standard>>;
+        standardUpdate: GQLEndpoint<StandardUpdateInput, UpdateOneResult<Standard>>;
     }
 }
 

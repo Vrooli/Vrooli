@@ -2161,6 +2161,8 @@ export type Mutation = {
   projectCreate: Project;
   projectUpdate: Project;
   projectVersionCreate: ProjectVersion;
+  projectVersionDirectoryCreate: ProjectVersionDirectory;
+  projectVersionDirectoryUpdate: ProjectVersionDirectory;
   projectVersionUpdate: ProjectVersion;
   pullRequestAccept: PullRequest;
   pullRequestCreate: PullRequest;
@@ -2632,6 +2634,16 @@ export type MutationProjectUpdateArgs = {
 
 export type MutationProjectVersionCreateArgs = {
   input: ProjectVersionCreateInput;
+};
+
+
+export type MutationProjectVersionDirectoryCreateArgs = {
+  input: ProjectVersionDirectoryCreateInput;
+};
+
+
+export type MutationProjectVersionDirectoryUpdateArgs = {
+  input: ProjectVersionDirectoryUpdateInput;
 };
 
 
@@ -5055,6 +5067,7 @@ export type Query = {
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionContents: ProjectVersionContentsSearchResult;
   projectVersionDirectories: ProjectVersionDirectorySearchResult;
+  projectVersionDirectory?: Maybe<ProjectVersionDirectory>;
   projectVersions: ProjectVersionSearchResult;
   projects: ProjectSearchResult;
   pullRequest?: Maybe<PullRequest>;
@@ -5408,6 +5421,11 @@ export type QueryProjectVersionContentsArgs = {
 
 export type QueryProjectVersionDirectoriesArgs = {
   input: ProjectVersionDirectorySearchInput;
+};
+
+
+export type QueryProjectVersionDirectoryArgs = {
+  input: FindByIdInput;
 };
 
 
@@ -6597,6 +6615,7 @@ export type Report = {
   reason: Scalars['String'];
   responses: Array<ReportResponse>;
   responsesCount: Scalars['Int'];
+  status: ReportStatus;
   updated_at: Scalars['Date'];
   you: ReportYou;
 };
@@ -6732,6 +6751,15 @@ export enum ReportSortBy {
   DateCreatedDesc = 'DateCreatedDesc',
   ResponsesAsc = 'ResponsesAsc',
   ResponsesDesc = 'ResponsesDesc'
+}
+
+export enum ReportStatus {
+  ClosedDeleted = 'ClosedDeleted',
+  ClosedFalseReport = 'ClosedFalseReport',
+  ClosedHidden = 'ClosedHidden',
+  ClosedNonIssue = 'ClosedNonIssue',
+  ClosedSuspended = 'ClosedSuspended',
+  Open = 'Open'
 }
 
 export enum ReportSuggestedAction {
@@ -10398,6 +10426,7 @@ export type ResolversTypes = {
   ReportSearchInput: ReportSearchInput;
   ReportSearchResult: ResolverTypeWrapper<ReportSearchResult>;
   ReportSortBy: ReportSortBy;
+  ReportStatus: ReportStatus;
   ReportSuggestedAction: ReportSuggestedAction;
   ReportUpdateInput: ReportUpdateInput;
   ReportYou: ResolverTypeWrapper<ReportYou>;
@@ -12188,6 +12217,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   projectCreate?: Resolver<ResolversTypes['Project'], ParentType, ContextType, RequireFields<MutationProjectCreateArgs, 'input'>>;
   projectUpdate?: Resolver<ResolversTypes['Project'], ParentType, ContextType, RequireFields<MutationProjectUpdateArgs, 'input'>>;
   projectVersionCreate?: Resolver<ResolversTypes['ProjectVersion'], ParentType, ContextType, RequireFields<MutationProjectVersionCreateArgs, 'input'>>;
+  projectVersionDirectoryCreate?: Resolver<ResolversTypes['ProjectVersionDirectory'], ParentType, ContextType, RequireFields<MutationProjectVersionDirectoryCreateArgs, 'input'>>;
+  projectVersionDirectoryUpdate?: Resolver<ResolversTypes['ProjectVersionDirectory'], ParentType, ContextType, RequireFields<MutationProjectVersionDirectoryUpdateArgs, 'input'>>;
   projectVersionUpdate?: Resolver<ResolversTypes['ProjectVersion'], ParentType, ContextType, RequireFields<MutationProjectVersionUpdateArgs, 'input'>>;
   pullRequestAccept?: Resolver<ResolversTypes['PullRequest'], ParentType, ContextType, RequireFields<MutationPullRequestAcceptArgs, 'input'>>;
   pullRequestCreate?: Resolver<ResolversTypes['PullRequest'], ParentType, ContextType, RequireFields<MutationPullRequestCreateArgs, 'input'>>;
@@ -13119,6 +13150,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType, RequireFields<QueryProjectVersionArgs, 'input'>>;
   projectVersionContents?: Resolver<ResolversTypes['ProjectVersionContentsSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionContentsArgs, 'input'>>;
   projectVersionDirectories?: Resolver<ResolversTypes['ProjectVersionDirectorySearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionDirectoriesArgs, 'input'>>;
+  projectVersionDirectory?: Resolver<Maybe<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType, RequireFields<QueryProjectVersionDirectoryArgs, 'input'>>;
   projectVersions?: Resolver<ResolversTypes['ProjectVersionSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionsArgs, 'input'>>;
   projects?: Resolver<ResolversTypes['ProjectSearchResult'], ParentType, ContextType, RequireFields<QueryProjectsArgs, 'input'>>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType, RequireFields<QueryPullRequestArgs, 'input'>>;
@@ -13532,6 +13564,7 @@ export type ReportResolvers<ContextType = any, ParentType extends ResolversParen
   reason?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   responses?: Resolver<Array<ResolversTypes['ReportResponse']>, ParentType, ContextType>;
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['ReportStatus'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ReportYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

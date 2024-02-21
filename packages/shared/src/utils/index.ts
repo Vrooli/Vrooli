@@ -10,4 +10,5 @@ export * from "./omit";
 export * from "./orDefault";
 export * from "./schedules";
 export * from "./sitemap";
+export * from "./toBotSettings";
 

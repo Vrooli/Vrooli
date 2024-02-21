@@ -28,7 +28,7 @@ export const initializeDirectoryList = (
         // Helper function to safely parse dates and return a timestamp
         const parseDate = (dateString: string) => {
             const date = new Date(dateString);
-            return isNaN(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
+            return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
         };
 
         switch (sortBy) {

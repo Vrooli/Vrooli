@@ -289,7 +289,7 @@ export const Reputation = () => ({
      */
     updateVote: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaVote(v0, v1);
-        if (isNaN(delta)) return;
+        if (!isFinite(delta)) return;
         await updateReputationHelper(delta, prisma, userId, "ReceivedVote");
     },
     /**
@@ -301,7 +301,7 @@ export const Reputation = () => ({
      */
     updateStar: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaStar(v0, v1);
-        if (isNaN(delta)) return;
+        if (!isFinite(delta)) return;
         await updateReputationHelper(delta, prisma, userId, "ReceivedStar");
     },
     /**

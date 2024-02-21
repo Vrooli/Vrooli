@@ -147,6 +147,7 @@
     "TagAlreadySelected": "Tag already selected.",
     "TagTooShort": "Tag too short.",
     "TagTooLong": "Tag too long.",
+    "TaskNotSupported": "Task not supported.",
     "TransferNotFound": "Transfer request not found.",
     "TransferNotFoundDetails": "Transfer request not found. This might mean that the originator canceled the request.",
     "TransferAlreadyAccepted": "Transfer request already accepted.",

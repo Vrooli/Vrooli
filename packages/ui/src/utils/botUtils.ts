@@ -1,4 +1,4 @@
-import { DUMMY_ID, User } from "@local/shared";
+import { DUMMY_ID, User, toBotSettings } from "@local/shared";
 import { BotShape, BotTranslationShape } from "./shape/models/bot";
 
 export type LlmModel = {
@@ -16,16 +16,6 @@ export const AVAILABLE_MODELS: LlmModel[] = [{
     value: "gpt-4",
 }];
 
-export const parseBotSettings = (existing?: Partial<User> | BotShape | null | undefined): Record<string, string | number> => {
-    let settings: Record<string, string | number> = {};
-    try {
-        settings = JSON.parse((existing as Partial<User>)?.botSettings ?? "{}");
-    } catch (error) {
-        console.error("Failed to parse settings", error);
-    }
-    return settings;
-};
-
 export const findBotData = (
     language: string,
     existing?: Partial<User> | BotShape | null | undefined,
@@ -35,18 +25,21 @@ export const findBotData = (
     model: LlmModel["value"],
     translations: BotTranslationShape[],
 } => {
-    const settings = parseBotSettings(existing);
+    const settings = toBotSettings(existing, console);
+    const settingsTranslation = settings?.translations?.[language];
+    const creativity = settingsTranslation?.creativity ?? (settings as { creativity?: number })?.creativity ?? 0.5;
+    const verbosity = settingsTranslation?.verbosity ?? (settings as { verbosity?: number })?.verbosity ?? 0.5;
 
     // Default values so formik is happy
     const defaultTranslation = {
         bio: "",
-        bias: settings.bias ?? "",
-        domainKnowledge: settings.domainKnowledge ?? "",
-        keyPhrases: settings.keyPhrases ?? "",
-        occupation: settings.occupation ?? "",
-        persona: settings.persona ?? "",
-        startMessage: settings.startMessage ?? "",
-        tone: settings.tone ?? "",
+        bias: settingsTranslation?.bias ?? "",
+        domainKnowledge: settingsTranslation?.domainKnowledge ?? "",
+        keyPhrases: settingsTranslation?.keyPhrases ?? "",
+        occupation: settingsTranslation?.occupation ?? "",
+        persona: settingsTranslation?.persona ?? "",
+        startingMessage: settingsTranslation?.startingMessage ?? "",
+        tone: settingsTranslation?.tone ?? "",
         __typename: "UserTranslation" as const,
         id: DUMMY_ID,
         language,
@@ -90,11 +83,9 @@ export const findBotData = (
         });
     }
 
-    const creativityNumber = +settings.creativity;
-    const verbosityNumber = +settings.verbosity;
     return {
-        creativity: creativityNumber >= 0 && creativityNumber <= 1 ? creativityNumber : 0.5,
-        verbosity: verbosityNumber >= 0 && verbosityNumber <= 1 ? verbosityNumber : 0.5,
+        creativity: creativity >= 0 && creativity <= 1 ? creativity : 0.5,
+        verbosity: verbosity >= 0 && verbosity <= 1 ? verbosity : 0.5,
         model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : "gpt-3.5-turbo",
         translations,
     };

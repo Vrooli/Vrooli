@@ -13,12 +13,6 @@ export const orDefault = <T extends Array<any> | { [key: string]: any } | null |
     existingItems: T | null | undefined,
     defaultItems: T,
 ): T => {
-    // if (Array.isArray(existingItems)) {
-    //     return (existingItems && existingItems.length) ? existingItems : defaultItems;
-    // } else if (typeof existingItems === "object" && existingItems !== null) {
-    //     return (existingItems && Object.keys(existingItems).length > 0) ? existingItems : defaultItems;
-    // }
-    // return defaultItems;
     if (Array.isArray(existingItems)) {
         if (existingItems.length === 0) {
             return defaultItems;

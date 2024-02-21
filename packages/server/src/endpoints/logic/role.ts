@@ -1,4 +1,4 @@
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizUpdateInput } from "@local/shared";
+import { FindByIdInput, Role, RoleCreateInput, RoleSearchInput, RoleUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -7,12 +7,12 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 
 export type EndpointsRole = {
     Query: {
-        role: GQLEndpoint<FindByIdInput, FindOneResult<Quiz>>;
-        roles: GQLEndpoint<QuizSearchInput, FindManyResult<Quiz>>;
+        role: GQLEndpoint<FindByIdInput, FindOneResult<Role>>;
+        roles: GQLEndpoint<RoleSearchInput, FindManyResult<Role>>;
     },
     Mutation: {
-        roleCreate: GQLEndpoint<QuizCreateInput, CreateOneResult<Quiz>>;
-        roleUpdate: GQLEndpoint<QuizUpdateInput, UpdateOneResult<Quiz>>;
+        roleCreate: GQLEndpoint<RoleCreateInput, CreateOneResult<Role>>;
+        roleUpdate: GQLEndpoint<RoleUpdateInput, UpdateOneResult<Role>>;
     }
 }
 

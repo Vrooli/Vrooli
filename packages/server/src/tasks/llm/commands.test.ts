@@ -1,4 +1,5 @@
-import { extractCommands, handleCommandTransition, isAlphaNum, isNewline, isWhitespace } from './commands';
+import { LlmCommand, MaybeLlmCommand, extractCommands, filterInvalidCommands, handleCommandTransition, isAlphaNum, isNewline, isWhitespace, removeCommands } from './commands';
+import { CommandToTask, LlmTask } from './config';
 
 describe('isNewline', () => {
     test('recognizes newline character', () => {
@@ -1544,336 +1545,367 @@ const getStartEnd = (str: string, sub: string): { start: number, end: number } =
 })
 
 describe('extractCommands', () => {
+    // Mock commandToTask
+    const commandToTask: CommandToTask = (command, action) => {
+        if (action) return `${command} ${action}` as LlmTask;
+        return command as LlmTask;
+    }
+
     test('ignores non-command slashes - test 1', () => {
         const input = "a/command";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 2', () => {
         const input = "1/3";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 3', () => {
         const input = "/boop.";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 4', () => {
         const input = "/boop!";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 5', () => {
         const input = "/boop你";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 6', () => {
         const input = "/boop👋";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 7', () => {
         const input = "/boop/";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 8', () => {
         const input = "/boop\\";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 9', () => {
         const input = "/boop=";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 10', () => {
         const input = "/boop-";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 11', () => {
         const input = "/boop.";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 12', () => {
         const input = "//boop";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('ignores non-command slashes - test 13', () => {
         const input = "//bippity /boppity! /boop💃 /realCommand";
         const expected = [{
+            task: "realCommand",
             command: "realCommand",
             action: null,
             properties: {},
             ...getStartEnd(input, "/realCommand"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
 
     test('extracts simple command without action or properties - test 1', () => {
         const input = "/command";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 2', () => {
         const input = "  /command";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 3', () => {
         const input = "/command  ";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 4', () => {
         const input = "aasdf\n/command";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 5', () => {
         const input = "/command\n";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 6', () => {
         const input = "/command\t";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 7', () => {
         const input = "/command invalidActionBecauseSymbol!";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts simple command without action or properties - test 8', () => {
         const input = "/command invalidActionBecauseLanguage你";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
 
     test('extracts command with action - test 1', () => {
         const input = "/command action";
         const expected = [{
+            task: "command action",
             command: "command",
             action: "action",
             properties: {},
             ...getStartEnd(input, "/command action"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts command with action - test 2', () => {
         const input = "/command action other words";
         const expected = [{
+            task: "command action",
             command: "command",
             action: "action",
             properties: {},
             ...getStartEnd(input, "/command action"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts command with action - test 3', () => {
         const input = "/command action invalidProp= 'space after equals'";
         const expected = [{
+            task: "command action",
             command: "command",
             action: "action",
             properties: {},
             ...getStartEnd(input, "/command action"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts command with action - test 4', () => {
         const input = "/command action\t";
         const expected = [{
+            task: "command action",
             command: "command",
             action: "action",
             properties: {},
             ...getStartEnd(input, "/command action"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts command with action - test 5', () => {
         const input = "/command action\n";
         const expected = [{
+            task: "command action",
             command: "command",
             action: "action",
             properties: {},
             ...getStartEnd(input, "/command action"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('extracts command with action - test 6', () => {
         const input = "/command\taction";
         const expected = [{
+            task: "command action",
             command: "command",
             action: "action",
             properties: {},
             ...getStartEnd(input, "/command\taction"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
 
     test('handles command with properties - test 1', () => {
         const input = "/command prop1=123 prop2='value' prop3=null";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
             ...getStartEnd(input, input),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 2', () => {
         const input = `/command prop1="123" prop2='value' prop3="null"`;
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: "123", prop2: "value", prop3: "null" }),
             ...getStartEnd(input, input),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 3', () => {
         const input = `/command prop1=0.3 prop2='val"ue' prop3="asdf\nfdsa"`;
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 0.3, prop2: 'val"ue', prop3: "asdf\nfdsa" }),
             ...getStartEnd(input, input),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 4', () => {
         const input = `/command prop1=0.3" prop2='value' prop3=null`;
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             // Invalid prop1 because of erroneous quote, so nothing gets extracted
             properties: {},
             ...getStartEnd(input, "/command"),
         }];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('handles command with properties - test 5', () => {
         const input = `/command prop1=-2.3 prop2=.2 prop3="one\\""`;
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: -2.3, prop2: .2, prop3: `one\\"` }),
             ...getStartEnd(input, input),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 6', () => {
         const input = "/command prop1=123 prop2='value' prop3=null\"";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             // Invalid prop3 because of erroneous quote
             properties: expect.objectContaining({ prop1: 123, prop2: 'value' }),
             ...getStartEnd(input, "/command prop1=123 prop2='value'"),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(2);
     });
     test('handles command with properties - test 7', () => {
         const input = "/command\tprop1=123 prop2='value' prop3=null\n";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
             ...getStartEnd(input, "/command\tprop1=123 prop2='value' prop3=null"),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 8', () => {
         const input = "/command prop1=123 prop2='value' prop3=null ";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
             ...getStartEnd(input, "/command prop1=123 prop2='value' prop3=null"),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 9', () => {
         const input = `/command prop1=123 prop2='val\\'u"e' prop3=null\t`;
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: `val\\'u"e`, prop3: null }),
             ...getStartEnd(input, `/command prop1=123 prop2='val\\'u"e' prop3=null`),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
     test('handles command with properties - test 10', () => {
         const input = "/command prop1=123 prop2='value' prop3=null notaprop";
         const expected = [{
+            task: "command",
             command: "command",
             action: null,
             properties: expect.objectContaining({ prop1: 123, prop2: 'value', prop3: null }),
             ...getStartEnd(input, "/command prop1=123 prop2='value' prop3=null"),
         }];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(3);
     });
@@ -1882,80 +1914,89 @@ describe('extractCommands', () => {
         const input = "/command1\n/command2";
         const expected = [
             {
+                task: "command1",
                 command: "command1",
                 action: null,
                 properties: {},
                 ...getStartEnd(input, "/command1"),
             },
             {
+                task: "command2",
                 command: "command2",
                 action: null,
                 properties: {},
                 ...getStartEnd(input, "/command2"),
             },
         ];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('handles space properly', () => {
         const input = "/command1 /command2";
         const expected = [
             {
+                task: "command1",
                 command: "command1",
                 action: null,
                 properties: {},
                 ...getStartEnd(input, "/command1"),
             },
             {
+                task: "command2",
                 command: "command2",
                 action: null,
                 properties: {},
                 ...getStartEnd(input, "/command2"),
             },
         ];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('handles tab properly', () => {
         const input = "/command1\t/command2";
         const expected = [
             {
+                task: "command1",
                 command: "command1",
                 action: null,
                 properties: {},
                 ...getStartEnd(input, "/command1"),
             },
             {
+                task: "command2",
                 command: "command2",
                 action: null,
                 properties: {},
                 ...getStartEnd(input, "/command2"),
             },
         ];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
 
     test('handles complex scenario with multiple commands and properties - test 1', () => {
         const input = "/cmd1  prop1=123 /cmd2 action2 \tprop2='text' prop3=4.56\n/cmd3 prop4=null \nprop5='invalid because newline";
         const expected = [
             {
+                task: "cmd1",
                 command: "cmd1",
                 action: null,
                 properties: expect.objectContaining({ prop1: 123 }),
                 ...getStartEnd(input, "/cmd1  prop1=123"),
             },
             {
+                task: "cmd2 action2",
                 command: "cmd2",
                 action: "action2",
                 properties: expect.objectContaining({ prop2: 'text', prop3: 4.56 }),
                 ...getStartEnd(input, "/cmd2 action2 \tprop2='text' prop3=4.56"),
             },
             {
+                task: "cmd3",
                 command: "cmd3",
                 action: null,
                 properties: expect.objectContaining({ prop4: null }),
                 ...getStartEnd(input, "/cmd3 prop4=null"),
             },
         ];
-        const commands = extractCommands(input);
+        const commands = extractCommands(input, commandToTask);
         expect(commands).toEqual(expected);
         expect(Object.keys(commands[0].properties ?? {}).length).toBe(1);
         expect(Object.keys(commands[1].properties ?? {}).length).toBe(2);
@@ -1965,120 +2006,373 @@ describe('extractCommands', () => {
     test('does nothing for non-command text - test 1', () => {
         const input = "this is a test";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 2', () => {
         const input = "/a".repeat(1000);
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 3', () => {
         const input = "";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 4', () => {
         const input = " ";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 5', () => {
         const input = "\n";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 6', () => {
         const input = "\t";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 7', () => {
         const input = "💃";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 8', () => {
         const input = "你";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 9', () => {
         const input = "!";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 10', () => {
         const input = ".";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 11', () => {
         const input = "123";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 12', () => {
         const input = "-123";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 13', () => {
         const input = "0.123";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 14', () => {
         const input = "null";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 15', () => {
         const input = "true";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 16', () => {
         const input = "false";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 17', () => {
         const input = "123你";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
     test('does nothing for non-command text - test 18', () => {
         const input = "To whom it may concern,\n\nI am writing to inform you that I am a giant purple dinosaur. I cannot be stopped. I am inevitable. I am Barney.\n\nSincerely,\nYour Worst Nightmare";
         const expected = [];
-        expect(extractCommands(input)).toEqual(expected);
+        expect(extractCommands(input, commandToTask)).toEqual(expected);
     });
 
-    /** Generates input for performance tests */
-    const generateInput = (numCommands: number) => {
-        let input = '';
-        for (let i = 0; i < numCommands; i++) {
-            input += `/command${i} action${i} prop1=${i} prop2='value${i}' fjdklsafdksajf;ldks\n\n fdskafjsda;lf `;
-        }
-        return input;
-    };
-
     // // NOTE: Uncomment these when you want to test performance
+    // /** Generates input for performance tests */
+    // const generateInput = (numCommands: number) => {
+    //     let input = '';
+    //     for (let i = 0; i < numCommands; i++) {
+    //         input += `/command${i} action${i} prop1=${i} prop2='value${i}' fjdklsafdksajf;ldks\n\n fdskafjsda;lf `;
+    //     }
+    //     return input;
+    // };
     // test('performance test - 10 commands', () => {
     //     const input = generateInput(10);
     //     console.time('extractCommands with 10 commands');
-    //     extractCommands(input);
+    //     extractCommands(input, commandToTask);
     //     console.timeEnd('extractCommands with 10 commands');
     // });
     // test('performance test - 100 commands', () => {
     //     const input = generateInput(100);
     //     console.time('extractCommands with 100 commands');
-    //     extractCommands(input);
+    //     extractCommands(input, commandToTask);
     //     console.timeEnd('extractCommands with 100 commands');
     // });
     // test('performance test - 1000 commands', () => {
     //     const input = generateInput(1000);
     //     console.time('extractCommands with 1000 commands');
-    //     extractCommands(input);
+    //     extractCommands(input, commandToTask);
     //     console.timeEnd('extractCommands with 1000 commands');
     // });
 });
+
+describe('filterInvalidCommands', () => {
+    test('filters out commands where the task is null', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: null,
+            command: "routine",
+            action: "create",
+            properties: null,
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create"],
+            properties: [],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result).toEqual([]);
+    });
+
+    test('filters out commands where the task is invalid', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "asjflkdjslafkjslaf" as LlmTask,
+            command: "routine",
+            action: "create",
+            properties: null,
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create"],
+            properties: [],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result).toEqual([]);
+    });
+
+    test('filters out commands not listed in taskConfig', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "RoutineCreate",
+            command: "routine",
+            action: "create",
+            properties: null,
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: [],
+            properties: [],
+            commands: { "notRoutine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result).toEqual([]);
+    });
+
+    test('removes invalid actions from commands', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "RoutineCreate",
+            command: "routine",
+            action: "fkdjsalfsda",
+            properties: null,
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create", "update", "find"],
+            properties: [],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result[0].command).toBe("routine");
+        expect(result[0].action).toBeNull();
+    });
+
+    test('filters out invalid properties from commands, when action is null', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "RoutineCreate",
+            command: "routine",
+            action: null,
+            properties: { 'invalidProperty': 'value' },
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create", "update"],
+            properties: [{ name: 'validProperty', is_required: false }],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result[0].command).toBe("routine");
+        expect(result[0].action).toBeNull();
+        expect(result[0].properties).toEqual({});
+    });
+
+    test('filters out invalid properties from commands, when action is defined', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "RoutineCreate",
+            command: "routine",
+            action: "create",
+            properties: { 'invalidProperty': 'value' },
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create", "update"],
+            properties: [{ name: 'validProperty', is_required: false }],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result[0].command).toBe("routine");
+        expect(result[0].action).toBe('create');
+        expect(result[0].properties).toEqual({});
+    });
+
+    test('identifies missing required properties', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "RoutineCreate",
+            command: "routine",
+            action: "create",
+            properties: {},
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create", "update"],
+            properties: [{ name: 'requiredProperty', is_required: true }],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result).toEqual([]); // Missing required property
+    });
+
+    test('accepts valid commands with correct properties and actions', async () => {
+        const potentialCommands: MaybeLlmCommand[] = [{
+            task: "RoutineCreate",
+            command: "routine",
+            action: "create",
+            properties: { 'validProperty': 'value' },
+            start: 0,
+            end: 10
+        }];
+        const taskConfig = {
+            actions: ["create", "update"],
+            properties: [{ name: 'validProperty', is_required: true }],
+            commands: { "routine": 'Valid Command Description' }
+        };
+
+        const result = await filterInvalidCommands(potentialCommands, taskConfig);
+        expect(result).toEqual(potentialCommands);
+    });
+
+    // Add more tests as needed for different scenarios
+});
+
+describe('removeCommands', () => {
+    test('removes a single command from the string', () => {
+        const input = "/command1 action1 prop1=value1";
+        const commands: LlmCommand[] = [{
+            ...getStartEnd(input, "/command1 action1 prop1=value1"),
+            task: "Start",
+            command: "command1",
+            action: "action1",
+            properties: { prop1: "value1" },
+        }];
+        expect(removeCommands(input, commands)).toBe('');
+    });
+
+    test('removes multiple commands from the string', () => {
+        const input = "Text before /command1 action1 prop1=value1 and text after /command2";
+        const commands: LlmCommand[] = [
+            {
+                ...getStartEnd(input, "/command1 action1 prop1=value1"),
+                task: "Start",
+                command: "command1",
+                action: "action1",
+                properties: { prop1: "value1" },
+            },
+            {
+                ...getStartEnd(input, "/command2"),
+                task: "Start",
+                command: "command2",
+                action: null,
+                properties: null,
+            },
+        ];
+        expect(removeCommands(input, commands)).toBe('Text before  and text after ');
+    });
+
+    test('handles commands at the start and end of the string', () => {
+        const input = "/command1 at start /command2 at end";
+        const commands: LlmCommand[] = [
+            {
+                ...getStartEnd(input, "/command1 at start"),
+                task: "Start",
+                command: "command1",
+                action: null,
+                properties: null,
+            },
+            {
+                ...getStartEnd(input, "/command2 at end"),
+                task: "Start",
+                command: "command2",
+                action: null,
+                properties: null,
+            },
+        ];
+        expect(removeCommands(input, commands)).toBe(' ');
+    });
+
+    test('handles overlapping commands', () => {
+        const input = "/command1 /nestedCommand2 /nestedCommand3";
+        const commands: LlmCommand[] = [
+            {
+                ...getStartEnd(input, "/command1 /nestedCommand2"),
+                task: "Start",
+                command: "command1",
+                action: null,
+                properties: null,
+            },
+            {
+                ...getStartEnd(input, "/nestedCommand2 /nestedCommand3"),
+                task: "Start",
+                command: "nestedCommand2",
+                action: null,
+                properties: null,
+            },
+            {
+                ...getStartEnd(input, "/nestedCommand3"),
+                task: "Start",
+                command: "nestedCommand3",
+                action: null,
+                properties: null,
+            },
+        ];
+        expect(removeCommands(input, commands)).toBe('');
+    });
+
+    test('leaves string untouched if no commands match', () => {
+        const input = "This string has no commands";
+        const commands: LlmCommand[] = [];
+        expect(removeCommands(input, commands)).toBe(input);
+    });
+
+    // Add more tests for other edge cases as needed
+});
+

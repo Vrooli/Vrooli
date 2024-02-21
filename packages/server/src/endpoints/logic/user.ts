@@ -130,6 +130,8 @@ export const UserEndpoints: EndpointsUser = {
             const result = await deleteOneHelper({ input: { id, objectType: objectType as DeleteType }, prisma, req });
             // If successful, remove user from session
             if (result.success) {
+                // TODO this will only work if you're deleing yourself, since it clears your own session. 
+                // If there are cases like deleting a bot, or an admin deleting a user, this will need to be handled differently
                 return AuthEndpoints.Mutation.logOut(undefined, { input: { id } }, { prisma, req, res }, info) as any;
             } else {
                 throw new CustomError("0123", "InternalError", req.session.languages);

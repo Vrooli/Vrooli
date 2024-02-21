@@ -72,10 +72,10 @@ describe('OpenAIService', () => {
     // Get config object
     allBots.forEach((botSettings, index) => {
         // YAML config tests
-        it(`Bot settings #${index + 1}: should generate YAML config based on bot settings and user data`, () => {
+        it(`Bot settings #${index + 1}: should generate YAML config based on bot settings and user data`, async () => {
             const userData = { languages: ["en"] };
             // @ts-ignore: Testing runtime scenario
-            const yamlConfig = openAIService.getConfigObject(botSettings, userData);
+            const yamlConfig = await openAIService.getConfigObject(botSettings, userData);
             // Should be an object with a single key "ai_assistant"
             expect(yamlConfig).toHaveProperty("ai_assistant");
             expect(Object.keys(yamlConfig).length).toBe(1);
@@ -84,7 +84,6 @@ describe('OpenAIService', () => {
     it('should correctly translate based on user language preference', async () => {
         const userData = { languages: ["en"] };
         const yamlConfig = await openAIService.getConfigObject(botSettings1, userData);
-        console.log('yaml config here', yamlConfig)
 
         // Verify that the 'personality' field contains the English translation from botSettings1
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);

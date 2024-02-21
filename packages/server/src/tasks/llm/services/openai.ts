@@ -1,3 +1,4 @@
+import { BotSettings, BotSettingsTranslation } from "@local/shared";
 import "openai/shims/node"; // NOTE: Make sure to save without formatting (use command palette for this), so that this import is above the openai import
 import OpenAI from "openai";
 import { logger } from "../../../events/logger";
@@ -5,9 +6,9 @@ import { PreMapUserData } from "../../../models/base/chatMessage";
 import { SessionUserToken } from "../../../types";
 import { objectToYaml } from "../../../utils";
 import { bestTranslation } from "../../../utils/bestTranslation";
-import { LlmAction, getActionConfig } from "../config";
+import { LlmTask, getStructuredTaskConfig } from "../config";
 import { ChatContextCollector, MessageContextInfo } from "../context";
-import { BotSettings, BotSettingsTranslation, LanguageModelContext, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "../service";
+import { LanguageModelContext, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "../service";
 
 type OpenAIGenerateModel = "gpt-3.5-turbo" | "gpt-4";
 type OpenAITokenModel = "default";
@@ -29,7 +30,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
     async getConfigObject(
         botSettings: BotSettings,
         userData: Pick<SessionUserToken, "languages">,
-        action: LlmAction = "Start",
+        task: LlmTask = "Start",
     ) {
         const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
         const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation;
@@ -42,7 +43,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
                 "Hello👋, how can I help you today?";
         delete (translation as { language?: string }).language;
 
-        const actionConfig = await getActionConfig(action, botSettings, userData.languages[0] ?? "en");
+        const taskConfig = await getStructuredTaskConfig(task, botSettings, userData.languages[0] ?? "en");
         const configObject = {
             ai_assistant: {
                 metadata: {
@@ -51,7 +52,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
                 },
                 init_message: initMessage, //TODO only need for first message?
                 personality: { ...translation },
-                ...actionConfig,
+                ...taskConfig,
             }
         };
 

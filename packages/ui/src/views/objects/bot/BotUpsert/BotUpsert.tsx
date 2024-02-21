@@ -313,7 +313,7 @@ const BotForm = ({
                                 label={t("StartMessage")}
                                 placeholder={t("StartMessagePlaceholder")}
                                 language={language}
-                                name="startMessage"
+                                name="startingMessage"
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">

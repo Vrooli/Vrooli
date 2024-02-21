@@ -17,8 +17,8 @@ describe("orDefault", () => {
     });
 
     it("should return the existing object if it is non-empty", () => {
-        const existingObj = { x: 10, y: 20 };
-        expect(orDefault<any>(existingObj, { a: 1, b: 2 })).toEqual(existingObj);
+        const existingObj = { a: 10, y: 20 };
+        expect(orDefault<any>(existingObj, { a: 1, b: 2 })).toEqual(expect.objectContaining({ a: 10, b: 2 }));
     });
 
     it("should return the default value if the existing value is null or undefined", () => {

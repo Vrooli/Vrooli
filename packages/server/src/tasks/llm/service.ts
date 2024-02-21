@@ -1,26 +1,9 @@
+import { BotSettings } from "@local/shared";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
 import { withPrisma } from "../../utils/withPrisma";
 import { MessageContextInfo } from "./context";
 import { OpenAIService } from "./services/openai";
-
-export type BotSettingsTranslation = {
-    bias?: string;
-    creativity?: number;
-    domainKnowledge?: string;
-    keyPhrases?: string;
-    occupation?: string;
-    persona?: string;
-    startingMessage?: string;
-    tone?: string;
-    verbosity?: number;
-}
-export type BotSettings = {
-    model?: string;
-    maxTokens?: number;
-    name: string;
-    translations?: Record<string, BotSettingsTranslation>
-};
 
 type SimpleChatMessageData = {
     id: string;

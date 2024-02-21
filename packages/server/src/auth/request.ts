@@ -97,7 +97,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         }
         // Verify that the session token is valid and not expired
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
             handleUnauthenticatedRequest(req, next);
             return;
         }
@@ -156,7 +156,7 @@ export const authenticateSocket = async (socket, next) => {
         }
         // Verify that the session token is valid and not expired
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
         // Set token and role variables for other middleware to use
@@ -267,7 +267,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
     }
     try {
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
         const tokenContents: SessionToken = {
@@ -301,7 +301,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
     }
     try {
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (isNaN(payload.exp) || payload.exp < Date.now()) {
+        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
         const tokenContents: SessionToken = {
