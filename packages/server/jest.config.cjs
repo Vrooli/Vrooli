@@ -1,3 +1,5 @@
+// Looking to change the config because the shared package imports aren't working? 
+// Instead, try building the shared package and then running the tests again.
 module.exports = {
     roots: ["<rootDir>/src"],
     collectCoverageFrom: [
@@ -5,7 +7,7 @@ module.exports = {
         "!src/**/*.d.ts",
         "!src/mocks/**",
     ],
-    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
+    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/", "/endpoints/graphql/"],
     setupFilesAfterEnv: ["./config/jest/setupTests.js"],
     testEnvironment: "node",
     testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],

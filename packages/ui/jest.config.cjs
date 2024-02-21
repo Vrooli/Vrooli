@@ -1,3 +1,5 @@
+// Looking to change the config because the shared package imports aren't working? 
+// Instead, try building the shared package and then running the tests again.
 module.exports = {
     roots: ["<rootDir>/src"],
     collectCoverageFrom: [
