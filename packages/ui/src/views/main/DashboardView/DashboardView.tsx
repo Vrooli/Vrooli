@@ -1,6 +1,6 @@
-import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode, listenEvent, socket } from "api";
+import { fetchLazyWrapper, hasErrorCode } from "api";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -15,6 +15,7 @@ import { useHistoryState } from "hooks/useHistoryState";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useMessageTree } from "hooks/useMessageTree";
+import { useSocketChat } from "hooks/useSocketChat";
 import { PageTab } from "hooks/useTabs";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -248,7 +249,7 @@ export const DashboardView = ({
                 const occurrences = await calculateOccurrences(
                     schedule,
                     new Date(),
-                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
                 );
                 const events: CalendarEvent[] = occurrences.map(occurrence => ({
                     __typename: "CalendarEvent",
@@ -349,71 +350,15 @@ export const DashboardView = ({
         });
     }, [chat, fetch, setChat, session, setMessage]);
 
-    // Handle websocket connection/disconnection
-    useEffect(() => {
-        // Only connect to the websocket if the chat exists
-        if (!chat?.id || chat.id === DUMMY_ID) return;
-        socket.emit("joinRoom", chat.id, (response) => {
-            if (response.error) {
-                console.error("Failed to join chat room", response?.error);
-            } else {
-                console.info("Joined chat room");
-            }
-        });
-        // Leave the chat room when the component is unmounted
-        return () => {
-            socket.emit("leaveRoom", chat.id, (response) => {
-                if (response.error) {
-                    console.error("Failed to leave chat room", response?.error);
-                } else {
-                    console.info("Left chat room");
-                }
-            });
-        };
-    }, [chat.id]);
-    // Handle websocket events
-    useEffect(() => {
-        // When a message is received, add it to the chat
-        listenEvent("addMessage", (message) => {
-            console.log("got websocket message!!!", message);
-            addMessages([message]);
-        });
-        // When a message is updated, update it in the chat
-        listenEvent("editMessage", (message) => {
-            editMessage(message);
-        });
-        // When a message is deleted, remove it from the chat
-        listenEvent("deleteMessage", ({ messageId }) => {
-            removeMessages([messageId]);
-        });
-        // Show the status of users typing
-        listenEvent("typing", ({ starting, stopping }) => {
-            // Add every user that's typing
-            const newTyping = [...usersTyping];
-            for (const id of starting ?? []) {
-                // Never add yourself
-                if (id === getCurrentUser(session).id) continue;
-                if (newTyping.some(p => p.user.id === id)) continue;
-                const participant = chat.participants?.find(p => p.user.id === id);
-                if (!participant) continue;
-                newTyping.push(participant);
-            }
-            // Remove every user that stopped typing
-            for (const id of stopping ?? []) {
-                const index = newTyping.findIndex(p => p.user.id === id);
-                if (index === -1) continue;
-                newTyping.splice(index, 1);
-            }
-            setUsersTyping(newTyping);
-        });
-        return () => {
-            // Remove chat-specific event handlers
-            socket.off("addMessage");
-            socket.off("editMessage");
-            socket.off("deleteMessage");
-            socket.off("typing");
-        };
-    }, [chat.participants, setChat, message, session, usersTyping, addMessages, editMessage, removeMessages]);
+    useSocketChat({
+        addMessages,
+        chat,
+        editMessage,
+        removeMessages,
+        session,
+        setUsersTyping,
+        usersTyping,
+    });
 
     const addMessage = useCallback((text: string) => {
         const newMessage: ChatMessageShape = {
@@ -483,6 +428,8 @@ export const DashboardView = ({
                         flexDirection="row"
                         justifyContent="space-around"
                         alignItems="center"
+                        maxWidth="min(100vw, 1000px)"
+                        margin="auto"
                     >
                         <Button
                             color="primary"

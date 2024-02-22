@@ -6,7 +6,7 @@ import { selectHelper } from "../../builders/selectHelper";
 import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findOne";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
-import { emitEvent } from "../../sockets/emit";
+import { emitSocketEvent } from "../../sockets/events";
 import { withPrisma } from "../../utils/withPrisma";
 import { extractCommands, filterInvalidCommands, removeCommands } from "./commands";
 import { generateTaskExec, getUnstructuredTaskConfig, importCommandToTask } from "./config";
@@ -43,7 +43,7 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
             // If there is text besides commands, also generate a response
             if (messageWithoutCommands.trim() === "") return;
             // Send typing message while bot is responding
-            emitEvent("typing", message.chatId as string, { starting: [respondingBotId] });
+            emitSocketEvent("typing", message.chatId as string, { starting: [respondingBotId] });
             const text = await service.generateResponse(chatId, messageId, message.content, respondingBotId, botSettings, userData);
             const select = selectHelper(chatMessage_findOne);
             const createdData = await prisma.chat_message.create({
@@ -84,6 +84,6 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
         trace: "0081",
     });
     if (data.message?.chatId && data?.respondingBotId) {
-        emitEvent("typing", data.message.chatId, { stopping: [data.respondingBotId] });
+        emitSocketEvent("typing", data.message.chatId, { stopping: [data.respondingBotId] });
     }
 }

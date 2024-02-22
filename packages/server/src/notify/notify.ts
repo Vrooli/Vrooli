@@ -121,8 +121,12 @@ const push = async ({
                     // Increment count in Redis for this user. If it is over the limit, make the notification silent
                     const count = await redisClient.incr(`notification:${users[i].userId}:${category}`);
                     if (dailyLimit && count > dailyLimit) currSilent = true;
-                    // Send the notification to each device, if not silent
+                    // Send the notification if not silent
                     if (!currSilent) {
+                        const payload = { body: currBody, icon, link, title: currTitle };
+                        // Send through socket to display on opened app TODO
+                        // emitSocketEvent("notification", fdasfsf, payload);
+                        // Send to each push device
                         for (const device of pushDevices) {
                             try {
                                 const subscription = {
@@ -132,17 +136,16 @@ const push = async ({
                                         auth: device.auth,
                                     },
                                 };
-                                const payload = { body: currBody, icon, link, title: currTitle };
                                 sendPush(subscription, payload, delay);
                             } catch (err) {
                                 logger.error("Error sending push notification", { trace: "0306" });
                             }
                         }
-                        // Send the notification to each email (ignore if no title)
+                        // Send to each email (ignore if no title)
                         if (emails.length && currTitle) {
                             sendMail(emails.map(e => e.emailAddress), currTitle, currBody, "", delay);
                         }
-                        // Send the notification to each phone number
+                        // Send to each phone number
                         // for (const phoneNumber of phoneNumbers) {
                         //     fdasfsd
                         // }

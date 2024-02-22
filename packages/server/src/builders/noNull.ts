@@ -25,7 +25,7 @@ export const noNull = <T>(...args: (T | undefined | null)[]): T | undefined => {
 export const noEmptyString = (...args: unknown[]): string | undefined => {
     for (const arg of args) {
         // Check if arg is a string, not null, not undefined, and not an empty string
-        if (typeof arg === 'string' && arg !== '') {
+        if (typeof arg === "string" && arg !== "") {
             return arg;
         }
     }
@@ -42,7 +42,7 @@ export const noEmptyString = (...args: unknown[]): string | undefined => {
 export const validNumber = (...args: unknown[]): number | undefined => {
     for (const arg of args) {
         // Check if arg is a finite number
-        if (typeof arg === 'number' && isFinite(arg)) {
+        if (typeof arg === "number" && isFinite(arg)) {
             return arg;
         }
     }

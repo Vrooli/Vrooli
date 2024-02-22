@@ -33,7 +33,7 @@ export async function setupLlmQueue() {
 
         // Initialize the Bull queue
         llmQueue = new Bull<RequestBotResponsePayload>("llm", {
-            redis: { port: PORT, host: HOST }
+            redis: { port: PORT, host: HOST },
         });
         llmQueue.process(llmProcess);
     } catch (error) {

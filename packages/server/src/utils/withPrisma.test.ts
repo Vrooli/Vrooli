@@ -45,4 +45,14 @@ describe("withPrisma", () => {
         expect(logger.error).toHaveBeenCalled();
         expect(prisma.$disconnect).toHaveBeenCalled();
     });
+
+    test("property provided in traceObject can be changed in the process", async () => {
+        let boop: string | null = null;
+        mockProcess = async () => {
+            boop = "beep";
+        };
+        await withPrisma({ process: mockProcess, trace: "testTrace", traceObject: { boop } });
+
+        expect(boop).toBe("beep");
+    });
 });

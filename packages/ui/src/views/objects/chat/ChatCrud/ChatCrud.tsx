@@ -1,6 +1,6 @@
 import { Chat, ChatCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
-import { errorToMessage, fetchLazyWrapper, hasErrorCode, listenEvent, ServerResponse, socket } from "api";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -23,6 +23,7 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { findTargetMessage, useMessageTree } from "hooks/useMessageTree";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSocketChat } from "hooks/useSocketChat";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -264,71 +265,15 @@ const ChatForm = ({
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
-    // Handle websocket connection/disconnection
-    useEffect(() => {
-        // Only connect to the websocket if the chat exists
-        if (!existing?.id || existing.id === DUMMY_ID) return;
-        socket.emit("joinRoom", existing.id, (response) => {
-            if (response.error) {
-                console.error("Failed to join chat room", response?.error);
-            } else {
-                console.info("Joined chat room");
-            }
-        });
-        // Leave the chat room when the component is unmounted
-        return () => {
-            socket.emit("leaveRoom", existing.id, (response) => {
-                if (response.error) {
-                    console.error("Failed to leave chat room", response?.error);
-                } else {
-                    console.info("Left chat room");
-                }
-            });
-        };
-    }, [existing.id]);
-    // Handle websocket events
-    useEffect(() => {
-        // When a message is received, add it to the chat
-        listenEvent("addMessage", (message) => {
-            addMessages([message]);
-        });
-        // When a message is updated, update it in the chat
-        listenEvent("editMessage", (message) => {
-            editMessage(message);
-        });
-        // When a message is deleted, remove it from the chat
-        listenEvent("deleteMessage", ({ messageId }) => {
-            removeMessages([messageId]);
-        });
-        // Show the status of users typing
-        listenEvent("typing", ({ starting, stopping }) => {
-            // Add every user that's typing
-            const newTyping = [...usersTyping];
-            for (const id of starting ?? []) {
-                // Never add yourself
-                if (id === getCurrentUser(session).id) continue;
-                if (newTyping.some(p => p.user.id === id)) continue;
-                const participant = existing.participants?.find(p => p.user.id === id);
-                if (!participant) continue;
-                newTyping.push(participant);
-            }
-            // Remove every user that stopped typing
-            for (const id of stopping ?? []) {
-                const index = newTyping.findIndex(p => p.user.id === id);
-                if (index === -1) continue;
-                newTyping.splice(index, 1);
-            }
-            setUsersTyping(newTyping);
-        });
-        // TODO add participants joining/leaving, making sure to update matching chat cache in cookies
-        return () => {
-            // Remove chat-specific event handlers
-            socket.off("addMessage");
-            socket.off("editMessage");
-            socket.off("deleteMessage");
-            socket.off("typing");
-        };
-    }, [addMessages, editMessage, existing.participants, handleUpdate, message, removeMessages, session, usersTyping]);
+    useSocketChat({
+        addMessages,
+        chat: existing,
+        editMessage,
+        removeMessages,
+        session,
+        setUsersTyping,
+        usersTyping,
+    });
 
     const handleReply = useCallback((message: ChatMessageShape) => {
         // Determine if we should edit an existing message or create a new one

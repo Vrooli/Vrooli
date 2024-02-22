@@ -2,7 +2,7 @@ import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueS
 import { setupVerificationCode } from "../auth/email";
 import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base/chatMessage";
 import { Notify, isObjectSubscribable } from "../notify";
-import { emitEvent } from "../sockets/emit";
+import { emitSocketEvent } from "../sockets/events";
 import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
 import { logger } from "./logger";
@@ -55,7 +55,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     }) => {
         if (message.id && data.chatId) {
             Notify(prisma, languages).pushMessageReceived(message.id, data.userId).toChatParticipants(data.chatId, createdById);
-            emitEvent("addMessage", data.chatId, message);
+            emitSocketEvent("messages", data.chatId, { added: [message] });
         } else {
             logger.error("Could not send notification or socket event for ChatMessage", { trace: "0494", message, data });
         }
@@ -68,7 +68,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         message: ChatMessage,
     }) => {
         if (data.chatId) {
-            emitEvent("editMessage", data.chatId, message);
+            emitSocketEvent("messages", data.chatId, { edited: [message] });
         } else {
             logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
         }
@@ -81,7 +81,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         messageId: string,
     }) => {
         if (data.chatId) {
-            emitEvent("deleteMessage", data.chatId, { messageId });
+            emitSocketEvent("messages", data.chatId, { deleted: [messageId] });
         } else {
             logger.error("Could not send socket event for ChatMessage}", { trace: "0497", messageId, data });
         }

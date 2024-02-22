@@ -14,7 +14,7 @@ import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { UI_URL } from "../../server";
-import { emitEvent } from "../../sockets/emit";
+import { emitSocketEvent } from "../../sockets/events";
 import { ChatContextManager } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { PrismaType } from "../../types";
@@ -483,7 +483,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             botsToRespond = [...new Set(botsToRespond)];
                         }
                         // Send typing indicator while bots are responding
-                        emitEvent("typing", message.chatId as string, { starting: botsToRespond });
+                        emitSocketEvent("typing", message.chatId as string, { starting: botsToRespond });
                         // For each bot that should respond, request bot response
                         for (const botId of botsToRespond) {
                             // Call LLM for bot response

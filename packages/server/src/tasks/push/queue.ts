@@ -37,7 +37,7 @@ export async function setupPushQueue() {
 
         // Initialize the Bull queue
         pushQueue = new Bull<PushSubscription & PushPayload>("push", {
-            redis: { port: PORT, host: HOST }
+            redis: { port: PORT, host: HOST },
         });
         pushQueue.process(pushProcess);
     } catch (error) {
