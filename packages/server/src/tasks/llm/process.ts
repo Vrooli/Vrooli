@@ -7,9 +7,10 @@ import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findO
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { emitSocketEvent } from "../../sockets/events";
+import { processCommand } from "../../tasks/command";
 import { withPrisma } from "../../utils/withPrisma";
 import { extractCommands, filterInvalidCommands, removeCommands } from "./commands";
-import { generateTaskExec, getUnstructuredTaskConfig, importCommandToTask } from "./config";
+import { getUnstructuredTaskConfig, importCommandToTask } from "./config";
 import { RequestBotResponsePayload } from "./queue";
 import { getLanguageModelService } from "./service";
 
@@ -29,16 +30,13 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
             const maybeCommands = extractCommands(message.content, commandToTask);
             const commands = await filterInvalidCommands(maybeCommands, await getUnstructuredTaskConfig("Start", botSettings)); //TODO need task
             const messageWithoutCommands = removeCommands(message.content, commands);
-            console.log('got commands', commands);
-            // TODO should probably have these in redis queue, with status updates sent via websocket
-            const taskExecProcesses = commands.map(({ task, properties }) =>
-                generateTaskExec(task, language, prisma, userData)
-                    .then(execFunc => execFunc(properties ?? {}, botSettings)));
-            // Execute all task exec functions asynchronously
-            try {
-                const taskResults = await Promise.all(taskExecProcesses);
-            } catch (error) {
-                logger.error("Error executing task exec functions", { trace: "0083", error });
+            for (const command of commands) {
+                processCommand({
+                    command,
+                    chatId,
+                    language,
+                    userData,
+                });
             }
             // If there is text besides commands, also generate a response
             if (messageWithoutCommands.trim() === "") return;

@@ -18,7 +18,13 @@ import { setupStripe } from "./services";
 import { chatSocketHandlers } from "./sockets/handlers/chat";
 import { notificationSocketHandlers } from "./sockets/handlers/notification";
 import { io } from "./sockets/io";
-import { setupEmailQueue, setupExportQueue, setupImportQueue, setupLlmQueue, setupPushQueue, setupSmsQueue } from "./tasks";
+import { setupCommandQueue } from "./tasks/command/queue";
+import { setupEmailQueue } from "./tasks/email/queue";
+import { setupExportQueue } from "./tasks/export/queue";
+import { setupImportQueue } from "./tasks/import/queue";
+import { setupLlmQueue } from "./tasks/llm/queue";
+import { setupPushQueue } from "./tasks/push/queue";
+import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -42,6 +48,7 @@ const main = async () => {
     await ModelMap.init();
 
     // Setup queues
+    await setupCommandQueue();
     await setupEmailQueue();
     await setupExportQueue();
     await setupImportQueue();

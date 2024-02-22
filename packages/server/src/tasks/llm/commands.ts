@@ -23,10 +23,10 @@ type CommandSection = "outside" | "command" | "action" | "propName" | "propValue
 
 /** Maximum length for a command, action, or property name */
 const MAX_COMMAND_ACTION_PROP_LENGTH = 32;
-const QUOTES = ['"', "'"];
+const QUOTES = ["\"", "'"];
 
-export const isNewline = (char: string) => char === '\n' || char === '\r';
-export const isWhitespace = (char: string): boolean => char === ' ' || char === '\t';
+export const isNewline = (char: string) => char === "\n" || char === "\r";
+export const isWhitespace = (char: string): boolean => char === " " || char === "\t";
 export const isAlphaNum = (char: string): boolean => {
     const code = char.charCodeAt(0);
     return (code > 47 && code < 58) || // numeric (0-9)
@@ -38,7 +38,7 @@ export const isAlphaNum = (char: string): boolean => {
 function countEndSlashes(charArray: string[]): number {
     let count = 0;
     for (let i = charArray.length - 1; i >= 0; i--) {
-        if (charArray[i] === '\\') {
+        if (charArray[i] === "\\") {
             count++;
         } else {
             break; // Stop counting when a non-backslash character is encountered
@@ -212,7 +212,7 @@ export const handleCommandTransition = ({
         }
     }
     else if (section === "propValue") {
-        const backslashes = countEndSlashes(buffer)
+        const backslashes = countEndSlashes(buffer);
         const isEscaped = backslashes % 2 !== 0;
         const isQuote = QUOTES.includes(curr);
         const isInQuote = QUOTES.includes(buffer[0]);
@@ -300,22 +300,22 @@ export const extractCommands = (inputString: string, commandToTask: CommandToTas
                 }
                 return obj;
             }, {}),
-        })
+        });
         currentCommand = null;
     };
 
     /** When one part of the command is committed */
     const onCommit = (section: CommandSection, text: string | number | null, index: number) => {
         if (!currentCommand) return;
-        if (section === 'command') {
+        if (section === "command") {
             currentCommand.command = text + "";
             currentCommand.end = index;
-        } else if (section === 'action') {
+        } else if (section === "action") {
             currentCommand.action = text + "";
             currentCommand.end = index;
-        } else if (section === 'propName') {
+        } else if (section === "propName") {
             currentCommand?.properties.push(text);
-        } else if (section === 'propValue') {
+        } else if (section === "propValue") {
             currentCommand?.properties.push(text);
             currentCommand.end = typeof text === "string" ? index + 1 : index; // Add 1 for quote
         }
@@ -327,13 +327,13 @@ export const extractCommands = (inputString: string, commandToTask: CommandToTas
             properties: [],
             start,
             end: start,
-        }
-    }
+        };
+    };
     const onCancel = () => {
         currentCommand = null;
-    }
+    };
 
-    let section: CommandSection = 'outside';
+    let section: CommandSection = "outside";
     let buffer: string[] = [];
     for (let i = 0; i < inputString.length; i++) {
         const curr = handleCommandTransition({
@@ -381,13 +381,13 @@ export const filterInvalidCommands = async (
 
     // Loop through each potential command
     for (const command of potentialCommands) {
-        let modifiedCommand = { ...command };
+        const modifiedCommand = { ...command };
 
         // If the task is not a valid task, skip it
         if (!command.task || !llmTasks.includes(command.task)) continue;
 
         // If the command is not in the task configuration, skip it
-        if (!taskConfig.commands.hasOwnProperty(command.command)) continue;
+        if (!Object.prototype.hasOwnProperty.call(taskConfig.commands, command.command)) continue;
 
         // If the command has an invalid action, remove the action
         if (command.action && (!taskConfig.actions || !taskConfig.actions.includes(command.action))) {
@@ -400,11 +400,11 @@ export const filterInvalidCommands = async (
             modifiedCommand.properties = {};
 
             // Identify all required properties from the task configuration to ensure they are present
-            const requiredProperties = taskConfig.properties?.filter(prop => typeof prop === 'object' && prop.is_required).map(prop => (prop as LlmCommandProperty).name) ?? [];
+            const requiredProperties = taskConfig.properties?.filter(prop => typeof prop === "object" && prop.is_required).map(prop => (prop as LlmCommandProperty).name) ?? [];
 
             // Check each property in the command
             Object.entries(command.properties).forEach(([key, value]) => {
-                const propertyConfig = taskConfig.properties?.find(prop => (typeof prop === 'object' ? prop.name : prop) === key);
+                const propertyConfig = taskConfig.properties?.find(prop => (typeof prop === "object" ? prop.name : prop) === key);
 
                 // If the property config exists, keep the property
                 if (propertyConfig) {
@@ -425,7 +425,7 @@ export const filterInvalidCommands = async (
             }
         } else {
             // If the command has no properties, it's still valid as long as it doesn't require any
-            const requiresProperties = taskConfig.properties?.some(prop => typeof prop === 'object' && prop.is_required) ?? false;
+            const requiresProperties = taskConfig.properties?.some(prop => typeof prop === "object" && prop.is_required) ?? false;
             if (!requiresProperties) {
                 result.push(modifiedCommand as LlmCommand);
             }
