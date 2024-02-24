@@ -798,7 +798,7 @@ export const combineErrorsWithTranslations = (
 
     // Filter out any errors from `errors` start with "translations", since these should be handled by `translationErrors`
     const filteredErrors = !translationErrors ? errors : Object.fromEntries(
-        Object.entries((errors ?? {}) as object).filter(([key]) => !key.startsWith("translations"))
+        Object.entries((errors ?? {}) as object).filter(([key]) => !key.startsWith("translations")),
     );
     // Combine errors into a single object
     return { ...filteredErrors, ...translationErrors };
@@ -873,8 +873,13 @@ export const removeTranslation = (
 export const translateSnackMessage = (
     key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
+    namespace?: string,
 ): { message: string, details: string | undefined } => {
-    const message = i18next.t(key, { ...variables, defaultValue: key }) ?? key;
-    const details = i18next.t(`${key}Details`, { ...variables, defaultValue: `${key}Details` }) ?? `${key}Details`;
+    // Prefix the key with the namespace if provided
+    const namespacedKey = namespace ? `${namespace}:${key}` : key;
+    const namespacedKeyDetails = namespace ? `${namespace}:${key}Details` : `${key}Details`;
+
+    const message = i18next.t(namespacedKey, { ...variables, defaultValue: key }) ?? key;
+    const details = i18next.t(namespacedKeyDetails, { ...variables, defaultValue: `${key}Details` }) ?? `${key}Details`;
     return { message, details: details !== `${key}Details` ? details : undefined };
 };
