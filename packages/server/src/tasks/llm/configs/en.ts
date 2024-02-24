@@ -1,9 +1,9 @@
-import { BotCreateInput, BotUpdateInput, ToBotSettingsPropBot, pascalCase, toBotSettings, uuid } from "@local/shared";
+import { pascalCase, toBotSettings, uuid } from "@local/shared";
 import { noEmptyString, validNumber } from "../../../builders/noNull";
 import { logger } from "../../../events/logger";
-import { CommandToTask, LlmCommandData, LlmCommandProperty, LlmTask, LlmTaskUnstructuredConfig, llmTasks } from "../config";
+import { CommandToTask, LlmCommandProperty, LlmTask, LlmTaskConfig, LlmTaskConverters, LlmTaskUnstructuredConfig, llmTasks } from "../config";
 
-export const config = {
+export const config: LlmTaskConfig = {
     __response_formats_with_actions: {
         one_command: "/${command} ${action}",
         multiple_commands: "/${command} ${action} /${command} ${action}",
@@ -51,7 +51,7 @@ export const config = {
         commands: {
             prefix: "/",
             list: Object.keys(commands),
-            descriptions: commands
+            descriptions: commands,
         },
         actions: actions ? {
             description: properties ?
@@ -90,7 +90,7 @@ export const config = {
     },
     ApiAdd: () => ({
         commands: {
-            create: "Create an API with the provided properties."
+            create: "Create an API with the provided properties.",
         },
         properties: config.__pick_properties([
             ["name", true],
@@ -101,19 +101,19 @@ export const config = {
     }),
     ApiDelete: () => ({
         commands: {
-            delete: "Permanently delete an API. Ensure this is intended before proceeding."
+            delete: "Permanently delete an API. Ensure this is intended before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     ApiFind: () => ({
         commands: {
-            find: "Search for existing APIs."
+            find: "Search for existing APIs.",
         },
         properties: [
             {
@@ -126,7 +126,7 @@ export const config = {
                 name: "endpoint",
                 is_required: false,
                 description: "The endpoint of the API.",
-            }
+            },
         ],
         rules: [
             ...config.__rules,
@@ -135,7 +135,7 @@ export const config = {
     }),
     ApiUpdate: () => ({
         commands: {
-            update: "Update an API with the provided properties."
+            update: "Update an API with the provided properties.",
         },
         properties: config.__pick_properties([
             ["name", false],
@@ -184,7 +184,7 @@ export const config = {
     },
     BotAdd: () => ({
         commands: {
-            create: "Create a bot with the provided properties."
+            create: "Create a bot with the provided properties.",
         },
         properties: config.__pick_properties([
             ["name", true],
@@ -202,19 +202,19 @@ export const config = {
     }),
     BotDelete: () => ({
         commands: {
-            delete: "Permanentely delete a bot. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a bot. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     BotFind: () => ({
         commands: {
-            find: "Look for existing bots."
+            find: "Look for existing bots.",
         },
         properties: [
             {
@@ -229,7 +229,7 @@ export const config = {
                 type: "uuid",
                 is_required: false,
                 description: "The ID of the organization the bot is a member of.",
-            }
+            },
         ],
         rules: [
             ...config.__rules,
@@ -238,7 +238,7 @@ export const config = {
     }),
     BotUpdate: () => ({
         commands: {
-            create: "Update a bot with the provided properties."
+            create: "Update a bot with the provided properties.",
         },
         properties: config.__pick_properties([
             ["id", true],
@@ -260,7 +260,7 @@ export const config = {
     },
     MembersAdd: () => ({
         commands: {
-            create: "Create member with the provided properties."
+            create: "Create member with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -269,19 +269,19 @@ export const config = {
     }),
     MembersDelete: () => ({
         commands: {
-            delete: "Permanently remove members from a team. Ensure this is intended before proceeding. Note that this will not delete the bot/users themselves."
+            delete: "Permanently remove members from a team. Ensure this is intended before proceeding. Note that this will not delete the bot/users themselves.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     MembersFind: () => ({
         commands: {
-            find: "Look for existing members."
+            find: "Look for existing members.",
         },
         properties: [
             {
@@ -296,7 +296,7 @@ export const config = {
                 type: "uuid",
                 is_required: false,
                 description: "The ID of the organization the member is a member of.",
-            }
+            },
         ],
         rules: [
             ...config.__rules,
@@ -305,7 +305,7 @@ export const config = {
     }),
     MembersUpdate: () => ({
         commands: {
-            update: "Update a member with the provided properties."
+            update: "Update a member with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -317,7 +317,7 @@ export const config = {
     },
     NoteAdd: () => ({
         commands: {
-            create: "Create a note with the provided properties."
+            create: "Create a note with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -326,19 +326,19 @@ export const config = {
     }),
     NoteDelete: () => ({
         commands: {
-            delete: "Permanentely delete a note. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a note. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     NoteFind: () => ({
         commands: {
-            find: "Look for existing notes."
+            find: "Look for existing notes.",
         },
         properties: [
             {
@@ -355,7 +355,7 @@ export const config = {
     }),
     NoteUpdate: () => ({
         commands: {
-            update: "Update a note with the provided properties."
+            update: "Update a note with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -367,7 +367,7 @@ export const config = {
     },
     ProjectAdd: () => ({
         commands: {
-            create: "Create a project with the provided properties."
+            create: "Create a project with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -376,19 +376,19 @@ export const config = {
     }),
     ProjectDelete: () => ({
         commands: {
-            delete: "Permanentely delete a project. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a project. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     ProjectFind: () => ({
         commands: {
-            find: "Look for existing projects."
+            find: "Look for existing projects.",
         },
         properties: [
             {
@@ -405,7 +405,7 @@ export const config = {
     }),
     ProjectUpdate: () => ({
         commands: {
-            update: "Update a project with the provided properties."
+            update: "Update a project with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -417,7 +417,7 @@ export const config = {
     },
     ReminderAdd: () => ({
         commands: {
-            create: "Create a reminder with the provided properties."
+            create: "Create a reminder with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -426,19 +426,19 @@ export const config = {
     }),
     ReminderDelete: () => ({
         commands: {
-            delete: "Permanentely delete a reminder. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a reminder. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     ReminderFind: () => ({
         commands: {
-            find: "Look for existing reminders."
+            find: "Look for existing reminders.",
         },
         properties: [
             {
@@ -455,7 +455,7 @@ export const config = {
     }),
     ReminderUpdate: () => ({
         commands: {
-            update: "Update a reminder with the provided properties."
+            update: "Update a reminder with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -467,7 +467,7 @@ export const config = {
     },
     RoleAdd: () => ({
         commands: {
-            create: "Create a role with the provided properties."
+            create: "Create a role with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -476,19 +476,19 @@ export const config = {
     }),
     RoleDelete: () => ({
         commands: {
-            delete: "Permanentely delete a role. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a role. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     RoleFind: () => ({
         commands: {
-            find: "Look for existing roles."
+            find: "Look for existing roles.",
         },
         properties: [
             {
@@ -505,7 +505,7 @@ export const config = {
     }),
     RoleUpdate: () => ({
         commands: {
-            update: "Update a role with the provided properties."
+            update: "Update a role with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -517,7 +517,7 @@ export const config = {
     },
     RoutineAdd: () => ({
         commands: {
-            create: "Create a routine with the provided properties."
+            create: "Create a routine with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -526,19 +526,19 @@ export const config = {
     }),
     RoutineDelete: () => ({
         commands: {
-            delete: "Permanentely delete a routine. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a routine. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     RoutineFind: () => ({
         commands: {
-            find: "Look for existing routines."
+            find: "Look for existing routines.",
         },
         properties: [
             {
@@ -555,7 +555,7 @@ export const config = {
     }),
     RoutineUpdate: () => ({
         commands: {
-            update: "Update a routine with the provided properties."
+            update: "Update a routine with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -567,7 +567,7 @@ export const config = {
     },
     ScheduleAdd: () => ({
         commands: {
-            create: "Create a schedule with the provided properties."
+            create: "Create a schedule with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -576,19 +576,19 @@ export const config = {
     }),
     ScheduleDelete: () => ({
         commands: {
-            delete: "Permanentely delete a schedule. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a schedule. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     ScheduleFind: () => ({
         commands: {
-            find: "Look for existing schedules."
+            find: "Look for existing schedules.",
         },
         properties: [
             {
@@ -605,7 +605,7 @@ export const config = {
     }),
     ScheduleUpdate: () => ({
         commands: {
-            update: "Update a schedule with the provided properties."
+            update: "Update a schedule with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -617,7 +617,7 @@ export const config = {
     },
     SmartContractAdd: () => ({
         commands: {
-            create: "Create a smart contract with the provided properties."
+            create: "Create a smart contract with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -626,19 +626,19 @@ export const config = {
     }),
     SmartContractDelete: () => ({
         commands: {
-            delete: "Permanentely delete a smart contract. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a smart contract. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     SmartContractFind: () => ({
         commands: {
-            find: "Look for existing smart contracts."
+            find: "Look for existing smart contracts.",
         },
         properties: [
             {
@@ -655,7 +655,7 @@ export const config = {
     }),
     SmartContractUpdate: () => ({
         commands: {
-            update: "Update a smart contract with the provided properties."
+            update: "Update a smart contract with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -667,7 +667,7 @@ export const config = {
     },
     StandardAdd: () => ({
         commands: {
-            create: "Create a standard with the provided properties."
+            create: "Create a standard with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -676,19 +676,19 @@ export const config = {
     }),
     StandardDelete: () => ({
         commands: {
-            delete: "Permanentely delete a standard. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a standard. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     StandardFind: () => ({
         commands: {
-            find: "Look for existing standards."
+            find: "Look for existing standards.",
         },
         properties: [
             {
@@ -705,7 +705,7 @@ export const config = {
     }),
     StandardUpdate: () => ({
         commands: {
-            update: "Update a standard with the provided properties."
+            update: "Update a standard with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -735,7 +735,7 @@ export const config = {
     },
     TeamAdd: () => ({
         commands: {
-            create: "Create a team with the provided properties."
+            create: "Create a team with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -744,19 +744,19 @@ export const config = {
     }),
     TeamDelete: () => ({
         commands: {
-            delete: "Permanentely delete a team. Make sure you want to do this before proceeding."
+            delete: "Permanentely delete a team. Make sure you want to do this before proceeding.",
         },
         properties: [
             {
                 name: "id",
                 type: "uuid",
-            }
+            },
         ],
         rules: config.__rules,
     }),
     TeamFind: () => ({
         commands: {
-            find: "Look for existing teams."
+            find: "Look for existing teams.",
         },
         properties: [
             {
@@ -773,7 +773,7 @@ export const config = {
     }),
     TeamUpdate: () => ({
         commands: {
-            update: "Update a team with the provided properties."
+            update: "Update a team with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -782,8 +782,20 @@ export const config = {
     }),
 };
 
-export const convert = {
-    BotAdd: (data: LlmCommandData): BotCreateInput => ({
+export const convert: LlmTaskConverters = {
+    ApiAdd: (data) => ({
+        //...
+    }),
+    ApiDelete: (data) => ({
+        //...
+    }),
+    ApiFind: (data) => ({
+
+    }),
+    ApiUpdate: (data) => ({
+
+    }),
+    BotAdd: (data) => ({
         id: uuid(),
         isBotDepictingPerson: false,
         isPrivate: false,
@@ -800,12 +812,18 @@ export const convert = {
                     keyPhrases: noEmptyString(data.keyPhrases),
                     domainKnowledge: noEmptyString(data.domainKnowledge),
                     bias: noEmptyString(data.bias),
-                }
-            }
+                },
+            },
 
-        })
+        }),
     }),
-    BotUpdate: (data: LlmCommandData, existing: ToBotSettingsPropBot): BotUpdateInput => {
+    BotDelete: (data) => ({
+
+    }),
+    BotFind: (data) => ({
+
+    }),
+    BotUpdate: (data, existing) => {
         const settings = toBotSettings(existing, logger);
         return {
             id: data.id + "",
@@ -823,18 +841,140 @@ export const convert = {
                         bias: data.bias,
                         creativity: data.creativity,
                         verbosity: data.verbosity,
-                    }
-                }
+                    },
+                },
 
             }),
-        }
+        };
     },
-};
+    MembersAdd: (data) => ({
+
+    }),
+    MembersDelete: (data) => ({
+
+    }),
+    MembersFind: (data) => ({
+
+    }),
+    MembersUpdate: (data) => ({
+
+    }),
+    NoteAdd: (data) => ({
+
+    }),
+    NoteDelete: (data) => ({
+
+    }),
+    NoteFind: (data) => ({
+
+    }),
+    NoteUpdate: (data) => ({
+
+    }),
+    ProjectAdd: (data) => ({
+
+    }),
+    ProjectDelete: (data) => ({
+
+    }),
+    ProjectFind: (data) => ({
+
+    }),
+    ProjectUpdate: (data) => ({
+
+    }),
+    ReminderAdd: (data) => ({
+
+    }),
+    ReminderDelete: (data) => ({
+
+    }),
+    ReminderFind: (data) => ({
+
+    }),
+    ReminderUpdate: (data) => ({
+
+    }),
+    RoleAdd: (data) => ({
+
+    }),
+    RoleDelete: (data) => ({
+
+    }),
+    RoleFind: (data) => ({
+
+    }),
+    RoleUpdate: (data) => ({
+
+    }),
+    RoutineAdd: (data) => ({
+
+    }),
+    RoutineDelete: (data) => ({
+
+    }),
+    RoutineFind: (data) => ({
+
+    }),
+    RoutineUpdate: (data) => ({
+
+    }),
+    ScheduleAdd: (data) => ({
+
+    }),
+    ScheduleDelete: (data) => ({
+
+    }),
+    ScheduleFind: (data) => ({
+
+    }),
+    ScheduleUpdate: (data) => ({
+
+    }),
+    SmartContractAdd: (data) => ({
+
+    }),
+    SmartContractDelete: (data) => ({
+
+    }),
+    SmartContractFind: (data) => ({
+
+    }),
+    SmartContractUpdate: (data) => ({
+
+    }),
+    StandardAdd: (data) => ({
+
+    }),
+    StandardDelete: (data) => ({
+
+    }),
+    StandardFind: (data) => ({
+
+    }),
+    StandardUpdate: (data) => ({
+
+    }),
+    StartAdd: (data) => ({
+    }),
+    TeamAdd: (data) => ({
+
+    }),
+    TeamDelete: (data) => ({
+
+    }),
+    TeamFind: (data) => ({
+
+    }),
+    TeamUpdate: (data) => ({
+
+    }),
+} as any;
 
 export const commandToTask: CommandToTask = (command, action) => {
     let result: string;
     if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
-    else result = pascalCase(command)
+    else result = pascalCase(command);
     if (llmTasks.includes(result as LlmTask)) return result as LlmTask;
     return null;
-}
+};

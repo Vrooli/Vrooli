@@ -1,4 +1,4 @@
-import { Box, DialogTitle as MuiDialogTitle, IconButton, useTheme } from "@mui/material";
+import { Box, IconButton, DialogTitle as MuiDialogTitle, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { CloseIcon } from "icons";

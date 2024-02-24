@@ -29,20 +29,21 @@ export const useSocketChat = ({
     useEffect(() => {
         if (!chat?.id || chat.id === DUMMY_ID) return;
 
-        const onDisconnect = () => {
-            PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected" });
-        };
-        const onReconnectAttempt = () => {
-            PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: "ServerReconnectAttempt" });
-        };
-        const onReconnect = () => {
-            PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: "ServerReconnected" });
-        };
+        // Define event handlers
+        const events = [
+            ["disconnect", () => {
+                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected", autoHideDuration: 10000 });
+            }],
+            ["reconnect_attempt", () => {
+                PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: "ServerReconnectAttempt", autoHideDuration: 10000 });
+            }],
+            ["reconnect", () => {
+                PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: "ServerReconnected" });
+            }],
+        ] as const;
 
-        socket.on("disconnect", onDisconnect);
-        socket.on("reconnect_attempt", onReconnectAttempt);
-        socket.on("reconnect", onReconnect);
-
+        // Add event listeners
+        events.forEach(([event, handler]) => { socket.on(event, handler); });
         emitSocketEvent("joinChatRoom", { chatId: chat.id }, (response) => {
             if (response.error) {
                 PubSub.get().publish("snack", { messageKey: "ChatRoomJoinFailed", severity: "Error" });
@@ -58,9 +59,7 @@ export const useSocketChat = ({
             });
 
             // Clean up event listeners
-            socket.off("disconnect", onDisconnect);
-            socket.off("reconnect_attempt", onReconnectAttempt);
-            socket.off("reconnect", onReconnect);
+            events.forEach(([event, handler]) => { socket.off(event, handler); });
         };
     }, [chat?.id]);
 

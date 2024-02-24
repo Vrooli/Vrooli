@@ -1,4 +1,5 @@
 import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
+import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
@@ -32,6 +33,7 @@ export type AlertDialogPub = {
         labelVariables?: { [key: string]: string | number };
         onClick?: (() => unknown);
     }[];
+    severity?: `${AlertDialogSeverity}`;
 }
 
 export type CelebrationType = "balloons" | "confetti" | "emoji";

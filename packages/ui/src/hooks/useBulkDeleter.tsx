@@ -69,6 +69,7 @@ export const useBulkDeleter = ({
             PubSub.get().publish("alertDialog", {
                 messageKey: "DeleteConfirmMultiple",
                 messageVariables: { count: selectedData.length },
+                severity: "Warning",
                 buttons: [{
                     labelKey: "Delete",
                     onClick: () => { doBulkDelete(selectedData); },

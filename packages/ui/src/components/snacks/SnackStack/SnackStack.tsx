@@ -43,7 +43,7 @@ export const SnackStack = () => {
                     id,
                     message: (o as UntranslatedSnackMessage).message ?
                         (o as UntranslatedSnackMessage).message :
-                        translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables).message,
+                        translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables, o.severity === "Error" ? "error" : undefined).message,
                     severity: o.severity as SnackSeverity,
                 }];
                 // Filter out same ids

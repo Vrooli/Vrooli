@@ -1,6 +1,7 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, useTheme } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Palette, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import i18next from "i18next";
+import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateSnackMessage } from "utils/display/translationTools";
@@ -12,15 +13,38 @@ interface StateButton {
     onClick?: (() => unknown);
 }
 
+export enum AlertDialogSeverity {
+    Error = "Error",
+    Info = "Info",
+    Success = "Success",
+    Warning = "Warning",
+}
+
 export interface AlertDialogState {
     title?: string;
     message?: string;
     buttons: StateButton[];
+    severity?: AlertDialogSeverity | `${AlertDialogSeverity}`;
 }
 
 const defaultState = (): AlertDialogState => ({
     buttons: [{ label: i18next.t("Ok") }],
 });
+
+const iconColor = (severity: AlertDialogSeverity | `${AlertDialogSeverity}` | undefined, palette: Palette) => {
+    switch (severity) {
+        case "Error":
+            return palette.error.dark;
+        case "Info":
+            return palette.info.main;
+        case "Success":
+            return palette.success.main;
+        case "Warning":
+            return palette.warning.main;
+        default:
+            return palette.primary.light;
+    }
+};
 
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
@@ -33,15 +57,27 @@ export const AlertDialog = () => {
     const [open, setOpen] = useState(false);
     const zIndex = useZIndex(open, false, 1000);
 
+    // Determine the icon based on severity
+    const Icon = state.severity ? {
+        [AlertDialogSeverity.Error]: ErrorIcon,
+        [AlertDialogSeverity.Info]: InfoIcon,
+        [AlertDialogSeverity.Success]: SuccessIcon,
+        [AlertDialogSeverity.Warning]: WarningIcon,
+    }[state.severity] : null;
+
     useEffect(() => {
         const dialogSub = PubSub.get().subscribe("alertDialog", (o) => {
             setState({
                 title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
-                message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables).details ?? translateSnackMessage(o.messageKey, o.messageVariables).message : undefined,
+                message: o.messageKey ?
+                    translateSnackMessage(o.messageKey, o.messageVariables, o.severity === "Error" ? "error" : undefined).details ??
+                    translateSnackMessage(o.messageKey, o.messageVariables, o.severity === "Error" ? "error" : undefined).message :
+                    undefined,
                 buttons: o.buttons.map((b) => ({
                     label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
                     onClick: b.onClick,
                 })),
+                severity: o.severity,
             });
             setOpen(true);
         });
@@ -77,8 +113,10 @@ export const AlertDialog = () => {
                 id={titleId}
                 title={state.title}
                 onClose={resetState}
+                startComponent={Icon ? <Icon fill={iconColor(state.severity, palette)} /> : undefined}
             />}
             <DialogContent>
+                {!state.title && Icon !== null && <Icon fill={iconColor(state.severity, palette)} />}
                 <DialogContentText id={descriptionAria} sx={{
                     whiteSpace: "pre-wrap",
                     wordWrap: "break-word",
