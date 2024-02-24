@@ -1,4 +1,4 @@
-import { GqlModelType, pascalCase } from "@local/shared";
+import { GqlModelType, pascalCase, uuidValidate } from "@local/shared";
 import { isRelationshipObject } from "../builders/isOfType";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -56,9 +56,9 @@ export const fetchAndMapPlaceholder = async (
     const parts = placeholder.split(".");
     const [objectType, rootId] = parts[0].split("|", 2);
 
-    // Check if the ID we're looking for is already in the placeholder.
-    // This happens when the only thing in the placeholder is the rootId
-    if (parts.length === 1 && !isNaN(Number(rootId))) {
+    // Check if the placeholder is just an ID, in which case
+    // we'll add it to the map and return
+    if (parts.length === 1 && uuidValidate(rootId)) {
         logger.warning("Unnecessary placeholder was generated. This may be a bug", { trace: "0163", placeholder });
         // Directly map the rootId as the ID without querying the database
         placeholderToIdMap[placeholder] = rootId;
@@ -441,7 +441,7 @@ export const processConnectDisconnectOrDelete = (
     id: string,
     isToOne: boolean,
     action: QueryAction,
-    fieldName: string,
+    fieldName: string | null,
     __typename: GqlModelType | `${GqlModelType}`,
     parentNode: InputNode,
     closestWithId: { __typename: string, id: string, path: string } | null,
@@ -461,7 +461,7 @@ export const processConnectDisconnectOrDelete = (
     // Handle placeholders first.
     // Placeholders are only used for implicit disconnects/deletes on one-to-one and many-to-one relations.
     // This is because we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
-    if (!isInCreate && isToOne) {
+    if (!isInCreate && isToOne && fieldName) {
         const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
         let placeholderAction: "Disconnect" | "Delete" | null = null;
         // Connect and Disconnect may be implicitly DISCONNECTING the previous relation
@@ -615,12 +615,13 @@ export const inputToMaps = <
     inputsByType: InputsByType,
 ): InputNode => {
     // Initialize data
-    const rootNode = new InputNode(format.gqlRelMap.__typename, input[idField], action);
+    const id = typeof input === "string" ? input : input[idField];
+    const rootNode = new InputNode(format.gqlRelMap.__typename, id, action);
     initializeInputMaps(action, format.gqlRelMap.__typename, idsByAction, idsByType, inputsByType);
 
     // Add the current ID to idsByAction and idsByType
-    idsByAction[action]?.push(input[idField]);
-    idsByType[format.gqlRelMap.__typename]?.push(input[idField]);
+    idsByAction[action]?.push(id);
+    idsByType[format.gqlRelMap.__typename]?.push(id);
 
     // Update closestWithId for generating placeholders
     closestWithId = updateClosestWithId(action, input, idField, format.gqlRelMap.__typename, closestWithId);
@@ -632,7 +633,7 @@ export const inputToMaps = <
     if (!isRelationshipObject(input)) {
         // Process as a Delete
         inputInfo.input = input;
-        processConnectDisconnectOrDelete(input[idField], true, action, format.gqlRelMap.__typename, format.gqlRelMap.__typename, rootNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        processConnectDisconnectOrDelete(id, true, action, null, format.gqlRelMap.__typename, rootNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
     } else {
         // Process each field in the input object
         for (const field in input) {
@@ -642,10 +643,10 @@ export const inputToMaps = <
 
     // Add inputInfo to inputsById and inputsByType
     // Check if inputInfo already exists in inputsById
-    if (input[idField] in inputsById) {
+    if (id in inputsById) {
         console.warn("TODO Not sure if this is a problem");
     }
-    inputsById[input[idField]] = inputInfo;
+    inputsById[id] = inputInfo;
     inputsByType[format.gqlRelMap.__typename]?.[action]?.push(inputInfo);
     // Return the root node
     return rootNode;

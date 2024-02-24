@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { uuid } from "@local/shared";
 import { mockPrisma, resetPrismaMockData } from "../__mocks__/prismaUtils";
 import { ModelMap } from "../models";
-import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps";
+import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, inputToMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps";
 import { InputNode } from "./inputNode";
 import { IdsByAction, IdsByType, InputsByType } from "./types";
 
@@ -95,11 +97,12 @@ describe("fetchAndMapPlaceholder", () => {
         expect(placeholderToIdMap[placeholder]).toBeNull(); // Valid relation type but invalid relation
     });
 
-    it("should handle unnecessary placeholders (placeholders which contain the ID already", async () => {
-        const placeholder = "Note|888";
+    it("should handle unnecessary placeholders (placeholders which contain the ID already)", async () => {
+        const idInPlaceholder = uuid();
+        const placeholder = `Note|${idInPlaceholder}`; // This check only works with valid IDs
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
 
-        expect(placeholderToIdMap[placeholder]).toBe("888");
+        expect(placeholderToIdMap[placeholder]).toBe(idInPlaceholder);
     });
 });
 
@@ -986,6 +989,13 @@ describe("processConnectDisconnectOrDelete", () => {
             processConnectDisconnectOrDelete("123", true, "Delete", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
         }).toThrow("InternalError");
     });
+
+    it("skips placeholder when fieldName is null", () => {
+        processConnectDisconnectOrDelete("123", true, "Connect", null, "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByType.User).toEqual(["123"]);
+        expect(parentNode.children[0].id).toEqual("123");
+    });
 });
 describe("processInputObjectField", () => {
     let parentNode, idsByAction, idsByType, inputsById, inputsByType, inputInfo, format, closestWithId;
@@ -1463,5 +1473,283 @@ describe("processInputObjectField", () => {
         expect(() => {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
         }).toThrow("InternalError");
+    });
+});
+
+/**
+ * Helper function to check that an object has only the expected non-empty arrays, 
+ * and that every other value is an empty array.
+ */
+const expectOnlyTheseArrays = <ArrayItem>(
+    actual: Record<string, unknown>,
+    expectedNonEmpty: Record<string, ArrayItem[]>,
+) => {
+    // Check non-empty properties
+    Object.entries(expectedNonEmpty).forEach(([key, value]) => {
+        // @ts-ignore: expect-message
+        expect(actual[key], `Missing array value. Key: ${key}`).toEqual(expect.arrayContaining(value));
+        // @ts-ignore: expect-message
+        expect(actual[key], `Has extra array values. Key: ${key}`).toHaveLength(value.length);
+    });
+
+    // Make sure that everythign else is an empty array
+    Object.entries(actual).forEach(([key, value]) => {
+        if (!expectedNonEmpty[key]) {
+            // @ts-ignore: expect-message
+            expect(value, `Should be empty array. Key: ${key}`).toEqual([]);
+        }
+    });
+};
+
+describe("inputToMaps", () => {
+    let idsByAction, idsByType, inputsById, inputsByType, format, closestWithId;
+    const initialIdsByAction = { Create: [], Update: [], Connect: [], Disconnect: [] };
+    const initialIdsByType = {};
+    const initialInputsById = {};
+    const initialInputsByType = {};
+
+    beforeEach(async () => {
+        idsByAction = JSON.parse(JSON.stringify(initialIdsByAction));
+        idsByType = JSON.parse(JSON.stringify(initialIdsByType));
+        inputsById = JSON.parse(JSON.stringify(initialInputsById));
+        inputsByType = JSON.parse(JSON.stringify(initialInputsByType));
+        format = {
+            gqlRelMap: {
+                __typename: "User" as const,
+                api: "Api",
+                project: "Project",
+                reports: "Report",
+                roles: "Role",
+                routine: "Routine",
+                standard: "Standard",
+                smartContract: "SmartContract",
+            },
+        };
+        closestWithId = { __typename: "Routine", id: "grandparentId", path: "version" };
+
+        // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
+        await ModelMap.init();
+    });
+
+    it("should initialize root node correctly for a Create action with a simple input", () => {
+        const action = "Create";
+        const input = { id: "1", name: "John Doe" };
+        const rootNode = inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expect(rootNode.id).toBe("1");
+        expect(rootNode.__typename).toBe("User");
+        expect(rootNode.action).toBe("Create");
+        expect(idsByAction.Create).toContain("1");
+        expect(idsByType.User).toContain("1");
+        expect(inputsById["1"].input).toEqual(input);
+    });
+
+    it("should handle nested objects for a Create action", () => {
+        const action = "Create";
+        const input = {
+            id: "1",
+            projectCreate: { id: "2", name: "Project X" },
+            reportsConnect: ["3", "4"],
+        };
+        inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expectOnlyTheseArrays(idsByAction, {
+            Connect: ["3", "4"],
+            Create: ["1", "2"],
+        });
+        expectOnlyTheseArrays(idsByType, {
+            User: ["1"],
+            Project: ["2"],
+            Report: ["3", "4"],
+        });
+        expect(inputsById["1"].input).toEqual({
+            ...input,
+            projectCreate: "2",
+        });
+        expect(inputsById["2"].input).toEqual(input.projectCreate);
+    });
+
+    it("should throw error for nested Updates in a Create action, as they are invalid", () => {
+        const action = "Create";
+        const input = {
+            id: "1",
+            projectUpdate: { id: "2", name: "Project X" },
+        };
+        expect(() => {
+            inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        }).toThrow("InternalError");
+    });
+
+    it("should throw error for nested Disconnects in a Create action, as they are invalid - test 1", () => {
+        const action = "Create";
+        const input = {
+            id: "1",
+            reportsDisconnect: ["3", "4"],
+        };
+        expect(() => {
+            inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        }).toThrow("InternalError");
+    });
+
+    it("should throw error for nested Disconnects in a Create action, as they are invalid - test 2", () => {
+        const action = "Create";
+        const input = {
+            id: "1",
+            projectDisconnect: true,
+        };
+        expect(() => {
+            inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        }).toThrow("InternalError");
+    });
+
+    it("should throw error for nested Deleted in a Create action, as they are invalid - test 1", () => {
+        const action = "Create";
+        const input = {
+            id: "1",
+            reportsDelete: ["3", "4"],
+        };
+        expect(() => {
+            inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        }).toThrow("InternalError");
+    });
+
+    it("should throw error for nested Deletes in a Create action, as they are invalid - test 2", () => {
+        const action = "Create";
+        const input = {
+            id: "1",
+            projectDelete: true,
+        };
+        expect(() => {
+            inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+        }).toThrow("InternalError");
+    });
+
+    it("should handle nested objects for an Update action", () => {
+        const action = "Update";
+        const input = {
+            id: "1",
+            apiDelete: true,
+            projectCreate: { id: "2", name: "Project X" },
+            reportsConnect: ["3", "4"],
+            rolesCreate: [{ id: "5", name: "Role 1" }, { id: "6", name: "Role 2" }],
+            routineUpdate: { id: "7", name: "Routine X" },
+            standardConnect: "8",
+            smartContractDisconnect: true,
+        };
+        inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expectOnlyTheseArrays(idsByAction, {
+            Connect: ["3", "4", "8"],
+            Create: ["2", "5", "6"],
+            Update: ["1", "7"],
+            Delete: ["User|1.api"],
+            Disconnect: ["User|1.smartContract", "User|1.standard"], // Existing standard relation is implicitly disconnected
+        });
+        expectOnlyTheseArrays(idsByType, {
+            User: ["1"],
+            Api: ["User|1.api"],
+            Project: ["2"],
+            Report: ["3", "4"],
+            Role: ["5", "6"],
+            Routine: ["7"],
+            Standard: ["8", "User|1.standard"], // Include implicit disconnect
+            SmartContract: ["User|1.smartContract"],
+        });
+        expect(inputsById["1"].input).toEqual({
+            ...input,
+            apiDelete: true,
+            projectCreate: "2",
+            rolesCreate: ["5", "6"],
+            routineUpdate: "7",
+            standardConnect: "8",
+            smartContractDisconnect: true,
+        });
+        expect(inputsById["2"].input).toEqual(input.projectCreate);
+        expect(inputsById["5"].input).toEqual(input.rolesCreate[0]);
+        expect(inputsById["6"].input).toEqual(input.rolesCreate[1]);
+        expect(inputsById["7"].input).toEqual(input.routineUpdate);
+    });
+
+    it("should skip nested objects for a Connect action, since that's invalid", () => {
+        const action = "Connect";
+        const input = { id: "1", project: { id: "2", name: "Project X" } };
+        inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expectOnlyTheseArrays(idsByAction, {
+            Connect: ["1"],
+        });
+        expectOnlyTheseArrays(idsByType, {
+            User: ["1"],
+        });
+        expect(inputsById["1"].input).toEqual(input);
+    });
+
+    it("should skip nested objects for a Disconnect action, since that's invalid", () => {
+        const action = "Disconnect";
+        const input = { id: "1", project: { id: "2", name: "Project X" } };
+        inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expectOnlyTheseArrays(idsByAction, {
+            Disconnect: ["1"],
+        });
+        expectOnlyTheseArrays(idsByType, {
+            User: ["1"],
+        });
+        expect(inputsById["1"].input).toEqual(input);
+    });
+
+    it("should skip nested objects for a Delete action, since that's invalid", () => {
+        const action = "Delete";
+        const input = { id: "1", project: { id: "2", name: "Project X" } };
+        inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expectOnlyTheseArrays(idsByAction, {
+            Delete: ["1"],
+        });
+        expectOnlyTheseArrays(idsByType, {
+            User: ["1"],
+        });
+        expect(inputsById["1"].input).toEqual(input);
+    });
+
+    it("should handle complex nested structures", () => {
+        const action = "Update";
+        const input = {
+            id: "1",
+            name: "John Doe",
+            projectUpdate: {
+                id: "2",
+                name: "Updated Project",
+                // NOTE: We're not relying on the mock format for nested relationships, 
+                // so these must be actual relationships
+                issuesCreate: [{ id: "3", title: "Report 1" }, { id: "4", title: "Report 2" }],
+                parentConnect: "5", // Has implicit disconnect
+            },
+        };
+        inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
+
+        expectOnlyTheseArrays(idsByAction, {
+            Create: ["3", "4"],
+            Connect: ["5"],
+            Disconnect: ["Project|2.parent"],
+            Update: ["1", "2"],
+        });
+        expectOnlyTheseArrays(idsByType, {
+            User: ["1"],
+            Project: ["2"],
+            ProjectVersion: ["5", "Project|2.parent"],
+            Issue: ["3", "4"],
+        });
+        expect(inputsById["1"].input).toEqual({
+            ...input,
+            projectUpdate: "2",
+        });
+        expect(inputsById["2"].input).toEqual({
+            ...input.projectUpdate,
+            issuesCreate: ["3", "4"],
+            parentConnect: "5",
+        });
+        expect(inputsById["3"].input).toEqual(input.projectUpdate.issuesCreate[0]);
+        expect(inputsById["4"].input).toEqual(input.projectUpdate.issuesCreate[1]);
     });
 });
