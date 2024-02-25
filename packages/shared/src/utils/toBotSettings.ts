@@ -31,7 +31,7 @@ export type ToBotSettingsPropBot = {
  */
 export const toBotSettings = (
     bot: ToBotSettingsPropBot | null | undefined,
-    logger: { error: Function },
+    logger: { error: (message: string, data?: Record<string, any>) => unknown },
 ): BotSettings => {
     if (!bot || typeof bot !== "object" || Array.isArray(bot)) {
         logger.error("Invalid data passed into 'toBotSettings'", { trace: "0408", bot });
@@ -51,7 +51,7 @@ export const toBotSettings = (
         if (!botSettings.translations && bot.translations && Array.isArray(bot.translations)) {
             const translations: Record<string, BotSettingsTranslation> = {};
             bot.translations.forEach((translation) => {
-                if (translation.language && typeof translation.language === 'string') {
+                if (translation.language && typeof translation.language === "string") {
                     // Exclude __typename, id, and bio from the translation details
                     const { __typename, id, language, bio, ...translationDetails } = translation;
                     translations[translation.language] = translationDetails as BotSettingsTranslation;
@@ -74,4 +74,4 @@ export const toBotSettings = (
     if (typeof (result as { verbosity?: unknown }).verbosity === "string") (result as { verbosity?: unknown }).verbosity = toPosDouble((result as { verbosity?: unknown }).verbosity as string);
 
     return result;
-};
+}; 

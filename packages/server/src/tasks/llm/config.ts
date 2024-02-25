@@ -315,6 +315,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
                 const input = converter[task](data);
                 ApiEndpoints.Query.apis(undefined, { input }, context, info);
             };
+            //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more
         }
         case "ApiUpdate": {
             const { ApiEndpoints } = await import("../../endpoints/logic/api");

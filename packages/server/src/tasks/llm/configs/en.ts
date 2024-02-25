@@ -1,5 +1,5 @@
-import { pascalCase, toBotSettings, uuid } from "@local/shared";
-import { noEmptyString, validNumber } from "../../../builders/noNull";
+import { DeleteType, pascalCase, toBotSettings, uuid, uuidValidate } from "@local/shared";
+import { noEmptyString, validNumber, validUuid } from "../../../builders/noNull";
 import { logger } from "../../../events/logger";
 import { CommandToTask, LlmCommandProperty, LlmTask, LlmTaskConfig, LlmTaskConverters, LlmTaskUnstructuredConfig, llmTasks } from "../config";
 
@@ -121,11 +121,6 @@ export const config: LlmTaskConfig = {
                 is_required: false,
                 description: "A string to search for, such as a name or description.",
                 examples: ["WeatherAPI", "weather information"],
-            },
-            {
-                name: "endpoint",
-                is_required: false,
-                description: "The endpoint of the API.",
             },
         ],
         rules: [
@@ -273,8 +268,8 @@ export const config: LlmTaskConfig = {
         },
         properties: [
             {
-                name: "id",
-                type: "uuid",
+                name: "ids",
+                type: "uuid array",
             },
         ],
         rules: config.__rules,
@@ -787,10 +782,11 @@ export const convert: LlmTaskConverters = {
         //...
     }),
     ApiDelete: (data) => ({
-        //...
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Api,
     }),
     ApiFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     ApiUpdate: (data) => ({
 
@@ -798,7 +794,7 @@ export const convert: LlmTaskConverters = {
     BotAdd: (data) => ({
         id: uuid(),
         isBotDepictingPerson: false,
-        isPrivate: false,
+        isPrivate: true,
         name: noEmptyString(data.name) ?? "Bot",
         botSettings: JSON.stringify({
             creativity: validNumber(data.creativity, 0),
@@ -818,10 +814,12 @@ export const convert: LlmTaskConverters = {
         }),
     }),
     BotDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.User,
     }),
     BotFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
+        memberInOrganizationId: validUuid(data.memberInOrganizationId),
     }),
     BotUpdate: (data, existing) => {
         const settings = toBotSettings(existing, logger);
@@ -850,11 +848,22 @@ export const convert: LlmTaskConverters = {
     MembersAdd: (data) => ({
 
     }),
-    MembersDelete: (data) => ({
-
-    }),
+    MembersDelete: (data) => {
+        let ids = Array.isArray(data.ids) ?
+            data.ids :
+            typeof data.ids === "string" ?
+                [data.ids] :
+                [];
+        ids = ids.filter(uuidValidate);
+        const objects = ids.map(id => ({
+            id,
+            objectType: DeleteType.Member,
+        }));
+        return { objects };
+    },
     MembersFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
+        organizationId: validUuid(data.organizationId),
     }),
     MembersUpdate: (data) => ({
 
@@ -863,10 +872,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     NoteDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Note,
     }),
     NoteFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     NoteUpdate: (data) => ({
 
@@ -875,10 +885,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     ProjectDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Project,
     }),
     ProjectFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     ProjectUpdate: (data) => ({
 
@@ -887,10 +898,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     ReminderDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Reminder,
     }),
     ReminderFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     ReminderUpdate: (data) => ({
 
@@ -899,10 +911,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     RoleDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Role,
     }),
     RoleFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     RoleUpdate: (data) => ({
 
@@ -911,10 +924,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     RoutineDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Routine,
     }),
     RoutineFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     RoutineUpdate: (data) => ({
 
@@ -923,10 +937,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     ScheduleDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Schedule,
     }),
     ScheduleFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     ScheduleUpdate: (data) => ({
 
@@ -935,10 +950,11 @@ export const convert: LlmTaskConverters = {
 
     }),
     SmartContractDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.SmartContract,
     }),
     SmartContractFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     SmartContractUpdate: (data) => ({
 
@@ -947,24 +963,25 @@ export const convert: LlmTaskConverters = {
 
     }),
     StandardDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Standard,
     }),
     StandardFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     StandardUpdate: (data) => ({
 
     }),
-    StartAdd: (data) => ({
-    }),
+    Start: (data) => ({}),
     TeamAdd: (data) => ({
 
     }),
     TeamDelete: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Organization,
     }),
     TeamFind: (data) => ({
-
+        searchString: noEmptyString(data.searchString),
     }),
     TeamUpdate: (data) => ({
 

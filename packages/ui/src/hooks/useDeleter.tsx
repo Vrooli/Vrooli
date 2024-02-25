@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, GqlModelType, LINKS, Success, User } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, GqlModelType, LINKS, Role, Success, User } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
@@ -46,6 +46,7 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     ReminderList: "minimal",
     Report: "minimal",
     Resource: "none",
+    Role: "full",
     Routine: "full",
     RoutineVersion: "minimal",
     RunProject: "none",
@@ -109,14 +110,23 @@ export const useDeleter = ({
     const handleDelete = useCallback(() => {
         // Find confirmation level for this object type
         let confirmationType = ObjectsToDeleteConfirmLevel[objectType as DeleteType];
-        // Special case: Users with "isBot" set to true require minimal confirmation instead of full
+
+        // Handle special cases
+        // Case 1: Users with "isBot" set to true require minimal confirmation instead of full
         if (objectType === "User") {
             const user = object as Partial<User>;
             if (user.isBot === true) {
                 confirmationType = "minimal";
             }
         }
-        console.log();
+        // Case 2: non-admin roles require minimal confirmation instead of full
+        if (objectType === "Role") {
+            const role = object as Partial<Role>;
+            if (role.name !== "Admin") {
+                confirmationType = "minimal";
+            }
+        }
+
         if (confirmationType === "none") {
             // Delete without confirmation
             doDelete();

@@ -2,6 +2,7 @@ import { BotSettings } from "@local/shared";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
 import { withPrisma } from "../../utils/withPrisma";
+import { LlmTask } from "./config";
 import { MessageContextInfo } from "./context";
 import { OpenAIService } from "./services/openai";
 
@@ -78,6 +79,7 @@ export interface LanguageModelService<GenerateNameType extends string, TokenName
         respondingBotConfig: BotSettings,
         messageContextInfo: MessageContextInfo[],
         participantsData: Record<string, PreMapUserData>,
+        task: LlmTask,
         userData: SessionUserToken,
         requestedModel?: string | null
     ): Promise<LanguageModelContext>;
@@ -88,6 +90,7 @@ export interface LanguageModelService<GenerateNameType extends string, TokenName
         respondingToMessageContent: string,
         respondingBotId: string,
         respondingBotConfig: BotSettings,
+        task: LlmTask,
         userData: SessionUserToken
     ): Promise<string>;
     /** @returns the context size of the model */

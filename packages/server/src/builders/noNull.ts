@@ -1,4 +1,4 @@
-import { exists } from "@local/shared";
+import { exists, uuidValidate } from "@local/shared";
 
 /**
  * Returns the first non-null value from the list of 
@@ -43,6 +43,21 @@ export const validNumber = (...args: unknown[]): number | undefined => {
     for (const arg of args) {
         // Check if arg is a finite number
         if (typeof arg === "number" && isFinite(arg)) {
+            return arg;
+        }
+    }
+    return undefined;
+};
+
+/**
+ * Returns the first valid uuid from the list of parameters,
+ * or undefined if none are valid uuids.
+ * @param args - List of uuid arguments
+ * @returns First valid uuid value
+ */
+export const validUuid = (...args: unknown[]): string | undefined => {
+    for (const arg of args) {
+        if (typeof arg === "string" && uuidValidate(arg)) {
             return arg;
         }
     }

@@ -2,12 +2,14 @@ import Bull from "bull";
 import winston from "winston";
 import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage.js";
 import { SessionUserToken } from "../../types.js";
+import { LlmTask } from "./config.js";
 
 export type RequestBotResponsePayload = {
     chatId: string;
     messageId: string;
     message: PreMapMessageData;
     respondingBotId: string;
+    task: LlmTask;
     participantsData: Record<string, PreMapUserData>;
     userData: SessionUserToken;
 }

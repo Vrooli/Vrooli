@@ -131,25 +131,25 @@ describe("LanguageModelService lmServices", () => {
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
-            console.log('going to generate context', lmService?.generateContext)
             await expect(lmService.generateContext(
                 respondingBotId1,
                 respondingBotConfig1,
                 messageContextInfo1,
                 participantsData1,
+                "Start",
                 userData1,
             )).resolves.toBeDefined();
         });
 
         // Generate response
         it(`${lmServiceName}: generateResponse returns a string`, async () => {
-            console.log('going to generate response', lmService?.generateResponse)
             const response = await lmService.generateResponse(
                 chatId1,
                 respondingToMessageId1,
                 respondingToMessageContent1,
                 respondingBotId1,
                 respondingBotConfig1,
+                "Start",
                 userData1,
             );
             expect(typeof response).toBe("string");
