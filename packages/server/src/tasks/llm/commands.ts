@@ -1,5 +1,5 @@
 import { logger } from "../../events/logger";
-import { CommandToTask, LlmCommandProperty, LlmTask, LlmTaskUnstructuredConfig, llmTasks } from "./config";
+import { CommandToTask, LlmCommandProperty, LlmTask, getUnstructuredTaskConfig, llmTasks } from "./config";
 
 export type LlmCommand = {
     task: LlmTask;
@@ -368,30 +368,62 @@ export const extractCommands = (inputString: string, commandToTask: CommandToTas
  * Filters out invalid commands based on the task and language.
  * 
  * @param potentialCommands The array of potential commands extracted from the input string.
- * @param taskConfig The unstructured task configuration object, containing information about 
- * the available commands, actions, and properties.
+ * @param task The current task, which determines the available commands, actions, and properties.
  * @returns An array of valid commands after filtering out the invalid ones, and removing any invlaid 
  * actions and properties.
  */
 export const filterInvalidCommands = async (
     potentialCommands: MaybeLlmCommand[],
-    taskConfig: LlmTaskUnstructuredConfig,
+    task: LlmTask,
+    language?: string,
 ): Promise<LlmCommand[]> => {
     const result: LlmCommand[] = [];
+
+    // Get task configuration
+    const taskConfig = await getUnstructuredTaskConfig(task, language);
 
     // Loop through each potential command
     for (const command of potentialCommands) {
         const modifiedCommand = { ...command };
+        const requiresAction = taskConfig.actions && taskConfig.actions.length > 0;
 
         // If the task is not a valid task, skip it
-        if (!command.task || !llmTasks.includes(command.task)) continue;
+        if (!command.task) modifiedCommand.task = task;
+        else if (!llmTasks.includes(command.task)) continue;
 
-        // If the command is not in the task configuration, skip it
-        if (!Object.prototype.hasOwnProperty.call(taskConfig.commands, command.command)) continue;
+        let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, command.command);
 
-        // If the command has an invalid action, remove the action
-        if (command.action && (!taskConfig.actions || !taskConfig.actions.includes(command.action))) {
-            modifiedCommand.action = null;
+        // Attempt corrective measures when command or action are invalid.
+        if (!commandIsValid) {
+            const commandKeys = Object.keys(taskConfig.commands);
+            // If the command provided is a valid action, and there's only one command available, 
+            // then we can change the provided command to an action, and set the command to the only available command
+            // E.g. "/action prop1='hello'" -> "/command action prop1='hello'"
+            if (taskConfig.actions && taskConfig.actions.includes(command.command) && commandKeys.length === 1) {
+                // Set action to the command
+                modifiedCommand.action = command.command;
+                // Set command to the only command available in the task config
+                modifiedCommand.command = commandKeys[0];
+                commandIsValid = true; // Mark the command as valid now
+            }
+            // If the command is invalid but matches an action, and this task doesn't have any actions, then 
+            // we can change the action to a command, and set the action to null
+            // E.g. "/invalid command prop1='hello'" -> "/command prop1='hello'"
+            else if (command.action && commandKeys.includes(command.action) && !requiresAction) {
+                // Set action to null
+                modifiedCommand.action = null;
+                // Set command to the action
+                modifiedCommand.command = command.action;
+                commandIsValid = true; // Mark the command as valid now
+            }
+        }
+
+        // Skip if the command is still not valid
+        if (!commandIsValid) continue;
+
+        // If the command has an invalid action, then it is invalid
+        if (requiresAction && (!modifiedCommand.action || !taskConfig.actions?.includes(modifiedCommand.action))) {
+            continue;
         }
 
         // If the command has properties, filter out the invalid ones and check for required properties
@@ -417,7 +449,7 @@ export const filterInvalidCommands = async (
 
             // After checking all properties, if any required properties are still missing, mark the command as having missing required properties
             if (requiredProperties.length > 0) {
-                logger.error(`Command "${command.command}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
+                logger.error(`Command "${modifiedCommand.command}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
             }
             // Otherwise, the command is valid
             else {

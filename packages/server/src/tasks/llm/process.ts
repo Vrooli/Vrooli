@@ -1,3 +1,4 @@
+import { SessionUserToken } from "@local/server";
 import { BotSettings, ChatMessage, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -12,7 +13,7 @@ import { emitSocketEvent } from "../../sockets/events";
 import { processCommand } from "../../tasks/command";
 import { withPrisma } from "../../utils/withPrisma";
 import { LlmCommand, extractCommands, filterInvalidCommands, removeCommands } from "./commands";
-import { CommandToTask, LlmTask, getUnstructuredTaskConfig, importCommandToTask } from "./config";
+import { CommandToTask, LlmTask, importCommandToTask } from "./config";
 import { RequestBotResponsePayload } from "./queue";
 import { LanguageModelService, getLanguageModelService } from "./service";
 
@@ -34,13 +35,60 @@ const parseBotInformation = (
 const getCommands = async (
     message: string,
     task: LlmTask,
-    botSettings: BotSettings,
+    language: string,
     commandToTask: CommandToTask,
 ): Promise<{ commands: LlmCommand[], messageWithoutCommands: string }> => {
     const maybeCommands = extractCommands(message, commandToTask);
-    const commands = await filterInvalidCommands(maybeCommands, await getUnstructuredTaskConfig(task, botSettings));
+    const commands = await filterInvalidCommands(maybeCommands, task, language);
     const messageWithoutCommands = removeCommands(message, commands);
     return { commands, messageWithoutCommands };
+};
+
+const forceGetCommand = async (
+    command: LlmCommand,
+    chatId: string,
+    respondingToMessageId: string,
+    message: string,
+    respondingToMessageContent: string,
+    respondingBotId: string,
+    respondingBotConfig: BotSettings,
+    userData: SessionUserToken,
+    language: string,
+    service: LanguageModelService<any, any>,
+    commandToTask: CommandToTask,
+): Promise<{ command: LlmCommand, messageWithoutCommands: string } | null> => {
+    let retryCount = 0;
+    const MAX_RETRIES = 3; // Set a maximum number of retries to avoid infinite loops
+    const commandFound = false;
+
+    while (!commandFound && retryCount < MAX_RETRIES) {
+        const startResponse = await service.generateResponse({
+            chatId,
+            respondingToMessageId,
+            respondingToMessageContent,
+            respondingBotId,
+            respondingBotConfig,
+            task: command.task, // Change to the command's task
+            force: true, // Force the bot to respond with a command
+            userData,
+        });
+        console.log("Got start response", startResponse);
+
+        // Check for commands in the start response
+        const { commands: startCommands, messageWithoutCommands } = await getCommands(startResponse, command.task, language, commandToTask);
+
+        if (startCommands.length > 0) {
+            // Only use the first command found
+            return { command: startCommands[0], messageWithoutCommands };
+        } else {
+            // Increment the retry count if no command is found
+            retryCount++;
+            logger.warning(`No command found in start response. Retrying... (${retryCount}/${MAX_RETRIES})`, { trace: "0349", chatId, respondingBotId, task: command.task });
+        }
+    }
+
+    logger.error("Failed to find a command in start response after maximum retries.", { trace: "0350", chatId, respondingBotId, task: command.task });
+    return null;
 };
 
 export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
@@ -53,7 +101,7 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
             const { botSettings, service } = parseBotInformation(participantsData, respondingBotId, logger, language);
             // Check for commands in user's message
             const commandToTask = await importCommandToTask(language);
-            const { commands, messageWithoutCommands } = await getCommands(message.content, task, botSettings, commandToTask);
+            const { commands, messageWithoutCommands } = await getCommands(message.content, task, language, commandToTask);
             for (const command of commands) {
                 processCommand({
                     command,
@@ -66,13 +114,43 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
             if (messageWithoutCommands.trim() === "") return;
             // Send typing message while bot is responding
             emitSocketEvent("typing", message.chatId as string, { starting: [respondingBotId] });
-            const botResponse = await service.generateResponse(chatId, messageId, messageWithoutCommands, respondingBotId, botSettings, task, userData);
+            const botResponse = await service.generateResponse({
+                chatId,
+                respondingToMessageId: messageId,
+                respondingToMessageContent: messageWithoutCommands,
+                respondingBotId,
+                respondingBotConfig: botSettings,
+                task,
+                force: false,
+                userData,
+            });
             // Check for commands in bot's response
-            const { commands: botCommands, messageWithoutCommands: botResponseWithoutCommands } = await getCommands(botResponse, task, botSettings, commandToTask);
+            const { commands: botCommands, messageWithoutCommands: botResponseWithoutCommands } = await getCommands(botResponse, task, language, commandToTask);
             for (const command of botCommands) {
                 // If we're in a start command, generate a new response with the config to get the command properties
                 if (task === "Start") {
-                    //TODO
+                    const forcedCommand = await forceGetCommand(
+                        command,
+                        chatId,
+                        messageId,
+                        messageWithoutCommands,
+                        message.content,
+                        respondingBotId,
+                        botSettings,
+                        userData,
+                        language,
+                        service,
+                        commandToTask,
+                    );
+                    if (forcedCommand) {
+                        processCommand({
+                            command: forcedCommand.command,
+                            chatId,
+                            language,
+                            userData,
+                        });
+                    }
+                    // TODO forcedCommand.message should be used
                 } else {
                     processCommand({
                         command,

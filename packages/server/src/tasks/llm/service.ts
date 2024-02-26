@@ -70,29 +70,44 @@ export type LanguageModelContext = {
     systemMessage: string;
 }
 
+export type EstimateTokensParams = {
+    text: string;
+    requestedModel: string;
+}
+export type GenerateContextParams = {
+    respondingBotId: string;
+    respondingBotConfig: BotSettings;
+    messageContextInfo: MessageContextInfo[];
+    participantsData: Record<string, PreMapUserData>;
+    task: LlmTask;
+    /** 
+     * Determines if context should be written to force the response to be a command 
+     */
+    force: boolean;
+    userData: SessionUserToken;
+    requestedModel: string;
+}
+export type GenerateResponseParams = {
+    chatId: string;
+    respondingToMessageId: string;
+    respondingToMessageContent: string;
+    respondingBotId: string;
+    respondingBotConfig: BotSettings;
+    task: LlmTask;
+    /** 
+     * Determines if context should be written to force the response to be a command 
+     */
+    force: boolean;
+    userData: SessionUserToken;
+}
+
 export interface LanguageModelService<GenerateNameType extends string, TokenNameType> {
     /** Estimate the amount of tokens a string is */
-    estimateTokens(text: string, requestedModel?: string | null): readonly [TokenNameType, number];
+    estimateTokens(params: EstimateTokensParams): readonly [TokenNameType, number];
     /** Generates context prompt from messages */
-    generateContext(
-        respondingBotId: string,
-        respondingBotConfig: BotSettings,
-        messageContextInfo: MessageContextInfo[],
-        participantsData: Record<string, PreMapUserData>,
-        task: LlmTask,
-        userData: SessionUserToken,
-        requestedModel?: string | null
-    ): Promise<LanguageModelContext>;
+    generateContext(params: GenerateContextParams): Promise<LanguageModelContext>;
     /** Generate a message response */
-    generateResponse(
-        chatId: string,
-        respondingToMessageId: string,
-        respondingToMessageContent: string,
-        respondingBotId: string,
-        respondingBotConfig: BotSettings,
-        task: LlmTask,
-        userData: SessionUserToken
-    ): Promise<string>;
+    generateResponse(params: GenerateResponseParams): Promise<string>;
     /** @returns the context size of the model */
     getContextSize(requestedModel?: string | null): number;
     /** @returns the estimation method for the model */

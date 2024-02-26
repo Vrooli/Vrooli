@@ -198,7 +198,10 @@ export class ChatContextManager {
                 // Ensure we only proceed if there's a method to use
                 if (validMethod) {
                     // Safely handle the case where estimateTokens might return undefined
-                    const estimate = this.languageModelService.estimateTokens(translation.text, validMethod);
+                    const estimate = this.languageModelService.estimateTokens({
+                        text: translation.text,
+                        requestedModel: validMethod,
+                    });
                     const tokenCount = estimate ? estimate[1] : 0; // Fallback to 0 if estimate is undefined
 
                     translatedTokenCounts[translation.language][validMethod] = tokenCount;

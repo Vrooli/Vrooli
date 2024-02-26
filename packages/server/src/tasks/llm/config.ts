@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotSettings, BotUpdateInput, DeleteManyInput, DeleteOneInput, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DeleteManyInput, DeleteOneInput, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -96,8 +96,17 @@ export type LlmTaskStructuredConfig = Record<string, any>;
  * Information about all LLM tasks in a given language, including a function to 
  * convert unstructured task information into structured task information
  */
-export type LlmTaskConfig = Record<LlmTask, ((botSettings: BotSettings) => LlmTaskUnstructuredConfig)> & {
+export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> & {
+    /**
+     * Builds context object to add to the LLM's context, so that it 
+     * can start or execute commands
+     */
     __construct_context: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
+    /**
+     * Similar to __construct_context, but should force LLM to 
+     * respond with a command - rather than making it optional
+     */
+    __construct_context_force: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
     [Key: `__${string}`]: any;
 }
 
@@ -217,7 +226,6 @@ export const importCommandToTask = async (language: string): Promise<CommandToTa
  */
 export const getUnstructuredTaskConfig = async (
     task: LlmTask,
-    botSettings: BotSettings,
     language: string = DEFAULT_LANGUAGE,
 ): Promise<LlmTaskUnstructuredConfig> => {
     const unstructuredConfig = await importConfig(language);
@@ -229,16 +237,19 @@ export const getUnstructuredTaskConfig = async (
         return {} as LlmTaskUnstructuredConfig;
     }
 
-    return taskConfig(botSettings);
+    return taskConfig();
 };
 
 /**
+ * @param task The task to get the structured configuration for
+ * @param force Whether to force the LLM to respond with a command
+ * @param language The language to use for the configuration
  * @returns The structured configuration object for the given task,
  * in the best language available for the user
  */
 export const getStructuredTaskConfig = async (
     task: LlmTask,
-    botSettings: BotSettings,
+    force = false,
     language: string = DEFAULT_LANGUAGE,
 ): Promise<LlmTaskStructuredConfig> => {
     const unstructuredConfig = await importConfig(language);
@@ -250,7 +261,9 @@ export const getStructuredTaskConfig = async (
         return {} as LlmTaskStructuredConfig;
     }
 
-    return unstructuredConfig.__construct_context(taskConfig(botSettings));
+    return force ?
+        unstructuredConfig.__construct_context_force(taskConfig()) :
+        unstructuredConfig.__construct_context(taskConfig());
 };
 
 /**

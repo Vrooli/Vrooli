@@ -1,14 +1,13 @@
 import { BotSettings, BotSettingsTranslation } from "@local/shared";
-import OpenAI from "openai";
 import "openai/shims/node"; // NOTE: Make sure to save without formatting (use command palette for this), so that this import is above the openai import
+import OpenAI from "openai";
 import { logger } from "../../../events/logger";
-import { PreMapUserData } from "../../../models/base/chatMessage";
 import { SessionUserToken } from "../../../types";
 import { objectToYaml } from "../../../utils";
 import { bestTranslation } from "../../../utils/bestTranslation";
 import { LlmTask, getStructuredTaskConfig } from "../config";
-import { ChatContextCollector, MessageContextInfo } from "../context";
-import { LanguageModelContext, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "../service";
+import { ChatContextCollector } from "../context";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, LanguageModelContext, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "../service";
 
 type OpenAIGenerateModel = "gpt-3.5-turbo" | "gpt-4";
 type OpenAITokenModel = "default";
@@ -22,8 +21,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    estimateTokens(text: string, _requestedModel?: string | null) {
+    estimateTokens({ text }: EstimateTokensParams) {
         return tokenEstimationDefault(text);
     }
 
@@ -31,6 +29,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         botSettings: BotSettings,
         userData: Pick<SessionUserToken, "languages">,
         task: LlmTask,
+        force: boolean,
     ) {
         const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
         const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation;
@@ -43,7 +42,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
                 "Hello👋, how can I help you today?";
         delete (translation as { language?: string }).language;
 
-        const taskConfig = await getStructuredTaskConfig(task, botSettings, userData.languages[0] ?? "en");
+        const taskConfig = await getStructuredTaskConfig(task, force, userData.languages[0] ?? "en");
         const configObject = {
             ai_assistant: {
                 metadata: {
@@ -59,20 +58,20 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         return configObject;
     }
 
-    async generateContext(
-        _respondingBotId: string,
-        respondingBotConfig: BotSettings,
-        messageContextInfo: MessageContextInfo[],
-        participantsData: Record<string, PreMapUserData>,
-        task: LlmTask,
-        userData: SessionUserToken,
-        requestedModel?: string | null,
-    ): Promise<LanguageModelContext> {
+    async generateContext({
+        respondingBotConfig,
+        messageContextInfo,
+        participantsData,
+        task,
+        force,
+        userData,
+        requestedModel,
+    }: GenerateContextParams): Promise<LanguageModelContext> {
         const messages: LanguageModelContext["messages"] = [];
 
         // Construct the initial YAML configuration message for relevant participants
         let systemMessage = "You are a helpful assistant for an app named Vrooli. Please follow the configuration below to best suit each user's needs:\n\n";
-        const config = await this.getConfigObject(respondingBotConfig, userData, task);
+        const config = await this.getConfigObject(respondingBotConfig, userData, task, force);
         // Add yml for bot responding
         systemMessage += objectToYaml(config) + "\n";
         // We'll see if we need the other bot configs after testing
@@ -84,7 +83,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         // }
 
         // Calculate token size for the YAML configuration
-        const systemMessageSize = this.estimateTokens(systemMessage, requestedModel)[1];
+        const systemMessageSize = this.estimateTokens({ text: systemMessage, requestedModel })[1];
         const maxContentSize = this.getContextSize(requestedModel);
 
         // Fetch messages from the database
@@ -123,18 +122,28 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         return { messages, systemMessage };
     }
 
-    async generateResponse(
-        chatId: string,
-        respondingToMessageId: string,
-        respondingToMessageContent: string,
-        respondingBotId: string,
-        respondingBotConfig: BotSettings,
-        task: LlmTask,
-        userData: SessionUserToken,
-    ) {
+    async generateResponse({
+        chatId,
+        respondingToMessageId,
+        respondingToMessageContent,
+        respondingBotId,
+        respondingBotConfig,
+        task,
+        force,
+        userData,
+    }: GenerateResponseParams) {
         const model = this.getModel(respondingBotConfig?.model);
         const messageContextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessageId);
-        const context = await this.generateContext(respondingBotId, respondingBotConfig, messageContextInfo, {}, task, userData);
+        const context = await this.generateContext({
+            respondingBotId,
+            respondingBotConfig,
+            messageContextInfo,
+            participantsData: {},
+            task,
+            force,
+            userData,
+            requestedModel: model,
+        });
 
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
             messages: [

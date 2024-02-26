@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { OpenAIService } from './openai';
+import { OpenAIService } from "./openai";
 
 // NOTE: We don't need to test every function, since the service.test.ts tests covers some of them
-describe('OpenAIService', () => {
+describe("OpenAIService", () => {
     let openAIService: OpenAIService;
 
     const botSettings1 = {
@@ -46,7 +46,7 @@ describe('OpenAIService', () => {
         maxTokens: 100,
         name: "Bob Ross",
     };
-    const botSettings4 = {}
+    const botSettings4 = {};
     const botSettings5 = {
         model: "gpt-3.5-turbo",
         name: "Steve Jobs",
@@ -60,7 +60,7 @@ describe('OpenAIService', () => {
                 occupation: "Empresario",
                 persona: "Visionario",
                 startingMessage: "¡Hola! Soy Steve Jobs. ¿Qué crearemos hoy?",
-            }
+            },
         },
     };
     const allBots = [botSettings1, botSettings2, botSettings3, botSettings4, botSettings5];
@@ -81,32 +81,32 @@ describe('OpenAIService', () => {
             expect(Object.keys(yamlConfig).length).toBe(1);
         });
     });
-    it('should correctly translate based on user language preference', async () => {
+    it("should correctly translate based on user language preference", async () => {
         const userData = { languages: ["en"] };
-        const yamlConfig = await openAIService.getConfigObject(botSettings1, userData);
+        const yamlConfig = await openAIService.getConfigObject(botSettings1, userData, "Start", false);
 
         // Verify that the 'personality' field contains the English translation from botSettings1
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
     });
 
-    it('should handle missing translations by providing the next available language', async () => {
+    it("should handle missing translations by providing the next available language", async () => {
         const userData = { languages: ["fr"] }; // Assuming 'fr' translation is not available
-        const yamlConfig = await openAIService.getConfigObject(botSettings1, userData);
+        const yamlConfig = await openAIService.getConfigObject(botSettings1, userData, "RoutineAdd", false);
 
         // Verify that the 'personality' field is the first available translation from botSettings1,
         // since 'fr' is not available.
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
     });
-    it('should handle missing name field by using a default name', async () => {
+    it("should handle missing name field by using a default name", async () => {
         const userData = { languages: ["en"] };
-        const yamlConfig = await openAIService.getConfigObject(botSettings3, userData); // botSettings3 lacks a 'name'
+        const yamlConfig = await openAIService.getConfigObject(botSettings3, userData, "ReminderAdd", false); // botSettings3 lacks a 'name'
 
         // Verify that the 'metadata.name' field is a non-empty string
         expect(yamlConfig.ai_assistant.metadata.name.length).toBeGreaterThan(0);
     });
-    it('should handle multiple language translations and select based on user preference', async () => {
+    it("should handle multiple language translations and select based on user preference", async () => {
         const userData = { languages: ["es"] }; // Spanish preference
-        const yamlConfig = await openAIService.getConfigObject(botSettings5, userData);
+        const yamlConfig = await openAIService.getConfigObject(botSettings5, userData, "ScheduleFind", false);
 
         // Verify that the 'personality' field contains the Spanish translation from botSettings5
         expect(yamlConfig.ai_assistant.personality).toEqual(botSettings5.translations.es);

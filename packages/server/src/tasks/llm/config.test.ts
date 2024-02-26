@@ -19,16 +19,6 @@ describe("importConfig", () => {
                 const actionConfig = config[action];
                 expect(actionConfig).toBeDefined();
 
-                // Complete mockBotSettings with all required properties
-                const mockBotSettings = {
-                    model: "testModel",
-                    maxTokens: 123,
-                    name: "testBot",
-                    translations: {
-                        en: { startingMessage: "Hello" },
-                    },
-                };
-
                 const validateStructure = (obj) => {
                     // Check for commands, which is not optional
                     expect(obj).toHaveProperty("commands");
@@ -45,7 +35,7 @@ describe("importConfig", () => {
 
                 if (typeof actionConfig === "function") {
                     // Call the function and check the result
-                    const result = actionConfig(mockBotSettings);
+                    const result = actionConfig();
                     validateStructure(result);
                 } else if (typeof actionConfig === "object") {
                     validateStructure(actionConfig);
@@ -139,84 +129,52 @@ describe("importCommandToTask", () => {
 });
 
 describe("getUnstructuredTaskConfig", () => {
-    const botSettings1 = {
-        model: "gpt-3.5-turbo",
-        maxTokens: 100,
-        name: "Valyxa",
-        translations: {
-            en: {
-                bias: "",
-                creativity: 0.5,
-                domainKnowledge: "Planning, scheduling, and task management",
-                keyPhrases: "",
-                occupation: "Vrooli assistant",
-                persona: "Helpful, friendly, and professional",
-                startingMessage: "Hello! How can I help you today?",
-                tone: "Friendly",
-                verbosity: 0.5,
-            },
-        },
-    };
-
     test("works for an existing language", async () => {
-        const taskConfig = await getUnstructuredTaskConfig("Start", botSettings1, DEFAULT_LANGUAGE);
+        const taskConfig = await getUnstructuredTaskConfig("Start", DEFAULT_LANGUAGE);
         expect(taskConfig).toBeDefined();
         // Perform additional checks on the structure of taskConfig if necessary
     });
 
     test("works for a language that's not in the config", async () => {
-        const taskConfig = await getUnstructuredTaskConfig("RoutineAdd", botSettings1, "nonexistent-language");
+        const taskConfig = await getUnstructuredTaskConfig("RoutineAdd", "nonexistent-language");
         expect(taskConfig).toBeDefined();
         // Since it falls back to English, compare it with the English config for the same action
-        const englishConfig = await getUnstructuredTaskConfig("RoutineAdd", botSettings1, DEFAULT_LANGUAGE);
+        const englishConfig = await getUnstructuredTaskConfig("RoutineAdd", DEFAULT_LANGUAGE);
         expect(taskConfig).toEqual(englishConfig);
     });
 
     test("returns an empty object for an invalid action or action that doesn't appear in the config", async () => {
         // @ts-ignore: Testing runtime scenario
-        const taskConfig = await getUnstructuredTaskConfig("InvalidAction", "en", botSettings1);
+        const taskConfig = await getUnstructuredTaskConfig("InvalidAction", "en");
         expect(taskConfig).toEqual({});
     });
 });
 
 describe("getStructuredTaskConfig", () => {
-    const botSettings1 = {
-        model: "gpt-3.5-turbo",
-        maxTokens: 100,
-        name: "Valyxa",
-        translations: {
-            en: {
-                bias: "",
-                creativity: 0.5,
-                domainKnowledge: "Planning, scheduling, and task management",
-                keyPhrases: "",
-                occupation: "Vrooli assistant",
-                persona: "Helpful, friendly, and professional",
-                startingMessage: "Hello! How can I help you today?",
-                tone: "Friendly",
-                verbosity: 0.5,
-            },
-        },
-    };
-
     test("works for an existing language", async () => {
-        const taskConfig = await getStructuredTaskConfig("Start", botSettings1, DEFAULT_LANGUAGE);
+        const taskConfig = await getStructuredTaskConfig("Start", false, DEFAULT_LANGUAGE);
         expect(taskConfig).toBeDefined();
         // Perform additional checks on the structure of taskConfig if necessary
     });
 
     test("works for a language that's not in the config", async () => {
-        const taskConfig = await getStructuredTaskConfig("RoutineAdd", botSettings1, "nonexistent-language");
+        const taskConfig = await getStructuredTaskConfig("RoutineAdd", false, "nonexistent-language");
         expect(taskConfig).toBeDefined();
         // Since it falls back to English, compare it with the English config for the same action
-        const englishConfig = await getStructuredTaskConfig("RoutineAdd", botSettings1, DEFAULT_LANGUAGE);
+        const englishConfig = await getStructuredTaskConfig("RoutineAdd", false, DEFAULT_LANGUAGE);
         expect(taskConfig).toEqual(englishConfig);
     });
 
     test("returns an empty object for an invalid action or action that doesn't appear in the config", async () => {
         // @ts-ignore: Testing runtime scenario
-        const taskConfig = await getStructuredTaskConfig("InvalidAction", "en", botSettings1);
+        const taskConfig = await getStructuredTaskConfig("InvalidAction", false, "en");
         expect(taskConfig).toEqual({});
+    });
+
+    test("works when 'force' is true", async () => {
+        const taskConfig = await getStructuredTaskConfig("RoutineAdd", true, DEFAULT_LANGUAGE);
+        expect(taskConfig).toBeDefined();
+        // Perform additional checks on the structure of taskConfig if necessary
     });
 });
 

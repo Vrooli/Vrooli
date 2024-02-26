@@ -123,7 +123,11 @@ describe("LanguageModelService lmServices", () => {
     lmServices.forEach(({ name: lmServiceName, lmService: lmService }) => {
         // Estimate tokens
         it(`${lmServiceName}: estimateTokens returns a tuple with TokenNameType and number`, () => {
-            const [tokenType, count] = lmService.estimateTokens("sample text");
+            const model = lmService.getModel();
+            const [tokenType, count] = lmService.estimateTokens({
+                text: "sample text",
+                requestedModel: model,
+            });
             expect(tokenType).toBeDefined(); // Add more specific checks as needed
             expect(count).toBeDefined();
             expect(typeof count).toBe("number");
@@ -131,27 +135,31 @@ describe("LanguageModelService lmServices", () => {
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
-            await expect(lmService.generateContext(
-                respondingBotId1,
-                respondingBotConfig1,
-                messageContextInfo1,
-                participantsData1,
-                "Start",
-                userData1,
-            )).resolves.toBeDefined();
+            const model = lmService.getModel();
+            await expect(lmService.generateContext({
+                respondingBotId: respondingBotId1,
+                respondingBotConfig: respondingBotConfig1,
+                messageContextInfo: messageContextInfo1,
+                participantsData: participantsData1,
+                task: "Start",
+                force: true,
+                userData: userData1,
+                requestedModel: model,
+            })).resolves.toBeDefined();
         });
 
         // Generate response
         it(`${lmServiceName}: generateResponse returns a string`, async () => {
-            const response = await lmService.generateResponse(
-                chatId1,
-                respondingToMessageId1,
-                respondingToMessageContent1,
-                respondingBotId1,
-                respondingBotConfig1,
-                "Start",
-                userData1,
-            );
+            const response = await lmService.generateResponse({
+                chatId: chatId1,
+                respondingToMessageId: respondingToMessageId1,
+                respondingToMessageContent: respondingToMessageContent1,
+                respondingBotId: respondingBotId1,
+                respondingBotConfig: respondingBotConfig1,
+                task: "Start",
+                force: true,
+                userData: userData1,
+            });
             expect(typeof response).toBe("string");
         });
 

@@ -28,12 +28,19 @@ export const config: LlmTaskConfig = {
         no_command: "${content}",
         suggested_commands: "suggested: [/${command} ${action} ${property1}='${value1}', /${command} ${action} ${property2}='${value2}']",
     },
+    __finish_context_response_format: "/${command} ${action} ${property1}='some_string' ${property2}=123",
     __rules: [
         "Try to use commands when possible. This is the only way you can perform real actions.",
         "Do not play pretend. If you cannot do something directly, do not pretend to do it.",
         "When using a command, do not use any other modifiers, or provide any other text in the message. For example, if a user wants to remember something, you may responsd with just `/note add` and nothing else.",
         "In general, a command can be used when the user wants to perform an action. For example, if a user asks 'What's the weather?', you can respond with `/routine find`.",
         "When not using a command, you can provide suggested commands at the end of the message. Never suggest more than 4 commands.",
+    ],
+    __finish_context_rules: [
+        "Use the provided command(s) to complete the user's request. This is the only way you can perform real actions.",
+        "You must respond with a command.",
+        "Do not play pretend. If you cannot do something directly, do not pretend to do it.",
+        "When using a command, do not use any other modifiers, or provide any other text in the message. For example, if a user wants to remember something, you may responsd with just `/note add` and nothing else.",
     ],
     __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmCommandProperty, "name">>) {
         return selectedFields.map(([fieldName, isRequired]) => ({
@@ -79,6 +86,11 @@ export const config: LlmTaskConfig = {
         _response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
         ...rest,
     }),
+    __construct_context_force: (props: LlmTaskUnstructuredConfig) => ({
+        ...config.__construct_context(props),
+        _response_format: config.__finish_context_response_format,
+        rules: config.__rules,
+    }),
     __apiProperties: {
         name: {
             example: "WeatherAPI",
@@ -90,7 +102,7 @@ export const config: LlmTaskConfig = {
     },
     ApiAdd: () => ({
         commands: {
-            create: "Create an API with the provided properties.",
+            add: "Create an API with the provided properties.",
         },
         properties: config.__pick_properties([
             ["name", true],
@@ -179,7 +191,7 @@ export const config: LlmTaskConfig = {
     },
     BotAdd: () => ({
         commands: {
-            create: "Create a bot with the provided properties.",
+            add: "Create a bot with the provided properties.",
         },
         properties: config.__pick_properties([
             ["name", true],
@@ -233,7 +245,7 @@ export const config: LlmTaskConfig = {
     }),
     BotUpdate: () => ({
         commands: {
-            create: "Update a bot with the provided properties.",
+            add: "Update a bot with the provided properties.",
         },
         properties: config.__pick_properties([
             ["id", true],
@@ -255,7 +267,7 @@ export const config: LlmTaskConfig = {
     },
     MembersAdd: () => ({
         commands: {
-            create: "Create member with the provided properties.",
+            add: "Create member with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -312,7 +324,7 @@ export const config: LlmTaskConfig = {
     },
     NoteAdd: () => ({
         commands: {
-            create: "Create a note with the provided properties.",
+            add: "Create a note with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -362,7 +374,7 @@ export const config: LlmTaskConfig = {
     },
     ProjectAdd: () => ({
         commands: {
-            create: "Create a project with the provided properties.",
+            add: "Create a project with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -412,7 +424,7 @@ export const config: LlmTaskConfig = {
     },
     ReminderAdd: () => ({
         commands: {
-            create: "Create a reminder with the provided properties.",
+            add: "Create a reminder with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -462,7 +474,7 @@ export const config: LlmTaskConfig = {
     },
     RoleAdd: () => ({
         commands: {
-            create: "Create a role with the provided properties.",
+            add: "Create a role with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -508,13 +520,21 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __routineProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        // TODO continue
     },
     RoutineAdd: () => ({
         commands: {
-            create: "Create a routine with the provided properties.",
+            add: "Create a routine with the provided properties.",
         },
         properties: config.__pick_properties([
+            ["name", true],
+            ["description", false],
             //...
         ], config.__routineProperties),
         rules: config.__rules,
@@ -562,7 +582,7 @@ export const config: LlmTaskConfig = {
     },
     ScheduleAdd: () => ({
         commands: {
-            create: "Create a schedule with the provided properties.",
+            add: "Create a schedule with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -612,7 +632,7 @@ export const config: LlmTaskConfig = {
     },
     SmartContractAdd: () => ({
         commands: {
-            create: "Create a smart contract with the provided properties.",
+            add: "Create a smart contract with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -662,7 +682,7 @@ export const config: LlmTaskConfig = {
     },
     StandardAdd: () => ({
         commands: {
-            create: "Create a standard with the provided properties.",
+            add: "Create a standard with the provided properties.",
         },
         properties: config.__pick_properties([
             //...
@@ -730,7 +750,7 @@ export const config: LlmTaskConfig = {
     },
     TeamAdd: () => ({
         commands: {
-            create: "Create a team with the provided properties.",
+            add: "Create a team with the provided properties.",
         },
         properties: config.__pick_properties([
             //...

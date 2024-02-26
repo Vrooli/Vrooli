@@ -6,6 +6,7 @@ import { RedisClientMock } from "../../__mocks__/redis";
 import { PreMapMessageData } from "../../models/base/chatMessage";
 import { initializeRedis } from "../../redisConn";
 import { ChatContextCollector, ChatContextManager } from "./context";
+import { EstimateTokensParams } from "./service";
 import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
@@ -29,24 +30,24 @@ describe("ChatContextManager", () => {
 
     // Initial Redis data
     const initialChatData = {
-        "chat:chat1": [{ score: Date.now(), value: 'message1' }],
+        "chat:chat1": [{ score: Date.now(), value: "message1" }],
     };
     const initialMessageData = {
-        'message:message1': {
-            id: 'message1',
-            userId: 'user1',
-            parentId: 'parent1',
+        "message:message1": {
+            id: "message1",
+            userId: "user1",
+            parentId: "parent1",
             translatedTokenCounts: JSON.stringify({ en: { "default": 10 } }),
-        }
-    }
+        },
+    };
     const initialChildrenData = {
-        'children:parent1': ['message1'],
-    }
+        "children:parent1": ["message1"],
+    };
     const initialData = {
         ...JSON.parse(JSON.stringify(initialChatData)),
         ...JSON.parse(JSON.stringify(initialMessageData)),
         ...JSON.parse(JSON.stringify(initialChildrenData)),
-    }
+    };
 
     // Additional data for testing
     const message2 = {
@@ -72,7 +73,7 @@ describe("ChatContextManager", () => {
 
         // Add message
         it(`${lmServiceName}: should add a new message to Redis`, async () => {
-            const message = { ...message2, isNew: true }
+            const message = { ...message2, isNew: true };
             await chatContextManager.addMessage(message.chatId, message);
 
             // Verify Redis operations
@@ -89,12 +90,12 @@ describe("ChatContextManager", () => {
                     userId: message.userId,
                     parentId: message.parentId,
                     translatedTokenCounts: expect.any(String),
-                })
+                }),
             );
             expect(currentData[`children:${message.parentId}`]).toEqual(expect.arrayContaining([message.id]));
         });
         it(`${lmServiceName}: should refuse to add a message not marked as new`, async () => {
-            const message = { ...message2, isNew: false }
+            const message = { ...message2, isNew: false };
             await chatContextManager.addMessage(message.chatId, message);
 
             // Verify Redis operations
@@ -109,7 +110,7 @@ describe("ChatContextManager", () => {
             expect(currentData[`children:${message.parentId}`]).not.toEqual(expect.arrayContaining([message.id]));
         });
         it(`${lmServiceName}: should add a message without a parent to Redis`, async () => {
-            const message = { ...message2, isNew: true, parentId: undefined }
+            const message = { ...message2, isNew: true, parentId: undefined };
             await chatContextManager.addMessage(message.chatId, message);
 
             // Verify Redis operations
@@ -125,7 +126,7 @@ describe("ChatContextManager", () => {
                     id: message.id,
                     userId: message.userId,
                     translatedTokenCounts: expect.any(String),
-                })
+                }),
             );
             expect(currentData[`children:${message.parentId}`]).not.toEqual(expect.arrayContaining([message.id]));
         });
@@ -133,7 +134,7 @@ describe("ChatContextManager", () => {
         // Edit message
         it(`${lmServiceName}: should edit an existing message in Redis`, async () => {
             const message = {
-                ...initialMessageData['message:message1'],
+                ...initialMessageData["message:message1"],
                 chatId: "chat1",
                 content: "Hello, edited",
                 isNew: false,
@@ -154,7 +155,7 @@ describe("ChatContextManager", () => {
                     userId: message.userId,
                     parentId: message.parentId,
                     translatedTokenCounts: expect.any(String), // Adjust the expectation based on your token count calculation logic
-                })
+                }),
             );
         });
         it(`${lmServiceName}: should refuse to edit a message marked as new`, async () => {
@@ -174,12 +175,12 @@ describe("ChatContextManager", () => {
         });
         it(`${lmServiceName}: should edit a message and handle updated parent ID`, async () => {
             // Verify that message is part of original parent's children
-            const originalParentId = initialMessageData['message:message1'].parentId;
+            const originalParentId = initialMessageData["message:message1"].parentId;
             const originalChildren = RedisClientMock.__getAllMockData()[`children:${originalParentId}`];
             expect(originalChildren).toContain("message1");
 
             const message: PreMapMessageData = {
-                ...initialMessageData['message:message1'],
+                ...initialMessageData["message:message1"],
                 parentId: "newParentId", // Adding a new parent ID
                 chatId: "chat1",
                 content: "Hello, edited",
@@ -200,7 +201,7 @@ describe("ChatContextManager", () => {
             expect(currentData[`message:${message.id}`]).toEqual(
                 expect.objectContaining({
                     parentId: message.parentId,
-                })
+                }),
             );
             // Message should be in new parent's children
             expect(currentData[`children:${message.parentId}`]).toEqual(expect.arrayContaining([message.id]));
@@ -209,7 +210,7 @@ describe("ChatContextManager", () => {
         });
         it(`${lmServiceName}: should still work when existing message does not exist`, async () => {
             const message: PreMapMessageData = {
-                ...initialMessageData['message:message1'],
+                ...initialMessageData["message:message1"],
                 id: "nonExistentMessageId",
                 chatId: "chat1",
                 content: "Hello, edited",
@@ -233,13 +234,13 @@ describe("ChatContextManager", () => {
                     userId: message.userId,
                     parentId: message.parentId,
                     translatedTokenCounts: expect.any(String), // Adjust the expectation based on your token count calculation logic
-                })
+                }),
             );
             expect(currentData[`children:${message.parentId}`]).toEqual(expect.arrayContaining([message.id]));
         });
         it(`${lmServiceName}: should edit message translations and update token counts`, async () => {
             const messageWithEditedTranslations: PreMapMessageData = {
-                ...initialMessageData['message:message1'],
+                ...initialMessageData["message:message1"],
                 chatId: "chat1",
                 content: "Edited translation",
                 isNew: false,
@@ -248,7 +249,7 @@ describe("ChatContextManager", () => {
             };
 
             // Mock `calculateTokenCounts` to return a specific value
-            const mockedTokenCounts = { en: { 'default': -420 } };// Negative to ensure that original was never conincidentally this exact value
+            const mockedTokenCounts = { en: { "default": -420 } };// Negative to ensure that original was never conincidentally this exact value
             jest.spyOn(chatContextManager, "calculateTokenCounts").mockReturnValue(mockedTokenCounts);
 
             await chatContextManager.editMessage(messageWithEditedTranslations);
@@ -261,12 +262,12 @@ describe("ChatContextManager", () => {
             expect(currentData[`message:${messageWithEditedTranslations.id}`]).toEqual(
                 expect.objectContaining({
                     translatedTokenCounts: JSON.stringify(mockedTokenCounts),
-                })
+                }),
             );
         });
         it(`${lmServiceName}: should recover from invalid existing data - bad message`, async () => {
             const message: PreMapMessageData = {
-                ...initialMessageData['message:message1'],
+                ...initialMessageData["message:message1"],
                 chatId: "chat1",
                 content: "Hello, edited",
                 isNew: false,
@@ -290,7 +291,7 @@ describe("ChatContextManager", () => {
                     userId: message.userId,
                     parentId: message.parentId,
                     translatedTokenCounts: expect.any(String),
-                })
+                }),
             );
         });
 
@@ -312,7 +313,7 @@ describe("ChatContextManager", () => {
             expect(currentData[`chat:${chatId}`]).not.toContainEqual(expect.objectContaining({ value: messageId }));
         });
         it(`${lmServiceName}: should update children's parent references when deleting a message with children`, async () => {
-            const message1 = initialMessageData['message:message1'];
+            const message1 = initialMessageData["message:message1"];
 
             // Create some children for message1
             const childMessage1 = {
@@ -382,7 +383,7 @@ describe("ChatContextManager", () => {
         // Delete chat
         it(`${lmServiceName}: should delete a chat and all its messages`, async () => {
             const chatId = "chat1";
-            const message1 = initialMessageData['message:message1'];
+            const message1 = initialMessageData["message:message1"];
 
             // Add some messages to the chat for deletion
             await chatContextManager.addMessage(chatId, message2); // message2 is defined in the initial test setup
@@ -443,10 +444,10 @@ describe("ChatContextManager", () => {
         // Token counts
         const translations = [
             { language: "en", text: "Hello world" },
-            { language: "es", text: "Hola mundo" }
+            { language: "es", text: "Hola mundo" },
         ];
         const estimationTypes = lmService.getEstimationTypes();
-        const tokenEstimationMock = (message: string, method: string | null | undefined) => ([method ?? "default", message.split(" ").length] as readonly [any, number])
+        const tokenEstimationMock = ({ text, requestedModel }: EstimateTokensParams) => ([requestedModel, text.split(" ").length] as readonly [any, number]);
         it(`${lmServiceName}: should calculate token counts for each translation using provided estimation methods`, () => {
             // Mock the estimateTokens method
             jest.spyOn(lmService, "estimateTokens").mockImplementation(tokenEstimationMock);
@@ -477,7 +478,7 @@ describe("ChatContextManager", () => {
             // Expect token counts to still be calculated using some default method or skipped
             Object.keys(tokenCounts).forEach(language => {
                 expect(tokenCounts[language]).toBeDefined();
-                expect(Object.keys(tokenCounts[language])).toContain('default'); // Assuming 'default' is a fallback method
+                expect(Object.keys(tokenCounts[language])).toContain("default"); // Assuming 'default' is a fallback method
             });
         });
     });
@@ -496,76 +497,76 @@ describe("ChatContextCollector", () => {
     // Initial Redis data setup
     const initialChatData = {
         "chat:chat1": [
-            { score: Date.now() - 5000, value: 'message1' },
-            { score: Date.now() - 4000, value: 'message2' },
-            { score: Date.now() - 3000, value: 'message3' },
-            { score: Date.now() - 2000, value: 'message4' },
-            { score: Date.now() - 1000, value: 'message5' },
-            { score: Date.now(), value: 'message6' },
+            { score: Date.now() - 5000, value: "message1" },
+            { score: Date.now() - 4000, value: "message2" },
+            { score: Date.now() - 3000, value: "message3" },
+            { score: Date.now() - 2000, value: "message4" },
+            { score: Date.now() - 1000, value: "message5" },
+            { score: Date.now(), value: "message6" },
         ],
         "chat:emptyChat": [],
     };
     const initialMessageData = {
-        'message:message1': {
-            id: 'message1',
-            userId: 'alice',
+        "message:message1": {
+            id: "message1",
+            userId: "alice",
             parentId: null,
-            content: 'This is the first message',
-            language: 'en',
+            content: "This is the first message",
+            language: "en",
             translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
         },
         // Child of first message
-        'message:message2': {
-            id: 'message2',
-            userId: 'bob',
-            parentId: 'message1',
-            content: 'This is the second message',
-            language: 'en',
+        "message:message2": {
+            id: "message2",
+            userId: "bob",
+            parentId: "message1",
+            content: "This is the second message",
+            language: "en",
             translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
         },
         // Also a child of first message (i.e. chat has forked)
-        'message:message3': {
-            id: 'message3',
-            userId: 'bob',
-            parentId: 'message1',
-            content: 'This is the third message',
-            language: 'en',
+        "message:message3": {
+            id: "message3",
+            userId: "bob",
+            parentId: "message1",
+            content: "This is the third message",
+            language: "en",
             translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
         },
         // Child of second message
-        'message:message4': {
-            id: 'message4',
-            userId: 'alice',
-            parentId: 'message2',
-            content: 'This is the fourth message',
-            language: 'en',
+        "message:message4": {
+            id: "message4",
+            userId: "alice",
+            parentId: "message2",
+            content: "This is the fourth message",
+            language: "en",
             translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
         },
         // Child of fourth message
-        'message:message5': {
-            id: 'message5',
-            userId: 'bob',
-            parentId: 'message4',
-            content: 'This is the fifth message',
-            language: 'en',
+        "message:message5": {
+            id: "message5",
+            userId: "bob",
+            parentId: "message4",
+            content: "This is the fifth message",
+            language: "en",
             translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
         },
         // Child of third message
-        'message:message6': {
-            id: 'message6',
-            userId: 'bob',
-            parentId: 'message3',
-            content: 'This is the sixth message',
-            language: 'en',
+        "message:message6": {
+            id: "message6",
+            userId: "bob",
+            parentId: "message3",
+            content: "This is the sixth message",
+            language: "en",
             translatedTokenCounts: JSON.stringify({ en: { "default": 100 } }),
         },
     };
     const initialChildrenData = {
-        'children:message1': ['message2', 'message3'],
-        'children:message2': ['message4'],
-        'children:message3': ['message6'],
-        'children:message4': ['message5'],
-    }
+        "children:message1": ["message2", "message3"],
+        "children:message2": ["message4"],
+        "children:message3": ["message6"],
+        "children:message4": ["message5"],
+    };
     const initialData = {
         ...JSON.parse(JSON.stringify(initialChatData)),
         ...JSON.parse(JSON.stringify(initialMessageData)),
@@ -584,24 +585,24 @@ describe("ChatContextCollector", () => {
             prismaMock = mockPrisma({
                 ChatMessage: [
                     {
-                        id: 'message7',
-                        parent: { id: 'message3' },
-                        translations: [{ language: 'en', text: 'This is the seventh message' }],
-                        user: { id: 'charlie' },
+                        id: "message7",
+                        parent: { id: "message3" },
+                        translations: [{ language: "en", text: "This is the seventh message" }],
+                        user: { id: "charlie" },
                     },
                     {
-                        id: 'message8',
-                        parent: { id: 'message4' },
-                        translations: [{ language: 'en', text: 'This is the eighth message' }],
-                        user: { id: 'dave' },
+                        id: "message8",
+                        parent: { id: "message4" },
+                        translations: [{ language: "en", text: "This is the eighth message" }],
+                        user: { id: "dave" },
                     },
                 ],
             });
             PrismaClient.injectMocks(prismaMock);
 
             // Mock language model service methods to simplify testing
-            jest.spyOn(lmService, 'getContextSize').mockReturnValue(350 as any); // Since we've set each message to have 100 tokens, this should be able to hold 3 messages
-            jest.spyOn(lmService, 'getEstimationMethod').mockReturnValue('default');
+            jest.spyOn(lmService, "getContextSize").mockReturnValue(350 as any); // Since we've set each message to have 100 tokens, this should be able to hold 3 messages
+            jest.spyOn(lmService, "getEstimationMethod").mockReturnValue("default");
         });
 
         afterEach(() => {
@@ -651,7 +652,7 @@ describe("ChatContextCollector", () => {
             expect(messageContextInfo.length).toBe(3);
 
             // Now let's lower the context size to 200 and try again
-            jest.spyOn(lmService, 'getContextSize').mockReturnValue(200 as any);
+            jest.spyOn(lmService, "getContextSize").mockReturnValue(200 as any);
 
             messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
 
@@ -660,7 +661,7 @@ describe("ChatContextCollector", () => {
         });
         it(`${lmServiceName}: should stop early when missing messages in the chain`, async () => {
             // Remove message2 from Redis
-            RedisClientMock.__deleteMockData(`message:message2`);
+            RedisClientMock.__deleteMockData("message:message2");
 
             const chatId = "chat1";
             const model = "defaultModel";
@@ -679,7 +680,7 @@ describe("ChatContextCollector", () => {
             const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "chat1");
 
             // Expect the latest message ID to be 'message6', as per the initialMessageData
-            expect(latestMessageId).toBe('message6');
+            expect(latestMessageId).toBe("message6");
         });
         it(`${lmServiceName}: should return null for an empty chat`, async () => {
             const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "emptyChat");
@@ -696,7 +697,7 @@ describe("ChatContextCollector", () => {
 
         // Get message details
         it(`${lmServiceName}: should retrieve message details from Redis if available`, async () => {
-            const messageId = 'message2'; // An ID from the initial Redis mock data
+            const messageId = "message2"; // An ID from the initial Redis mock data
             const messageDetails = await chatContextCollector.getMessageDetails(redis, messageId);
 
             expect(messageDetails).toEqual(expect.objectContaining({
@@ -707,7 +708,7 @@ describe("ChatContextCollector", () => {
             }));
         });
         it(`${lmServiceName}: should fetch message details from the database if not in Redis and store them in Redis`, async () => {
-            const messageId = 'message7'; // ID not in initial Redis mock data, but in Prisma mock
+            const messageId = "message7"; // ID not in initial Redis mock data, but in Prisma mock
             const messageDetails = await chatContextCollector.getMessageDetails(redis, messageId);
 
             expect(prismaMock.chat_message.findUnique).toHaveBeenCalledWith({
@@ -717,22 +718,22 @@ describe("ChatContextCollector", () => {
 
             expect(messageDetails).toEqual(expect.objectContaining({
                 id: messageId,
-                parentId: 'message3', // Based on Prisma mock data
+                parentId: "message3", // Based on Prisma mock data
                 translatedTokenCounts: expect.any(Object), // Token counts are calculated and should be an object
-                userId: 'charlie', // Based on Prisma mock data
+                userId: "charlie", // Based on Prisma mock data
             }));
 
             // Verify Redis now contains the fetched message details
             const redisData = await redis.hGetAll(`message:${messageId}`);
             expect(redisData).toEqual(expect.objectContaining({
                 id: messageId,
-                parentId: 'message3',
+                parentId: "message3",
                 translatedTokenCounts: expect.any(String), // Should be JSON stringified
-                userId: 'charlie',
+                userId: "charlie",
             }));
         });
         it(`${lmServiceName}: should throw an error if message details cannot be fetched from Redis or the database`, async () => {
-            const messageId = 'nonExistentMessage';
+            const messageId = "nonExistentMessage";
             await expect(chatContextCollector.getMessageDetails(redis, messageId)).rejects.toThrow();
         });
 

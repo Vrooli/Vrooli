@@ -442,6 +442,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             messageId: objectId,
                             message,
                             respondingBotId: botId,
+                            task: "Start", //TODO need task queue for chats, so we can enter an exit tasks
                             participantsData: preMapUserData,
                             userData,
                         });
@@ -492,6 +493,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                                 messageId: objectId,
                                 message,
                                 respondingBotId: botId,
+                                task: "Start", //TODO need task queue for chats, so we can enter an exit tasks
                                 participantsData: preMapUserData,
                                 userData,
                             });
