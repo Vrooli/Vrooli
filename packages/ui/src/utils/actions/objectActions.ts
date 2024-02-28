@@ -1,4 +1,4 @@
-import { BookmarkFor, CommentFor, CommonKey, CopyType, DeleteType, getReactionScore, ReactionFor, ReportFor, Session } from "@local/shared";
+import { Bookmark, BookmarkFor, CommentFor, CommonKey, CopyResult, CopyType, DeleteType, getReactionScore, ReactionFor, ReportFor, Session, Success } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, UpvoteWideIcon } from "icons";
 import { SvgComponent } from "types";
@@ -38,6 +38,36 @@ export enum ObjectActionComplete {
     Report = "Report",
     VoteDown = "VoteDown",
     VoteUp = "VoteUp",
+}
+
+// None of the start actions have payloads at the moment, 
+// but this allows us to easily add them in the future.
+export interface ActionStartPayloads {
+    Bookmark: unknown;
+    BookmarkUndo: unknown;
+    Comment: unknown;
+    Delete: unknown;
+    Donate: unknown;
+    Edit: unknown;
+    FindInPage: unknown;
+    Fork: unknown;
+    Report: unknown;
+    Share: unknown;
+    Stats: unknown;
+    VoteDown: unknown;
+    VoteUp: unknown;
+}
+
+export interface ActionCompletePayloads {
+    Bookmark: Bookmark;
+    BookmarkUndo: Success;
+    Delete: Success;
+    EditComplete: unknown; // Not used yet
+    EditCancel: unknown; // Not used yet
+    Fork: CopyResult;
+    Report: unknown; // Not used yet
+    VoteDown: Success;
+    VoteUp: Success;
 }
 
 /**

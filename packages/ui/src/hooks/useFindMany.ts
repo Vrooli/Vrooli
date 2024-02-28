@@ -22,6 +22,28 @@ type UseFindManyProps = {
     where?: Record<string, any>;
 }
 
+export type UseFindManyResult<DataType extends Record<string, any>> = {
+    advancedSearchParams: object | null;
+    advancedSearchSchema: any;
+    allData: DataType[];
+    autocompleteOptions: AutocompleteOption[];
+    defaultSortBy: string;
+    loading: boolean;
+    loadMore: () => void;
+    removeItem: (id: string, idField?: string) => void;
+    searchString: string;
+    searchType: SearchType | `${SearchType}`;
+    setAdvancedSearchParams: (advancedSearchParams: object | null) => void;
+    setAllData: React.Dispatch<React.SetStateAction<DataType[]>>;
+    setSortBy: (sortBy: string) => void;
+    setSearchString: (searchString: string) => void;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    sortBy: string;
+    sortByOptions: Record<string, string>;
+    timeFrame: TimeFrame | undefined;
+    updateItem: (item: DataType, idField?: string) => void;
+}
+
 type FullSearchParams = Partial<SearchParams> & {
     advancedSearchParams: object | null;
     canSearch: boolean;
@@ -92,7 +114,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     resolve,
     take = 20,
     where,
-}: UseFindManyProps) => {
+}: UseFindManyProps): UseFindManyResult<DataType> => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
@@ -359,6 +381,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         loadMore,
         removeItem,
         searchString: params?.current?.searchString,
+        searchType,
         setAdvancedSearchParams,
         setAllData,
         setSortBy,

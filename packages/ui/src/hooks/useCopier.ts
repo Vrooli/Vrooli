@@ -1,7 +1,7 @@
 import { CopyInput, CopyResult, CopyType, endpointPostCopy, GqlModelType } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
 
@@ -9,7 +9,7 @@ type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
     objectType: `${GqlModelType}` | undefined;
-    onActionComplete: (action: ObjectActionComplete.Fork, data: CopyResult) => unknown;
+    onActionComplete: <T extends "Fork">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
 /**

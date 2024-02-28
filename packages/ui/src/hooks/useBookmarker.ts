@@ -2,7 +2,7 @@ import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, Bookma
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { shapeBookmark } from "utils/shape/models/bookmark";
@@ -11,8 +11,8 @@ import { useLazyFetch } from "./useLazyFetch";
 type UseBookmarkerProps = {
     objectId: string | null | undefined;
     objectType: `${GqlModelType}` | undefined;
-    onActionComplete: (action: ObjectActionComplete.Bookmark | ObjectActionComplete.BookmarkUndo, data: Bookmark | Success) => unknown;
-}
+    onActionComplete: <T extends "Bookmark" | "BookmarkUndo">(action: T, data: ActionCompletePayloads[T]) => unknown;
+};
 
 /**
  * Hook for simplifying the use of adding and removing bookmarks on an object

@@ -4,7 +4,7 @@ import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/Dele
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
 import { useCallback, useState } from "react";
 import { useLocation } from "route";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
@@ -68,7 +68,7 @@ export const useDeleter = ({
 }: {
     object: ListObject | null | undefined;
     objectType: `${GqlModelType}`;
-    onActionComplete: (action: ObjectActionComplete.Delete, data: boolean) => unknown;
+    onActionComplete: <T extends "Delete">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }) => {
     const [, setLocation] = useLocation();
 
@@ -88,7 +88,7 @@ export const useDeleter = ({
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName: getDisplay(object).title } }),
             onSuccess: () => {
-                onActionComplete(ObjectActionComplete.Delete, true);
+                onActionComplete(ObjectActionComplete.Delete, { __typename: "Success", success: true });
                 // If we're on the page for the object being deleted, navigate away
                 const onObjectsPage = window.location.pathname.startsWith(LINKS[objectType]);
                 setIsDeleteDialogOpen(false);
@@ -102,26 +102,27 @@ export const useDeleter = ({
             },
             errorMessage: () => ({ messageKey: "FailedToDelete" }),
             onError: () => {
-                onActionComplete(ObjectActionComplete.Delete, false);
+                onActionComplete(ObjectActionComplete.Delete, { __typename: "Success", success: false });
             },
         });
     }, [deleteOne, object, objectType, onActionComplete, setLocation]);
 
-    const handleDelete = useCallback(() => {
+    const handleDelete = useCallback((objectOverride?: ListObject) => {
+        const objectToDelete = objectOverride || object;
         // Find confirmation level for this object type
         let confirmationType = ObjectsToDeleteConfirmLevel[objectType as DeleteType];
 
         // Handle special cases
         // Case 1: Users with "isBot" set to true require minimal confirmation instead of full
         if (objectType === "User") {
-            const user = object as Partial<User>;
+            const user = objectToDelete as Partial<User>;
             if (user.isBot === true) {
                 confirmationType = "minimal";
             }
         }
         // Case 2: non-admin roles require minimal confirmation instead of full
         if (objectType === "Role") {
-            const role = object as Partial<Role>;
+            const role = objectToDelete as Partial<Role>;
             if (role.name !== "Admin") {
                 confirmationType = "minimal";
             }

@@ -1,9 +1,9 @@
-import { Count, exists, GqlModelType, LINKS, setDotNotationValue, Success } from "@local/shared";
+import { exists, GqlModelType, LINKS, setDotNotationValue } from "@local/shared";
 import { ObjectListItemProps } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useState } from "react";
 import { SetLocation } from "route";
-import { getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ActionStartPayloads, getAvailableActions, ObjectAction, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYouDot, ListObject } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
@@ -40,8 +40,8 @@ export type UseObjectActionsReturn = {
     isStatsDialogOpen: boolean;
     isReportDialogOpen: boolean;
     objectType: ListObject["__typename"] | undefined;
-    onActionStart: (action: ObjectAction | `${ObjectAction}`) => unknown;
-    onActionComplete: (action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => unknown;
+    onActionStart: <T extends keyof ActionStartPayloads>(action: T) => unknown;
+    onActionComplete: <T extends keyof ActionCompletePayloads>(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
 const callIfExists = (callback: (() => unknown) | null | undefined) => {
@@ -50,12 +50,6 @@ const callIfExists = (callback: (() => unknown) | null | undefined) => {
         return;
     }
     callback();
-};
-
-const toSuccess = (data: unknown) => {
-    if ((data as Success).__typename === "Success") return (data as Success).success === true;
-    if ((data as Count).__typename === "Count") return (data as Count).count > 0;
-    return exists(data);
 };
 
 /** Hook for updating state and navigating upon completing an action */
@@ -73,38 +67,60 @@ export const useObjectActions = ({
     const session = useContext(SessionContext);
 
     // Callback when an action is completed
-    const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
+    const onActionComplete = useCallback(<T extends keyof ActionCompletePayloads>(
+        action: T,
+        data: ActionCompletePayloads[T],
+    ) => {
         if (!exists(object)) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
         switch (action) {
-            case ObjectActionComplete.Bookmark:
-            case ObjectActionComplete.BookmarkUndo: {
+            case ObjectActionComplete.Bookmark: {
                 const isBookmarkedLocation = getYouDot(object, "isBookmarked");
-                const wasSuccessful = toSuccess(data);
-                console.log("completedbookmark", action, data);
-                if (wasSuccessful && isBookmarkedLocation) {
-                    console.log("updating object", object);
-                    setObject(setDotNotationValue(object, isBookmarkedLocation as any, action === ObjectActionComplete.Bookmark));
+                if (isBookmarkedLocation) {
+                    setObject(setDotNotationValue(object, isBookmarkedLocation, true));
+                } else {
+                    console.error("Bookmark location not found", { object, data });
                 }
                 break;
             }
-            case ObjectActionComplete.Delete:
-                console.log("onactioncomplete delete", object, onAction);
-                if (typeof onAction === "function") onAction("Deleted", object.id ?? "");
+            case ObjectActionComplete.BookmarkUndo: {
+                const isBookmarkedLocation = getYouDot(object, "isBookmarked");
+                if ((data as ActionCompletePayloads["BookmarkUndo"]).success === true && isBookmarkedLocation) {
+                    setObject(setDotNotationValue(object, isBookmarkedLocation, false));
+                } else {
+                    console.error("Bookmark location not found, or bookmark undo failed", { object, isBookmarkedLocation, data });
+                }
                 break;
+            }
+            case ObjectActionComplete.Delete: {
+                if (typeof onAction === "function" && object.id) {
+                    onAction("Deleted", object.id);
+                } else {
+                    console.error("onAction not found, or object ID not found", { object, onAction });
+                }
+                break;
+            }
             case ObjectActionComplete.Fork: {
                 // Data is in first key with a value
-                const forkData: any = Object.values(data).find((v) => typeof v === "object");
-                openObject(forkData, setLocation);
+                const forkData = Object.values(data as ActionCompletePayloads["Fork"]).find((v) => typeof v === "object");
+                if (forkData) {
+                    openObject(forkData as ListObject, setLocation);
+                } else {
+                    console.error("Fork data not found", { object, data });
+                }
                 break;
             }
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp: {
                 const reactionLocation = getYouDot(object, "reaction");
                 const emoji = action === ObjectActionComplete.VoteUp ? "👍" : action === ObjectActionComplete.VoteDown ? "👎" : null;
-                if (toSuccess(data) && reactionLocation) setObject(setDotNotationValue(object, reactionLocation as any, emoji));
+                if ((data as ActionCompletePayloads["VoteDown"] | ActionCompletePayloads["VoteUp"]).success === true && reactionLocation) {
+                    setObject(setDotNotationValue(object, reactionLocation, emoji));
+                } else {
+                    console.error("Vote data not found, or vote failed", { object, data });
+                }
                 break;
             }
         }
@@ -162,7 +178,9 @@ export const useObjectActions = ({
     const closeReportDialog = useCallback(() => setIsReportDialogOpen(false), [setIsReportDialogOpen]);
 
     // Callback when an action is started
-    const onActionStart = useCallback((action: ObjectAction | `${ObjectAction}`) => {
+    const onActionStart = useCallback(<T extends keyof ActionStartPayloads>(
+        action: T,
+    ) => {
         console.log("onActionStart", action);
         if (!exists(object)) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });

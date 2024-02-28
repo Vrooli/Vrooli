@@ -1,10 +1,10 @@
-import { getReactionScore, removeModifiers, Success } from "@local/shared";
+import { getReactionScore, removeModifiers } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useVoter } from "hooks/useVoter";
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { VoteButtonProps } from "../types";
 
@@ -38,7 +38,10 @@ export const VoteButton = ({
         return scoreNum + internalFeeling - externalFeeling;
     }, [emoji, internalEmoji, score]);
 
-    const onVoteComplete = useCallback((action: ObjectActionComplete.VoteDown | ObjectActionComplete.VoteUp, data: Success) => {
+    const onVoteComplete = useCallback(<T extends "VoteDown" | "VoteUp">(
+        action: T,
+        _data: ActionCompletePayloads[T],
+    ) => {
         // If cancelling, subtracts existing feeling.
         // Otherwise, same logic as calculating the internal score
         const updatedFeeling = getReactionScore(action === ObjectActionComplete.VoteUp ? "👍" : "👎");
