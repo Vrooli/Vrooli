@@ -15,14 +15,12 @@ export const useSideMenu = ({
     const defaultOpenState: boolean = getCookieSideMenuState(`${idPrefix}${id}`, false);
     const [isOpen, setIsOpen] = useState<boolean>(isMobile ? false : defaultOpenState);
     useEffect(() => {
-        const sideMenuSub = PubSub.get().subscribe("sideMenu", (data) => {
+        const unsubscribe = PubSub.get().subscribe("sideMenu", (data) => {
             if (data.id !== id || data.idPrefix !== idPrefix) return;
             setIsOpen(data.isOpen);
             setCookieSideMenuState(`${idPrefix}${id}`, data.isOpen);
         });
-        return (() => {
-            PubSub.get().unsubscribe(sideMenuSub);
-        });
+        return unsubscribe;
     }, [id, idPrefix]);
 
     const close = useCallback(() => {

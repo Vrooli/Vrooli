@@ -1,6 +1,7 @@
 import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
+import { ChatMessageShape } from "./shape/models/chatMessage";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
     messageKey: KeyList;
@@ -50,10 +51,19 @@ export type SideMenuPub = {
     isOpen: boolean;
 }
 
+export type ChatMessagePub = {
+    chatId: string;
+    data: {
+        newMessage?: ChatMessageShape;
+        updatedMessage?: ChatMessageShape;
+        deletedMessage?: string;
+    }
+}
+
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
     celebration: CelebrationPub;
-    chatMessageEdit: string | false;
+    chatMessage: ChatMessagePub;
     commandPalette: void;
     cookies: void;
     fastUpdate: { on?: boolean, duration?: number };
@@ -82,7 +92,7 @@ export type PubType = keyof EventPayloads;
 
 export class PubSub {
     private static instance: PubSub;
-    private subscribers = new Map<PubType, Array<{ token: symbol, subscriber: (data: any) => void }>>();
+    private subscribers = new Map<PubType, Map<symbol, (data: unknown) => void>>();
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -93,29 +103,46 @@ export class PubSub {
         return PubSub.instance;
     }
 
+    /**
+     * Publish data to all subscribers of a given type
+     * @param type The type of event to publish
+     * @param data The data to publish to subscribers
+     */
     publish<T extends PubType>(type: T, data: EventPayloads[T] = defaultPayloads[type] as EventPayloads[T]) {
-        this.subscribers.get(type)?.forEach(({ subscriber }) => subscriber(data));
+        this.subscribers.get(type)?.forEach(subscriber => subscriber(data));
     }
 
-    subscribe<T extends PubType>(type: T, subscriber: (data: EventPayloads[T]) => void): symbol {
+    /**
+     * Subscribe to a given event type
+     * @param type The type of event to subscribe to
+     * @param subscriber The callback to call when the event is published
+     * @returns A function to unsubscribe from the event on hook cleanup
+     */
+    subscribe<T extends PubType>(type: T, subscriber: (data: EventPayloads[T]) => void): () => void {
         const token = Symbol(type);
 
-        let subscribers = this.subscribers.get(type);
-        if (!subscribers) {
-            subscribers = [];
-            this.subscribers.set(type, subscribers);
+        if (!this.subscribers.has(type)) {
+            this.subscribers.set(type, new Map());
         }
-        subscribers.push({ token, subscriber });
+        let subs = this.subscribers.get(type);
+        if (subs) {
+            subs.set(token, subscriber as (data: unknown) => void);
+        } else {
+            subs = new Map();
+            subs.set(token, subscriber as (data: unknown) => void);
+            this.subscribers.set(type, subs);
+        }
 
-        return token;
-    }
-
-    unsubscribe(token: symbol) {
-        this.subscribers.forEach((subscribers) => {
-            const index = subscribers.findIndex(entry => entry.token === token);
-            if (index > -1) {
-                subscribers.splice(index, 1);
+        // Return an unsubscribe function
+        return () => {
+            const subscribersOfType = this.subscribers.get(type);
+            if (subscribersOfType) {
+                subscribersOfType.delete(token);
+                // // Optionally, clean up the type map if it's empty to prevent memory leaks
+                // if (subscribersOfType.size === 0) {
+                //     this.subscribers.delete(type);
+                // }
             }
-        });
+        };
     }
 }

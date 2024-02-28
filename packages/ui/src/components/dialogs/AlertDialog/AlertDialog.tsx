@@ -66,7 +66,7 @@ export const AlertDialog = () => {
     }[state.severity] : null;
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribe("alertDialog", (o) => {
+        const unsubscribe = PubSub.get().subscribe("alertDialog", (o) => {
             setState({
                 title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
                 message: o.messageKey ?
@@ -81,7 +81,7 @@ export const AlertDialog = () => {
             });
             setOpen(true);
         });
-        return () => { PubSub.get().unsubscribe(dialogSub); };
+        return unsubscribe;
     }, [t]);
 
     const handleClick = useCallback((event: any, action: ((e?: unknown) => unknown) | null | undefined) => {

@@ -14,18 +14,18 @@ describe("PubSub", () => {
 
     test("should allow subscription to events", () => {
         const mockSubscriber = jest.fn();
-        const token = pubSub.subscribe("snack", mockSubscriber);
+        pubSub.subscribe("snack", mockSubscriber);
 
-        expect(typeof token).toBe("symbol");
         pubSub.publish("snack", { message: "Test Snack" });
         expect(mockSubscriber).toHaveBeenCalledWith({ message: "Test Snack" });
     });
 
     test("should allow unsubscription from events", () => {
         const mockSubscriber = jest.fn();
-        const token = pubSub.subscribe("snack", mockSubscriber);
+        // Adjust to use the cleanup function returned by subscribe to unsubscribe.
+        const unsubscribe = pubSub.subscribe("snack", mockSubscriber);
 
-        pubSub.unsubscribe(token);
+        unsubscribe(); // Use the unsubscribe function instead of pubSub.unsubscribe(token)
         pubSub.publish("snack", { message: "Test Snack" });
         expect(mockSubscriber).not.toHaveBeenCalled();
     });

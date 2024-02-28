@@ -60,8 +60,8 @@ export const SnackStack = () => {
             setIsCookieSnackOpen(true);
         });
         return () => {
-            PubSub.get().unsubscribe(snackSub);
-            PubSub.get().unsubscribe(cookiesSub);
+            snackSub();
+            cookiesSub();
         };
     }, [t]);
 

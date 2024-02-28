@@ -128,14 +128,14 @@ const FindInPage = () => {
     }), [results.length]);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribe("findInPage", () => {
+        const unsubscribe = PubSub.get().subscribe("findInPage", () => {
             setOpen(o => {
                 // If turning off, reset search values (but keep case sensitive and other buttons the same)
                 if (o) { close(); }
                 return !o;
             });
         });
-        return () => { PubSub.get().unsubscribe(dialogSub); };
+        return unsubscribe;
     }, [close]);
 
     useHotkeys([

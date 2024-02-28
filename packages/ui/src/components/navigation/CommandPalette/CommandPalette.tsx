@@ -33,11 +33,11 @@ export const CommandPalette = () => {
     const close = useCallback(() => setOpen(false), []);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribe("commandPalette", () => {
+        const unsubscribe = PubSub.get().subscribe("commandPalette", () => {
             setOpen(o => !o);
             setSearchString("");
         });
-        return () => { PubSub.get().unsubscribe(dialogSub); };
+        return unsubscribe;
     }, []);
 
     const [refetch, { data, loading }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({

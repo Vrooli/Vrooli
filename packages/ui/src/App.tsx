@@ -244,7 +244,7 @@ export function App() {
 
     useEffect(() => {
         checkSession();
-        // Handle loading spinner, which can have a delay
+        // Handle session updates
         const loadingSub = PubSub.get().subscribe("loading", (data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
@@ -253,7 +253,6 @@ export function App() {
                 setIsLoading(Boolean(data));
             }
         });
-        // Handle session updates
         const sessionSub = PubSub.get().subscribe("session", async (session) => {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
@@ -347,15 +346,15 @@ export function App() {
         });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
-            PubSub.get().unsubscribe(loadingSub);
-            PubSub.get().unsubscribe(sessionSub);
-            PubSub.get().unsubscribe(themeSub);
-            PubSub.get().unsubscribe(focusModeSub);
-            PubSub.get().unsubscribe(fontSizeSub);
-            PubSub.get().unsubscribe(languageSub);
-            PubSub.get().unsubscribe(isLeftHandedSub);
-            PubSub.get().unsubscribe(tutorialSub);
-            PubSub.get().unsubscribe(sideMenuPub);
+            loadingSub();
+            sessionSub();
+            themeSub();
+            focusModeSub();
+            fontSizeSub();
+            languageSub();
+            isLeftHandedSub();
+            tutorialSub();
+            sideMenuPub();
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
 
