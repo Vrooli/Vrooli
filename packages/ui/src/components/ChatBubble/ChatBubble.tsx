@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPostReact, endpointPutChatMessage, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
+import { DUMMY_ID, endpointPostReact, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
 import { Avatar, Box, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
@@ -15,18 +15,17 @@ import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
 import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { NavigableObject } from "types";
-import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, ListObject } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { shapeChatMessage } from "utils/shape/models/chatMessage";
+import { ChatMessageStatus } from "utils/shape/models/chatMessage";
 
 /**
  * Displays a visual indicator for the status of a chat message (that you sent).
@@ -34,24 +33,20 @@ import { shapeChatMessage } from "utils/shape/models/chatMessage";
  * and changes color and icon based on the success or failure of the operation.
  */
 const ChatBubbleStatus = ({
-    hasError,
     isEditing,
-    isSending,
     onDelete,
     onEdit,
     onRetry,
     showButtons,
+    status,
 }: {
     isEditing: boolean;
-    /** Indicates if the message is still sending */
-    isSending: boolean;
-    /** Indicates if there has been an error in sending the message */
-    hasError: boolean;
     onDelete: () => unknown;
     onEdit: () => unknown;
     onRetry: () => unknown;
     /** Indicates if the edit and delete buttons should be shown */
     showButtons: boolean;
+    status: ChatMessageStatus;
 }) => {
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
@@ -59,7 +54,7 @@ const ChatBubbleStatus = ({
     useEffect(() => {
         // Updates the progress value every 100ms, but stops at 90 if the message is still sending
         let timer: NodeJS.Timeout;
-        if (isSending) {
+        if (status === "sending") {
             timer = setInterval(() => {
                 setProgress((oldProgress) => {
                     if (oldProgress === 100) {
@@ -67,7 +62,7 @@ const ChatBubbleStatus = ({
                         return 100;
                     }
                     const diff = 3;
-                    return Math.min(oldProgress + diff, isSending ? 90 : 100);
+                    return Math.min(oldProgress + diff, status === "sending" ? 90 : 100);
                 });
             }, 50);
         }
@@ -76,11 +71,11 @@ const ChatBubbleStatus = ({
         return () => {
             if (timer) clearInterval(timer);
         };
-    }, [isSending]);
+    }, [status]);
 
     useEffect(() => {
         // Resets the progress and completion state after a delay when the sending has completed
-        if (isCompleted && !isSending) {
+        if (isCompleted && status !== "sending") {
             const timer = setTimeout(() => {
                 setProgress(0);
                 setIsCompleted(false);
@@ -89,16 +84,22 @@ const ChatBubbleStatus = ({
                 clearTimeout(timer);
             };
         }
-    }, [isCompleted, isSending]);
+    }, [isCompleted, status]);
 
     // While the message is sending or has just completed, show a CircularProgress
-    if (isSending || isCompleted) {
+    if (status === "sending" || isCompleted) {
         return (
             <CircularProgress
                 variant="determinate"
                 value={progress}
                 size={24}
-                sx={{ color: isSending ? "secondary.main" : hasError ? red[500] : green[500] }}
+                sx={{
+                    color: status === "sending" ?
+                        "secondary.main" :
+                        status === "failed" ?
+                            red[500] :
+                            green[500],
+                }}
             />
         );
     }
@@ -108,7 +109,7 @@ const ChatBubbleStatus = ({
         return null;
     }
     // If there was an error, show an ErrorIcon
-    if (hasError) {
+    if (status === "failed") {
         return (
             <IconButton onClick={() => { onRetry(); }} sx={{ color: red[500] }}>
                 <ErrorIcon />
@@ -144,10 +145,10 @@ const ChatBubbleReactions = ({
     handleRetry,
     isBot,
     isOwn,
-    isUnsent,
     messagesCount,
     messageId,
     reactions,
+    status,
 }: {
     activeIndex: number,
     handleActiveIndexChange: (newIndex: number) => unknown,
@@ -157,10 +158,10 @@ const ChatBubbleReactions = ({
     handleRetry: () => unknown,
     isBot: boolean,
     isOwn: boolean,
-    isUnsent: boolean,
     messagesCount: number,
     messageId: string,
     reactions: ReactionSummary[],
+    status: ChatMessageStatus,
 }) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -177,7 +178,7 @@ const ChatBubbleReactions = ({
         handleReactionAdd(emoji);
     };
 
-    if (isUnsent) return null;
+    if (status === "unsent") return null;
     return (
         <Box
             display="flex"
@@ -267,6 +268,7 @@ const ChatBubbleReactions = ({
 export const ChatBubble = ({
     activeIndex,
     chatWidth,
+    isBotOnlyChat,
     isOwn,
     message,
     messagesCount,
@@ -282,16 +284,7 @@ export const ChatBubble = ({
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
 
-    const [createMessage, { loading: isCreating, errors: createErrors }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
-    const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
-    const [react, { loading: isReacting }] = useLazyFetch<ReactInput, Success>(endpointPostReact);
-
-    const [hasError, setHasError] = useState(false);
-    useEffect(() => {
-        if ((Array.isArray(createErrors) && createErrors.length > 0) || (Array.isArray(updateErrors) && updateErrors.length > 0)) {
-            setHasError(true);
-        }
-    }, [createErrors, updateErrors]);
+    const [react] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
     const {
         handleDelete,
@@ -302,71 +295,59 @@ export const ChatBubble = ({
         onActionComplete: () => { onDeleted(message); },
     });
 
-    const shouldRetry = useRef(true);
-    useEffect(() => {
-        if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
-            shouldRetry.current = false;
-            fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
-                fetch: createMessage,
-                inputs: shapeChatMessage.create({ ...message, versionOfId: message.id }),
-                successCondition: (data) => data !== null,
-                onSuccess: (data) => {
-                    setEditingText(undefined);
-                    console.log("chatbubble setting error false 1", data);
-                    setHasError(false);
-                    onUpdated({ ...data, isUnsent: false });
-                },
-            });
-        }
-    }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
+    // const shouldRetry = useRef(true);
+    // useEffect(() => {
+    //     if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
+    //         shouldRetry.current = false;
+    //         fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
+    //             fetch: createMessage,
+    //             inputs: shapeChatMessage.create({ ...message }),
+    //             successCondition: (data) => data !== null,
+    //             onSuccess: (data) => {
+    //                 setEditingText(undefined);
+    //                 console.log("chatbubble setting error false 1", data);
+    //                 setHasError(false);
+    //                 onUpdated({ ...data, isUnsent: false });
+    //             },
+    //         });
+    //     }
+    // }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
 
     const [editingText, setEditingText] = useState<string | undefined>(undefined);
     const isEditing = Boolean(editingText);
-    const startEditing = () => {
-        if (message.isUnsent) return;
+    const startEditing = useCallback(() => {
+        if (message.status !== "sent") return;
         setEditingText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
-    };
+    }, [message, session]);
     const finishEditing = () => {
-        if (message.isUnsent || editingText === undefined || editingText.trim() === "") return;
-        // TODO when talking to a bot, should create new fork. When talking to a user,
-        // should update the message instead. Need to figure out what to do in chat groups, 
-        // with mixed bots and users.
-        fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
-            fetch: createMessage,
-            inputs: shapeChatMessage.create({
+        if (message.status !== "sent" || editingText === undefined || editingText.trim() === "") return;
+        if (isBotOnlyChat) {
+            //TODO
+        }
+        // Otherwise, update the existing message
+        else {
+            const updatedMessage = {
                 ...message,
-                versionOfId: message.id,
                 translations: [
                     ...message.translations.filter((t) => t.language !== lng),
                     {
+                        __typename: "ChatMessageTranslation" as const,
+                        id: DUMMY_ID,
+                        language: lng,
                         ...message.translations.find((t) => t.language === lng),
                         text: editingText,
                     },
-                ] as any,
-            }),
-            successCondition: (data) => data !== null,
-            onSuccess: (data) => {
-                setEditingText(undefined);
-                console.log("chatbubble setting error false 2", data);
-                setHasError(false);
-                onUpdated({ ...data, isUnsent: false });
-            },
-        });
+                ],
+            };
+            onUpdated(updatedMessage);
+            // TODO need these after update complete
+            // setEditingText(undefined);
+            // setHasError(false);
+        }
     };
 
-    useEffect(() => {
-        const chatMessageEditSub = PubSub.get().subscribe("chatMessageEdit", (data) => {
-            if (data === false) {
-                setEditingText(undefined);
-            } else if (data === message.id) {
-                startEditing();
-            }
-        });
-        return () => { PubSub.get().unsubscribe(chatMessageEditSub); };
-    }, [message.id, startEditing]);
-
     const handleReactionAdd = (emoji: string) => {
-        if (message.isUnsent) return;
+        if (message.status !== "sent") return;
         const originalSummaries = message.reactionSummaries;
         // Add to summaries right away, so that the UI updates immediately
         const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
@@ -523,8 +504,8 @@ export const ChatBubble = ({
                             />
                             <Grid container spacing={1} mt={2}>
                                 <BottomActionsButtons
-                                    disabledCancel={isCreating || isUpdating}
-                                    disabledSubmit={isCreating || isUpdating}
+                                    disabledCancel={message.status !== "sent"}
+                                    disabledSubmit={!["unsent", "editing"].includes(message.status)}
                                     display="page"
                                     errors={{}}
                                     isCreate={false}
@@ -544,17 +525,15 @@ export const ChatBubble = ({
                         <Box display="flex" alignItems="center">
                             <ChatBubbleStatus
                                 isEditing={isEditing}
-                                isSending={isCreating || isUpdating}
-                                hasError={hasError}
                                 onDelete={handleDelete}
                                 onEdit={() => {
                                     startEditing();
                                 }}
                                 onRetry={() => {
-                                    shouldRetry.current = true;
-                                    onUpdated({ ...message, isUnsent: true });
+                                    //TODO
                                 }}
                                 showButtons={bubblePressed}
+                                status={message.status}
                             />
                         </Box>
                     )}
@@ -569,10 +548,10 @@ export const ChatBubble = ({
                     handleRetry={() => { onRetry(message); }}
                     isBot={message.user?.isBot ?? false}
                     isOwn={isOwn}
-                    isUnsent={message.isUnsent ?? false}
                     messagesCount={messagesCount}
                     messageId={message.id}
                     reactions={message.reactionSummaries}
+                    status={message.status}
                 />
             </Box>
         </>

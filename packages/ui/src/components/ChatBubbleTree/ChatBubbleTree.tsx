@@ -68,6 +68,7 @@ export const ChatBubbleTree = ({
     editMessage,
     handleReply,
     handleRetry,
+    isBotOnlyChat,
     removeMessages,
     setBranches,
     tree,
@@ -76,6 +77,7 @@ export const ChatBubbleTree = ({
     editMessage: (updatedMessage: ChatMessageShape) => unknown;
     handleReply: (message: ChatMessageShape) => unknown;
     handleRetry: (message: ChatMessageShape) => unknown;
+    isBotOnlyChat: boolean;
     removeMessages: (messageIds: string[]) => unknown;
     setBranches: Dispatch<SetStateAction<BranchMap>>;
     tree: MessageTree<ChatMessageShape>;
@@ -98,6 +100,7 @@ export const ChatBubbleTree = ({
                     <ChatBubble
                         activeIndex={activeIndex}
                         chatWidth={dimensions.width}
+                        isBotOnlyChat={isBotOnlyChat}
                         messagesCount={withSiblings.length}
                         onActiveIndexChange={(newIndex) => {
                             const childId = newIndex >= 0 && newIndex < activeParent.children.length ?

@@ -347,6 +347,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     id: data.id,
                     user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.
                     ...(parentId ? { parent: { connect: { id: parentId } } } : {}),
+                    versionIndex: data.versionIndex,
                     chat: await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "messages", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
                 };

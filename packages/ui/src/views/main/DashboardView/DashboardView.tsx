@@ -1,4 +1,4 @@
-import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -14,6 +14,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useMessageActions } from "hooks/useMessageActions";
 import { useMessageTree } from "hooks/useMessageTree";
 import { useSocketChat } from "hooks/useSocketChat";
 import { PageTab } from "hooks/useTabs";
@@ -26,14 +27,13 @@ import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { CalendarEvent } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { BranchMap, getCookieMatchingChat, getCookieMessageTree, setCookieMatchingChat, setCookieMessageTree } from "utils/cookies";
+import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { chatInitialValues, transformChatValues, VALYXA_INFO, withoutOtherMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 
@@ -307,8 +307,7 @@ export const DashboardView = ({
     const [showChat, setShowChat] = useState(false);
     const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
 
-    const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);
-    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(chat.id)?.branches ?? {});
+    const messageTree = useMessageTree([], chat.id);
 
     const [inputFocused, setInputFocused] = useState(false);
     const onFocus = useCallback(() => {
@@ -316,77 +315,46 @@ export const DashboardView = ({
         setShowChat(true);
     }, []);
 
-    // We query messages separate from the chat, since we must traverse the message tree
-    const [getTreeData, { data: searchTreeData }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
-
-    // When chatId changes, clear the message tree and branches, and fetch new data
-    useEffect(() => {
-        if (chat.id === DUMMY_ID) return;
-        clearMessages();
-        setBranches({});
-        getTreeData({ chatId: chat.id });
-    }, [chat.id, clearMessages, getTreeData]);
-    useEffect(() => {
-        if (!searchTreeData || searchTreeData.messages.length === 0) return;
-        console.log("got search tree messages!!", searchTreeData.messages);
-        addMessages(searchTreeData.messages);
-    }, [addMessages, searchTreeData]);
-
-    useEffect(() => {
-        // Update the cookie with current branches
-        setCookieMessageTree(chat.id, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
-    }, [branches, chat.id]);
-
     const onSubmit = useCallback((updatedChat: ChatShape) => {
-        fetchLazyWrapper<ChatUpdateInput, Chat>({
-            fetch,
-            inputs: transformChatValues(withoutOtherMessages(updatedChat, session), withoutOtherMessages(chat, session), false),
-            onSuccess: (data) => {
-                console.log("update success!", data);
-                setChat(data);
-                setMessage("");
-            },
-            spinnerDelay: null,
+        return new Promise<Chat>((resolve, reject) => {
+            fetchLazyWrapper<ChatUpdateInput, Chat>({
+                fetch,
+                inputs: transformChatValues(withoutOtherMessages(updatedChat, session), withoutOtherMessages(chat, session), false),
+                onSuccess: (data) => {
+                    handleUpdate({ ...data, status: "sent" });
+                    setMessage("");
+                    resolve(data);
+                },
+                onCompleted: () => { props.setSubmitting(false); },
+                onError: (data) => {
+                    PubSub.get().publish("snack", {
+                        message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
+                        severity: "Error",
+                        data,
+                    });
+                    reject(data);
+                },
+                spinnerDelay: null,
+            });
         });
-    }, [chat, fetch, setChat, session, setMessage]);
+    }, [chat, fetch, session, setMessage]);
 
     useSocketChat({
-        addMessages,
+        addMessages: messageTree.addMessages,
         chat,
-        editMessage,
-        removeMessages,
-        session,
+        editMessage: messageTree.editMessage,
+        removeMessages: messageTree.removeMessages,
         setUsersTyping,
         usersTyping,
     });
 
-    const addMessage = useCallback((text: string) => {
-        const newMessage: ChatMessageShape = {
-            __typename: "ChatMessage" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            isUnsent: true,
-            chat: {
-                __typename: "Chat" as const,
-                id: chat.id,
-            },
-            reactionSummaries: [],
-            translations: [{
-                __typename: "ChatMessageTranslation" as const,
-                id: DUMMY_ID,
-                language: languages[0],
-                text,
-            }],
-            user: {
-                __typename: "User" as const,
-                id: getCurrentUser(session).id ?? "",
-                isBot: false,
-                name: getCurrentUser(session).name ?? undefined,
-            },
-        };
-        onSubmit({ ...chat, messages: [...(chat.messages ?? []), newMessage] });
-    }, [chat, languages, onSubmit, session]);
+    const messageActions = useMessageActions({
+        chat,
+        handleChatUpdate: onSubmit,
+        language: languages[0],
+    });
+
+    const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
 
     return (
         <Box sx={{
@@ -531,13 +499,14 @@ export const DashboardView = ({
                     </ListTitleContainer>}
                 </>}
                 {showChat && <ChatBubbleTree
-                    branches={branches}
-                    editMessage={editMessage}
-                    handleReply={() => { }}
-                    handleRetry={() => { }}
-                    removeMessages={removeMessages}
-                    setBranches={setBranches}
-                    tree={tree}
+                    branches={messageTree.branches}
+                    editMessage={messageActions.putMessage}
+                    handleReply={messageTree.replyToMessage}
+                    handleRetry={messageActions.regenerateResponse}
+                    isBotOnlyChat={isBotOnlyChat}
+                    removeMessages={messageTree.removeMessages}
+                    setBranches={messageTree.setBranches}
+                    tree={messageTree.tree}
                 />}
             </Box>
             <TypingIndicator participants={usersTyping} />
@@ -548,7 +517,7 @@ export const DashboardView = ({
                     onClick: () => {
                         const trimmed = message.trim();
                         if (trimmed.length === 0) return;
-                        addMessage(trimmed);
+                        messageActions.postMessage(trimmed);
                     },
                 }]}
                 disableAssistant={true}
@@ -566,7 +535,7 @@ export const DashboardView = ({
                 onSubmit={(m) => {
                     const trimmed = m.trim();
                     if (trimmed.length === 0) return;
-                    addMessage(trimmed);
+                    messageActions.postMessage(trimmed);
                 }}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 sxs={{

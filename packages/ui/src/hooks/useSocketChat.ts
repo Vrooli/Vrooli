@@ -1,6 +1,7 @@
-import { ChatParticipant, DUMMY_ID, Session } from "@local/shared";
+import { ChatParticipant, DUMMY_ID } from "@local/shared";
 import { emitSocketEvent, onSocketEvent, socket } from "api";
-import { useEffect } from "react";
+import { SessionContext } from "contexts/SessionContext";
+import { useContext, useEffect } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
@@ -11,7 +12,6 @@ type UseWebSocketEventsProps = {
     chat: ChatShape;
     editMessage: (editedMessage: ChatMessageShape) => unknown;
     removeMessages: (deletedIds: string[]) => unknown;
-    session: Session | undefined;
     setUsersTyping: (updatedParticipants: ChatParticipant[]) => unknown;
     usersTyping: ChatParticipant[];
 }
@@ -21,10 +21,11 @@ export const useSocketChat = ({
     chat,
     editMessage,
     removeMessages,
-    session,
     setUsersTyping,
     usersTyping,
 }: UseWebSocketEventsProps) => {
+    const session = useContext(SessionContext);
+
     // Handle connection/disconnection
     useEffect(() => {
         if (!chat?.id || chat.id === DUMMY_ID) return;

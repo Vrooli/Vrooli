@@ -717,7 +717,7 @@ export type ChatMessageCreateInput = {
   id: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
   userConnect: Scalars['ID'];
-  versionOfId?: InputMaybe<Scalars['ID']>;
+  versionIndex: Scalars['Int'];
 };
 
 export type ChatMessageEdge = {

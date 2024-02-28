@@ -522,7 +522,7 @@ const checkChildParentRelationship = <T extends MinimumChatMessage>(messageMap: 
  * @param messageMap - Map of message IDs to their corresponding nodes.
  * @throws {Error} If there are cycles or unreachable nodes.
  */
-export const checkTreeIntegrity = <T extends MinimumChatMessage>(roots: MessageNode<T>[], messageMap: Map<string, MessageNode<T>>): void => {
+const checkTreeIntegrity = <T extends MinimumChatMessage>(roots: MessageNode<T>[], messageMap: Map<string, MessageNode<T>>): void => {
     const visited = new Set<string>();
     const traverseTree = (node: MessageNode<T>, visited: Set<string>): void => {
         if (visited.has(node.message.id)) {
@@ -545,7 +545,7 @@ export const checkTreeIntegrity = <T extends MinimumChatMessage>(roots: MessageN
  * @param messageMap - Map of message IDs to their corresponding nodes.
  * @throws {Error} If children are not correctly sorted by sequence.
  */
-export const checkMessageEditOrder = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>): void => {
+const checkMessageEditOrder = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>): void => {
     messageMap.forEach((node, id) => {
         for (let i = 1; i < node.children.length; i++) {
             const currChildSequence = node.children[i]?.message?.sequence ?? -1; // Default to -1 if undefined
@@ -564,7 +564,7 @@ export const checkMessageEditOrder = <T extends MinimumChatMessage>(messageMap: 
  * @param roots - Array of root nodes in the message tree.
  * @throws {Error} If there are orphan nodes in the message map.
  */
-export const checkNoOrphanNodes = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>, roots: MessageNode<T>[]): void => {
+const checkNoOrphanNodes = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>, roots: MessageNode<T>[]): void => {
     messageMap.forEach((node, id) => {
         if (!node.message.parent?.id && !roots.includes(node)) {
             throw new Error(`Orphan node detected with ID ${id}.`);
@@ -583,7 +583,7 @@ type IntegrityCheck = "RootValidity" | "ChildParentRelationship" | "TreeIntegrit
  * @param skip - Array of checks to skip.
  * @throws {Error} If any integrity checks fail.
  */
-export const assertTreeIntegrity = <T extends MinimumChatMessage>(
+const assertTreeIntegrity = <T extends MinimumChatMessage>(
     roots: MessageNode<T>[],
     messageMap: Map<string, MessageNode<T>>,
     skip?: IntegrityCheck[],

@@ -11,8 +11,8 @@ export const typeDef = gql`
     input ChatMessageCreateInput {
         id: ID!
         chatConnect: ID!
-        versionOfId: ID
         userConnect: ID!
+        versionIndex: Int!
         translationsCreate: [ChatMessageTranslationCreateInput!]
     }
     input ChatMessageUpdateInput {

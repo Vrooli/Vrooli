@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -19,8 +19,8 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { findTargetMessage, useMessageTree } from "hooks/useMessageTree";
+import { useMessageActions } from "hooks/useMessageActions";
+import { useMessageTree } from "hooks/useMessageTree";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSocketChat } from "hooks/useSocketChat";
@@ -35,7 +35,7 @@ import { parseSearchParams, useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
 import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap, getCookieMessageTree, getCookiePartialData, setCookieMatchingChat, setCookieMessageTree } from "utils/cookies";
+import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
 import { getYou } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
@@ -77,6 +77,7 @@ export const chatInitialValues = (
                 id: existing.id ?? DUMMY_ID,
             },
             isUnsent: true,
+            versionIndex: 0,
             reactionSummaries: [],
             translations: [{
                 __typename: "ChatMessageTranslation" as const,
@@ -101,6 +102,7 @@ export const chatInitialValues = (
             },
         });
     }
+    const currentUser = getCurrentUser(session);
     return {
         __typename: "Chat" as const,
         id: DUMMY_ID,
@@ -109,16 +111,16 @@ export const chatInitialValues = (
         invites: [],
         labels: [],
         // Add yourself to the participants list
-        participants: [{
+        participants: (currentUser.id ? [{
             __typename: "ChatParticipant" as const,
             id: uuid(),
             user: {
-                ...getCookiePartialData({ __typename: "User", id: getCurrentUser(session).id! }),
-                id: getCurrentUser(session).id!,
+                ...getCookiePartialData({ __typename: "User", id: currentUser.id }),
+                id: currentUser.id,
                 isBot: false,
-                name: getCurrentUser(session).name!,
+                name: currentUser.id,
             },
-        }] as ChatParticipant[],
+        }] : []) as ChatParticipant[],
         participantsDelete: [],
         ...existing,
         messages,
@@ -214,81 +216,47 @@ const ChatForm = ({
         setCookieMatchingChat(existing.id, userIds, task);
     }, [existing.id, existing.participants, session, task]);
 
-    const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);
-    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(existing.id)?.branches ?? {});
+    const messageTree = useMessageTree([], existing.id);
 
-    // We query messages separate from the chat, since we must traverse the message tree
-    const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
-
-    // When chatId changes, clear the message tree and branches, and fetch new data
-    useEffect(() => {
-        if (existing.id === DUMMY_ID) return;
-        clearMessages();
-        setBranches({});
-        console.log("getting tree dataaaaaaaaaa", existing.id);
-        getTreeData({ chatId: existing.id });
-    }, [existing.id, clearMessages, getTreeData]);
-    useEffect(() => {
-        if (!searchTreeData || searchTreeData.messages.length === 0) return;
-        addMessages(searchTreeData.messages);
-    }, [addMessages, searchTreeData]);
-
-    useEffect(() => {
-        // Update the cookie with current branches
-        setCookieMessageTree(existing.id, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
-    }, [branches, existing.id]);
-
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isTreeLoading, isUpdateLoading, props.isSubmitting]);
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
-        if (disabled) {
-            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<ChatUpdateInput, Chat>({
-            fetch,
-            inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
-            onSuccess: (data) => {
-                console.log("update success!", data);
-                handleUpdate(data);
-                setMessage("");
-            },
-            onCompleted: () => { props.setSubmitting(false); },
-            onError: (data) => {
-                PubSub.get().publish("snack", {
-                    message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
-                    severity: "Error",
-                    data,
-                });
-            },
-            spinnerDelay: null,
+        return new Promise<Chat>((resolve, reject) => {
+            if (disabled) {
+                PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
+                reject();
+                return;
+            }
+            fetchLazyWrapper<ChatUpdateInput, Chat>({
+                fetch,
+                inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
+                onSuccess: (data) => {
+                    handleUpdate({ ...data, status: "sent" });
+                    setMessage("");
+                    resolve(data);
+                },
+                onCompleted: () => { props.setSubmitting(false); },
+                onError: (data) => {
+                    PubSub.get().publish("snack", {
+                        message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
+                        severity: "Error",
+                        data,
+                    });
+                    reject(data);
+                },
+                spinnerDelay: null,
+            });
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
     useSocketChat({
-        addMessages,
+        addMessages: messageTree.addMessages,
         chat: existing,
-        editMessage,
-        removeMessages,
-        session,
+        editMessage: messageTree.editMessage,
+        removeMessages: messageTree.removeMessages,
         setUsersTyping,
         usersTyping,
     });
-
-    const handleReply = useCallback((message: ChatMessageShape) => {
-        // Determine if we should edit an existing message or create a new one
-        const existingMessageId = findTargetMessage(tree, branches, message, existing?.participants?.length ?? 0, session);
-        // If editing an existing message, send pub/sub
-        if (existingMessageId) {
-            PubSub.get().publish("chatMessageEdit", existingMessageId);
-            return;
-        }
-        // Otherwise, set the message input to "@[handle_of_user_youre_replying_to] "
-        else {
-            PubSub.get().publish("chatMessageEdit", false);
-            setMessage(existingText => `@[${message.user?.name}] ${existingText}`);
-        }
-    }, [branches, existing?.participants?.length, session, setMessage, tree]);
 
     // Handle translations
     const {
@@ -297,39 +265,16 @@ const ChatForm = ({
         language,
         languages,
         setLanguage,
-        translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: chatTranslationValidation["update"]({ env: process.env.NODE_ENV }),
     });
 
-    const addMessage = useCallback((text: string) => {
-        const newMessage: ChatMessageShape = {
-            __typename: "ChatMessage" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            isUnsent: true,
-            chat: {
-                __typename: "Chat" as const,
-                id: existing.id,
-            },
-            reactionSummaries: [],
-            translations: [{
-                __typename: "ChatMessageTranslation" as const,
-                id: DUMMY_ID,
-                language,
-                text,
-            }],
-            user: {
-                __typename: "User" as const,
-                id: getCurrentUser(session).id ?? "",
-                isBot: false,
-                name: getCurrentUser(session).name ?? undefined,
-            },
-        };
-        onSubmit({ ...values, messages: [...(values.messages ?? []), newMessage] });
-    }, [existing.id, language, onSubmit, session, values]);
+    const messageActions = useMessageActions({
+        chat: values,
+        handleChatUpdate: onSubmit,
+        language,
+    });
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {
@@ -365,7 +310,14 @@ const ChatForm = ({
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
-    const showBotWarning = useMemo(() => !disabled && usersTyping.length === 0 && messagesCount <= 2 && existing.participants?.some(i => i?.user?.isBot), [disabled, existing.participants, messagesCount, usersTyping]);
+    const hasBotParticipant = existing?.participants?.some(p => p.user?.isBot) ?? false;
+    const isBotOnlyChat = existing?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
+    const showBotWarning = useMemo(() =>
+        !disabled &&
+        usersTyping.length === 0 &&
+        messageTree.messagesCount <= 2 &&
+        hasBotParticipant
+        , [disabled, usersTyping, messageTree.messagesCount, hasBotParticipant]);
 
     return (
         <>
@@ -508,13 +460,14 @@ const ChatForm = ({
                         width: "min(700px, 100%)",
                     }}>
                         <ChatBubbleTree
-                            branches={branches}
-                            editMessage={editMessage}
-                            handleReply={handleReply}
-                            handleRetry={() => { }}
-                            removeMessages={removeMessages}
-                            setBranches={setBranches}
-                            tree={tree}
+                            branches={messageTree.branches}
+                            editMessage={messageActions.putMessage}
+                            handleReply={messageTree.replyToMessage}
+                            handleRetry={messageActions.regenerateResponse}
+                            isBotOnlyChat={isBotOnlyChat}
+                            removeMessages={messageTree.removeMessages}
+                            setBranches={messageTree.setBranches}
+                            tree={messageTree.tree}
                         />
                     </Box>
                     {!showBotWarning && <TypingIndicator participants={usersTyping} />}
@@ -535,14 +488,11 @@ const ChatForm = ({
                     <RichInputBase
                         actionButtons={[{
                             Icon: SendIcon,
+                            disabled: !existing || isLoading,
                             onClick: () => {
-                                if (!existing) {
-                                    PubSub.get().publish("snack", { message: "Chat not found", severity: "Error" });
-                                    return;
-                                }
                                 const trimmed = message.trim();
                                 if (trimmed.length === 0) return;
-                                addMessage(trimmed);
+                                messageActions.postMessage(trimmed);
                             },
                         }]}
                         disabled={!existing}
@@ -568,13 +518,10 @@ const ChatForm = ({
                         onChange={setMessage}
                         onFocus={onFocus}
                         onSubmit={(m) => {
-                            if (!existing) {
-                                PubSub.get().publish("snack", { message: "Chat not found", severity: "Error" });
-                                return;
-                            }
+                            if (!existing || isLoading) return;
                             const trimmed = m.trim();
                             if (trimmed.length === 0) return;
-                            addMessage(trimmed);
+                            messageActions.postMessage(trimmed);
                         }}
                         name="newMessage"
                         sxs={{

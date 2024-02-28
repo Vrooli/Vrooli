@@ -1,9 +1,11 @@
-import { Session } from "@local/shared";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, DUMMY_ID, Session, endpointGetChatMessageTree } from "@local/shared";
+import { SessionContext } from "contexts/SessionContext";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap } from "utils/cookies";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/cookies";
+import { PubSub } from "utils/pubsub";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
+import { useLazyFetch } from "./useLazyFetch";
 import { useStableObject } from "./useStableObject";
 
 export type MinimumChatMessage = {
@@ -51,7 +53,7 @@ export const findTargetMessage = (
     tree: MessageTree<MinimumChatMessage>,
     branches: BranchMap,
     replyingMessage: Pick<ChatMessageShape, "id" | "translations" | "user">,
-    numParticipants: number,
+    // numParticipants: number,
     session: Session | undefined,
 ): string | null => {
     console.log("in findTargetMessage", tree);
@@ -65,18 +67,19 @@ export const findTargetMessage = (
         const isOwnMessage = currentNode.message.user?.id === userData.id;
 
         // If there's only one other participant, return the first child that's yours
-        if (numParticipants <= 2 && isOwnMessage) {
+        // if (numParticipants <= 2 && isOwnMessage) {
+        if (isOwnMessage) {
             return currentNode.message.id;
         }
 
-        // If there are multiple participants, return the first child that mentions the replyingMessage creator or everyone
-        if (numParticipants >= 2 && isOwnMessage) {
-            const handle = replyingMessage.user?.handle;
-            const text = getTranslation(currentNode.message, getUserLanguages(session), true)?.text ?? "";
-            if (handle && text.includes(`@${handle}`)) {
-                return currentNode.message.id;
-            }
-        }
+        // // If there are multiple participants, return the first child that mentions the replyingMessage creator or everyone
+        // if (numParticipants >= 2 && isOwnMessage) {
+        //     const handle = replyingMessage.user?.handle;
+        //     const text = getTranslation(currentNode.message, getUserLanguages(session), true)?.text ?? "";
+        //     if (handle && text.includes(`@${handle}`)) {
+        //         return currentNode.message.id;
+        //     }
+        // }
 
         currentNode = nextNode;
     }
@@ -160,12 +163,36 @@ const sortSiblings = (siblings: MessageNode<MinimumChatMessage>[]) => {
 };
 
 
-export const useMessageTree = <T extends MinimumChatMessage>(initialMessages: T[]) => {
-    const [tree, setTree] = useState({ map: new Map<string, MessageNode<T>>(), roots: [] as MessageNode<T>[] });
+export const useMessageTree = (
+    initialMessages: ChatMessageShape[],
+    chatId: string,
+) => {
+    const session = useContext(SessionContext);
+
+    // We query messages separate from the chat, since we must traverse the message tree
+    const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+
+    // The message tree structure
+    const [tree, setTree] = useState({ map: new Map<string, MessageNode<ChatMessageShape>>(), roots: [] as MessageNode<ChatMessageShape>[] });
     const messagesCount = useMemo(() => tree.map.size, [tree.map.size]);
 
     // Memoize the initial messages to prevent unnecessary useEffect triggers
     const stableInitialMessages = useStableObject(initialMessages);
+
+    /**
+     * Clears all messages from the tree, resetting the state to its initial state.
+     */
+    const clearMessages = useCallback(() => {
+        setTree({ map: new Map(), roots: [] });
+    }, []);
+
+    // Which branches of the tree are in view
+    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(chatId)?.branches ?? {});
+
+    useEffect(() => {
+        // Update the cookie with current branches
+        setCookieMessageTree(chatId, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
+    }, [branches, chatId]);
 
     /**
      * Constructs a hierarchical tree representation of the message threads.
@@ -180,9 +207,9 @@ export const useMessageTree = <T extends MinimumChatMessage>(initialMessages: T[
      */
     useEffect(() => {
         // Initialize data structures
-        const newMap = new Map<string, MessageNode<T>>();
-        const newRoots: MessageNode<T>[] = [];
-        const orphanedNodes: MessageNode<T>[] = [];
+        const newMap = new Map<string, MessageNode<ChatMessageShape>>();
+        const newRoots: MessageNode<ChatMessageShape>[] = [];
+        const orphanedNodes: MessageNode<ChatMessageShape>[] = [];
 
         // Add message nodes to the map first
         for (const message of stableInitialMessages) {
@@ -223,11 +250,11 @@ export const useMessageTree = <T extends MinimumChatMessage>(initialMessages: T[
         setTree({ map: newMap, roots: newRoots });
     }, [stableInitialMessages]);
 
-    const addMessages = useCallback((newMessages: T[]) => {
+    const addMessages = useCallback((newMessages: ChatMessageShape[]) => {
         setTree(({ map: prevMessageMap, roots: prevRoots }) => {
             const newMap = new Map(prevMessageMap);
-            const newRoots: MessageNode<T>[] = [];
-            const orphanedNodes: MessageNode<T>[] = [];
+            const newRoots: MessageNode<ChatMessageShape>[] = [];
+            const orphanedNodes: MessageNode<ChatMessageShape>[] = [];
 
             // Add message nodes to the map first, if they don't already exist
             newMessages.forEach(message => {
@@ -312,7 +339,7 @@ export const useMessageTree = <T extends MinimumChatMessage>(initialMessages: T[
      * add a new version of the message. This method is useful when 
      * chatting with other participants, where branching is disabled.
      */
-    const editMessage = useCallback((updatedMessage: T) => {
+    const editMessage = useCallback((updatedMessage: ChatMessageShape) => {
         setTree(({ map: prevMessageMap, roots }) => {
             if (!prevMessageMap.has(updatedMessage.id)) {
                 console.error(`Message ${updatedMessage.id} not found in messageMap. Cannot edit.`);
@@ -326,25 +353,64 @@ export const useMessageTree = <T extends MinimumChatMessage>(initialMessages: T[
             const node = newMap.get(updatedMessage.id);
             const updatedNode = { ...node, message: updatedMessage };
 
-            newMap.set(updatedMessage.id, updatedNode as MessageNode<T>); // Update the map with the edited message node
+            newMap.set(updatedMessage.id, updatedNode as MessageNode<ChatMessageShape>); // Update the map with the edited message node
             return { map: newMap, roots };
         });
     }, []);
 
     /**
-     * Clears all messages from the tree, resetting the state to its initial state.
+     * Triggers a message reply, either by editing an existing message or creating a new one.
      */
-    const clearMessages = useCallback(() => {
-        setTree({ map: new Map(), roots: [] });
-    }, []);
+    const replyToMessage = useCallback((message: ChatMessageShape) => {
+        // // Determine if we should edit an existing message or create a new one
+        // const existingMessageId = findTargetMessage(tree, branches, message, session);
+        // // If editing an existing message, send pub/sub
+        // if (existingMessageId) {
+        //     PubSub.get().publish("chatMessageEdit", existingMessageId);
+        //     return;
+        // }
+        // // Otherwise, set the message input to "@[handle_of_user_youre_replying_to] "
+        // else {
+        //     PubSub.get().publish("chatMessageEdit", false);
+        //     setMessage(existingText => `@[${message.user?.name}] ${existingText}`);
+        // }
+        //TODO
+    }, [branches, session, tree]);
+
+    // When chatId changes, clear the message tree and branches, and fetch new data
+    useEffect(() => {
+        if (chatId === DUMMY_ID) return;
+        clearMessages();
+        setBranches({});
+        getTreeData({ chatId });
+    }, [chatId, clearMessages, getTreeData]);
+    useEffect(() => {
+        if (!searchTreeData || searchTreeData.messages.length === 0) return;
+        addMessages(searchTreeData.messages.map(message => ({ ...message, status: "sent" })));
+    }, [addMessages, searchTreeData]);
+
+    // Listen to message changes and update the tree accordingly
+    useEffect(() => {
+        const unsubscribe = PubSub.get().subscribe("chatMessage", (data) => {
+            if (data.chatId !== chatId) return;
+            const { updatedMessage } = data.data;
+            if (!updatedMessage) return;
+            editMessage(updatedMessage);
+        });
+        return unsubscribe;
+    }, [chatId, editMessage]);
 
     // Return the necessary state and functions
     return {
-        tree,
-        messagesCount,
         addMessages,
-        removeMessages,
-        editMessage,
+        branches,
         clearMessages,
+        editMessage,
+        isTreeLoading,
+        messagesCount,
+        removeMessages,
+        replyToMessage,
+        setBranches,
+        tree,
     };
 };

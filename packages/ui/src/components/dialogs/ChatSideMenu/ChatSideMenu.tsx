@@ -4,6 +4,7 @@ import { fetchLazyWrapper } from "api";
 import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { SessionContext } from "contexts/SessionContext";
+import { useFindMany } from "hooks/useFindMany";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
@@ -16,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { ListObject } from "utils/display/listTools";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, chatTabParams } from "utils/search/objectToSearch";
@@ -117,6 +119,13 @@ export const ChatSideMenu = ({
         [ChatPageTabOption.RoutineMy]: ["CreateRoutine", () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); }],
     } as const;
 
+    const findManyData = useFindMany<ListObject>({
+        controlsUrl: false,
+        searchType,
+        take: 20,
+        where: where(),
+    })
+
     return (
         <>
             <FindObjectDialog
@@ -202,12 +211,11 @@ export const ChatSideMenu = ({
                         fullWidth={true}
                     />
                     <SearchList
+                        {...findManyData}
                         id="chat-related-search-list"
                         display={isMobile ? "dialog" : "partial"}
                         dummyLength={10}
                         hideUpdateButton={true}
-                        take={20}
-                        searchType={searchType}
                         sxs={{
                             ...(showSearchFilters ?
                                 { search: { marginTop: 2 } } :
@@ -220,7 +228,6 @@ export const ChatSideMenu = ({
                                 borderRadius: 0,
                             },
                         }}
-                        where={where()}
                     />
                 </Box>
             </SwipeableDrawer>
