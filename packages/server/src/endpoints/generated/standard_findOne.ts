@@ -7,7 +7,8 @@ export const standard_findOne = {
     "versionLabel": true,
     "root": {
       "id": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "Standard"
     },
     "translations": {
       "id": true,
@@ -16,7 +17,7 @@ export const standard_findOne = {
       "jsonVariable": true,
       "name": true
     },
-    "__typename": "Project"
+    "__typename": "StandardVersion"
   },
   "versions": {
     "versionNotes": true,

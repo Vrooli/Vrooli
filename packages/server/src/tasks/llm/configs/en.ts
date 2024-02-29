@@ -98,7 +98,7 @@ export const config: LlmTaskConfig = {
         description: {
             example: "Provides current weather information for a given location.",
         },
-        // TODO continue
+        //...
     },
     ApiAdd: () => ({
         commands: {
@@ -320,7 +320,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __noteProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     NoteAdd: () => ({
         commands: {
@@ -370,7 +376,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __projectProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     ProjectAdd: () => ({
         commands: {
@@ -420,7 +432,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __reminderProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     ReminderAdd: () => ({
         commands: {
@@ -470,7 +488,17 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __roleProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        teamId: {
+            description: "The ID of the team to connect the role to",
+            type: "uuid",
+        },
+        //...
     },
     RoleAdd: () => ({
         commands: {
@@ -503,6 +531,11 @@ export const config: LlmTaskConfig = {
                 is_required: false,
                 description: "A string to search for, such as a name or description.",
 
+            },
+            {
+                name: "teamId",
+                ...config.__roleProperties.teamId,
+                is_required: true,
             },
         ],
         rules: [
@@ -578,7 +611,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __scheduleProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     ScheduleAdd: () => ({
         commands: {
@@ -628,7 +667,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __smartContractProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     SmartContractAdd: () => ({
         commands: {
@@ -678,7 +723,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __standardProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     StandardAdd: () => ({
         commands: {
@@ -746,7 +797,13 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __teamProperties: {
-        // TODO
+        name: {
+            example: "WeatherAPI",
+        },
+        description: {
+            example: "Provides current weather information for a given location.",
+        },
+        //...
     },
     TeamAdd: () => ({
         commands: {
@@ -799,6 +856,8 @@ export const config: LlmTaskConfig = {
 
 export const convert: LlmTaskConverters = {
     ApiAdd: (data) => ({
+        id: uuid(),
+        isPrivate: true,
         //...
     }),
     ApiDelete: (data) => ({
@@ -809,7 +868,8 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     ApiUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     BotAdd: (data) => ({
         id: uuid(),
@@ -841,32 +901,42 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
         memberInOrganizationId: validUuid(data.memberInOrganizationId),
     }),
-    BotUpdate: (data, existing) => {
+    BotUpdate: (data, language, existing) => {
         const settings = toBotSettings(existing, logger);
         return {
             id: data.id + "",
             name: noEmptyString(data.name),
             botSettings: JSON.stringify({
-                translations: {
-                    // Add other existing translations
-                    en: {
-                        occupation: noEmptyString(data.occupation, "existing.asdfasdf"), //TODO finish
-                        persona: data.persona,
-                        startingMessage: data.startingMessage,
-                        tone: data.tone,
-                        keyPhrases: data.keyPhrases,
-                        domainKnowledge: data.domainKnowledge,
-                        bias: data.bias,
-                        creativity: data.creativity,
-                        verbosity: data.verbosity,
-                    },
-                },
-
+                ...settings,
+                translations: Object.entries(settings.translations ?? {}).reduce((acc, [key, value]) => {
+                    if (key === language) {
+                        return {
+                            ...acc,
+                            [key]: {
+                                ...value,
+                                occupation: noEmptyString(data.occupation, value.occupation),
+                                persona: noEmptyString(data.persona, value.persona),
+                                startingMessage: noEmptyString(data.startingMessage, value.startingMessage),
+                                tone: noEmptyString(data.tone, value.tone),
+                                keyPhrases: noEmptyString(data.keyPhrases, value.keyPhrases),
+                                domainKnowledge: noEmptyString(data.domainKnowledge, value.domainKnowledge),
+                                bias: noEmptyString(data.bias, value.bias),
+                                creativity: validNumber(data.creativity, value.creativity),
+                                verbosity: validNumber(data.verbosity, value.verbosity),
+                            },
+                        };
+                    }
+                    return {
+                        ...acc,
+                        [key]: value,
+                    };
+                }, {}),
             }),
         };
     },
     MembersAdd: (data) => ({
-
+        id: uuid(),
+        //...
     }),
     MembersDelete: (data) => {
         let ids = Array.isArray(data.ids) ?
@@ -886,10 +956,13 @@ export const convert: LlmTaskConverters = {
         organizationId: validUuid(data.organizationId),
     }),
     MembersUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     NoteAdd: (data) => ({
-
+        id: uuid(),
+        isPrivate: true,
+        //...
     }),
     NoteDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -899,10 +972,13 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     NoteUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     ProjectAdd: (data) => ({
-
+        id: uuid(),
+        isPrivate: true,
+        //...
     }),
     ProjectDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -912,10 +988,16 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     ProjectUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     ReminderAdd: (data) => ({
-
+        id: uuid(),
+        name: noEmptyString(data.name) ?? "Reminder",
+        description: noEmptyString(data.description),
+        index: -1, // TODO
+        // TODO need list ID from user session data
+        //...
     }),
     ReminderDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -925,23 +1007,40 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     ReminderUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
-    RoleAdd: (data) => ({
-
-    }),
+    RoleAdd: (data, language) => {
+        const description = noEmptyString(data.description);
+        return {
+            id: uuid(),
+            name: noEmptyString(data.name) ?? "Role",
+            organizationConnect: validUuid(data.teamId) ?? "",
+            permissions: JSON.stringify({}),
+            translationsCreate: description ? [{
+                id: uuid(),
+                language,
+                description,
+            }] : [],
+            //...
+        };
+    },
     RoleDelete: (data) => ({
         id: validUuid(data.id) ?? "",
         objectType: DeleteType.Role,
     }),
     RoleFind: (data) => ({
         searchString: noEmptyString(data.searchString),
+        organizationId: validUuid(data.teamId) ?? "",
     }),
     RoleUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     RoutineAdd: (data) => ({
-
+        id: uuid(),
+        isPrivate: true,
+        //...
     }),
     RoutineDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -951,10 +1050,13 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     RoutineUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     ScheduleAdd: (data) => ({
-
+        id: uuid(),
+        timezone: "", //TODO need timezone from user session
+        //...
     }),
     ScheduleDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -964,10 +1066,13 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     ScheduleUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     SmartContractAdd: (data) => ({
-
+        id: uuid(),
+        isPrivate: true,
+        //...
     }),
     SmartContractDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -977,10 +1082,13 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     SmartContractUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     StandardAdd: (data) => ({
-
+        id: uuid(),
+        isPrivate: true,
+        //...
     }),
     StandardDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -990,11 +1098,14 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     StandardUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
     Start: (data) => ({}),
     TeamAdd: (data) => ({
-
+        id: uuid(),
+        isPrivate: true,
+        //...
     }),
     TeamDelete: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -1004,9 +1115,10 @@ export const convert: LlmTaskConverters = {
         searchString: noEmptyString(data.searchString),
     }),
     TeamUpdate: (data) => ({
-
+        id: validUuid(data.id) ?? "",
+        //...
     }),
-} as any;
+};
 
 export const commandToTask: CommandToTask = (command, action) => {
     let result: string;

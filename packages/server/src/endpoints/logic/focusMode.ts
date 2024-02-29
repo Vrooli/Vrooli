@@ -44,6 +44,7 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
         setActiveFocusMode: async (_, { input }, { prisma, req, res }) => {
             // Unlink other objects, active focus mode is only stored in the user's session. 
             const userData = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ maxUser: 500, req });
             // Create time frame to limit focus mode's schedule data
             const now = new Date();
             const startDate = now;

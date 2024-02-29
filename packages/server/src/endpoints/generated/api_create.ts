@@ -7,7 +7,8 @@ export const api_create = {
     "versionLabel": true,
     "root": {
       "id": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "Api"
     },
     "translations": {
       "id": true,
@@ -16,7 +17,7 @@ export const api_create = {
       "name": true,
       "summary": true
     },
-    "__typename": "Api"
+    "__typename": "ApiVersion"
   },
   "versions": {
     "pullRequest": {

@@ -124,8 +124,7 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
 
     async generateResponse({
         chatId,
-        respondingToMessageId,
-        respondingToMessageContent,
+        respondingToMessage,
         respondingBotId,
         respondingBotConfig,
         task,
@@ -133,7 +132,9 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         userData,
     }: GenerateResponseParams) {
         const model = this.getModel(respondingBotConfig?.model);
-        const messageContextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessageId);
+        const messageContextInfo = respondingToMessage ?
+            await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
+            [];
         const context = await this.generateContext({
             respondingBotId,
             respondingBotConfig,
@@ -146,10 +147,10 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         });
 
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
-            messages: [
+            messages: respondingToMessage ? [
                 ...(context.messages.map(({ role, text }) => ({ role: role ?? "assistant", content: text })) as { role: "user" | "assistant", content: string }[]),
-                { role: "user", content: respondingToMessageContent },
-            ],
+                { role: "user", content: respondingToMessage.text },
+            ] : [],
             model,
             user: userData.name ?? undefined,
         };

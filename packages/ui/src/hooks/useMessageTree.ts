@@ -56,7 +56,6 @@ export const findTargetMessage = (
     // numParticipants: number,
     session: Session | undefined,
 ): string | null => {
-    console.log("in findTargetMessage", tree);
     const userData = getCurrentUser(session);
     let currentNode = tree.map.get(replyingMessage.id);
     if (!currentNode || !userData.id) return null;

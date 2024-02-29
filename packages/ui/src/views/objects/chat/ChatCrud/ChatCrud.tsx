@@ -62,7 +62,7 @@ export const chatInitialValues = (
     language: string,
     existing?: Partial<Chat> | null | undefined,
 ): ChatShape => {
-    const messages: ChatMessageShape[] = existing?.messages ?? [];
+    const messages: ChatMessageShape[] = (existing?.messages ?? []).map(m => ({ ...m, status: "sent" }));
     // If chatting with Valyxa, add start message so that the user 
     // sees something while the chat is loading
     if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatInviteShape) => invite.user.id === VALYXA_ID)) {
@@ -76,7 +76,7 @@ export const chatInitialValues = (
                 __typename: "Chat" as const,
                 id: existing.id ?? DUMMY_ID,
             },
-            isUnsent: true,
+            status: "unsent",
             versionIndex: 0,
             reactionSummaries: [],
             translations: [{
@@ -143,7 +143,7 @@ export const transformChatValues = (values: ChatShape, existing: ChatShape, isCr
  */
 export const withoutOtherMessages = (chat: ChatShape, session?: Session) => ({
     ...chat,
-    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.isUnsent) ?? [],
+    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.status === "unsent") ?? [],
 });
 
 const ChatForm = ({
@@ -194,7 +194,7 @@ const ChatForm = ({
             fetch: fetchCreate,
             inputs: transformChatValues(withoutOtherMessages({ ...values, ...parseSearchParams() }, session), withoutOtherMessages(existing, session), true),
             onSuccess: (data) => {
-                handleUpdate(data);
+                handleUpdate({ ...data, messages: [] });
                 if (display === "page") setLocation(getObjectUrl(data), { replace: true });
             },
             onCompleted: () => {
@@ -231,7 +231,7 @@ const ChatForm = ({
                 fetch,
                 inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
                 onSuccess: (data) => {
-                    handleUpdate({ ...data, status: "sent" });
+                    handleUpdate({ ...data, messages: [] });
                     setMessage("");
                     resolve(data);
                 },

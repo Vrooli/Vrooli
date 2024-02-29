@@ -89,8 +89,10 @@ export type GenerateContextParams = {
 }
 export type GenerateResponseParams = {
     chatId: string;
-    respondingToMessageId: string;
-    respondingToMessageContent: string;
+    respondingToMessage: {
+        id: string;
+        text: string;
+    } | null;
     respondingBotId: string;
     respondingBotConfig: BotSettings;
     task: LlmTask;

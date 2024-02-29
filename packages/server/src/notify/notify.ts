@@ -186,10 +186,10 @@ const getEventStartLabel = (date: Date) => {
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<void>,
-    toOrganization: (organizationId: string, excludeUserId?: string | null | undefined) => Promise<void>,
-    toOwner: (owner: { __typename: "User" | "Organization", id: string }, excludeUserId?: string | null | undefined) => Promise<void>,
-    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string | null | undefined) => Promise<void>,
-    toChatParticipants: (chatId: string, excludeUserId?: string | null | undefined) => Promise<void>,
+    toOrganization: (organizationId: string, excludedUsers?: string[] | string) => Promise<void>,
+    toOwner: (owner: { __typename: "User" | "Organization", id: string }, excludedUsers?: string[] | string) => Promise<void>,
+    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<void>,
+    toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<void>,
 }
 
 /**
@@ -318,12 +318,12 @@ const NotifyResult = ({
     /**
      * Sends a notification to an organization
      * @param organizationId The organization's id
-     * @param excludeUserId The user to exclude from the notification 
+     * @param excludedUsers IDs of users to exclude from the notification
      * (usually the user who triggered the notification)
      */
-    toOrganization: async (organizationId, excludeUserId) => {
+    toOrganization: async (organizationId, excludedUsers) => {
         // Find every admin of the organization, excluding the user who triggered the notification
-        const adminData = await ModelMap.get<OrganizationModelLogic>("Organization").query.findAdminInfo(prisma, organizationId, excludeUserId);
+        const adminData = await ModelMap.get<OrganizationModelLogic>("Organization").query.findAdminInfo(prisma, organizationId, excludedUsers);
         // Shape and translate the notification for each admin
         const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages }) => ({
             languages,
@@ -335,22 +335,22 @@ const NotifyResult = ({
     /**
      * Sends a notification to an owner of an object
      * @param owner The owner's id and __typename
-     * @param excludeUserId A user to exclude from the notification
+     * @param excludedUsers IDs of users to exclude from the notification
      */
-    toOwner: async (owner, excludeUserId) => {
+    toOwner: async (owner, excludedUsers) => {
         if (owner.__typename === "User") {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toUser(owner.id);
         } else if (owner.__typename === "Organization") {
-            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toOrganization(owner.id, excludeUserId);
+            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toOrganization(owner.id, excludedUsers);
         }
     },
     /**
      * Sends a notification to all subscribers of an object
      * @param objectType The __typename of object
      * @param objectId The object's id
-     * @param excludeUserId The user to exclude from the notification
+     * @param excludedUsers IDs of users to exclude from the notification
      */
-    toSubscribers: async (objectType, objectId, excludeUserId) => {
+    toSubscribers: async (objectType, objectId, excludedUsers) => {
         await batch<Prisma.notification_subscriptionFindManyArgs>({
             objectType: "NotificationSubscription",
             processBatch: async (batch: { subscriberId: string, silent: boolean }[], prisma) => {
@@ -368,7 +368,12 @@ const NotifyResult = ({
             where: {
                 AND: [
                     { [subscribableMapper[objectType]]: { id: objectId } },
-                    { subscriberId: { not: excludeUserId ?? undefined } },
+                    ...(typeof excludedUsers === "string" ?
+                        [{ subscriberId: { not: excludedUsers } }] :
+                        Array.isArray(excludedUsers) ?
+                            [{ subscriberId: { notIn: excludedUsers } }] :
+                            []
+                    ),
                 ],
             },
         });
@@ -376,9 +381,9 @@ const NotifyResult = ({
     /**
      * Sends a notification to all participants of a chat
      * @param chatId The chat's id
-     * @param excludeUserId The user to exclude from the notification
+     * @param excludedUsers IDs of users to exclude from the notification
      */
-    toChatParticipants: async (chatId, excludeUserId) => {
+    toChatParticipants: async (chatId, excludedUsers) => {
         await batch<Prisma.chat_participantsFindManyArgs>({
             objectType: "ChatParticipant",
             processBatch: async (batch: { user: { id: string } }[], prisma) => {
@@ -392,9 +397,11 @@ const NotifyResult = ({
             },
             select: { user: { select: { id: true } } },
             trace: "0498",
-            where: {
-                ...(excludeUserId ? { AND: [{ chatId }, { userId: { not: excludeUserId } }] } : { chatId }),
-            },
+            where: typeof excludedUsers === "string"
+                ? { AND: [{ chatId }, { userId: { not: excludedUsers } }] }
+                : Array.isArray(excludedUsers)
+                    ? { AND: [{ chatId }, { userId: { notIn: excludedUsers } }] }
+                    : { chatId },
         });
     },
 });

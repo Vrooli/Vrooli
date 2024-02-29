@@ -668,6 +668,20 @@
         }
       }
     },
+    "/regenerateResponse": {
+      "post": {
+        "operationId": "endpointPostRegenerateResponse",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
     "/chatParticipant/{id}": {
       "get": {
         "operationId": "endpointGetChatParticipant",
@@ -7650,16 +7664,16 @@
             "title": "ChatMessageCreateInput.userConnect",
             "type": "string"
           },
-          "versionOfId": {
-            "title": "ChatMessageCreateInput.versionOfId",
-            "nullable": true,
-            "type": "string"
+          "versionIndex": {
+            "title": "ChatMessageCreateInput.versionIndex",
+            "type": "number"
           }
         },
         "required": [
           "chatConnect",
           "id",
-          "userConnect"
+          "userConnect",
+          "versionIndex"
         ],
         "additionalProperties": false,
         "title": "ChatMessageCreateInput",
@@ -9854,6 +9868,7 @@
               "ReminderList",
               "Report",
               "Resource",
+              "Role",
               "Routine",
               "RoutineVersion",
               "RunProject",
@@ -30041,6 +30056,20 @@
         ],
         "additionalProperties": false,
         "title": "ReadAssetsInput",
+        "type": "object"
+      },
+      "RegenerateResponseInput": {
+        "properties": {
+          "messageId": {
+            "title": "RegenerateResponseInput.messageId",
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId"
+        ],
+        "additionalProperties": false,
+        "title": "RegenerateResponseInput",
         "type": "object"
       },
       "Reminder": {

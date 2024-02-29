@@ -1,4 +1,4 @@
-import { chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_findTree, chatMessage_update } from "../generated";
+import { chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_findTree, chatMessage_regenerateResponse, chatMessage_update } from "../generated";
 import { ChatMessageEndpoints } from "../logic/chatMessage";
 import { setupRoutes } from "./base";
 
@@ -15,5 +15,8 @@ export const ChatMessageRest = setupRoutes({
     },
     "/chatMessage": {
         post: [ChatMessageEndpoints.Mutation.chatMessageCreate, chatMessage_create],
+    },
+    "/regenerateResponse": {
+        post: [ChatMessageEndpoints.Mutation.regenerateResponse, chatMessage_regenerateResponse],
     },
 });

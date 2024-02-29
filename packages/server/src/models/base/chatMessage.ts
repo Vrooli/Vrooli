@@ -400,9 +400,15 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 }
                 // Call triggers
                 for (const objectId of createdIds) {
-                    const message: PreMapMessageData = preMapMessageData[objectId];
+                    const messageData: PreMapMessageData = preMapMessageData[objectId];
+                    const chatId = messageData.chatId;
+                    const chatMessage = messages.find(m => m.id === objectId) as ChatMessage;
+                    if (!chatMessage || !chatId) {
+                        logger.error("Message or chat not found", { trace: "0478", user: userData.id, messageId: objectId, chatId, });
+                        continue;
+                    }
                     // Add message to cache
-                    await (new ChatContextManager()).addMessage(message.chatId as string, message);
+                    await (new ChatContextManager()).addMessage(chatId, messageData);
                     // Common trigger logic
                     await Trigger(prisma, userData.languages).objectCreated({
                         createdById: userData.id,
@@ -413,9 +419,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectType: __typename,
                     });
                     await Trigger(prisma, userData.languages).chatMessageCreated({
-                        createdById: userData.id,
-                        data: preMapMessageData[objectId],
-                        message: messages.find(m => m.id === objectId) as ChatMessage,
+                        excludeUserId: userData.id,
+                        chatId,
+                        messageId: objectId,
+                        senderId: messageData.userId,
+                        message: chatMessage,
                     });
                     // Determine which bots should respond, if any.
                     // Here are the conditions:
@@ -425,13 +433,13 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     // 4. If there is one bot in the chat and two participants (i.e. just you and the bot), the bot should respond.
                     // 5. Otherwise, we must check the message to see if any bots were mentioned
                     // Get message and bot data
-                    const chat: PreMapChatData | undefined = message.chatId ? preMapChatData[message.chatId] : undefined;
+                    const chat: PreMapChatData | undefined = preMapChatData[chatId];
                     const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
                     if (!chat) continue;
                     // Check condition 1
-                    if (message.content.trim() === "") continue;
+                    if (messageData.content.trim() === "") continue;
                     // Check condition 2
-                    if (message.userId !== userData.id) continue;
+                    if (messageData.userId !== userData.id) continue;
                     // Check condition 3
                     if (bots.length === 0) continue;
                     // Check condition 4
@@ -439,9 +447,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         const botId = bots[0].id;
                         // Call LLM for bot response
                         requestBotResponse({
-                            chatId: message.chatId as string,
-                            messageId: objectId,
-                            message,
+                            chatId,
+                            parent: messageData,
                             respondingBotId: botId,
                             task: "Start", //TODO need task queue for chats, so we can enter an exit tasks
                             participantsData: preMapUserData,
@@ -450,8 +457,9 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     }
                     // Check condition 5
                     else {
+                        // TODO move mentio logic to a function, in same file as function for detecting commands
                         // Find markdown links in the message
-                        const linkStrings = message.content.match(/\[([^\]]+)\]\(([^)]+)\)/g);
+                        const linkStrings = messageData.content.match(/\[([^\]]+)\]\(([^)]+)\)/g);
                         // Get the label and link for each link
                         let links: { label: string, link: string }[] = linkStrings?.map(s => {
                             const [label, link] = s.slice(1, -1).split("](");
@@ -485,14 +493,13 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             botsToRespond = [...new Set(botsToRespond)];
                         }
                         // Send typing indicator while bots are responding
-                        emitSocketEvent("typing", message.chatId as string, { starting: botsToRespond });
+                        emitSocketEvent("typing", chatId, { starting: botsToRespond });
                         // For each bot that should respond, request bot response
                         for (const botId of botsToRespond) {
                             // Call LLM for bot response
                             requestBotResponse({
-                                chatId: message.chatId as string,
-                                messageId: objectId,
-                                message,
+                                chatId,
+                                parent: messageData,
                                 respondingBotId: botId,
                                 task: "Start", //TODO need task queue for chats, so we can enter an exit tasks
                                 participantsData: preMapUserData,

@@ -1,6 +1,6 @@
 import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode } from "api";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
@@ -96,8 +96,7 @@ export const DashboardView = ({
             fetch: fetchCreate,
             inputs: transformChatValues(withoutOtherMessages(chatToUse, session), withoutOtherMessages(chatToUse, session), true),
             onSuccess: (data) => {
-                console.log("created new chat!", data);
-                setChat(data);
+                setChat({ ...data, messages: [] });
                 const userId = getCurrentUser(session).id;
                 if (userId) setCookieMatchingChat(data.id, [userId, VALYXA_ID]);
             },
@@ -116,13 +115,11 @@ export const DashboardView = ({
         const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
         const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
-            console.log("fetching chattttt", existingChatId, [userId, VALYXA_ID]);
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getChat,
                 inputs: { id: existingChatId },
                 onSuccess: (data) => {
-                    console.log("fetched chattttt", data);
-                    setChat(data);
+                    setChat({ ...data, messages: [] });
                 },
                 onError: (response) => {
                     if (hasErrorCode(response, "NotFound")) {
@@ -315,17 +312,16 @@ export const DashboardView = ({
         setShowChat(true);
     }, []);
 
-    const onSubmit = useCallback((updatedChat: ChatShape) => {
+    const onSubmit = useCallback((updatedChat?: ChatShape) => {
         return new Promise<Chat>((resolve, reject) => {
             fetchLazyWrapper<ChatUpdateInput, Chat>({
                 fetch,
-                inputs: transformChatValues(withoutOtherMessages(updatedChat, session), withoutOtherMessages(chat, session), false),
+                inputs: transformChatValues(withoutOtherMessages(updatedChat ?? chat, session), withoutOtherMessages(chat, session), false),
                 onSuccess: (data) => {
-                    handleUpdate({ ...data, status: "sent" });
+                    setChat({ ...data, messages: [] });
                     setMessage("");
                     resolve(data);
                 },
-                onCompleted: () => { props.setSubmitting(false); },
                 onError: (data) => {
                     PubSub.get().publish("snack", {
                         message: errorToMessage(data as ServerResponse, getUserLanguages(session)),

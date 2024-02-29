@@ -1,14 +1,16 @@
-import { DUMMY_ID, uuid } from "@local/shared";
+import { Chat, DUMMY_ID, RegenerateResponseInput, Success, endpointPostRegenerateResponse, uuid } from "@local/shared";
+import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
+import { useLazyFetch } from "./useLazyFetch";
 
 type UseMessageActionsProps = {
     chat: ChatShape;
-    handleChatUpdate: (updatedChat?: ChatShape) => Promise<ChatShape>;
+    handleChatUpdate: (updatedChat?: ChatShape) => Promise<Chat>;
     language: string;
 };
 
@@ -106,12 +108,15 @@ export const useMessageActions = ({
         });
     }, [chat, handleChatUpdate, session]);
 
+    const [regenerate] = useLazyFetch<RegenerateResponseInput, Success>(endpointPostRegenerateResponse);
     const regenerateResponse = useCallback((message: ChatMessageShape) => {
-        //TODO need new endpoint for this
-    }, []);
-
-    // TODO need pubsub to send error state to chat bubble
-    // TODO handleChatUpdate does not update tree structure. Should add callback to handleChatUpdate
+        fetchLazyWrapper<RegenerateResponseInput, Success>({
+            fetch: regenerate,
+            inputs: { messageId: message.id },
+            successCondition: (data) => data && data.success === true,
+            errorMessage: () => ({ messageKey: "ActionFailed" }),
+        });
+    }, [regenerate]);
 
     return {
         postMessage,

@@ -149,11 +149,25 @@ describe("LanguageModelService lmServices", () => {
         });
 
         // Generate response
-        it(`${lmServiceName}: generateResponse returns a string`, async () => {
+        it(`${lmServiceName}: generateResponse returns a string - message provided`, async () => {
             const response = await lmService.generateResponse({
                 chatId: chatId1,
-                respondingToMessageId: respondingToMessageId1,
-                respondingToMessageContent: respondingToMessageContent1,
+                respondingToMessage: {
+                    id: respondingToMessageId1,
+                    text: respondingToMessageContent1,
+                },
+                respondingBotId: respondingBotId1,
+                respondingBotConfig: respondingBotConfig1,
+                task: "Start",
+                force: true,
+                userData: userData1,
+            });
+            expect(typeof response).toBe("string");
+        });
+        it(`${lmServiceName}: generateResponse returns a string - message not provided`, async () => {
+            const response = await lmService.generateResponse({
+                chatId: chatId1,
+                respondingToMessage: null,
                 respondingBotId: respondingBotId1,
                 respondingBotConfig: respondingBotConfig1,
                 task: "Start",

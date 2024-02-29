@@ -5,9 +5,18 @@ import { SessionUserToken } from "../../types.js";
 import { LlmTask } from "./config.js";
 
 export type RequestBotResponsePayload = {
+    /**
+     * The chat we're responding in
+     */
     chatId: string;
-    messageId: string;
-    message: PreMapMessageData;
+    /** 
+     * The message to respond to. If null, we 
+     * assume that there are not yet messages in the chat.
+     */
+    parent: PreMapMessageData | null;
+    /**
+     * The ID of the bot that should generate the response
+     */
     respondingBotId: string;
     task: LlmTask;
     participantsData: Record<string, PreMapUserData>;
@@ -52,6 +61,6 @@ export async function setupLlmQueue() {
  * Responds to a chat message. Handles response generation and processing, 
  * websocket events, and any other logic
  */
-export function requestBotResponse(props: RequestBotResponsePayload) {
+export const requestBotResponse = (props: RequestBotResponsePayload) => {
     llmQueue.add(props, { timeout: 1000 * 60 * 3 });
 }

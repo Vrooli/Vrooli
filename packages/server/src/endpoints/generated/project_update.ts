@@ -8,7 +8,8 @@ export const project_update = {
     "versionLabel": true,
     "root": {
       "id": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "Project"
     },
     "translations": {
       "id": true,
@@ -16,7 +17,7 @@ export const project_update = {
       "description": true,
       "name": true
     },
-    "__typename": "Project"
+    "__typename": "ProjectVersion"
   },
   "versions": {
     "directories": {

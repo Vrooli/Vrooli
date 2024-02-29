@@ -1,4 +1,5 @@
 /* eslint-disable testing-library/no-node-access */
+import { DUMMY_ID } from "@local/shared";
 import { act, renderHook } from "@testing-library/react";
 import { MessageNode, MinimumChatMessage, useMessageTree } from "./useMessageTree";
 
@@ -676,17 +677,17 @@ const countNodesInTree = <T extends MinimumChatMessage>(node: MessageNode<T>): n
     return count;
 };
 
-const runCommonTests = (caseData: MinimumChatMessage[], caseTitle: string, skip?: IntegrityCheck[]) => {
+const runCommonTests = (caseData: MinimumChatMessage[], chatId: string, caseTitle: string, skip?: IntegrityCheck[]) => {
     describe(`Common Tests for ${caseTitle}`, () => {
         it(`${caseTitle} - Tree is created successfully`, () => {
-            const { result } = renderHook(() => useMessageTree(caseData));
+            const { result } = renderHook(() => useMessageTree(caseData, chatId));
 
             // Assuming assertTreeIntegrity is a function that can be used outside the class
             expect(() => assertTreeIntegrity(result.current.tree.roots, result.current.tree.map, skip)).not.toThrow();
         });
 
         it(`${caseTitle} - Result has the same number of messages as the input`, () => {
-            const { result } = renderHook(() => useMessageTree(caseData));
+            const { result } = renderHook(() => useMessageTree(caseData, chatId));
 
             let totalNodes = 0;
             for (const root of result.current.tree.roots) {
@@ -697,7 +698,7 @@ const runCommonTests = (caseData: MinimumChatMessage[], caseTitle: string, skip?
         });
 
         it(`${caseTitle} - Roots and children are ordered by sequence`, () => {
-            const { result } = renderHook(() => useMessageTree(caseData));
+            const { result } = renderHook(() => useMessageTree(caseData, chatId));
             const roots = result.current.tree.roots;
 
             for (let i = 0; i < roots.length - 1; i++) {
@@ -720,8 +721,8 @@ const runCommonTests = (caseData: MinimumChatMessage[], caseTitle: string, skip?
 
         it(`${caseTitle} - Result is the same when shuffled`, () => {
             const shuffledCaseData = shuffle([...caseData]);
-            const { result: originalResult } = renderHook(() => useMessageTree(caseData));
-            const { result: shuffledResult } = renderHook(() => useMessageTree(shuffledCaseData));
+            const { result: originalResult } = renderHook(() => useMessageTree(caseData, chatId));
+            const { result: shuffledResult } = renderHook(() => useMessageTree(shuffledCaseData, chatId));
 
             expect(() => assertTreeIntegrity(originalResult.current.tree.roots, originalResult.current.tree.map, skip)).not.toThrow();
             expect(() => assertTreeIntegrity(shuffledResult.current.tree.roots, shuffledResult.current.tree.map, skip)).not.toThrow();
@@ -732,6 +733,7 @@ const runCommonTests = (caseData: MinimumChatMessage[], caseTitle: string, skip?
 };
 
 describe("useMessageTree Hook", () => {
+    const chatId = DUMMY_ID;
     beforeAll(() => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         jest.spyOn(console, "error").mockImplementation(() => { });
@@ -742,9 +744,9 @@ describe("useMessageTree Hook", () => {
         jest.restoreAllMocks();
     });
 
-    runCommonTests(case1, "Case 1");
+    runCommonTests(case1, chatId, "Case 1");
     it("Case 1 - One message per level, and in expected order (sequential IDs in this case)", () => {
-        const { result } = renderHook(() => useMessageTree(case1));
+        const { result } = renderHook(() => useMessageTree(case1, chatId));
         const roots = result.current.tree.roots;
 
         expect(roots).toHaveLength(1);
@@ -753,9 +755,9 @@ describe("useMessageTree Hook", () => {
         expect(isValidStructure).toBe(true);
     });
 
-    runCommonTests(case2, "Case 2");
+    runCommonTests(case2, chatId, "Case 2");
     it("Case 2 - Has 2 roots, with first having no children, and second having one message per level", () => {
-        const { result } = renderHook(() => useMessageTree(case2));
+        const { result } = renderHook(() => useMessageTree(case2, chatId));
         const roots = result.current.tree.roots;
 
         expect(roots).toHaveLength(2);
@@ -767,9 +769,9 @@ describe("useMessageTree Hook", () => {
         expect(isValidStructureForSecondRoot).toBe(true);
     });
 
-    runCommonTests(case3, "Case 3");
+    runCommonTests(case3, chatId, "Case 3");
     it("Case 3 - Proper hierarchical structure with 1 root, 1 child, 3 grandchildren, and 6 great-grandchildren", () => {
-        const { result } = renderHook(() => useMessageTree(case3));
+        const { result } = renderHook(() => useMessageTree(case3, chatId));
         const roots = result.current.tree.roots;
 
         expect(roots).toHaveLength(1);
@@ -784,9 +786,9 @@ describe("useMessageTree Hook", () => {
         }
     });
 
-    runCommonTests(case4, "Case 4", ["ChildParentRelationship"]); // Skip check for missing parent, since this case is built that way on purpose
+    runCommonTests(case4, chatId, "Case 4", ["ChildParentRelationship"]); // Skip check for missing parent, since this case is built that way on purpose
     it("Case 4 - 1 root without any branches. But a message in the middle was deleted", () => {
-        const { result } = renderHook(() => useMessageTree(case4));
+        const { result } = renderHook(() => useMessageTree(case4, chatId));
         const roots = result.current.tree.roots;
 
         expect(roots).toHaveLength(1);
@@ -797,6 +799,7 @@ describe("useMessageTree Hook", () => {
 });
 
 describe("MessageTree Operations", () => {
+    const chatId = DUMMY_ID;
     beforeAll(() => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         jest.spyOn(console, "error").mockImplementation(() => { });
@@ -821,7 +824,7 @@ describe("MessageTree Operations", () => {
     };
 
     it("Add Message - Adds a new message to the tree", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages));
+        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
 
         act(() => {
             result.current.addMessages([newMessage]);
@@ -834,8 +837,8 @@ describe("MessageTree Operations", () => {
     });
 
     it("Add Message - Adding all messages later is the same as initializing with those messages", () => {
-        const { result: withInitialResult } = renderHook(() => useMessageTree(initialMessages));
-        const { result: withoutInitialResult } = renderHook(() => useMessageTree<MinimumChatMessage>([]));
+        const { result: withInitialResult } = renderHook(() => useMessageTree(initialMessages, chatId));
+        const { result: withoutInitialResult } = renderHook(() => useMessageTree([], chatId));
 
         // Add all messages to the empty tree
         act(() => {
@@ -847,7 +850,7 @@ describe("MessageTree Operations", () => {
     });
 
     it("Add Message - Won't add the same message twice", () => {
-        const { result } = renderHook(() => useMessageTree([...initialMessages, newMessage]));
+        const { result } = renderHook(() => useMessageTree([...initialMessages, newMessage], chatId));
 
         const initialNodeCount = result.current.tree.map.size;
 
@@ -859,7 +862,7 @@ describe("MessageTree Operations", () => {
     });
 
     it("Add Message - Won't add the same messages (plural) twice", () => {
-        const { result } = renderHook(() => useMessageTree<MinimumChatMessage>([]));
+        const { result } = renderHook(() => useMessageTree([], chatId));
 
         act(() => {
             result.current.addMessages(case4);
@@ -871,7 +874,7 @@ describe("MessageTree Operations", () => {
     });
 
     it("Edit Message - Edits the newly added message", () => {
-        const { result } = renderHook(() => useMessageTree([...initialMessages, newMessage]));
+        const { result } = renderHook(() => useMessageTree([...initialMessages, newMessage], chatId));
 
         const updatedMessage = {
             ...newMessage,
@@ -892,7 +895,7 @@ describe("MessageTree Operations", () => {
     });
 
     it("Edit Message - Doesn't edit if the message is missing", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages));
+        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
 
         const updatedMessage = {
             ...newMessage,
@@ -913,7 +916,7 @@ describe("MessageTree Operations", () => {
     });
 
     it("Remove Message - Removes the edited message", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages));
+        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
 
         act(() => {
             result.current.removeMessages([newMessage.id]);
@@ -924,7 +927,7 @@ describe("MessageTree Operations", () => {
     });
 
     it("Clear Messages - Resets the message tree", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages));
+        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
 
         // Add a message to ensure the tree is not empty
         act(() => {
@@ -946,8 +949,8 @@ describe("MessageTree Operations", () => {
     });
 
     it("Clear Messages - Clearing then adding messages is the same as initializing with those messages", () => {
-        const { result: result1 } = renderHook(() => useMessageTree(initialMessages));
-        const { result: result2 } = renderHook(() => useMessageTree(initialMessages));
+        const { result: result1 } = renderHook(() => useMessageTree(initialMessages, chatId));
+        const { result: result2 } = renderHook(() => useMessageTree(initialMessages, chatId));
 
         // Add all messages to the empty tree
         act(() => {

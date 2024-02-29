@@ -2181,6 +2181,7 @@ export type Mutation = {
   quizCreate: Quiz;
   quizUpdate: Quiz;
   react: Success;
+  regenerateResponse: ChatMessage;
   reminderCreate: Reminder;
   reminderListCreate: ReminderList;
   reminderListUpdate: ReminderList;
@@ -2730,6 +2731,11 @@ export type MutationQuizUpdateArgs = {
 
 export type MutationReactArgs = {
   input: ReactInput;
+};
+
+
+export type MutationRegenerateResponseArgs = {
+  input: RegenerateResponseInput;
 };
 
 
@@ -6477,6 +6483,10 @@ export type ReactionTo = Api | ChatMessage | Comment | Issue | Note | Post | Pro
 
 export type ReadAssetsInput = {
   files: Array<Scalars['String']>;
+};
+
+export type RegenerateResponseInput = {
+  messageId: Scalars['ID'];
 };
 
 export type Reminder = {
@@ -10399,6 +10409,7 @@ export type ResolversTypes = {
   ReactionSummary: ResolverTypeWrapper<ReactionSummary>;
   ReactionTo: ResolversTypes['Api'] | ResolversTypes['ChatMessage'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
+  RegenerateResponseInput: RegenerateResponseInput;
   Reminder: ResolverTypeWrapper<Reminder>;
   ReminderCreateInput: ReminderCreateInput;
   ReminderEdge: ResolverTypeWrapper<ReminderEdge>;
@@ -11111,6 +11122,7 @@ export type ResolversParentTypes = {
   ReactionSummary: ReactionSummary;
   ReactionTo: ResolversParentTypes['Api'] | ResolversParentTypes['ChatMessage'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
+  RegenerateResponseInput: RegenerateResponseInput;
   Reminder: Reminder;
   ReminderCreateInput: ReminderCreateInput;
   ReminderEdge: ReminderEdge;
@@ -12237,6 +12249,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   quizCreate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizCreateArgs, 'input'>>;
   quizUpdate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizUpdateArgs, 'input'>>;
   react?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationReactArgs, 'input'>>;
+  regenerateResponse?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationRegenerateResponseArgs, 'input'>>;
   reminderCreate?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType, RequireFields<MutationReminderCreateArgs, 'input'>>;
   reminderListCreate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListCreateArgs, 'input'>>;
   reminderListUpdate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListUpdateArgs, 'input'>>;

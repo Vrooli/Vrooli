@@ -40,7 +40,8 @@ export const apiVersion_findOne = {
       "versionLabel": true,
       "root": {
         "id": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Api"
       },
       "translations": {
         "id": true,
@@ -49,7 +50,7 @@ export const apiVersion_findOne = {
         "name": true,
         "summary": true
       },
-      "__typename": "Api"
+      "__typename": "ApiVersion"
     },
     "stats": {
       "id": true,

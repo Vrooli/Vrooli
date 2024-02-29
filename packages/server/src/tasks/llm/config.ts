@@ -107,7 +107,9 @@ export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> &
      * respond with a command - rather than making it optional
      */
     __construct_context_force: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
+    // Allow for additional properties, as long as they're prefixed with "__"
     [Key: `__${string}`]: any;
+    [Key: `__${string}Properties`]: Record<string, Omit<LlmCommandProperty, "name">>;
 }
 
 /** 
@@ -117,8 +119,8 @@ export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> &
  * type's CreateInput type, which is then used later to call the corresponding API endpoint.
  */
 type ConverterFunc<ShapedData, U = undefined> = U extends undefined
-    ? (data: LlmCommandData) => ShapedData
-    : (data: LlmCommandData, existingData: U) => ShapedData;
+    ? (data: LlmCommandData, language: string) => ShapedData
+    : (data: LlmCommandData, language: string, existingData: U) => ShapedData;
 export type LlmTaskConverters = {
     ApiAdd: ConverterFunc<ApiCreateInput>,
     ApiDelete: ConverterFunc<DeleteOneInput>,
@@ -309,7 +311,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
             const info = await import("../../endpoints/generated/api_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ApiEndpoints.Mutation.apiCreate(undefined, { input }, context, info);
             };
         }
@@ -317,7 +319,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -325,7 +327,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
             const info = await import("../../endpoints/generated/api_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ApiEndpoints.Query.apis(undefined, { input }, context, info);
             };
             //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more
@@ -335,7 +337,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/api_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ApiEndpoints.Mutation.apiUpdate(undefined, { input }, context, info);
             };
         }
@@ -343,7 +345,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { UserEndpoints } = await import("../../endpoints/logic/user");
             const info = await import("../../endpoints/generated/user_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 UserEndpoints.Mutation.botCreate(undefined, { input }, context, info);
             };
         }
@@ -351,7 +353,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -359,7 +361,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { UserEndpoints } = await import("../../endpoints/logic/user");
             const info = await import("../../endpoints/generated/user_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 UserEndpoints.Query.users(undefined, { input }, context, info);
             };
         }
@@ -379,7 +381,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
                 if (!existingUser) {
                     throw new CustomError("0276", "NotFound", userData.languages, { id: data.id, task });
                 }
-                const input = converter[task](data, existingUser);
+                const input = converter[task](data, language, existingUser);
                 UserEndpoints.Mutation.botUpdate(undefined, { input }, context, info);
             };
         }
@@ -394,7 +396,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteMany(undefined, { input }, context, info);
             };
         }
@@ -402,7 +404,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { MemberEndpoints } = await import("../../endpoints/logic/member");
             const info = await import("../../endpoints/generated/member_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 MemberEndpoints.Query.members(undefined, { input }, context, info);
             };
         }
@@ -411,7 +413,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/member_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 MemberEndpoints.Mutation.memberUpdate(undefined, { input }, context, info);
             };
         }
@@ -419,7 +421,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { NoteEndpoints } = await import("../../endpoints/logic/note");
             const info = await import("../../endpoints/generated/note_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 NoteEndpoints.Mutation.noteCreate(undefined, { input }, context, info);
             };
         }
@@ -427,7 +429,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -435,7 +437,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { NoteEndpoints } = await import("../../endpoints/logic/note");
             const info = await import("../../endpoints/generated/note_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 NoteEndpoints.Query.notes(undefined, { input }, context, info);
             };
         }
@@ -444,7 +446,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/note_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 NoteEndpoints.Mutation.noteUpdate(undefined, { input }, context, info);
             };
         }
@@ -452,7 +454,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ProjectEndpoints } = await import("../../endpoints/logic/project");
             const info = await import("../../endpoints/generated/project_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ProjectEndpoints.Mutation.projectCreate(undefined, { input }, context, info);
             };
         }
@@ -460,7 +462,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -468,7 +470,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ProjectEndpoints } = await import("../../endpoints/logic/project");
             const info = await import("../../endpoints/generated/project_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ProjectEndpoints.Query.projects(undefined, { input }, context, info);
             };
         }
@@ -477,7 +479,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/project_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ProjectEndpoints.Mutation.projectUpdate(undefined, { input }, context, info);
             };
         }
@@ -485,7 +487,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
             const info = await import("../../endpoints/generated/reminder_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ReminderEndpoints.Mutation.reminderCreate(undefined, { input }, context, info);
             };
         }
@@ -493,7 +495,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -501,7 +503,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
             const info = await import("../../endpoints/generated/reminder_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ReminderEndpoints.Query.reminders(undefined, { input }, context, info);
             };
         }
@@ -510,7 +512,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/reminder_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ReminderEndpoints.Mutation.reminderUpdate(undefined, { input }, context, info);
             };
         }
@@ -518,7 +520,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { RoleEndpoints } = await import("../../endpoints/logic/role");
             const info = await import("../../endpoints/generated/role_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 RoleEndpoints.Mutation.roleCreate(undefined, { input }, context, info);
             };
         }
@@ -526,7 +528,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -534,7 +536,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { RoleEndpoints } = await import("../../endpoints/logic/role");
             const info = await import("../../endpoints/generated/role_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 RoleEndpoints.Query.roles(undefined, { input }, context, info);
             };
         }
@@ -543,7 +545,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/role_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 RoleEndpoints.Mutation.roleUpdate(undefined, { input }, context, info);
             };
         }
@@ -551,7 +553,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
             const info = await import("../../endpoints/generated/routine_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 RoutineEndpoints.Mutation.routineCreate(undefined, { input }, context, info);
             };
         }
@@ -559,7 +561,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -567,7 +569,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
             const info = await import("../../endpoints/generated/routine_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 RoutineEndpoints.Query.routines(undefined, { input }, context, info);
             };
         }
@@ -576,7 +578,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/routine_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 RoutineEndpoints.Mutation.routineUpdate(undefined, { input }, context, info);
             };
         }
@@ -584,7 +586,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
             const info = await import("../../endpoints/generated/schedule_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ScheduleEndpoints.Mutation.scheduleCreate(undefined, { input }, context, info);
             };
         }
@@ -592,7 +594,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -600,7 +602,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
             const info = await import("../../endpoints/generated/schedule_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ScheduleEndpoints.Query.schedules(undefined, { input }, context, info);
             };
         }
@@ -609,7 +611,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/schedule_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 ScheduleEndpoints.Mutation.scheduleUpdate(undefined, { input }, context, info);
             };
         }
@@ -617,7 +619,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
             const info = await import("../../endpoints/generated/smartContract_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 SmartContractEndpoints.Mutation.smartContractCreate(undefined, { input }, context, info);
             };
         }
@@ -625,7 +627,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -633,7 +635,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
             const info = await import("../../endpoints/generated/smartContract_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 SmartContractEndpoints.Query.smartContracts(undefined, { input }, context, info);
             };
         }
@@ -642,7 +644,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/smartContract_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 SmartContractEndpoints.Mutation.smartContractUpdate(undefined, { input }, context, info);
             };
         }
@@ -650,7 +652,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { StandardEndpoints } = await import("../../endpoints/logic/standard");
             const info = await import("../../endpoints/generated/standard_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 StandardEndpoints.Mutation.standardCreate(undefined, { input }, context, info);
             };
         }
@@ -658,7 +660,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -666,7 +668,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { StandardEndpoints } = await import("../../endpoints/logic/standard");
             const info = await import("../../endpoints/generated/standard_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 StandardEndpoints.Query.standards(undefined, { input }, context, info);
             };
         }
@@ -675,7 +677,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/standard_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 StandardEndpoints.Mutation.standardUpdate(undefined, { input }, context, info);
             };
         }
@@ -683,7 +685,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
             const info = await import("../../endpoints/generated/organization_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 OrganizationEndpoints.Mutation.organizationCreate(undefined, { input }, context, info);
             };
         }
@@ -691,7 +693,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
             const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
             };
         }
@@ -699,7 +701,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
             const info = await import("../../endpoints/generated/organization_findMany") as unknown as GraphQLResolveInfo;
             return async (data) => {
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 OrganizationEndpoints.Query.organizations(undefined, { input }, context, info);
             };
         }
@@ -708,7 +710,7 @@ export const generateTaskExec = async (task: LlmTask, language: string, prisma: 
             const info = await import("../../endpoints/generated/organization_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const input = converter[task](data);
+                const input = converter[task](data, language);
                 OrganizationEndpoints.Mutation.organizationUpdate(undefined, { input }, context, info);
             };
         }

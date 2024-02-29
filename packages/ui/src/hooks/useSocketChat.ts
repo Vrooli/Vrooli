@@ -69,14 +69,14 @@ export const useSocketChat = ({
         /** Handle added, edited, and deleted messages */
         onSocketEvent("messages", ({ added, deleted, edited }) => {
             if (added) {
-                addMessages(added);
+                addMessages(added.map(m => ({ ...m, status: "sent" })));
             }
             if (deleted) {
                 removeMessages(deleted);
             }
             if (edited) {
                 for (const message of edited) {
-                    editMessage(message);
+                    editMessage({ ...message, status: "sent" });
                 }
             }
         });

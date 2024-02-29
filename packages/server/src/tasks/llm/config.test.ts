@@ -96,7 +96,7 @@ describe("importConverter", () => {
 
                 // Should return a valid object for some input, no matter what the input is
                 const mockData = { some: "data" };
-                const result = conversionFunction(mockData, {});
+                const result = conversionFunction(mockData, "en", {});
                 expect(result).toBeDefined();
                 expect(typeof result).toBe("object");
             });
@@ -194,6 +194,9 @@ describe("generateTaskExec", () => {
     });
 
     llmTasks.forEach((task) => {
+        // NOTE: We skip "Start", since it's a special case
+        if (task === "Start") return;
+
         it(`should create a task exec function for ${task}`, async () => {
             // @ts-ignore: Testing runtime scenario 
             const execFunc = await generateTaskExec(task, "en", prismaMock, mockUserData);

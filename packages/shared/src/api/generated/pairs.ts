@@ -286,6 +286,12 @@ export const endpointPostChatMessage = {
     tag: "chatMessage",
 } as const;
 
+export const endpointPostRegenerateResponse = {
+    endpoint: "/regenerateResponse",
+    method: "POST",
+    tag: "chatMessage",
+} as const;
+
 export const endpointGetChatParticipant = {
     endpoint: "/chatParticipant/:id",
     method: "GET",

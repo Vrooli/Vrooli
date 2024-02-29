@@ -47,9 +47,10 @@ const getCommands = async (
 const forceGetCommand = async (
     command: LlmCommand,
     chatId: string,
-    respondingToMessageId: string,
-    message: string,
-    respondingToMessageContent: string,
+    respondingToMessage: {
+        id: string,
+        text: string,
+    } | null,
     respondingBotId: string,
     respondingBotConfig: BotSettings,
     userData: SessionUserToken,
@@ -64,15 +65,13 @@ const forceGetCommand = async (
     while (!commandFound && retryCount < MAX_RETRIES) {
         const startResponse = await service.generateResponse({
             chatId,
-            respondingToMessageId,
-            respondingToMessageContent,
+            respondingToMessage,
             respondingBotId,
             respondingBotConfig,
             task: command.task, // Change to the command's task
             force: true, // Force the bot to respond with a command
             userData,
         });
-        console.log("Got start response", startResponse);
 
         // Check for commands in the start response
         const { commands: startCommands, messageWithoutCommands } = await getCommands(startResponse, command.task, language, commandToTask);
@@ -92,32 +91,44 @@ const forceGetCommand = async (
 };
 
 export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
+    let chatId: string | undefined = undefined;
+    let respondingBotId: string | undefined = undefined;
     await withPrisma({
         process: async (prisma) => {
             // Extract data from payload
-            const { chatId, messageId, message, respondingBotId, task, participantsData, userData } = data;
+            const { parent, task, participantsData, userData, ...rest } = data;
+            chatId = rest.chatId;
+            respondingBotId = rest.respondingBotId;
             const language = userData.languages[0] ?? "en";
             // Parse bot information
             const { botSettings, service } = parseBotInformation(participantsData, respondingBotId, logger, language);
-            // Check for commands in user's message
             const commandToTask = await importCommandToTask(language);
-            const { commands, messageWithoutCommands } = await getCommands(message.content, task, language, commandToTask);
-            for (const command of commands) {
-                processCommand({
-                    command,
-                    chatId,
-                    language,
-                    userData,
-                });
+            // Parse previous message
+            let respondingToMessage: { id: string, text: string } | null = null;
+            if (parent) {
+                // Check for commands in user's message
+                const { commands, messageWithoutCommands } = await getCommands(parent.content, task, language, commandToTask);
+                for (const command of commands) {
+                    processCommand({
+                        command,
+                        chatId,
+                        language,
+                        userData,
+                    });
+                }
+                // If there is no text left after removing commands, don't create a response
+                if (messageWithoutCommands.trim() === "") return;
+                respondingToMessage = {
+                    id: parent.id,
+                    text: messageWithoutCommands,
+                };
             }
-            // If there is no text left after removing commands, don't create a response
-            if (messageWithoutCommands.trim() === "") return;
-            // Send typing message while bot is responding
-            emitSocketEvent("typing", message.chatId as string, { starting: [respondingBotId] });
+            // Start typing indicator
+            emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
+            // Generate bot response
             const botResponse = await service.generateResponse({
                 chatId,
-                respondingToMessageId: messageId,
-                respondingToMessageContent: messageWithoutCommands,
+                respondingToMessage,
                 respondingBotId,
                 respondingBotConfig: botSettings,
                 task,
@@ -132,9 +143,7 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
                     const forcedCommand = await forceGetCommand(
                         command,
                         chatId,
-                        messageId,
-                        messageWithoutCommands,
-                        message.content,
+                        respondingToMessage,
                         respondingBotId,
                         botSettings,
                         userData,
@@ -161,37 +170,40 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
                 }
             }
             // If there is no text left after removing commands, don't send a response
-            if (botResponseWithoutCommands.trim() === "") return;
             // TODO should instead sent some sort of confirmation message
+            if (botResponseWithoutCommands.trim() === "") return;
             const select = selectHelper(chatMessage_findOne);
             const createdData = await prisma.chat_message.create({
                 data: {
-                    chat: { connect: { id: message.chatId as string } },
-                    parent: { connect: { id: messageId } },
+                    chat: { connect: { id: chatId } },
+                    parent: parent ? { connect: { id: parent.id } } : undefined,
                     user: { connect: { id: respondingBotId } },
+                    //TODO need to check existing number of parent's children to set versionIndex. Find somewhere to do this without having to call prisma again
                     translations: {
                         create: {
-                            language: message.language,
+                            language,
                             text: botResponseWithoutCommands,
                         },
                     },
                 },
                 ...select,
             });
-            const formatted = modelToGql(createdData, chatMessage_findOne);
-            const fullMessageData = (await addSupplementalFields(prisma, userData, [formatted], chatMessage_findOne))[0] as ChatMessage;
-            await Trigger(prisma, [message.language]).objectCreated({
-                createdById: respondingBotId,
+            const formattedResponseMessage = modelToGql(createdData, chatMessage_findOne);
+            const fullResponseMessage = (await addSupplementalFields(prisma, userData, [formattedResponseMessage], chatMessage_findOne))[0] as ChatMessage;
+            await Trigger(prisma, [language]).objectCreated({
+                createdById: userData.id,
                 hasCompleteAndPublic: true, // N/A
                 hasParent: true, // N/A
                 owner: { id: respondingBotId, __typename: "User" },
-                objectId: fullMessageData.id,
+                objectId: fullResponseMessage.id,
                 objectType: "ChatMessage",
             });
-            await Trigger(prisma, [message.language]).chatMessageCreated({
-                createdById: respondingBotId,
-                data: message,
-                message: fullMessageData,
+            await Trigger(prisma, [language]).chatMessageCreated({
+                excludeUserId: userData.id,
+                chatId,
+                messageId: fullResponseMessage.id,
+                senderId: respondingBotId,
+                message: fullResponseMessage,
             });
             // Reduce user's credits by 1
             await prisma.user.update({
@@ -201,7 +213,8 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
         },
         trace: "0081",
     });
-    if (data.message?.chatId && data?.respondingBotId) {
-        emitSocketEvent("typing", data.message.chatId, { stopping: [data.respondingBotId] });
+    // Remove typing indicator
+    if (chatId && respondingBotId) {
+        emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
     }
 }

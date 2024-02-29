@@ -10,7 +10,8 @@ export const routine_update = {
     "root": {
       "id": true,
       "isInternal": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "Routine"
     },
     "translations": {
       "id": true,
@@ -21,7 +22,7 @@ export const routine_update = {
     },
     "versionIndex": true,
     "versionLabel": true,
-    "__typename": "Routine"
+    "__typename": "RoutineVersion"
   },
   "versions": {
     "versionNotes": true,
@@ -67,7 +68,8 @@ export const routine_update = {
           "versionLabel": true,
           "root": {
             "id": true,
-            "isPrivate": true
+            "isPrivate": true,
+            "__typename": "Api"
           },
           "translations": {
             "id": true,
@@ -76,7 +78,7 @@ export const routine_update = {
             "name": true,
             "summary": true
           },
-          "__typename": "Api"
+          "__typename": "ApiVersion"
         },
         "stats": {
           "id": true,
@@ -551,7 +553,8 @@ export const routine_update = {
           "versionLabel": true,
           "root": {
             "id": true,
-            "isPrivate": true
+            "isPrivate": true,
+            "__typename": "SmartContract"
           },
           "translations": {
             "id": true,
@@ -560,7 +563,7 @@ export const routine_update = {
             "jsonVariable": true,
             "name": true
           },
-          "__typename": "SmartContract"
+          "__typename": "SmartContractVersion"
         },
         "stats": {
           "id": true,

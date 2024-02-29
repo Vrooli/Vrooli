@@ -45,20 +45,21 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         Award(prisma, userId, languages).update("AccountNew", 1);
     },
     chatMessageCreated: async ({
-        createdById,
-        data,
+        excludeUserId,
+        chatId,
+        messageId,
+        senderId,
         message,
     }: {
-        createdById: string,
-        data: PreMapMessageData,
+        /** Adds your user ID to the push notifications omit list */
+        excludeUserId: string,
+        chatId: string,
+        messageId: string,
+        senderId: string,
         message: ChatMessage,
     }) => {
-        if (message.id && data.chatId) {
-            Notify(prisma, languages).pushMessageReceived(message.id, data.userId).toChatParticipants(data.chatId, createdById);
-            emitSocketEvent("messages", data.chatId, { added: [message] });
-        } else {
-            logger.error("Could not send notification or socket event for ChatMessage", { trace: "0494", message, data });
-        }
+        Notify(prisma, languages).pushMessageReceived(messageId, senderId).toChatParticipants(chatId, [senderId, excludeUserId]);
+        emitSocketEvent("messages", chatId, { added: [message] });
     },
     chatMessageUpdated: async ({
         data,
@@ -470,13 +471,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the report
         const isSubscribable = isObjectSubscribable(objectType);
+        const excludeUserIds = userUpdatingReportId ? [userUpdatingReportId] : [];
         if (isSubscribable) {
             const notification = Notify(prisma, languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
             if (objectOwner.__typename === "Organization") {
-                notification.toOrganization(objectOwner.id, userUpdatingReportId);
-                notification.toSubscribers("Organization", objectOwner.id, userUpdatingReportId);
+                notification.toOrganization(objectOwner.id, excludeUserIds);
+                notification.toSubscribers("Organization", objectOwner.id, excludeUserIds);
             }
-            notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingReportId);
+            notification.toSubscribers(objectType as SubscribableObject, objectId, excludeUserIds);
         }
     },
     runProjectComplete: async (runTitle: string, runId: string, userId: string) => {

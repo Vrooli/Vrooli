@@ -211,16 +211,21 @@ export const OrganizationModel: OrganizationModelLogic = ({
          * Finds every admin of an organization
          * @param prisma The prisma client
          * @param organizationId The organization ID
-         * @param excludeUserId An option user to exclude from the results
+         * @param excludedUsers IDs of users to exclude from results
          * @returns A list of admin ids and their preferred languages. Useful for sending notifications
          */
-        async findAdminInfo(prisma: PrismaType, organizationId: string, excludeUserId?: string | null | undefined): Promise<{ id: string, languages: string[] }[]> {
+        async findAdminInfo(prisma: PrismaType, organizationId: string, excludedUsers?: string[] | string): Promise<{ id: string, languages: string[] }[]> {
             const admins = await prisma.member.findMany({
                 where: {
                     AND: [
                         { organizationId },
                         { isAdmin: true },
-                        { userId: { not: excludeUserId ?? undefined } },
+                        ...(typeof excludedUsers === "string" ?
+                            [{ userId: { not: excludedUsers } }] :
+                            Array.isArray(excludedUsers) ?
+                                [{ userId: { notIn: excludedUsers } }] :
+                                []
+                        ),
                     ],
                 },
                 select: {

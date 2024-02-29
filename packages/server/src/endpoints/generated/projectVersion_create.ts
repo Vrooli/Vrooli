@@ -327,7 +327,8 @@ export const projectVersion_create = {
       "versionLabel": true,
       "root": {
         "id": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Project"
       },
       "translations": {
         "id": true,
@@ -335,7 +336,7 @@ export const projectVersion_create = {
         "description": true,
         "name": true
       },
-      "__typename": "Project"
+      "__typename": "ProjectVersion"
     },
     "stats": {
       "id": true,

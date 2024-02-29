@@ -40,7 +40,8 @@ export const noteVersion_update = {
       "versionLabel": true,
       "root": {
         "id": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Note"
       },
       "translations": {
         "id": true,
@@ -53,7 +54,7 @@ export const noteVersion_update = {
           "text": true
         }
       },
-      "__typename": "Note"
+      "__typename": "NoteVersion"
     },
     "id": true,
     "created_at": true,

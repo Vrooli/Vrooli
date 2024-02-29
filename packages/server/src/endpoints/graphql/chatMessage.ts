@@ -115,6 +115,10 @@ export const typeDef = gql`
         messages: [ChatMessage!]!
     }
 
+    input RegenerateResponseInput {
+        messageId: ID!
+    }
+
     extend type Query {
         chatMessage(input: FindByIdInput!): ChatMessage
         chatMessages(input: ChatMessageSearchInput!): ChatMessageSearchResult!
@@ -124,6 +128,7 @@ export const typeDef = gql`
     extend type Mutation {
         chatMessageCreate(input: ChatMessageCreateInput!): ChatMessage!
         chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
+        regenerateResponse(input: RegenerateResponseInput!): Success!
     }
 `;
 

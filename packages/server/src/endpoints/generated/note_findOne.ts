@@ -7,7 +7,8 @@ export const note_findOne = {
     "versionLabel": true,
     "root": {
       "id": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "Note"
     },
     "translations": {
       "id": true,
@@ -20,7 +21,7 @@ export const note_findOne = {
         "text": true
       }
     },
-    "__typename": "Note"
+    "__typename": "NoteVersion"
   },
   "versions": {
     "pullRequest": {

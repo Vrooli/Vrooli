@@ -7,7 +7,8 @@ export const smartContract_create = {
     "versionLabel": true,
     "root": {
       "id": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "SmartContract"
     },
     "translations": {
       "id": true,
@@ -16,7 +17,7 @@ export const smartContract_create = {
       "jsonVariable": true,
       "name": true
     },
-    "__typename": "SmartContract"
+    "__typename": "SmartContractVersion"
   },
   "versions": {
     "versionNotes": true,
