@@ -131,6 +131,52 @@ const ChatBubbleStatus = ({
     return null;
 };
 
+export const NavigationArrows = ({
+    activeIndex,
+    numSiblings,
+    onIndexChange,
+}: {
+    activeIndex: number,
+    numSiblings: number,
+    onIndexChange: (newIndex: number) => unknown,
+}) => {
+    const { palette } = useTheme();
+
+    if (numSiblings < 2) {
+        return null; // Do not render anything if there are less than 2 siblings
+    }
+
+    const handleActiveIndexChange = (newIndex: number) => {
+        if (newIndex >= 0 && newIndex < numSiblings) {
+            onIndexChange(newIndex);
+        }
+    };
+
+    return (
+        <div style={{ display: "flex", alignItems: "center" }}>
+            <IconButton
+                size="small"
+                onClick={() => handleActiveIndexChange(activeIndex - 1)}
+                disabled={activeIndex <= 0}
+                aria-label="left"
+            >
+                <ChevronLeftIcon fill={palette.background.textSecondary} />
+            </IconButton>
+            <Typography variant="body2" color="textSecondary">
+                {activeIndex + 1}/{numSiblings}
+            </Typography>
+            <IconButton
+                size="small"
+                onClick={() => handleActiveIndexChange(activeIndex + 1)}
+                disabled={activeIndex >= numSiblings - 1}
+                aria-label="right"
+            >
+                <ChevronRightIcon fill={palette.background.textSecondary} />
+            </IconButton>
+        </div>
+    );
+};
+
 /**
  * Displays message reactions and actions (i.e. refresh and report). 
  * Reactions are displayed as a list of emojis on the left, and bot actions are displayed
@@ -250,16 +296,11 @@ const ChatBubbleReactions = ({
                     </Tooltip>
                     <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
                 </>}
-                {activeIndex > 0 && activeIndex < numSiblings && <IconButton
-                    size="small"
-                    onClick={() => { handleActiveIndexChange(Math.max(0, activeIndex - 1)); }}>
-                    <ChevronLeftIcon fill={palette.background.textSecondary} />
-                </IconButton>}
-                {activeIndex >= 0 && activeIndex < (numSiblings - 1) && <IconButton
-                    size="small"
-                    onClick={() => { handleActiveIndexChange(Math.min(numSiblings - 1, activeIndex + 1)); }}>
-                    <ChevronRightIcon fill={palette.background.textSecondary} />
-                </IconButton>}
+                <NavigationArrows
+                    activeIndex={activeIndex}
+                    numSiblings={numSiblings}
+                    onIndexChange={handleActiveIndexChange}
+                />
             </Stack>
         </Box >
     );

@@ -4,4 +4,17 @@
         "react-app",
         "react-app/jest"
     ],
+    "overrides": [
+        {
+            "files": [
+                "**/*.test.js",
+                "**/*.test.jsx",
+                "**/*.test.ts",
+                "**/*.test.tsx"
+            ],
+            "rules": {
+                "jest/no-mocks-import": "off"
+            }
+        }
+    ]
 }

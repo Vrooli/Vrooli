@@ -30,7 +30,7 @@ import { PubSub, SideMenuPub } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
 /** Adds font size to theme */
-const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
+export const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
     ...theme,
     typography: {
         fontSize,
@@ -38,7 +38,7 @@ const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
 });
 
 /** Sets "isLeftHanded" property on theme */
-const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
+export const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
     ...theme,
     isLeftHanded,
 });
