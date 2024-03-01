@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
-import { MessageNode, MessageTree } from "hooks/useMessageTree";
+import { MessageTree } from "hooks/useMessageTree";
 import React, { Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { BranchMap } from "utils/cookies";
@@ -86,45 +86,51 @@ export const ChatBubbleTree = ({
     const { dimensions, ref: dimRef } = useDimensions();
 
     const messageList = useMemo(() => {
-        const renderMessage = (withSiblings: MessageNode<ChatMessageShape>[], activeIndex: number) => {
-            const activeParent = activeIndex >= 0 && activeIndex < withSiblings.length ? withSiblings[activeIndex] : null;
-            const activeChildId = activeParent ? branches[activeParent.message.id] : null;
-            const activeChildIndex = (activeParent && activeChildId) ?
-                activeParent.children.findIndex(child => child.message.id === activeChildId) :
-                0;
-            const isOwn = activeParent?.message.user?.id === getCurrentUser(session).id;
+        const renderMessage = (withSiblings: string[], activeIndex: number) => {
+            // Find information for current message
+            const siblingId = withSiblings[activeIndex];
+            const sibling = siblingId ? tree.map.get(siblingId) : null;
+            if (!sibling) return null;
+            const isOwn = sibling.message.user?.id === getCurrentUser(session).id;
 
-            if (!activeParent) return null;
+            // Find information for next message
+            // Check the stored branch data first
+            let childId = branches[siblingId];
+            // Fallback to first child if no branch data is found
+            if (!childId) childId = sibling.children[0];
+            const activeChildIndex = Math.max(sibling.children.findIndex(id => id === childId), 0);
+
+            if (!sibling) return null;
             return (
-                <React.Fragment key={activeParent.message.id} >
+                <React.Fragment key={sibling.message.id} >
                     <ChatBubble
                         activeIndex={activeIndex}
                         chatWidth={dimensions.width}
                         isBotOnlyChat={isBotOnlyChat}
-                        messagesCount={withSiblings.length}
+                        numSiblings={withSiblings.length}
                         onActiveIndexChange={(newIndex) => {
-                            const childId = newIndex >= 0 && newIndex < activeParent.children.length ?
-                                activeParent.children[newIndex].message.id :
-                                null;
-                            if (!childId) return;
-                            setBranches(prevBranches => ({
-                                ...prevBranches,
-                                [activeParent.message.id]: childId,
+                            const siblingId = withSiblings[newIndex];
+                            const parentId = sibling.message.parent?.id;
+                            if (!siblingId) return;
+                            if (!parentId) return; // TODO if root message, should reorder root
+                            setBranches(prev => ({
+                                ...prev,
+                                [parentId]: siblingId,
                             }));
                         }}
                         onDeleted={(message) => { removeMessages([message.id]); }}
                         onReply={handleReply}
                         onRetry={handleRetry}
                         onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
-                        message={activeParent.message}
+                        message={sibling.message}
                         isOwn={isOwn}
                     />
-                    {renderMessage(activeParent.children, activeChildIndex)}
+                    {childId && renderMessage(sibling.children, activeChildIndex)}
                 </React.Fragment>
             );
         };
         return renderMessage(tree.roots, 0);
-    }, [branches, dimensions.width, editMessage, handleReply, handleRetry, removeMessages, session, setBranches, tree.roots]);
+    }, [branches, dimensions.width, editMessage, handleReply, handleRetry, isBotOnlyChat, removeMessages, session, setBranches, tree]);
 
     return (
         <Box ref={dimRef} sx={{ minHeight: "min(400px, 33vh)" }}>

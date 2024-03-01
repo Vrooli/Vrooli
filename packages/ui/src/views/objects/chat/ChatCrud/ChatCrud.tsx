@@ -216,7 +216,7 @@ const ChatForm = ({
         setCookieMatchingChat(existing.id, userIds, task);
     }, [existing.id, existing.participants, session, task]);
 
-    const messageTree = useMessageTree([], existing.id);
+    const messageTree = useMessageTree(existing.id);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 

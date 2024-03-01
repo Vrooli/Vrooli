@@ -145,7 +145,7 @@ const ChatBubbleReactions = ({
     handleRetry,
     isBot,
     isOwn,
-    messagesCount,
+    numSiblings,
     messageId,
     reactions,
     status,
@@ -158,7 +158,7 @@ const ChatBubbleReactions = ({
     handleRetry: () => unknown,
     isBot: boolean,
     isOwn: boolean,
-    messagesCount: number,
+    numSiblings: number,
     messageId: string,
     reactions: ReactionSummary[],
     status: ChatMessageStatus,
@@ -250,14 +250,14 @@ const ChatBubbleReactions = ({
                     </Tooltip>
                     <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
                 </>}
-                {activeIndex > 0 && activeIndex < (messagesCount - 1) && <IconButton
+                {activeIndex > 0 && activeIndex < numSiblings && <IconButton
                     size="small"
                     onClick={() => { handleActiveIndexChange(Math.max(0, activeIndex - 1)); }}>
                     <ChevronLeftIcon fill={palette.background.textSecondary} />
                 </IconButton>}
-                {activeIndex >= 0 && activeIndex < (messagesCount - 2) && <IconButton
+                {activeIndex >= 0 && activeIndex < (numSiblings - 1) && <IconButton
                     size="small"
-                    onClick={() => { handleActiveIndexChange(Math.min(messagesCount - 1, activeIndex + 1)); }}>
+                    onClick={() => { handleActiveIndexChange(Math.min(numSiblings - 1, activeIndex + 1)); }}>
                     <ChevronRightIcon fill={palette.background.textSecondary} />
                 </IconButton>}
             </Stack>
@@ -271,7 +271,7 @@ export const ChatBubble = ({
     isBotOnlyChat,
     isOwn,
     message,
-    messagesCount,
+    numSiblings,
     onActiveIndexChange,
     onDeleted,
     onReply,
@@ -548,7 +548,7 @@ export const ChatBubble = ({
                     handleRetry={() => { onRetry(message); }}
                     isBot={message.user?.isBot ?? false}
                     isOwn={isOwn}
-                    messagesCount={messagesCount}
+                    numSiblings={numSiblings}
                     messageId={message.id}
                     reactions={message.reactionSummaries}
                     status={message.status}

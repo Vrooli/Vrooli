@@ -490,27 +490,34 @@ const case4 = [
 
 /**
  * Checks the validity of root nodes in the message tree.
+ * @param map - Map of message IDs to their corresponding nodes.
  * @param roots - Array of root nodes in the message tree.
  * @throws {Error} If any root node has a parent.
  */
-const checkRootValidity = <T extends MinimumChatMessage>(roots: MessageNode<T>[]) => {
-    roots.forEach(root => {
-        if (root.message.parent?.id) {
-            throw new Error(`Root message with ID ${root.message.id} has a parent. This is invalid.`);
+const checkRootValidity = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    roots: string[],
+) => {
+    roots.forEach(rootId => {
+        const parent = map.get(rootId)?.message.parent;
+        if (parent) {
+            throw new Error(`Root message with ID ${rootId} has a parent. This is invalid.`);
         }
     });
 };
 
 /**
- * Checks the validity of root nodes in the message tree.
- * @param roots - Array of root nodes in the message tree.
- * @throws {Error} If any root node has a parent.
+ * Checks that every message that defines a parent is in that parent's children array.
+ * @param map - Map of message IDs to their corresponding nodes.
+ * @throws {Error} If any message is not a child of its parent in the tree.
  */
-const checkChildParentRelationship = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>) => {
-    messageMap.forEach((node, id) => {
+const checkChildParentRelationship = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+) => {
+    map.forEach((node, id) => {
         if (node.message.parent?.id) {
-            const parentNode = messageMap.get(node.message.parent.id);
-            if (!parentNode || !parentNode.children.includes(node)) {
+            const parentNode = map.get(node.message.parent.id);
+            if (!parentNode || !parentNode.children.includes(id)) {
                 throw new Error(`Message with ID ${id} is not a child of its parent in the tree.`);
             }
         }
@@ -519,22 +526,29 @@ const checkChildParentRelationship = <T extends MinimumChatMessage>(messageMap: 
 
 /**
  * Ensures the integrity of the message tree by checking for cycles and verifying reachability from roots.
+ * @param map - Map of message IDs to their corresponding nodes.
  * @param roots - Array of root nodes in the message tree.
- * @param messageMap - Map of message IDs to their corresponding nodes.
  * @throws {Error} If there are cycles or unreachable nodes.
  */
-const checkTreeIntegrity = <T extends MinimumChatMessage>(roots: MessageNode<T>[], messageMap: Map<string, MessageNode<T>>): void => {
+const checkTreeIntegrity = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    roots: string[],
+): void => {
     const visited = new Set<string>();
-    const traverseTree = (node: MessageNode<T>, visited: Set<string>): void => {
-        if (visited.has(node.message.id)) {
-            throw new Error(`Cycle detected at message with ID ${node.message.id}.`);
+    const traverseTree = (messageId: string, visited: Set<string>): void => {
+        if (visited.has(messageId)) {
+            throw new Error(`Cycle detected at message with ID ${messageId}.`);
         }
-        visited.add(node.message.id);
+        visited.add(messageId);
+        const node = map.get(messageId);
+        if (!node) {
+            throw new Error(`Message with ID ${messageId} is not in the map.`);
+        }
         node.children.forEach(child => traverseTree(child, visited));
     };
 
-    roots.forEach(root => traverseTree(root, visited));
-    messageMap.forEach((_, id) => {
+    roots.forEach(rootId => traverseTree(rootId, visited));
+    map.forEach((_, id) => {
         if (!visited.has(id)) {
             throw new Error(`Message with ID ${id} is not reachable from any root.`);
         }
@@ -543,14 +557,14 @@ const checkTreeIntegrity = <T extends MinimumChatMessage>(roots: MessageNode<T>[
 
 /**
  * Checks if the children of each node in the message map are sorted by their sequence number.
- * @param messageMap - Map of message IDs to their corresponding nodes.
+ * @param map - Map of message IDs to their corresponding nodes.
  * @throws {Error} If children are not correctly sorted by sequence.
  */
-const checkMessageEditOrder = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>): void => {
-    messageMap.forEach((node, id) => {
+const checkMessageEditOrder = <T extends MinimumChatMessage>(map: Map<string, MessageNode<T>>): void => {
+    map.forEach((node, id) => {
         for (let i = 1; i < node.children.length; i++) {
-            const currChildSequence = node.children[i]?.message?.sequence ?? -1; // Default to -1 if undefined
-            const lastChildSequence = node.children[i - 1]?.message?.sequence ?? -1; // Default to -1 if undefined
+            const currChildSequence = map.get(node.children[i])?.message?.sequence ?? -1; // Default to -1 if undefined
+            const lastChildSequence = map.get(node.children[i - 1])?.message?.sequence ?? -1; // Default to -1 if undefined
 
             if (currChildSequence < lastChildSequence) {
                 throw new Error(`Children of message with ID ${id} are not sorted by sequence.`);
@@ -560,14 +574,18 @@ const checkMessageEditOrder = <T extends MinimumChatMessage>(messageMap: Map<str
 };
 
 /**
- * Verifies that there are no orphan nodes in the message map.
- * @param messageMap - Map of message IDs to their corresponding nodes.
+ * Verifies that all orphan nodes in the message map are listed 
+ * in the roots array.
+ * @param map - Map of message IDs to their corresponding nodes.
  * @param roots - Array of root nodes in the message tree.
  * @throws {Error} If there are orphan nodes in the message map.
  */
-const checkNoOrphanNodes = <T extends MinimumChatMessage>(messageMap: Map<string, MessageNode<T>>, roots: MessageNode<T>[]): void => {
-    messageMap.forEach((node, id) => {
-        if (!node.message.parent?.id && !roots.includes(node)) {
+const checkNoOrphanNodes = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    roots: string[],
+): void => {
+    map.forEach((node, id) => {
+        if (!node.message.parent?.id && !roots.includes(id)) {
             throw new Error(`Orphan node detected with ID ${id}.`);
         }
     });
@@ -579,22 +597,22 @@ type IntegrityCheck = "RootValidity" | "ChildParentRelationship" | "TreeIntegrit
  * It includes checks for root validity, child-parent relationship,
  * tree integrity, message edit order, and the presence of orphan nodes.
  * 
+ * @param map - Map of message IDs to their corresponding nodes.
  * @param roots - Array of root nodes in the message tree.
- * @param messageMap - Map of message IDs to their corresponding nodes.
  * @param skip - Array of checks to skip.
  * @throws {Error} If any integrity checks fail.
  */
 const assertTreeIntegrity = <T extends MinimumChatMessage>(
-    roots: MessageNode<T>[],
-    messageMap: Map<string, MessageNode<T>>,
+    map: Map<string, MessageNode<T>>,
+    roots: string[],
     skip?: IntegrityCheck[],
 ): void => {
     if (!skip) skip = [];
-    if (!skip.includes("RootValidity")) checkRootValidity(roots);
-    if (!skip.includes("ChildParentRelationship")) checkChildParentRelationship(messageMap);
-    if (!skip.includes("TreeIntegrity")) checkTreeIntegrity(roots, messageMap);
-    if (!skip.includes("MessageEditOrder")) checkMessageEditOrder(messageMap);
-    if (!skip.includes("NoOrphanNodes")) checkNoOrphanNodes(messageMap, roots);
+    if (!skip.includes("RootValidity")) checkRootValidity(map, roots);
+    if (!skip.includes("ChildParentRelationship")) checkChildParentRelationship(map);
+    if (!skip.includes("TreeIntegrity")) checkTreeIntegrity(map, roots);
+    if (!skip.includes("MessageEditOrder")) checkMessageEditOrder(map);
+    if (!skip.includes("NoOrphanNodes")) checkNoOrphanNodes(map, roots);
 };
 
 /**
@@ -611,29 +629,41 @@ const shuffle = <T>(array: T[]): T[] => {
 
 /**
  * Compares two sets of roots to ensure they have the same structure.
+ * @param map The map of message IDs to their corresponding nodes.
  * @param roots1 The roots of the first tree to compare.
  * @param roots2 The roots of the second tree to compare.
  */
-const treesHaveSameStructure = <T extends MinimumChatMessage>(roots1: MessageNode<T>[], roots2: MessageNode<T>[]): boolean => {
+const treesHaveSameStructure = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    roots1: string[],
+    roots2: string[],
+): boolean => {
     if (roots1.length !== roots2.length) return false;
     for (let i = 0; i < roots1.length; i++) {
-        if (!compareSubtrees(roots1[i] as MessageNode<T>, roots2[i] as MessageNode<T>)) return false;
+        if (!compareSubtrees(map, roots1[i], roots2[i])) return false;
     }
     return true;
 };
 
 /**
  * Recursively compares two subtrees to ensure they have the same structure.
- * @param tree1 The first subtree to compare.
- * @param tree2 The second subtree to compare.
+ * @param map The map of message IDs to their corresponding nodes.
+ * @param tree1Id The first subtree to compare.
+ * @param tree2Id The second subtree to compare.
  */
-const compareSubtrees = <T extends MinimumChatMessage>(tree1: MessageNode<T>, tree2: MessageNode<T>): boolean => {
+const compareSubtrees = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    tree1Id: string,
+    tree2Id: string,
+): boolean => {
+    const tree1 = map.get(tree1Id);
+    const tree2 = map.get(tree2Id);
     if (!tree1 && !tree2) return true;
     if (!tree1 || !tree2) return false;
     if (tree1.message.id !== tree2.message.id) return false;
     if (tree1.children.length !== tree2.children.length) return false;
     for (let i = 0; i < tree1.children.length; i++) {
-        if (!compareSubtrees(tree1.children[i] as MessageNode<T>, tree2.children[i] as MessageNode<T>)) {
+        if (!compareSubtrees(map, tree1.children[i], tree2.children[i])) {
             return false;
         }
     }
@@ -642,36 +672,54 @@ const compareSubtrees = <T extends MinimumChatMessage>(tree1: MessageNode<T>, tr
 
 /**
  * Verifies that a tree node has a single child at each level and 
- * the message IDs increase sequentially.
- * @param node The starting node to verify.
- * @param expectedId The expected message ID for the current node.
+ * the message IDs increase sequentially. 
+ * 
+ * NOTE: We've set up the tests so that the message IDs should always be 
+ * sequential if the tree is built correctly. In real-world scenarios, 
+ * the IDs would be uuids, and we wouldn't be able to rely on this.
+ * 
+ * @param map The map of message IDs to their corresponding nodes.
+ * @param rootId The ID of the root node to start the verification.
+ * @param minId The expected ID of the first node in the tree, and thus the 
+ * smallest ID in the tree.
  */
-const verifySingleNodeStructureAndSequentialIds = <T extends MinimumChatMessage>(node: MessageNode<T>, expectedId: string): boolean => {
-    if (!node) return true;
-    // Check if the current node's ID matches the expected ID
-    if (node.message.id !== expectedId) return false;
+const verifySingleNodeStructureAndSequentialIds = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    rootId: string,
+    minId: string,
+): boolean => {
+    const node = map.get(rootId);
+    if (!node) return false;
+    // Check if the current node's ID is at least as large as the minimum expected ID
+    const nodeId = parseInt(node.message.id);
+    if (nodeId < parseInt(minId)) return false;
     // Check if the node has at most one child
     if (node.children.length > 1) return false;
     // If there's a child, recursively check it with the next expected ID
     if (node.children.length === 1) {
-        return verifySingleNodeStructureAndSequentialIds(node.children[0] as MessageNode<T>, (parseInt(expectedId) + 1).toString());
+        return verifySingleNodeStructureAndSequentialIds(map, node.children[0], (parseInt(minId) + 1).toString());
     }
     return true;
 };
 
 /**
  * Counts the number of nodes in the tree starting from the given node.
- * @param node The starting node for counting.
+ * @param map The map of message IDs to their corresponding nodes.
+ * @param messageId The ID of the node to start counting from.
  */
-const countNodesInTree = <T extends MinimumChatMessage>(node: MessageNode<T>): number => {
+const countNodesInTree = <T extends MinimumChatMessage>(
+    map: Map<string, MessageNode<T>>,
+    messageId: string,
+): number => {
+    const node = map.get(messageId);
     if (!node) return 0;
 
     // Count the current node
     let count = 1;
 
     // Recursively count children
-    for (const child of node.children) {
-        count += countNodesInTree(child);
+    for (const childId of node.children) {
+        count += countNodesInTree(map, childId);
     }
 
     return count;
@@ -680,38 +728,55 @@ const countNodesInTree = <T extends MinimumChatMessage>(node: MessageNode<T>): n
 const runCommonTests = (caseData: MinimumChatMessage[], chatId: string, caseTitle: string, skip?: IntegrityCheck[]) => {
     describe(`Common Tests for ${caseTitle}`, () => {
         it(`${caseTitle} - Tree is created successfully`, () => {
-            const { result } = renderHook(() => useMessageTree(caseData, chatId));
+            const { result } = renderHook(() => useMessageTree(chatId));
 
-            // Assuming assertTreeIntegrity is a function that can be used outside the class
-            expect(() => assertTreeIntegrity(result.current.tree.roots, result.current.tree.map, skip)).not.toThrow();
+            act(() => {
+                result.current.addMessages(caseData);
+            });
+
+            const { map, roots } = result.current.tree;
+            expect(() => assertTreeIntegrity(map, roots, skip)).not.toThrow();
         });
 
         it(`${caseTitle} - Result has the same number of messages as the input`, () => {
-            const { result } = renderHook(() => useMessageTree(caseData, chatId));
+            const { result } = renderHook(() => useMessageTree(chatId));
+
+            act(() => {
+                result.current.addMessages(caseData);
+            });
 
             let totalNodes = 0;
-            for (const root of result.current.tree.roots) {
-                totalNodes += countNodesInTree(root);
+            const { map, roots } = result.current.tree;
+            for (const rootId of roots) {
+                totalNodes += countNodesInTree(map, rootId);
             }
 
             expect(totalNodes).toBe(caseData.length);
         });
 
         it(`${caseTitle} - Roots and children are ordered by sequence`, () => {
-            const { result } = renderHook(() => useMessageTree(caseData, chatId));
-            const roots = result.current.tree.roots;
+            const { result } = renderHook(() => useMessageTree(chatId));
+
+            act(() => {
+                result.current.addMessages(caseData);
+            });
+
+            const { map, roots } = result.current.tree;
 
             for (let i = 0; i < roots.length - 1; i++) {
-                const nextSequence = roots[i + 1]?.message?.sequence;
+                const nextSequence = map.get(roots[i + 1])?.message?.sequence;
                 expect(typeof nextSequence).toBe("number");
-                expect(roots[i]?.message?.sequence).toBeLessThan(nextSequence ?? 0);
+                expect(map.get(roots[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
             }
 
-            const checkChildOrder = (node: MessageNode<MinimumChatMessage>) => {
+            const checkChildOrder = (messageId: string) => {
+                const node = map.get(messageId);
+                expect(node).toBeDefined();
+                if (!node) return;
                 for (let i = 0; i < node.children.length - 1; i++) {
-                    const nextSequence = node.children[i + 1]?.message?.sequence;
+                    const nextSequence = map.get(node.children[i + 1])?.message?.sequence;
                     expect(typeof nextSequence).toBe("number");
-                    expect(node.children[i]?.message?.sequence).toBeLessThan(nextSequence ?? 0);
+                    expect(map.get(node.children[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
                 }
                 node.children.forEach(checkChildOrder);
             };
@@ -721,13 +786,23 @@ const runCommonTests = (caseData: MinimumChatMessage[], chatId: string, caseTitl
 
         it(`${caseTitle} - Result is the same when shuffled`, () => {
             const shuffledCaseData = shuffle([...caseData]);
-            const { result: originalResult } = renderHook(() => useMessageTree(caseData, chatId));
-            const { result: shuffledResult } = renderHook(() => useMessageTree(shuffledCaseData, chatId));
 
-            expect(() => assertTreeIntegrity(originalResult.current.tree.roots, originalResult.current.tree.map, skip)).not.toThrow();
-            expect(() => assertTreeIntegrity(shuffledResult.current.tree.roots, shuffledResult.current.tree.map, skip)).not.toThrow();
+            const { result: originalResult } = renderHook(() => useMessageTree(chatId));
+            act(() => {
+                originalResult.current.addMessages(caseData);
+            });
 
-            expect(treesHaveSameStructure(originalResult.current.tree.roots, shuffledResult.current.tree.roots)).toBe(true);
+            const { result: shuffledResult } = renderHook(() => useMessageTree(chatId));
+            act(() => {
+                shuffledResult.current.addMessages(shuffledCaseData);
+            });
+
+            const { map: originalMap, roots: originalRoots } = originalResult.current.tree;
+            expect(() => assertTreeIntegrity(originalMap, originalRoots, skip)).not.toThrow();
+            const { map: shuffledMap, roots: shuffledRoots } = shuffledResult.current.tree;
+            expect(() => assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.toThrow();
+
+            expect(treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).toBe(true);
         });
     });
 };
@@ -746,53 +821,79 @@ describe("useMessageTree Hook", () => {
 
     runCommonTests(case1, chatId, "Case 1");
     it("Case 1 - One message per level, and in expected order (sequential IDs in this case)", () => {
-        const { result } = renderHook(() => useMessageTree(case1, chatId));
-        const roots = result.current.tree.roots;
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages(case1);
+        });
+
+        const { map, roots } = result.current.tree;
 
         expect(roots).toHaveLength(1);
-        const root = roots[0];
-        const isValidStructure = verifySingleNodeStructureAndSequentialIds(root, "1");
+        const rootId = roots[0];
+        const isValidStructure = verifySingleNodeStructureAndSequentialIds(map, rootId, "1");
         expect(isValidStructure).toBe(true);
     });
 
     runCommonTests(case2, chatId, "Case 2");
     it("Case 2 - Has 2 roots, with first having no children, and second having one message per level", () => {
-        const { result } = renderHook(() => useMessageTree(case2, chatId));
-        const roots = result.current.tree.roots;
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages(case2);
+        });
+
+        const { map, roots } = result.current.tree;
 
         expect(roots).toHaveLength(2);
-        const firstRoot = roots[0];
-        const secondRoot = roots[1];
+        const firstRootId = roots[0];
+        const firstRoot = map.get(firstRootId);
+        const secondRootId = roots[1];
+        const secondRoot = map.get(secondRootId);
 
         expect(firstRoot?.children).toHaveLength(0);
-        const isValidStructureForSecondRoot = verifySingleNodeStructureAndSequentialIds(secondRoot, "2");
+        const isValidStructureForSecondRoot = verifySingleNodeStructureAndSequentialIds(map, secondRootId, "2");
         expect(isValidStructureForSecondRoot).toBe(true);
     });
 
     runCommonTests(case3, chatId, "Case 3");
     it("Case 3 - Proper hierarchical structure with 1 root, 1 child, 3 grandchildren, and 6 great-grandchildren", () => {
-        const { result } = renderHook(() => useMessageTree(case3, chatId));
-        const roots = result.current.tree.roots;
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages(case3);
+        });
+
+        const { map, roots } = result.current.tree;
 
         expect(roots).toHaveLength(1);
-        const root = roots[0];
+        const rootId = roots[0];
+        const root = map.get(rootId);
 
         expect(root?.children).toHaveLength(1);
-        const child = root?.children[0];
+        const childId = root?.children[0];
+        const child = map.get(childId ?? "");
 
         expect(child?.children).toHaveLength(3);
-        for (const grandchild of (child?.children ?? [])) {
-            expect(grandchild.children).toHaveLength(2);
+        for (const grandchildId of (child?.children ?? [])) {
+            const grandchild = map.get(grandchildId);
+            expect(grandchild?.children).toHaveLength(2);
         }
     });
 
     runCommonTests(case4, chatId, "Case 4", ["ChildParentRelationship"]); // Skip check for missing parent, since this case is built that way on purpose
-    it("Case 4 - 1 root without any branches. But a message in the middle was deleted", () => {
-        const { result } = renderHook(() => useMessageTree(case4, chatId));
-        const roots = result.current.tree.roots;
+    it("Case 4 - 1 root without any branches, but a message in the middle was deleted", () => {
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages(case4);
+        });
+
+        const { map, roots } = result.current.tree;
 
         expect(roots).toHaveLength(1);
-        const root = roots[0];
+        const rootId = roots[0];
+        const root = map.get(rootId);
 
         expect(root?.children).toHaveLength(1);
     });
@@ -824,7 +925,11 @@ describe("MessageTree Operations", () => {
     };
 
     it("Add Message - Adds a new message to the tree", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages(initialMessages);
+        });
 
         act(() => {
             result.current.addMessages([newMessage]);
@@ -836,23 +941,15 @@ describe("MessageTree Operations", () => {
         expect(newMessageNode!.message.id).toBe(newMessage.id);
     });
 
-    it("Add Message - Adding all messages later is the same as initializing with those messages", () => {
-        const { result: withInitialResult } = renderHook(() => useMessageTree(initialMessages, chatId));
-        const { result: withoutInitialResult } = renderHook(() => useMessageTree([], chatId));
+    it("Add Message - Won't add the same message twice", () => {
+        const { result } = renderHook(() => useMessageTree(chatId));
+        let initialNodeCount = 0;
 
-        // Add all messages to the empty tree
         act(() => {
-            withoutInitialResult.current.addMessages(initialMessages);
+            result.current.addMessages([...initialMessages, newMessage]);
         });
 
-        // Verify that the resulting trees are the same
-        expect(treesHaveSameStructure<MinimumChatMessage>(withInitialResult.current.tree.roots, withoutInitialResult.current.tree.roots)).toBe(true);
-    });
-
-    it("Add Message - Won't add the same message twice", () => {
-        const { result } = renderHook(() => useMessageTree([...initialMessages, newMessage], chatId));
-
-        const initialNodeCount = result.current.tree.map.size;
+        initialNodeCount = result.current.tree.map.size;
 
         act(() => {
             result.current.addMessages([newMessage]);
@@ -862,11 +959,17 @@ describe("MessageTree Operations", () => {
     });
 
     it("Add Message - Won't add the same messages (plural) twice", () => {
-        const { result } = renderHook(() => useMessageTree([], chatId));
+        const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
             result.current.addMessages(case4);
+        });
+
+        act(() => {
             result.current.addMessages(case4);
+        });
+
+        act(() => {
             result.current.addMessages(case4);
         });
 
@@ -874,7 +977,11 @@ describe("MessageTree Operations", () => {
     });
 
     it("Edit Message - Edits the newly added message", () => {
-        const { result } = renderHook(() => useMessageTree([...initialMessages, newMessage], chatId));
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages([...initialMessages, newMessage]);
+        });
 
         const updatedMessage = {
             ...newMessage,
@@ -895,7 +1002,11 @@ describe("MessageTree Operations", () => {
     });
 
     it("Edit Message - Doesn't edit if the message is missing", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages(initialMessages);
+        });
 
         const updatedMessage = {
             ...newMessage,
@@ -916,7 +1027,11 @@ describe("MessageTree Operations", () => {
     });
 
     it("Remove Message - Removes the edited message", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
+        const { result } = renderHook(() => useMessageTree(chatId));
+
+        act(() => {
+            result.current.addMessages([...initialMessages, newMessage]);
+        });
 
         act(() => {
             result.current.removeMessages([newMessage.id]);
@@ -927,11 +1042,10 @@ describe("MessageTree Operations", () => {
     });
 
     it("Clear Messages - Resets the message tree", () => {
-        const { result } = renderHook(() => useMessageTree(initialMessages, chatId));
+        const { result } = renderHook(() => useMessageTree(chatId));
 
-        // Add a message to ensure the tree is not empty
         act(() => {
-            result.current.addMessages([newMessage]);
+            result.current.addMessages(initialMessages);
         });
 
         // Verify that the tree is not empty
@@ -948,18 +1062,25 @@ describe("MessageTree Operations", () => {
         expect(result.current.tree.roots).toHaveLength(0);
     });
 
-    it("Clear Messages - Clearing then adding messages is the same as initializing with those messages", () => {
-        const { result: result1 } = renderHook(() => useMessageTree(initialMessages, chatId));
-        const { result: result2 } = renderHook(() => useMessageTree(initialMessages, chatId));
+    it("Clear Messages - Clearing then adding back messages is the same as just adding messages", () => {
+        const { result: result1 } = renderHook(() => useMessageTree(chatId));
+        const { result: result2 } = renderHook(() => useMessageTree(chatId));
 
         // Add all messages to the empty tree
         act(() => {
+            result1.current.addMessages(initialMessages);
+        });
+        act(() => {
             result2.current.clearMessages();
+        });
+        act(() => {
             result2.current.addMessages(initialMessages);
         });
 
         // Verify that the resulting trees are the same
-        expect(treesHaveSameStructure(result1.current.tree.roots, result2.current.tree.roots)).toBe(true);
+        const { map: result1Map, roots: result1Roots } = result1.current.tree;
+        const { map: result2Map, roots: result2Roots } = result2.current.tree;
+        expect(treesHaveSameStructure(result1Map, result1Roots, result2Roots)).toBe(true);
     });
 });
 

@@ -304,7 +304,7 @@ export const DashboardView = ({
     const [showChat, setShowChat] = useState(false);
     const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
 
-    const messageTree = useMessageTree([], chat.id);
+    const messageTree = useMessageTree(chat.id);
 
     const [inputFocused, setInputFocused] = useState(false);
     const onFocus = useCallback(() => {

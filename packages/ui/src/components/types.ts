@@ -8,7 +8,7 @@ export interface ChatBubbleProps {
     activeIndex: number;
     chatWidth: number;
     message: ChatMessageShape;
-    messagesCount: number;
+    numSiblings: number;
     /** If the chat is only between you and other bots */
     isBotOnlyChat: boolean;
     isOwn: boolean;
