@@ -15,9 +15,9 @@ import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
-import { chatSocketHandlers } from "./sockets/handlers/chat";
-import { notificationSocketHandlers } from "./sockets/handlers/notification";
 import { io } from "./sockets/io";
+import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
+import { userSocketRoomHandlers } from "./sockets/rooms/user";
 import { setupCommandQueue } from "./tasks/command/queue";
 import { setupEmailQueue } from "./tasks/email/queue";
 import { setupExportQueue } from "./tasks/export/queue";
@@ -163,12 +163,8 @@ const main = async () => {
     // Listen for new WebSocket connections
     io.on("connection", (socket) => {
         // Add handlers
-        chatSocketHandlers(io, socket);
-        notificationSocketHandlers(io, socket);
-        // Handle disconnect
-        socket.on("disconnect", () => {
-            console.log("user disconnected");
-        });
+        chatSocketRoomHandlers(socket);
+        userSocketRoomHandlers(socket);
     });
 
     // Unhandled Rejection Handler

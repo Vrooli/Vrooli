@@ -30,27 +30,11 @@ export const useSocketChat = ({
     useEffect(() => {
         if (!chat?.id || chat.id === DUMMY_ID) return;
 
-        // Define event handlers
-        const events = [
-            ["disconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected", autoHideDuration: 10000 });
-            }],
-            ["reconnect_attempt", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: "ServerReconnectAttempt", autoHideDuration: 10000 });
-            }],
-            ["reconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: "ServerReconnected" });
-            }],
-        ] as const;
-
-        // Add event listeners
-        events.forEach(([event, handler]) => { socket.on(event, handler); });
         emitSocketEvent("joinChatRoom", { chatId: chat.id }, (response) => {
             if (response.error) {
                 PubSub.get().publish("snack", { messageKey: "ChatRoomJoinFailed", severity: "Error" });
             }
         });
-
 
         return () => {
             emitSocketEvent("leaveChatRoom", { chatId: chat.id }, (response) => {
@@ -58,9 +42,6 @@ export const useSocketChat = ({
                     console.error("Failed to leave chat room", response.error);
                 }
             });
-
-            // Clean up event listeners
-            events.forEach(([event, handler]) => { socket.off(event, handler); });
         };
     }, [chat?.id]);
 
@@ -82,6 +63,7 @@ export const useSocketChat = ({
         });
         /** Handle participant typing indicator */
         onSocketEvent("typing", ({ starting, stopping }) => {
+            console.log("got typing socket event!!!!!!!", starting, stopping);
             // Add every user that's typing
             const newTyping = [...usersTyping];
             for (const id of starting ?? []) {

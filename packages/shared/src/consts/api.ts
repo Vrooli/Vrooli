@@ -50,3 +50,6 @@ export enum HttpStatus {
     NotExtended = 510,
     NetworkAuthenticationRequired = 511
 }
+
+export const API_CREDITS_FREE = 100;
+export const API_CREDITS_PREMIUM = 10_000;

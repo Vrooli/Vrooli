@@ -232,7 +232,7 @@ export const AuthEndpoints: EndpointsAuth = {
                 const session = await logIn(input?.password as string, user, prisma, req);
                 if (session) {
                     // Set session token
-                    await generateSessionJwt(res, session as any);
+                    await generateSessionJwt(res, session);
                     return session;
                 } else {
                     throw new CustomError("0138", "BadCredentials", req.session.languages);
@@ -271,7 +271,7 @@ export const AuthEndpoints: EndpointsAuth = {
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
-            await generateSessionJwt(res, session as any);
+            await generateSessionJwt(res, session);
             // Trigger new account
             await Trigger(prisma, req.session.languages).acountNew(user.id, input.email);
             // Return user data
@@ -327,7 +327,7 @@ export const AuthEndpoints: EndpointsAuth = {
             // Create session from user object
             const session = await toSession(user, prisma, req);
             // Set up session token
-            await generateSessionJwt(res, session as any);
+            await generateSessionJwt(res, session);
             return session;
         },
         guestLogIn: async (_p, _d, { req, res }) => {
@@ -358,7 +358,7 @@ export const AuthEndpoints: EndpointsAuth = {
                     users: req.session.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser),
                 };
                 await generateSessionJwt(res, session);
-                return session as any;
+                return session;
             }
         },
         validateSession: async (_, { input }, { prisma, req, res }) => {
@@ -386,6 +386,7 @@ export const AuthEndpoints: EndpointsAuth = {
             });
             if (userData) {
                 const session = await toSession(userData, prisma, req);
+                await generateSessionJwt(res, session);
                 return session;
             }
             // If user data failed to fetch, clear session and return error
@@ -403,7 +404,7 @@ export const AuthEndpoints: EndpointsAuth = {
             const session = { isLoggedIn: true, users: [currentUser, ...otherUsers] };
             // Set up session token
             await generateSessionJwt(res, session);
-            return session as any;
+            return session;
         },
         /**
          * Starts handshake for establishing trust between backend and user wallet
@@ -563,7 +564,7 @@ export const AuthEndpoints: EndpointsAuth = {
             // Create session token
             const session = await toSession({ id: userId as string }, prisma, req);
             // Add session token to return payload
-            await generateSessionJwt(res, session as any);
+            await generateSessionJwt(res, session);
             return {
                 firstLogIn,
                 session,

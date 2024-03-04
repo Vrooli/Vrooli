@@ -1,9 +1,10 @@
-import { HttpStatus, PaymentStatus, PaymentType } from "@local/shared";
+import { API_CREDITS_FREE, API_CREDITS_PREMIUM, HttpStatus, PaymentStatus, PaymentType } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
 import { UI_URL } from "../server";
+import { emitSocketEvent } from "../sockets/events";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks/email/queue";
 import { PrismaType } from "../types";
 import { withPrisma } from "../utils/withPrisma";
@@ -160,6 +161,7 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
                     enabledAt,
                     expiresAt,
                     isActive: true,
+                    credits: API_CREDITS_PREMIUM,
                     user: { connect: { id: payment.user.id } }, // User should exist based on findMany query above
                 },
             });
@@ -170,9 +172,11 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
                     enabledAt: premiums[0].enabledAt ?? enabledAt,
                     expiresAt,
                     isActive: true,
+                    credits: API_CREDITS_PREMIUM,
                 },
             });
         }
+        emitSocketEvent("apiCredits", payment.user.id, { credits: API_CREDITS_PREMIUM });
     }
     // Send thank you notification
     for (const email of payment.user.emails) {
@@ -319,14 +323,36 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
             },
         });
     }
-    // If subscription is active, send notification
+    // If subscription was activated, update credits and send notification
     if (isActive && premiumRecord?.user) {
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                premium: {
+                    update: {
+                        credits: API_CREDITS_PREMIUM,
+                    },
+                },
+            },
+        });
+        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_PREMIUM });
         for (const email of premiumRecord.user.emails) {
             sendPaymentThankYou(email.emailAddress, paymentType);
         }
     }
-    // If subscription is canceled, send notification
+    // If subscription was canceled, remove credits and send notification
     else if (!isActive && premiumRecord?.user) {
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                premium: {
+                    update: {
+                        credits: API_CREDITS_FREE,
+                    },
+                },
+            },
+        });
+        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_FREE });
         for (const email of premiumRecord.user.emails) {
             sendSubscriptionCanceled(email.emailAddress);
         }

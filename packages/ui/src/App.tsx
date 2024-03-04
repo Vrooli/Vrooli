@@ -1,6 +1,6 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, GlobalStyles, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode, socket } from "api";
+import { fetchLazyWrapper, hasErrorCode } from "api";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
@@ -19,6 +19,8 @@ import { ZIndexProvider } from "contexts/ZIndexContext";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useReactHash } from "hooks/useReactHash";
+import { useSocketConnect } from "hooks/useSocketConnect";
+import { useSocketUser } from "hooks/useSocketUser";
 import { useWindowSize } from "hooks/useWindowSize";
 import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -358,21 +360,8 @@ export function App() {
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
 
-    // Handle websocket connection for tracking notifications
-    useEffect(() => {
-        socket.on("connect", () => {
-            console.info("websocket connected to server");
-        });
-
-        socket.on("notification", (notification) => {
-            // handle incoming notification TODO need pub/sub
-            console.log(notification);
-        });
-
-        return () => {
-            socket.disconnect();
-        };
-    }, []);
+    useSocketConnect();
+    useSocketUser(session, setSession);
 
     return (
         <>

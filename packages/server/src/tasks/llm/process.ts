@@ -206,15 +206,19 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
                 message: fullResponseMessage,
             });
             // Reduce user's credits by 1
-            await prisma.user.update({
+            const updatedUser = await prisma.user.update({
                 where: { id: userData.id },
                 data: { premium: { update: { credits: { decrement: 1 } } } },
+                select: { premium: { select: { credits: true } } },
             });
+            if (updatedUser.premium) {
+                emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits });
+            }
         },
         trace: "0081",
     });
     // Remove typing indicator
     if (chatId && respondingBotId) {
-        emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
+        emitSocketEvent("typing", chatId, { stopping: [respondingBotId] });
     }
 }

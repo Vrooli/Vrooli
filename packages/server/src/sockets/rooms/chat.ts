@@ -1,16 +1,14 @@
-import { Server, Socket } from "socket.io";
+import { Socket } from "socket.io";
 import { assertRequestFrom } from "../../auth/request";
 import { logger } from "../../events/logger";
 import { rateLimitSocket } from "../../middleware";
 import { onSocketEvent } from "../../sockets/events";
 import { withPrisma } from "../../utils/withPrisma";
 
-/**
- * Handles socket events for chats, which are not handled by endpoints
- */
-export const chatSocketHandlers = (io: Server, socket: Socket) => {
+/** Socket room for chat events */
+export const chatSocketRoomHandlers = (socket: Socket) => {
     onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
-        const rateLimitError = await rateLimitSocket({ maxUser: 250, socket });
+        const rateLimitError = await rateLimitSocket({ maxUser: 1000, socket });
         if (rateLimitError) {
             callback({ error: rateLimitError });
             return;
@@ -46,11 +44,10 @@ export const chatSocketHandlers = (io: Server, socket: Socket) => {
         });
         // If failed, return error
         if (!success) {
-            callback({ error: "Error joining chat" });
+            callback({ error: "Error joining chat room" });
         }
     });
 
-    // Leave a specific room
     onSocketEvent(socket, "leaveChatRoom", async ({ chatId }, callback) => {
         socket.leave(chatId);
         callback({ success: true });

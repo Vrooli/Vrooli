@@ -1,9 +1,21 @@
 import { ChatMessage } from "../api/generated/graphqlTypes";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
-export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom";
+export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinUserRoom" | "leaveUserRoom";
 
 export interface SocketEventPayloads {
+    // User-specific events
+    apiCredits: {
+        credits: number;
+    };
+    joinUserRoom: { userId: string };
+    leaveUserRoom: { userId: string };
+    notification: {
+        body: string;
+        icon: string;
+        link: string | undefined;
+        title: string;
+    };
     // Chat-related events
     messages: {
         added?: ChatMessage[];
@@ -26,13 +38,6 @@ export interface SocketEventPayloads {
     leaveChatRoom: { chatId: string };
     //TODO need types for these
     llmTasks: unknown[];
-    // Notifications
-    notification: {
-        body: string;
-        icon: string;
-        link: string | undefined;
-        title: string;
-    }
     // Types reserved internally by socket.io. These should not be used.
     connect: never;
     connect_error: never;
@@ -46,6 +51,8 @@ export interface SocketEventCallbackData {
 export interface SocketEventCallbacks {
     joinChatRoom: (response: SocketEventCallbackData) => void;
     leaveChatRoom: (response: SocketEventCallbackData) => void;
+    joinUserRoom: (response: SocketEventCallbackData) => void;
+    leaveUserRoom: (response: SocketEventCallbackData) => void;
 }
 
 export type SocketEventHandler<T extends SocketEvent> = T extends keyof SocketEventCallbacks

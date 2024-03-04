@@ -2,10 +2,13 @@ import { COOKIE, uuidValidate } from "@local/shared";
 import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { Socket } from "socket.io";
+import { ExtendedError } from "socket.io/dist/namespace";
+import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { UI_URL_REMOTE } from "../server";
-import { ApiToken, BasicToken, RecursivePartial, SessionData, SessionToken, SessionUserToken } from "../types";
+import { ApiToken, BasicToken, RecursivePartial, RecursivePartialNullable, SessionData, SessionToken, SessionUserToken } from "../types";
 import { isSafeOrigin } from "../utils/origin";
 
 const SESSION_MILLI = 30 * 86400 * 1000; // 30 days
@@ -49,9 +52,9 @@ const parseAcceptLanguage = (req: { headers: Record<string, any> }): string[] =>
     // Default to english if not found or a wildcard
     if (!acceptString || acceptString === "*") return ["en"];
     // Strip q values
-    let acceptValues = acceptString.split(",").map((lang) => lang.split(";")[0]);
+    let acceptValues = acceptString.split(",").map((lang: string) => lang.split(";")[0]);
     // Remove subtags
-    acceptValues = acceptValues.map((lang) => lang.split("-")[0]);
+    acceptValues = acceptValues.map((lang: string) => lang.split("-")[0]);
     return acceptValues;
 };
 
@@ -135,10 +138,13 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
  * and if the verification is successful, attaches the decoded JWT payload 
  * to the socket object as `socket.session`.
  *
- * @param {Object} socket - The socket object
- * @param {Function} next - The next function to call
+ * @param socket - The socket object
+ * @param next - The next function to call
  */
-export const authenticateSocket = async (socket, next) => {
+export const authenticateSocket = async (
+    socket: Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
+    next: (err?: ExtendedError | undefined) => void,
+) => {
     try {
         // Add IP address to socket object, so we can use it later
         socket.req = { ip: socket.handshake.address };
@@ -149,7 +155,7 @@ export const authenticateSocket = async (socket, next) => {
             validToken: false,
         };
         // Get token
-        const cookies = cookie.parse(socket.handshake.headers.cookie);
+        const cookies = cookie.parse(socket.handshake.headers.cookie ?? "");
         const token = cookies[COOKIE.Jwt];
         if (!token) {
             return next(new Error("Unauthorized"));
@@ -197,7 +203,7 @@ const basicToken = (): BasicToken => ({
  */
 export async function generateSessionJwt(
     res: Response,
-    session: RecursivePartial<Pick<SessionData, "isLoggedIn" | "languages" | "timeZone" | "users">>,
+    session: RecursivePartialNullable<Pick<SessionData, "isLoggedIn" | "languages" | "timeZone" | "users">>,
 ): Promise<void> {
     const tokenContents: SessionToken = {
         ...basicToken(),
@@ -341,7 +347,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
 /**
  * Middleware that restricts access to logged in users
  */
-export async function requireLoggedIn(req: Request, _: any, next: any) {
+export async function requireLoggedIn(req: Request, _: unknown, next: NextFunction) {
     let error: CustomError | undefined;
     if (!req.session.isLoggedIn) error = new CustomError("0018", "NotLoggedIn", req.session.languages);
     next(error);

@@ -92,6 +92,15 @@ export type RecursivePartial<T> = {
     : T[P]
 };
 
+/** Like RecursivePartial, but allows `null` */
+export type RecursivePartialNullable<T> = {
+    [P in keyof T]?: T[P] extends Date
+    ? T[P]
+    : T[P] extends object
+    ? RecursivePartialNullable<T[P]>
+    : T[P] | null
+};
+
 /** Return type of find one queries */
 export type FindOneResult<T> = RecursivePartial<T> | null
 

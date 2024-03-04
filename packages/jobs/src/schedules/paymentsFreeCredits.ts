@@ -1,8 +1,6 @@
 import { batch } from "@local/server";
+import { API_CREDITS_FREE, API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
-
-const CREDITS_FREE = 100;
-const CREDITS_PREMIUM = 10_000;
 
 /**
  * Provides free credits to users based on their premium status.
@@ -20,8 +18,8 @@ export const paymentsFreeCredits = async (): Promise<void> => {
 
                 const currentCredits = user.premium?.credits ?? 0;
                 const newCredits = user.premium?.isActive
-                    ? Math.max(CREDITS_PREMIUM, currentCredits)
-                    : Math.max(CREDITS_FREE, currentCredits);
+                    ? Math.max(API_CREDITS_PREMIUM, currentCredits)
+                    : Math.max(API_CREDITS_FREE, currentCredits);
 
                 if (user.premium) {
                     // Update existing premium record
