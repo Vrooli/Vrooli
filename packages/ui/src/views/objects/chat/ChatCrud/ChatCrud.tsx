@@ -2,7 +2,7 @@ import { Chat, ChatCreateInput, ChatParticipant, chatTranslationValidation, Chat
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
+import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -17,6 +17,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
+import { useDimensions } from "hooks/useDimensions";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useMessageActions } from "hooks/useMessageActions";
@@ -217,6 +218,7 @@ const ChatForm = ({
     }, [existing.id, existing.participants, session, task]);
 
     const messageTree = useMessageTree(existing.id);
+    const { dimensions, ref: dimRef } = useDimensions();
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -452,6 +454,7 @@ const ChatForm = ({
                         />}
                     />
                     <Box sx={{
+                        position: "relative",
                         display: "flex",
                         flexDirection: "column",
                         flexGrow: 1,
@@ -461,6 +464,8 @@ const ChatForm = ({
                     }}>
                         <ChatBubbleTree
                             branches={messageTree.branches}
+                            dimensions={dimensions}
+                            dimRef={dimRef}
                             editMessage={messageActions.putMessage}
                             handleReply={messageTree.replyToMessage}
                             handleRetry={messageActions.regenerateResponse}
@@ -469,6 +474,7 @@ const ChatForm = ({
                             setBranches={messageTree.setBranches}
                             tree={messageTree.tree}
                         />
+                        <ScrollToBottomButton containerRef={dimRef} />
                     </Box>
                     {!showBotWarning && <TypingIndicator participants={usersTyping} />}
                     {/* Warning that you are talking to a bot */}

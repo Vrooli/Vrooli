@@ -1,7 +1,7 @@
 import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
-import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
+import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
@@ -11,6 +11,7 @@ import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
+import { useDimensions } from "hooks/useDimensions";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -305,6 +306,7 @@ export const DashboardView = ({
     const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
 
     const messageTree = useMessageTree(chat.id);
+    const { dimensions, ref: dimRef } = useDimensions();
 
     const [inputFocused, setInputFocused] = useState(false);
     const onFocus = useCallback(() => {
@@ -417,6 +419,7 @@ export const DashboardView = ({
                 </>}
             />
             <Box sx={{
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 flexGrow: 1,
@@ -496,6 +499,8 @@ export const DashboardView = ({
                 </>}
                 {showChat && <ChatBubbleTree
                     branches={messageTree.branches}
+                    dimensions={dimensions}
+                    dimRef={dimRef}
                     editMessage={messageActions.putMessage}
                     handleReply={messageTree.replyToMessage}
                     handleRetry={messageActions.regenerateResponse}
@@ -504,6 +509,7 @@ export const DashboardView = ({
                     setBranches={messageTree.setBranches}
                     tree={messageTree.tree}
                 />}
+                {showChat && <ScrollToBottomButton containerRef={dimRef} />}
             </Box>
             <TypingIndicator participants={usersTyping} />
             <RichInputBase
