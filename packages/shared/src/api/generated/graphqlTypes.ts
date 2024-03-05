@@ -14,6 +14,7 @@ export type Scalars = {
   Int: number;
   Float: number;
   Date: any;
+  JSONObject: any;
   Upload: any;
 };
 
@@ -339,6 +340,16 @@ export type ApiYou = {
   isBookmarked: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
   reaction?: Maybe<Scalars['String']>;
+};
+
+export type AutoFillInput = {
+  data: Scalars['JSONObject'];
+  task: LlmTask;
+};
+
+export type AutoFillResult = {
+  __typename: 'AutoFillResult';
+  data: Scalars['JSONObject'];
 };
 
 export type Award = {
@@ -1736,6 +1747,58 @@ export type LabelYou = {
   canUpdate: Scalars['Boolean'];
 };
 
+export enum LlmTask {
+  ApiAdd = 'ApiAdd',
+  ApiDelete = 'ApiDelete',
+  ApiFind = 'ApiFind',
+  ApiUpdate = 'ApiUpdate',
+  BotAdd = 'BotAdd',
+  BotDelete = 'BotDelete',
+  BotFind = 'BotFind',
+  BotUpdate = 'BotUpdate',
+  MembersAdd = 'MembersAdd',
+  MembersDelete = 'MembersDelete',
+  MembersFind = 'MembersFind',
+  MembersUpdate = 'MembersUpdate',
+  NoteAdd = 'NoteAdd',
+  NoteDelete = 'NoteDelete',
+  NoteFind = 'NoteFind',
+  NoteUpdate = 'NoteUpdate',
+  ProjectAdd = 'ProjectAdd',
+  ProjectDelete = 'ProjectDelete',
+  ProjectFind = 'ProjectFind',
+  ProjectUpdate = 'ProjectUpdate',
+  ReminderAdd = 'ReminderAdd',
+  ReminderDelete = 'ReminderDelete',
+  ReminderFind = 'ReminderFind',
+  ReminderUpdate = 'ReminderUpdate',
+  RoleAdd = 'RoleAdd',
+  RoleDelete = 'RoleDelete',
+  RoleFind = 'RoleFind',
+  RoleUpdate = 'RoleUpdate',
+  RoutineAdd = 'RoutineAdd',
+  RoutineDelete = 'RoutineDelete',
+  RoutineFind = 'RoutineFind',
+  RoutineUpdate = 'RoutineUpdate',
+  ScheduleAdd = 'ScheduleAdd',
+  ScheduleDelete = 'ScheduleDelete',
+  ScheduleFind = 'ScheduleFind',
+  ScheduleUpdate = 'ScheduleUpdate',
+  SmartContractAdd = 'SmartContractAdd',
+  SmartContractDelete = 'SmartContractDelete',
+  SmartContractFind = 'SmartContractFind',
+  SmartContractUpdate = 'SmartContractUpdate',
+  StandardAdd = 'StandardAdd',
+  StandardDelete = 'StandardDelete',
+  StandardFind = 'StandardFind',
+  StandardUpdate = 'StandardUpdate',
+  Start = 'Start',
+  TeamAdd = 'TeamAdd',
+  TeamDelete = 'TeamDelete',
+  TeamFind = 'TeamFind',
+  TeamUpdate = 'TeamUpdate'
+}
+
 export type LogOutInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
@@ -2087,6 +2150,7 @@ export type Mutation = {
   apiUpdate: Api;
   apiVersionCreate: ApiVersion;
   apiVersionUpdate: ApiVersion;
+  autoFill: AutoFillResult;
   bookmarkCreate: Bookmark;
   bookmarkListCreate: BookmarkList;
   bookmarkListUpdate: BookmarkList;
@@ -2181,7 +2245,7 @@ export type Mutation = {
   quizCreate: Quiz;
   quizUpdate: Quiz;
   react: Success;
-  regenerateResponse: ChatMessage;
+  regenerateResponse: Success;
   reminderCreate: Reminder;
   reminderListCreate: ReminderList;
   reminderListUpdate: ReminderList;
@@ -2281,6 +2345,11 @@ export type MutationApiVersionCreateArgs = {
 
 export type MutationApiVersionUpdateArgs = {
   input: ApiVersionUpdateInput;
+};
+
+
+export type MutationAutoFillArgs = {
+  input: AutoFillInput;
 };
 
 
@@ -9977,6 +10046,8 @@ export type ResolversTypes = {
   ApiVersionTranslationUpdateInput: ApiVersionTranslationUpdateInput;
   ApiVersionUpdateInput: ApiVersionUpdateInput;
   ApiYou: ResolverTypeWrapper<ApiYou>;
+  AutoFillInput: AutoFillInput;
+  AutoFillResult: ResolverTypeWrapper<AutoFillResult>;
   Award: ResolverTypeWrapper<Award>;
   AwardCategory: AwardCategory;
   AwardEdge: ResolverTypeWrapper<AwardEdge>;
@@ -10107,6 +10178,7 @@ export type ResolversTypes = {
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
   IssueYou: ResolverTypeWrapper<IssueYou>;
+  JSONObject: ResolverTypeWrapper<Scalars['JSONObject']>;
   Label: ResolverTypeWrapper<Omit<Label, 'owner'> & { owner: ResolversTypes['Owner'] }>;
   LabelCreateInput: LabelCreateInput;
   LabelEdge: ResolverTypeWrapper<LabelEdge>;
@@ -10118,6 +10190,7 @@ export type ResolversTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
+  LlmTask: LlmTask;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
@@ -10750,6 +10823,8 @@ export type ResolversParentTypes = {
   ApiVersionTranslationUpdateInput: ApiVersionTranslationUpdateInput;
   ApiVersionUpdateInput: ApiVersionUpdateInput;
   ApiYou: ApiYou;
+  AutoFillInput: AutoFillInput;
+  AutoFillResult: AutoFillResult;
   Award: Award;
   AwardEdge: AwardEdge;
   AwardSearchInput: AwardSearchInput;
@@ -10859,6 +10934,7 @@ export type ResolversParentTypes = {
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
   IssueYou: IssueYou;
+  JSONObject: Scalars['JSONObject'];
   Label: Omit<Label, 'owner'> & { owner: ResolversParentTypes['Owner'] };
   LabelCreateInput: LabelCreateInput;
   LabelEdge: LabelEdge;
@@ -11514,6 +11590,11 @@ export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParen
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type AutoFillResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['AutoFillResult'] = ResolversParentTypes['AutoFillResult']> = {
+  data?: Resolver<ResolversTypes['JSONObject'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type AwardResolvers<ContextType = any, ParentType extends ResolversParentTypes['Award'] = ResolversParentTypes['Award']> = {
   category?: Resolver<ResolversTypes['AwardCategory'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11945,6 +12026,10 @@ export type IssueYouResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export interface JsonObjectScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['JSONObject'], any> {
+  name: 'JSONObject';
+}
+
 export type LabelResolvers<ContextType = any, ParentType extends ResolversParentTypes['Label'] = ResolversParentTypes['Label']> = {
   apis?: Resolver<Maybe<Array<ResolversTypes['Api']>>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12155,6 +12240,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   apiUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationApiUpdateArgs, 'input'>>;
   apiVersionCreate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionCreateArgs, 'input'>>;
   apiVersionUpdate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionUpdateArgs, 'input'>>;
+  autoFill?: Resolver<ResolversTypes['AutoFillResult'], ParentType, ContextType, RequireFields<MutationAutoFillArgs, 'input'>>;
   bookmarkCreate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkCreateArgs, 'input'>>;
   bookmarkListCreate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListCreateArgs, 'input'>>;
   bookmarkListUpdate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListUpdateArgs, 'input'>>;
@@ -12249,7 +12335,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   quizCreate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizCreateArgs, 'input'>>;
   quizUpdate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizUpdateArgs, 'input'>>;
   react?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationReactArgs, 'input'>>;
-  regenerateResponse?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationRegenerateResponseArgs, 'input'>>;
+  regenerateResponse?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationRegenerateResponseArgs, 'input'>>;
   reminderCreate?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType, RequireFields<MutationReminderCreateArgs, 'input'>>;
   reminderListCreate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListCreateArgs, 'input'>>;
   reminderListUpdate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListUpdateArgs, 'input'>>;
@@ -15007,6 +15093,7 @@ export type Resolvers<ContextType = any> = {
   ApiVersionSearchResult?: ApiVersionSearchResultResolvers<ContextType>;
   ApiVersionTranslation?: ApiVersionTranslationResolvers<ContextType>;
   ApiYou?: ApiYouResolvers<ContextType>;
+  AutoFillResult?: AutoFillResultResolvers<ContextType>;
   Award?: AwardResolvers<ContextType>;
   AwardEdge?: AwardEdgeResolvers<ContextType>;
   AwardSearchResult?: AwardSearchResultResolvers<ContextType>;
@@ -15059,6 +15146,7 @@ export type Resolvers<ContextType = any> = {
   IssueTo?: IssueToResolvers<ContextType>;
   IssueTranslation?: IssueTranslationResolvers<ContextType>;
   IssueYou?: IssueYouResolvers<ContextType>;
+  JSONObject?: GraphQLScalarType;
   Label?: LabelResolvers<ContextType>;
   LabelEdge?: LabelEdgeResolvers<ContextType>;
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;

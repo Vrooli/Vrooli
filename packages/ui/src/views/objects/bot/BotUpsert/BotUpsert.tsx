@@ -1,6 +1,6 @@
-import { BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, noopSubmit, Session, User } from "@local/shared";
-import { Box, InputAdornment, Slider, Stack, Typography } from "@mui/material";
-import { useSubmitHelper } from "api";
+import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LlmTask, noopSubmit, Session, User } from "@local/shared";
+import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
@@ -16,15 +16,17 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
 import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
 import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
@@ -166,6 +168,8 @@ const BotForm = ({
     ...props
 }: BotFormProps) => {
     const session = useContext(SessionContext);
+    const { credits } = useMemo(() => getCurrentUser(session), [session]);
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // const [inputMode, setInputMode] = useState<InputMode>("default");
@@ -215,8 +219,6 @@ const BotForm = ({
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
     const onSubmit = useSubmitHelper<BotCreateInput | BotUpdateInput, User>({
         disabled,
         existing,
@@ -226,6 +228,26 @@ const BotForm = ({
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
     });
+
+    const [getAutoFill, { loading: isLoadingAutoFill }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
+    const autoFill = useCallback(() => {
+        console.log("in autofill", values);
+        fetchLazyWrapper<AutoFillInput, AutoFillResult>({
+            fetch: getAutoFill,
+            inputs: {
+                task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
+                data: {
+                    ...transformBotValues(session, values, botInitialValues(session), isCreate),
+                    translations: values.translations,
+                },
+            },
+            onSuccess: (data) => {
+                //TODO 
+            },
+        });
+    }, [getAutoFill, isCreate, session, values]);
+
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isLoadingAutoFill || props.isSubmitting, [isCreateLoading, isLoadingAutoFill, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     return (
         <MaybeLargeDialog
@@ -470,6 +492,18 @@ const BotForm = ({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={credits && credits > 0 ? (
+                    <Tooltip title={t("AutoFill")} placement="top">
+                        <IconButton
+                            aria-label={t("AutoFill")}
+                            disabled={isLoadingAutoFill}
+                            onClick={autoFill}
+                            sx={{ background: palette.secondary.main }}
+                        >
+                            <MagicIcon fill={palette.secondary.contrastText} width="36px" height="36px" />
+                        </IconButton>
+                    </Tooltip>
+                ) : null}
             />
         </MaybeLargeDialog>
     );

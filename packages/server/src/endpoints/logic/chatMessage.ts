@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, Success, uuidValidate } from "@local/shared";
+import { AutoFillInput, AutoFillResult, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, Success, uuidValidate } from "@local/shared";
 import { PreMapMessageData, PreMapUserData } from "models/base/chatMessage";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
@@ -23,6 +23,7 @@ export type EndpointsChatMessage = {
         chatMessageCreate: GQLEndpoint<ChatMessageCreateInput, CreateOneResult<ChatMessage>>;
         chatMessageUpdate: GQLEndpoint<ChatMessageUpdateInput, UpdateOneResult<ChatMessage>>;
         regenerateResponse: GQLEndpoint<RegenerateResponseInput, Success>;
+        autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
     }
 }
 
@@ -150,6 +151,7 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
                     participants[participant.user.id] = {
                         botSettings: participant.user.botSettings ?? JSON.stringify({}),
                         id: participant.user.id,
+                        isBot: participant.user.isBot,
                         name: participant.user.name,
                     };
                 }
@@ -164,6 +166,10 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
                 userData,
             });
             return { __typename: "Success", success: true };
+        },
+        autoFill: async (_, { input }, { prisma, req }, info) => {
+            console.log("got autoFill input", JSON.stringify(input));
+            return { __typename: "AutoFillResult", data: {} }; //TODO
         },
     },
 };

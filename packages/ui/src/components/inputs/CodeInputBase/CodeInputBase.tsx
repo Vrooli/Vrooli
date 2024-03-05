@@ -487,7 +487,7 @@ export const CodeInputBase = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
+    const { credits } = useMemo(() => getCurrentUser(session), [session]);
 
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
     const commandFunctionsRef = useRef<{ undo: ((view: EditorView) => unknown) | null, redo: ((view: EditorView) => unknown) | null }>({ undo: null, redo: null });
@@ -697,7 +697,7 @@ export const CodeInputBase = ({
     const actions = useMemo(() => {
         const actionsList: Action[] = [];
         // If user has premium, add button for AI assistant
-        if (hasPremium) {
+        if (credits && credits > 0) {
             actionsList.push({
                 label: "AI assistant",
                 Icon: MagicIcon,
@@ -741,7 +741,7 @@ export const CodeInputBase = ({
             });
         }
         return actionsList;
-    }, [hasPremium, internalValue, mode, openAssistantDialog, t, updateInternalValue]);
+    }, [credits, internalValue, mode, openAssistantDialog, t, updateInternalValue]);
 
     // Find language label and help text
     const [label, help] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[mode] ?? ["Json", "JsonHelp"], [mode]);

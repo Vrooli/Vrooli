@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
+import { AutoFillResult, ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
@@ -57,5 +57,12 @@ export const chatMessageSearchTreeResult: GqlPartial<ChatMessageSearchTreeResult
         hasMoreUp: true,
         hasMoreDown: true,
         messages: () => rel(chatMessage, "list"),
+    },
+};
+
+export const autoFillResult: GqlPartial<AutoFillResult> = {
+    __typename: "AutoFillResult",
+    common: {
+        data: true,
     },
 };

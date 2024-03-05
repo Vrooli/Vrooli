@@ -234,7 +234,7 @@ export const RichInputToolbar = ({
     const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { hasPremium } = useMemo(() => getCurrentUser(session), [session]);
+    const { credits } = useMemo(() => getCurrentUser(session), [session]);
     const { dimensions, fromDims, ref: dimRef } = useDimensions();
     const viewSize = useMemo<ViewSize>(() => {
         if (dimensions.width <= 375) return "minimal";
@@ -328,7 +328,7 @@ export const RichInputToolbar = ({
                     visibility: disabled ? "hidden" : "visible",
                 }}
             >
-                {hasPremium && !disableAssistant && <ToolButton
+                {credits && credits > 0 && !disableAssistant && <ToolButton
                     icon={<MagicIcon fill={palette.primary.contrastText} />}
                     label={t("AIAssistant")}
                     onClick={() => handleToggleAction("Assistant")}

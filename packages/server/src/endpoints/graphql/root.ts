@@ -121,6 +121,7 @@ export const typeDef = gql`
 
     scalar Date
     scalar Upload
+    scalar JSON
 
     # Used for Projects, Standards, and Routines, since they can be owned
     # by either a User or an Organization.
@@ -229,6 +230,7 @@ export const resolvers: {
     VisibilityType: typeof VisibilityType;
     Upload: typeof GraphQLUpload;
     Date: GraphQLScalarType;
+    JSON: GraphQLScalarType;
     Owner: UnionResolver;
     Query: EndpointsRoot["Query"];
     Mutation: EndpointsRoot["Mutation"];
@@ -249,6 +251,27 @@ export const resolvers: {
         },
         parseLiteral(ast: any) {
             return new Date(ast).toDateString(); // ast value is always in string format
+        },
+    }),
+    JSON: new GraphQLScalarType({
+        name: "JSONObject",
+        description: "Arbitrary JSON object",
+        // Serialize data sent to the client
+        serialize(value) {
+            // Assuming value is already a JSON object
+            return value; // No transformation needed
+        },
+        // Parse data from the client
+        parseValue(value) {
+            return typeof value === "string" ? JSON.parse(value) : value; // Convert JSON string to object
+        },
+        parseLiteral(ast: any) {
+            try {
+                // Assuming ast.value is a JSON string for simplicity; you might need to handle different AST types
+                return JSON.parse(ast.value);
+            } catch (error) {
+                throw new Error(`JSONObject cannot represent non-JSON value: ${ast.value}`);
+            }
         },
     }),
     Owner: { __resolveType(obj) { return resolveUnion(obj); } },

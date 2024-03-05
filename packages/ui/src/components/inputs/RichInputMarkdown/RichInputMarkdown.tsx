@@ -484,6 +484,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                     "& .MuiInputBase-root": {
                         minHeight: sx?.minHeight ?? "unset",
                         "& > textarea": {
+                            minHeight: sx?.minHeight ?? "unset",
                             marginBottom: "auto",
                         },
                     },
