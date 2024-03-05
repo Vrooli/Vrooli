@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { LlmTask } from "@local/shared";
 import fs from "fs";
 import pkg from "../../__mocks__/@prisma/client";
 import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
-import { DEFAULT_LANGUAGE, LLM_CONFIG_LOCATION, generateTaskExec, getStructuredTaskConfig, getUnstructuredTaskConfig, importCommandToTask, importConfig, importConverter, llmTasks } from "./config";
+import { DEFAULT_LANGUAGE, LLM_CONFIG_LOCATION, generateTaskExec, getStructuredTaskConfig, getUnstructuredTaskConfig, importCommandToTask, importConfig, importConverter } from "./config";
 
 const { PrismaClient } = pkg;
 
@@ -15,7 +16,7 @@ describe("importConfig", () => {
     configFiles.forEach(async file => {
         test(`ensures all actions are present in ${file}`, async () => {
             const config = await importConfig(file);
-            llmTasks.forEach(action => {
+            Object.keys(LlmTask).forEach(action => {
                 const actionConfig = config[action];
                 expect(actionConfig).toBeDefined();
 
@@ -89,7 +90,7 @@ describe("importConverter", () => {
             expect(typeof converter).toBe("object");
 
             // Make sure each llm task has a corresponding conversion function
-            llmTasks.forEach(action => {
+            Object.keys(LlmTask).forEach(action => {
                 const conversionFunction = converter[action];
                 expect(conversionFunction).toBeDefined();
                 expect(typeof conversionFunction).toBe("function");
@@ -193,7 +194,7 @@ describe("generateTaskExec", () => {
         resetPrismaMockData();
     });
 
-    llmTasks.forEach((task) => {
+    Object.keys(LlmTask).forEach((task) => {
         // NOTE: We skip "Start", since it's a special case
         if (task === "Start") return;
 

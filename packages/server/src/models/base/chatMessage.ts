@@ -73,6 +73,7 @@ export type PreMapChatData = {
 export type PreMapUserData = {
     botSettings: string,
     id: string,
+    isBot: boolean,
     name: string;
 };
 
@@ -228,6 +229,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         preMapUserData[p.user.id] = {
                             botSettings: p.user.botSettings ?? JSON.stringify({}),
                             id: p.user.id,
+                            isBot: p.user.isBot,
                             name: p.user.name,
                         };
                     });
@@ -293,6 +295,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         preMapUserData[user.id] = {
                             botSettings: user.botSettings ?? JSON.stringify({}),
                             id: user.id,
+                            isBot: true,
                             name: user.name,
                         };
                         // Add any bot that is public or invited by you to participants
@@ -404,7 +407,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     const chatId = messageData.chatId;
                     const chatMessage = messages.find(m => m.id === objectId) as ChatMessage;
                     if (!chatMessage || !chatId) {
-                        logger.error("Message or chat not found", { trace: "0478", user: userData.id, messageId: objectId, chatId, });
+                        logger.error("Message or chat not found", { trace: "0478", user: userData.id, messageId: objectId, chatId });
                         continue;
                     }
                     // Add message to cache

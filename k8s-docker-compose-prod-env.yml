@@ -629,6 +629,11 @@ spec:
                 secretKeyRef:
                   name: OPENAI_API_KEY
                   key: OPENAI_API_KEY
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ANTHROPIC_API_KEY
+                  key: ANTHROPIC_API_KEY
             - name: VAPID_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:

@@ -1,8 +1,9 @@
+import { LlmTask } from "@local/shared";
 import { logger } from "../../events/logger";
-import { CommandToTask, LlmCommandProperty, LlmTask, getUnstructuredTaskConfig, llmTasks } from "./config";
+import { CommandToTask, LlmCommandProperty, getUnstructuredTaskConfig } from "./config";
 
 export type LlmCommand = {
-    task: LlmTask;
+    task: LlmTask | `${LlmTask}`;
     command: string;
     action: string | null;
     properties: {
@@ -12,7 +13,7 @@ export type LlmCommand = {
     end: number;
 };
 export type MaybeLlmCommand = Omit<LlmCommand, "task"> & {
-    task: LlmTask | null;
+    task: LlmTask | `${LlmTask}` | null;
 };
 /** Properties stored as an array of [key, value, key, value, ...] */
 type CurrentLlmCommand = Omit<LlmCommand, "properties" | "task"> & {
@@ -374,7 +375,7 @@ export const extractCommands = (inputString: string, commandToTask: CommandToTas
  */
 export const filterInvalidCommands = async (
     potentialCommands: MaybeLlmCommand[],
-    task: LlmTask,
+    task: LlmTask | `${LlmTask}`,
     language?: string,
 ): Promise<LlmCommand[]> => {
     const result: LlmCommand[] = [];
@@ -389,7 +390,7 @@ export const filterInvalidCommands = async (
 
         // If the task is not a valid task, skip it
         if (!command.task) modifiedCommand.task = task;
-        else if (!llmTasks.includes(command.task)) continue;
+        else if (!Object.keys(LlmTask).includes(command.task)) continue;
 
         let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, command.command);
 

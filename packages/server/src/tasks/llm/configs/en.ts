@@ -1,7 +1,7 @@
-import { DeleteType, pascalCase, toBotSettings, uuid, uuidValidate } from "@local/shared";
+import { DeleteType, LlmTask, pascalCase, toBotSettings, uuid, uuidValidate } from "@local/shared";
 import { noEmptyString, validNumber, validUuid } from "../../../builders/noNull";
 import { logger } from "../../../events/logger";
-import { CommandToTask, LlmCommandProperty, LlmTask, LlmTaskConfig, LlmTaskConverters, LlmTaskUnstructuredConfig, llmTasks } from "../config";
+import { CommandToTask, LlmCommandProperty, LlmTaskConfig, LlmTaskConverters, LlmTaskUnstructuredConfig } from "../config";
 
 export const config: LlmTaskConfig = {
     __response_formats_with_actions: {
@@ -1124,6 +1124,6 @@ export const commandToTask: CommandToTask = (command, action) => {
     let result: string;
     if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
     else result = pascalCase(command);
-    if (llmTasks.includes(result as LlmTask)) return result as LlmTask;
+    if (Object.keys(LlmTask).includes(result)) return result as LlmTask;
     return null;
 };

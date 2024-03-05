@@ -7,6 +7,14 @@ export type LlmModel = {
     value: string,
 };
 export const AVAILABLE_MODELS: LlmModel[] = [{
+    name: "Claude 3 Sonnet",
+    description: "Anthropic's fastest model (recommended)",
+    value: "claude-3-sonnet",
+}, {
+    name: "Claude 3 Opus",
+    description: "Anthropic's most advanced model",
+    value: "claude-3-opus",
+}, {
     name: "GPT-3.5 Turbo",
     description: "OpenAI's fastest model",
     value: "gpt-3.5-turbo",

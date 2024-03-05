@@ -206,7 +206,6 @@ export const ChatBubbleTree = ({
             flexDirection: "column",
             overflow: "auto",
             height: "auto",
-            border: "1px solid red",
         }}>
             {messageData.map((data) => (
                 <ChatBubble

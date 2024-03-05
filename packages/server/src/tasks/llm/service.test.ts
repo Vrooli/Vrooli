@@ -1,17 +1,77 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import pkg from "../../__mocks__/@prisma/client";
 import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { ModelMap } from "../../models";
 import { fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
+import { AnthropicService } from "./services/anthropic";
 import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
 
-jest.mock("@prisma/client");
+const botSettings1 = {
+    model: "gpt-3.5-turbo",
+    maxTokens: 100,
+    name: "Valyxa",
+    translations: {
+        en: {
+            bias: "",
+            creativity: 0.5,
+            domainKnowledge: "Planning, scheduling, and task management",
+            keyPhrases: "",
+            occupation: "Vrooli assistant",
+            persona: "Helpful, friendly, and professional",
+            startingMessage: "Hello! How can I help you today?",
+            tone: "Friendly",
+            verbosity: 0.5,
+        },
+    },
+};
+const botSettings2 = {
+    model: "gpt-4",
+    maxTokens: 150,
+    name: "Elon Musk",
+    translations: {
+        en: {
+            bias: "Libertarian, pro-capitalism, and pro-technology",
+            creativity: 1,
+            domainKnowledge: "SpaceX, Tesla, and Neuralink",
+            keyPhrases: "Mars, electric cars, and brain implants",
+            occupation: "Entrepreneur and CEO",
+            persona: "Visionary, ambitious, and eccentric",
+            startingMessage: "Hello! I'm Elon Musk. Let's build the future together!",
+            tone: "Confident",
+            verbosity: 0.7,
+        },
+    },
+};
+const botSettings3 = {
+    model: "invalid_model",
+    maxTokens: 100,
+    name: "Bob Ross",
+};
+const botSettings4 = {};
+const botSettings5 = {
+    model: "gpt-3.5-turbo",
+    name: "Steve Jobs",
+    translations: {
+        en: {
+            occupation: "Entrepreneur",
+            persona: "Visionary",
+            startingMessage: "Hello! I'm Steve Jobs. What shall we create today?",
+        },
+        es: {
+            occupation: "Empresario",
+            persona: "Visionario",
+            startingMessage: "¡Hola! Soy Steve Jobs. ¿Qué crearemos hoy?",
+        },
+    },
+};
+const allBots = [botSettings1, botSettings2, botSettings3, botSettings4, botSettings5];
 
 describe("tokenEstimationDefault function", () => {
     test("ensures token count is more than 0 and less than the character count", () => {
         const text = "The quick brown fox";
-        const [model, tokens] = tokenEstimationDefault(text);
+        const [model, tokens] = tokenEstimationDefault({ text, requestedModel: "default" });
         expect(model).toBe("default");
         expect(tokens).toBeGreaterThan(0);
         expect(tokens).toBeLessThanOrEqual(text.length);
@@ -21,8 +81,8 @@ describe("tokenEstimationDefault function", () => {
         const shortText = "Hello";
         const longText = "Hello, this is a longer piece of text to estimate";
 
-        const [modelShort, tokensShort] = tokenEstimationDefault(shortText);
-        const [modelLong, tokensLong] = tokenEstimationDefault(longText);
+        const [modelShort, tokensShort] = tokenEstimationDefault({ text: shortText, requestedModel: "default" });
+        const [modelLong, tokensLong] = tokenEstimationDefault({ text: longText, requestedModel: "default" });
 
         expect(modelShort).toBe("default");
         expect(modelLong).toBe("default");
@@ -33,7 +93,7 @@ describe("tokenEstimationDefault function", () => {
 
     test("handles empty strings appropriately", () => {
         const text = "";
-        const [model, tokens] = tokenEstimationDefault(text);
+        const [model, tokens] = tokenEstimationDefault({ text, requestedModel: "default" });
         expect(model).toBe("default");
         // 0 or 1 is fine
         expect(tokens).toBeGreaterThanOrEqual(0);
@@ -50,9 +110,7 @@ describe("fetchMessagesFromDatabase", () => {
     ];
 
     beforeEach(async () => {
-        // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
         await ModelMap.init();
-
         jest.clearAllMocks();
         prismaMock = mockPrisma({
             ChatMessage: JSON.parse(JSON.stringify(mockMessages)),
@@ -88,8 +146,23 @@ describe("fetchMessagesFromDatabase", () => {
 
 // Test each implementation of LanguageModelService to ensure they comply with the interface
 describe("LanguageModelService lmServices", () => {
+    let prismaMock;
+
+    beforeEach(async () => {
+        await ModelMap.init();
+        jest.clearAllMocks();
+        prismaMock = mockPrisma({});
+        PrismaClient.injectMocks(prismaMock);
+    });
+
+    afterEach(() => {
+        PrismaClient.resetMocks();
+        resetPrismaMockData();
+    });
+
     const lmServices = [
         { name: "OpenAIService", lmService: new OpenAIService() },
+        { name: "AnthropicService", lmService: new AnthropicService() },
         // add other lmServices as needed
     ];
 
@@ -103,7 +176,7 @@ describe("LanguageModelService lmServices", () => {
         { messageId: "msg_1", tokenSize: 10, userId: "user_1", language: "en" },
     ];
     const participantsData1 = {
-        "user_1": { botSettings: "default", id: "user_1", name: "User One" },
+        "user_1": { botSettings: "default", id: "user_1", name: "User One", isBot: true },
     };
     const userData1 = {
         id: "user_1",
@@ -123,11 +196,13 @@ describe("LanguageModelService lmServices", () => {
     lmServices.forEach(({ name: lmServiceName, lmService: lmService }) => {
         // Estimate tokens
         it(`${lmServiceName}: estimateTokens returns a tuple with TokenNameType and number`, () => {
+            console.log("estimate tokens start");
             const model = lmService.getModel();
             const [tokenType, count] = lmService.estimateTokens({
                 text: "sample text",
                 requestedModel: model,
             });
+            console.log("estimate tokens end");
             expect(tokenType).toBeDefined(); // Add more specific checks as needed
             expect(count).toBeDefined();
             expect(typeof count).toBe("number");
@@ -135,6 +210,7 @@ describe("LanguageModelService lmServices", () => {
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
+            console.log("generate context returns LanguageModelContext start");
             const model = lmService.getModel();
             await expect(lmService.generateContext({
                 respondingBotId: respondingBotId1,
@@ -146,12 +222,15 @@ describe("LanguageModelService lmServices", () => {
                 userData: userData1,
                 requestedModel: model,
             })).resolves.toBeDefined();
+            console.log("generate context returns LanguageModelContext end");
         });
 
         // Generate response
         it(`${lmServiceName}: generateResponse returns a string - message provided`, async () => {
+            console.log("generate response returns a string - message provided start");
             const response = await lmService.generateResponse({
                 chatId: chatId1,
+                participantsData: participantsData1,
                 respondingToMessage: {
                     id: respondingToMessageId1,
                     text: respondingToMessageContent1,
@@ -162,11 +241,14 @@ describe("LanguageModelService lmServices", () => {
                 force: true,
                 userData: userData1,
             });
+            console.log("generate response returns a string - message provided end");
             expect(typeof response).toBe("string");
         });
         it(`${lmServiceName}: generateResponse returns a string - message not provided`, async () => {
+            console.log("generate response returns a string - message not provided start");
             const response = await lmService.generateResponse({
                 chatId: chatId1,
+                participantsData: participantsData1,
                 respondingToMessage: null,
                 respondingBotId: respondingBotId1,
                 respondingBotConfig: respondingBotConfig1,
@@ -174,7 +256,75 @@ describe("LanguageModelService lmServices", () => {
                 force: true,
                 userData: userData1,
             });
+            console.log("generate response returns a string - message not provided end");
             expect(typeof response).toBe("string");
+        });
+
+        // Get config object
+        allBots.forEach((botSettings, index) => {
+            // YAML config tests
+            it(`Bot settings #${index + 1}: should generate YAML config based on bot settings and user data`, async () => {
+                const userData = { languages: ["en"] };
+                const yamlConfig = await lmService.getConfigObject({
+                    // @ts-ignore: Testing runtime scenario
+                    botSettings,
+                    force: false,
+                    task: "Start",
+                    userData,
+                });
+                // Should be an object with a single key "ai_assistant"
+                expect(yamlConfig).toHaveProperty("ai_assistant");
+                expect(Object.keys(yamlConfig).length).toBe(1);
+            });
+        });
+        it("should correctly translate based on user language preference", async () => {
+            const userData = { languages: ["en"] };
+            const yamlConfig = await lmService.getConfigObject({
+                botSettings: botSettings1,
+                userData,
+                task: "Start",
+                force: false,
+            });
+
+            // Verify that the 'personality' field contains the English translation from botSettings1
+            expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
+        });
+        it("should handle missing translations by providing the next available language", async () => {
+            const userData = { languages: ["fr"] }; // Assuming 'fr' translation is not available
+            const yamlConfig = await lmService.getConfigObject({
+                botSettings: botSettings1,
+                userData,
+                task: "RoutineAdd",
+                force: false,
+            });
+
+            // Verify that the 'personality' field is the first available translation from botSettings1,
+            // since 'fr' is not available.
+            expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
+        });
+        it("should handle missing name field by using a default name", async () => {
+            const userData = { languages: ["en"] };
+            const yamlConfig = await lmService.getConfigObject({
+                botSettings: botSettings3,
+                userData,
+                task: "ReminderAdd",
+                force: false,
+            }); // botSettings3 lacks a 'name'
+
+            // Verify that the 'metadata.name' field is a non-empty string
+            expect(yamlConfig.ai_assistant.metadata.name.length).toBeGreaterThan(0);
+        });
+        it("should handle multiple language translations and select based on user preference", async () => {
+            const userData = { languages: ["es"] }; // Spanish preference
+            const yamlConfig = await lmService.getConfigObject({
+                botSettings: botSettings5,
+                userData,
+                task: "ScheduleFind",
+                force: false,
+            });
+
+            // Verify that the 'personality' field contains the Spanish translation from botSettings5
+            expect(yamlConfig.ai_assistant.personality).toEqual(botSettings5.translations.es);
         });
 
         // Get context size

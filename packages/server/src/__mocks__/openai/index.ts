@@ -1,5 +1,4 @@
 
-import "../../../../../node_modules/openai/src/shims/node"; // NOTE: Make sure to save without formatting (use command palette for this), so that this import is above the openai import
 import { ChatCompletion, ChatCompletionCreateParams } from "../../../../../node_modules/openai/src/resources";
 
 export { ChatCompletion, ChatCompletionCreateParams };
@@ -9,8 +8,13 @@ class OpenAIMock {
         completions: {
             create: (params: ChatCompletionCreateParams): Promise<ChatCompletion> => {
                 // Dynamically generate the content based on the input params
-                const lastMessageContent = params.messages[params.messages.length - 1].content;
-                const mockContent = `Mocked response for: ${lastMessageContent}`;
+                let mockContent: string;
+                if (params.messages.length === 0) {
+                    mockContent = "Mocked response for an empty prompt";
+                } else {
+                    const lastMessageContent = params.messages[params.messages.length - 1].content;
+                    mockContent = `Mocked response for: ${lastMessageContent}`;
+                }
 
                 // Construct a response that matches the ChatCompletion structure
                 const mockResponse: ChatCompletion = {

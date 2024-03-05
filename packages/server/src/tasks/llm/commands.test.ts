@@ -1,5 +1,6 @@
+import { LlmTask } from "@local/shared";
 import { LlmCommand, MaybeLlmCommand, extractCommands, filterInvalidCommands, handleCommandTransition, isAlphaNum, isNewline, isWhitespace, removeCommands } from "./commands";
-import { CommandToTask, LlmTask } from "./config";
+import { CommandToTask } from "./config";
 
 describe("isNewline", () => {
     test("recognizes newline character", () => {
@@ -2220,9 +2221,7 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        console.log("before null fix test");
         const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
-        console.log("after null fix test");
         expect(result).toEqual([{
             ...potentialCommands[0],
             task: "RoutineAdd",
@@ -2242,9 +2241,7 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        console.log("before corrective action test");
         const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
-        console.log("after corrective action test");
         expect(result).toEqual([{
             ...potentialCommands[0],
             command: "add",

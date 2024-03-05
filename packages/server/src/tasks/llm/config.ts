@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DeleteManyInput, DeleteOneInput, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -9,62 +9,6 @@ import { Context } from "../../middleware/context";
 import { PrismaType, SessionUserToken } from "../../types";
 
 export const DEFAULT_LANGUAGE = "en";
-
-/** All available LLM tasks */
-export const llmTasks = [
-    "ApiAdd",
-    "ApiDelete",
-    "ApiFind",
-    "ApiUpdate",
-    "BotAdd",
-    "BotDelete",
-    "BotFind",
-    "BotUpdate",
-    "MembersAdd",
-    "MembersDelete",
-    "MembersFind",
-    "MembersUpdate",
-    "NoteAdd",
-    "NoteDelete",
-    "NoteFind",
-    "NoteUpdate",
-    "ProjectAdd",
-    "ProjectDelete",
-    "ProjectFind",
-    "ProjectUpdate",
-    "ReminderAdd",
-    "ReminderDelete",
-    "ReminderFind",
-    "ReminderUpdate",
-    "RoleAdd",
-    "RoleDelete",
-    "RoleFind",
-    "RoleUpdate",
-    "RoutineAdd",
-    "RoutineDelete",
-    "RoutineFind",
-    "RoutineUpdate",
-    "ScheduleAdd",
-    "ScheduleDelete",
-    "ScheduleFind",
-    "ScheduleUpdate",
-    "SmartContractAdd",
-    "SmartContractDelete",
-    "SmartContractFind",
-    "SmartContractUpdate",
-    "StandardAdd",
-    "StandardDelete",
-    "StandardFind",
-    "StandardUpdate",
-    "Start",
-    "TeamAdd",
-    "TeamDelete",
-    "TeamFind",
-    "TeamUpdate",
-] as const;
-
-/** All available LLM tasks */
-export type LlmTask = typeof llmTasks[number];
 
 type LlmCommandDataValue = string | number | null;
 export type LlmCommandData = Record<string, LlmCommandDataValue>;
@@ -227,7 +171,7 @@ export const importCommandToTask = async (language: string): Promise<CommandToTa
  * in the best language available for the user
  */
 export const getUnstructuredTaskConfig = async (
-    task: LlmTask,
+    task: LlmTask | `${LlmTask}`,
     language: string = DEFAULT_LANGUAGE,
 ): Promise<LlmTaskUnstructuredConfig> => {
     const unstructuredConfig = await importConfig(language);
@@ -250,7 +194,7 @@ export const getUnstructuredTaskConfig = async (
  * in the best language available for the user
  */
 export const getStructuredTaskConfig = async (
-    task: LlmTask,
+    task: LlmTask | `${LlmTask}`,
     force = false,
     language: string = DEFAULT_LANGUAGE,
 ): Promise<LlmTaskStructuredConfig> => {
@@ -276,7 +220,12 @@ type LlmTaskExec = (data: LlmCommandData) => (unknown | Promise<unknown>);
 /**
  * Creates the task execution function for a given task type
  */
-export const generateTaskExec = async (task: LlmTask, language: string, prisma: PrismaType, userData: SessionUserToken): Promise<LlmTaskExec> => {
+export const generateTaskExec = async (
+    task: LlmTask | `${LlmTask}`,
+    language: string,
+    prisma: PrismaType,
+    userData: SessionUserToken,
+): Promise<LlmTaskExec> => {
     const converter = await importConverter(language);
     // NOTE: We are skipping some information in this context, such as the request and response information. 
     // This is typically only used by middleware, so it should hopefully not be necessary for the LLM.

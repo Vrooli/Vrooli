@@ -1,8 +1,8 @@
+import { LlmTask } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage.js";
 import { SessionUserToken } from "../../types.js";
-import { LlmTask } from "./config.js";
 
 export type RequestBotResponsePayload = {
     /**
@@ -18,7 +18,7 @@ export type RequestBotResponsePayload = {
      * The ID of the bot that should generate the response
      */
     respondingBotId: string;
-    task: LlmTask;
+    task: LlmTask | `${LlmTask}`;
     participantsData: Record<string, PreMapUserData>;
     userData: SessionUserToken;
 }
@@ -63,4 +63,4 @@ export async function setupLlmQueue() {
  */
 export const requestBotResponse = (props: RequestBotResponsePayload) => {
     llmQueue.add(props, { timeout: 1000 * 60 * 3 });
-}
+};

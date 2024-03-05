@@ -1,5 +1,5 @@
 import { SessionUserToken } from "@local/server";
-import { BotSettings, ChatMessage, toBotSettings } from "@local/shared";
+import { BotSettings, ChatMessage, LlmTask, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
@@ -13,7 +13,7 @@ import { emitSocketEvent } from "../../sockets/events";
 import { processCommand } from "../../tasks/command";
 import { withPrisma } from "../../utils/withPrisma";
 import { LlmCommand, extractCommands, filterInvalidCommands, removeCommands } from "./commands";
-import { CommandToTask, LlmTask, importCommandToTask } from "./config";
+import { CommandToTask, importCommandToTask } from "./config";
 import { RequestBotResponsePayload } from "./queue";
 import { LanguageModelService, getLanguageModelService } from "./service";
 
@@ -34,7 +34,7 @@ const parseBotInformation = (
 
 const getCommands = async (
     message: string,
-    task: LlmTask,
+    task: LlmTask | `${LlmTask}`,
     language: string,
     commandToTask: CommandToTask,
 ): Promise<{ commands: LlmCommand[], messageWithoutCommands: string }> => {
@@ -44,20 +44,33 @@ const getCommands = async (
     return { commands, messageWithoutCommands };
 };
 
-const forceGetCommand = async (
-    command: LlmCommand,
+type ForceGetCommandParams = {
     chatId: string,
+    command: LlmCommand,
+    commandToTask: CommandToTask,
+    language: string,
+    participantsData: Record<string, PreMapUserData>;
+    respondingBotConfig: BotSettings,
+    respondingBotId: string,
     respondingToMessage: {
         id: string,
         text: string,
     } | null,
-    respondingBotId: string,
-    respondingBotConfig: BotSettings,
-    userData: SessionUserToken,
-    language: string,
     service: LanguageModelService<any, any>,
-    commandToTask: CommandToTask,
-): Promise<{ command: LlmCommand, messageWithoutCommands: string } | null> => {
+    userData: SessionUserToken,
+}
+const forceGetCommand = async ({
+    chatId,
+    command,
+    commandToTask,
+    language,
+    participantsData,
+    respondingBotConfig,
+    respondingBotId,
+    respondingToMessage,
+    service,
+    userData,
+}: ForceGetCommandParams): Promise<{ command: LlmCommand, messageWithoutCommands: string } | null> => {
     let retryCount = 0;
     const MAX_RETRIES = 3; // Set a maximum number of retries to avoid infinite loops
     const commandFound = false;
@@ -65,11 +78,12 @@ const forceGetCommand = async (
     while (!commandFound && retryCount < MAX_RETRIES) {
         const startResponse = await service.generateResponse({
             chatId,
-            respondingToMessage,
-            respondingBotId,
-            respondingBotConfig,
-            task: command.task, // Change to the command's task
             force: true, // Force the bot to respond with a command
+            participantsData,
+            respondingBotConfig,
+            respondingBotId,
+            respondingToMessage,
+            task: command.task, // Change to the command's task
             userData,
         });
 
@@ -128,11 +142,12 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
             // Generate bot response
             const botResponse = await service.generateResponse({
                 chatId,
-                respondingToMessage,
-                respondingBotId,
-                respondingBotConfig: botSettings,
-                task,
                 force: false,
+                participantsData,
+                respondingBotConfig: botSettings,
+                respondingBotId,
+                respondingToMessage,
+                task,
                 userData,
             });
             // Check for commands in bot's response
@@ -140,17 +155,18 @@ export async function llmProcess({ data }: Job<RequestBotResponsePayload>) {
             for (const command of botCommands) {
                 // If we're in a start command, generate a new response with the config to get the command properties
                 if (task === "Start") {
-                    const forcedCommand = await forceGetCommand(
-                        command,
+                    const forcedCommand = await forceGetCommand({
                         chatId,
-                        respondingToMessage,
-                        respondingBotId,
-                        botSettings,
-                        userData,
-                        language,
-                        service,
+                        command,
                         commandToTask,
-                    );
+                        language,
+                        participantsData,
+                        respondingBotConfig: botSettings,
+                        respondingBotId,
+                        respondingToMessage,
+                        service,
+                        userData,
+                    });
                     if (forcedCommand) {
                         processCommand({
                             command: forcedCommand.command,
