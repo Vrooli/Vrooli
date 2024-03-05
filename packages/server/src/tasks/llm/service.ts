@@ -1,4 +1,5 @@
-import { BotSettings, BotSettingsTranslation, LlmTask } from "@local/shared";
+import { BotSettings, BotSettingsTranslation, LlmTask, toBotSettings } from "@local/shared";
+import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
 import { objectToYaml } from "../../utils";
@@ -29,6 +30,7 @@ export type EstimateTokensParams = {
 }
 export type GetConfigObjectParams = {
     botSettings: BotSettings,
+    includeInitMessage: boolean,
     userData: Pick<SessionUserToken, "languages">,
     task: LlmTask | `${LlmTask}`,
     force: boolean,
@@ -105,29 +107,29 @@ export const tokenEstimationDefault = ({ text }: EstimateTokensParams) => {
  */
 export const getDefaultConfigObject = async ({
     botSettings,
+    includeInitMessage,
     userData,
     task,
     force,
 }: GetConfigObjectParams) => {
     const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
-    const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation;
+    const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation & { language?: string };
 
     const name: string | undefined = botSettings.name;
-    const initMessage = translation.startingMessage?.length ?
-        translation.startingMessage :
-        name ?
-            `Hello👋, I'm ${name}. How can I help you today?` :
-            "Hello👋, how can I help you today?";
-    delete (translation as { language?: string }).language;
+    const initMessage = translation.startingMessage?.length
+        ? translation.startingMessage
+        : name
+            ? `Hello👋, I'm ${name}. How can I help you today?`
+            : "Hello👋, how can I help you today?";
+    delete translation.language;
 
     const taskConfig = await getStructuredTaskConfig(task, force, userData.languages[0] ?? "en");
     const configObject = {
         ai_assistant: {
             metadata: {
-                // author: config.author ?? "Vrooli", // May add this in the future to credit the bot creator
                 name: botSettings.name ?? "Bot",
             },
-            init_message: initMessage, //TODO only need for first message?
+            ...(includeInitMessage ? { init_message: initMessage } : {}),
             personality: { ...translation },
             ...taskConfig,
         },
@@ -144,6 +146,7 @@ export const getDefaultConfigObject = async ({
  * Can be used as a fallback for services that don't have a specific implementation.
  */
 export const generateDefaultContext = async <GenerateNameType extends string, TokenNameType>({
+    respondingBotId,
     respondingBotConfig,
     messageContextInfo,
     participantsData,
@@ -161,24 +164,53 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
     let systemMessage = "You are a helpful assistant for an app named Vrooli. Please follow the configuration below to best suit each user's needs:\n\n";
 
     // Add information to set up the bot's persona and task instructions
-    const config = await service.getConfigObject({ botSettings: respondingBotConfig, userData, task, force });
+    const config = await service.getConfigObject({
+        botSettings: respondingBotConfig,
+        includeInitMessage: messageContextInfo.length === 0,
+        userData,
+        task,
+        force,
+    });
     systemMessage += objectToYaml(config) + "\n";
 
-    // If there are other users/bots in the chat, add their configurations
+    // If there are other users/bots in the chat
     const hasOtherParticipants = Object.keys(participantsData).length > 2;
     if (hasOtherParticipants) {
-        //TODO add bot  configurations, and instructions that they can be prompted with @botname (and make sure that non-bots are never prompted)
-        // We'll see if we need the other bot configs after testing
-        // // Identify bots present in the message context, minus the one responding
-        // const participantIdsInContext = new Set(messageContextInfo.filter(info => info.userId && info.userId !== respondingBotId).map(info => info.userId));
-        // // Add yml for each bot in the context
-        // if (participantIdsInContext.size > 0) {
-        //     systemMessage += `There are other bots in this chat. Here are their configurations:\n\n`;
-        // }
+        // Add info about message labeling
         systemMessage += "In the conversation, each message will be preceded by a participant identifier in the format [Role: Name], where 'Role' is either 'User' or 'Bot', and 'Name' is the name of the user or bot. For example:\n";
         systemMessage += "- [User: John]: This is a message from a user named John.\n";
         systemMessage += "- [Bot: AssistantBot]: This is a message from a bot named AssistantBot.\n";
         systemMessage += "Please use these identifiers to understand the context of each message and generate appropriate responses.\n";
+
+        // If there are other bots besides the one responding, add their configurations 
+        // and instructions for how to prompt them
+        const otherBots = Object.entries(participantsData).filter(([id, data]) => id !== respondingBotId && data.isBot);
+        if (otherBots.length > 0) {
+            systemMessage += "\n";
+            systemMessage += "There are other bots in the conversation. You may prompt these if you feel their input is necessary for generating a response. Use this only when strictly necessary. Here are the configurations for the other bots:\n\n";
+
+            for (const [_, data] of otherBots) {
+                // Find bot personality
+                const botSettings = toBotSettings(data, logger);
+                const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
+                const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation & { language?: string };
+                delete translation.language;
+                // Construct an object with the bot's configuration
+                const botConfig = {
+                    // In the future, we can wrap this with the bot's role in the organization (when relevant)
+                    metadata: {
+                        name: data.name,
+                    },
+                    personality: { ...translation },
+                };
+
+                // Add the bot's configuration to the system message
+                systemMessage += `Configuration for bot named ${data.name}:\n`;
+                systemMessage += objectToYaml(botConfig) + "\n\n";
+            }
+
+            systemMessage += "To prompt a bot, use the following format: @botName prompt. For example, to prompt a bot named AssistantBot, use @AssistantBot prompt.\n";
+        }
     }
 
     // Calculate token size for the YAML configuration

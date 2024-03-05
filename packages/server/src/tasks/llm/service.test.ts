@@ -281,6 +281,7 @@ describe("LanguageModelService lmServices", () => {
             const userData = { languages: ["en"] };
             const yamlConfig = await lmService.getConfigObject({
                 botSettings: botSettings1,
+                includeInitMessage: true,
                 userData,
                 task: "Start",
                 force: false,
@@ -293,6 +294,7 @@ describe("LanguageModelService lmServices", () => {
             const userData = { languages: ["fr"] }; // Assuming 'fr' translation is not available
             const yamlConfig = await lmService.getConfigObject({
                 botSettings: botSettings1,
+                includeInitMessage: true,
                 userData,
                 task: "RoutineAdd",
                 force: false,
@@ -306,6 +308,7 @@ describe("LanguageModelService lmServices", () => {
             const userData = { languages: ["en"] };
             const yamlConfig = await lmService.getConfigObject({
                 botSettings: botSettings3,
+                includeInitMessage: true,
                 userData,
                 task: "ReminderAdd",
                 force: false,
@@ -318,6 +321,7 @@ describe("LanguageModelService lmServices", () => {
             const userData = { languages: ["es"] }; // Spanish preference
             const yamlConfig = await lmService.getConfigObject({
                 botSettings: botSettings5,
+                includeInitMessage: true,
                 userData,
                 task: "ScheduleFind",
                 force: false,
@@ -325,6 +329,32 @@ describe("LanguageModelService lmServices", () => {
 
             // Verify that the 'personality' field contains the Spanish translation from botSettings5
             expect(yamlConfig.ai_assistant.personality).toEqual(botSettings5.translations.es);
+        });
+        it("should omit init_message if includeInitMessage is false", async () => {
+            const userData = { languages: ["en"] };
+            const yamlConfig = await lmService.getConfigObject({
+                botSettings: botSettings1,
+                includeInitMessage: false,
+                userData,
+                task: "Start",
+                force: false,
+            });
+
+            // Verify that the 'initMessage' field is not present
+            expect(yamlConfig.ai_assistant).not.toHaveProperty("init_message");
+        });
+        it("should include init_message if includeInitMessage is true", async () => {
+            const userData = { languages: ["en"] };
+            const yamlConfig = await lmService.getConfigObject({
+                botSettings: botSettings1,
+                includeInitMessage: true,
+                userData,
+                task: "Start",
+                force: false,
+            });
+
+            // Verify that the 'initMessage' field is present
+            expect(yamlConfig.ai_assistant).toHaveProperty("init_message");
         });
 
         // Get context size
