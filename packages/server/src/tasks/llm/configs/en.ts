@@ -794,7 +794,10 @@ export const config: LlmTaskConfig = {
             api: "Connect to other applications. Can add, find, update, and delete.",
             smart_contract: "Define a trustless agreement. Can add, find, update, and delete.",
         },
-        rules: config.__rules,
+        rules: [
+            "In this mode, you are allowed to answer general questions which are not related to the Vrooli platform.",
+            ...config.__rules,
+        ],
     }),
     __teamProperties: {
         name: {

@@ -142,6 +142,7 @@
     "SessionExpiredDetails": "Session has expired. Please sign in again.",
     "SoftLockout": "Too many attempts. Wait 15 minutes.",
     "SoftLockoutDetails": "You have made too many failed log in attempts. Please wait 15 minutes before trying again.",
+    "SomethingWentWrong": "Something went wrong. Please try again.",
     "SpeechNotAvailable": "Speech recognition not available.",
     "StandardDuplicateShape": "Standard with this shape already exists",
     "StandardDuplicateShapeDetails": "The user/organization this standard was being created for already has a standard with the same shape.",

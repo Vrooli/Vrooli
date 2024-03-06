@@ -24,6 +24,6 @@ export const emitSocketEvent = <T extends EmitSocketEvent>(event: T, roomId: str
  * @param handler - The event handler function.
  */
 export const onSocketEvent = <T extends OnSocketEvent>(socket: Socket, event: T, handler: SocketEventHandler<T>) => {
-    socket.on(event, handler as any);
+    socket.on(event, handler as never);
 };
 

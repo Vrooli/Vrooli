@@ -340,7 +340,6 @@ describe("LanguageModelService lmServices", () => {
                 force: false,
             });
 
-            // Verify that the 'initMessage' field is not present
             expect(yamlConfig.ai_assistant).not.toHaveProperty("init_message");
         });
         it("should include init_message if includeInitMessage is true", async () => {
@@ -353,7 +352,6 @@ describe("LanguageModelService lmServices", () => {
                 force: false,
             });
 
-            // Verify that the 'initMessage' field is present
             expect(yamlConfig.ai_assistant).toHaveProperty("init_message");
         });
 

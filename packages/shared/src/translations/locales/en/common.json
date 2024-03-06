@@ -94,6 +94,8 @@
     "CommandPaletteHelp": "Use this dialog to quickly navigate to other pages.\n\nIt can be opened at any time by entering CTRL + P.",
     "CommandPalettePlaceholder": "Search content and quickly navigate the site",
     "CommandPaletteTitle": "What would you like to do?",
+    "CommandsProcessed_one": "Processed {{count}} command",
+    "CommandsProcessed_other": "Processed {{count}} commands",
     "Comment_one": "Comment",
     "Comment_other": "Comments",
     "CommentCreated": "Comment created.",

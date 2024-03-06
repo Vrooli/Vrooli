@@ -3,8 +3,10 @@ import { ChatMessage } from "../api/generated/graphqlTypes";
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinUserRoom" | "leaveUserRoom";
 
-export interface SocketEventPayloads {
-    // User-specific events
+export type UserSocketEventPayloads = {
+    /**
+     * Updates to the number of API credits the user has
+     */
     apiCredits: {
         credits: number;
     };
@@ -16,7 +18,8 @@ export interface SocketEventPayloads {
         link: string | undefined;
         title: string;
     };
-    // Chat-related events
+}
+export type ChatSocketEventPayloads = {
     messages: {
         added?: ChatMessage[];
         deleted?: string[];
@@ -38,11 +41,13 @@ export interface SocketEventPayloads {
     leaveChatRoom: { chatId: string };
     //TODO need types for these
     llmTasks: unknown[];
-    // Types reserved internally by socket.io. These should not be used.
+}
+export type ReservedSocketEventPayloads = {
     connect: never;
     connect_error: never;
     disconnect: never;
 }
+export type SocketEventPayloads = UserSocketEventPayloads & ChatSocketEventPayloads & ReservedSocketEventPayloads;
 
 export interface SocketEventCallbackData {
     success?: boolean;

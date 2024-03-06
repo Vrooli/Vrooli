@@ -59,14 +59,26 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         const messagesWithResponding = respondingToMessage ? [...messages, { role: "user" as const, content: respondingToMessage.text }] : messages;
         let lastRole: LanguageModelMessage["role"] = "assistant";
         for (const { role, content } of messagesWithResponding) {
+            // Skip empty messages. This is another requirement of the Anthropic API.
+            if (content.trim() === "") {
+                continue;
+            }
             if (role !== lastRole) {
                 alternatingMessages.push({ role, content });
                 lastRole = role;
             } else {
                 // Merge consecutive messages with the same role
-                const lastMessage = alternatingMessages[alternatingMessages.length - 1];
-                lastMessage.content += "\n" + content;
+                if (alternatingMessages.length > 0) {
+                    alternatingMessages[alternatingMessages.length - 1].content += "\n" + content;
+                } else {
+                    alternatingMessages.push({ role, content });
+                }
             }
+        }
+
+        // Ensure first message is from the user. This is another requirement of the Anthropic API.
+        if (alternatingMessages[0].role === "assistant") {
+            alternatingMessages.shift();
         }
 
         const params: Anthropic.MessageCreateParams = {

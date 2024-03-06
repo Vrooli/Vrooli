@@ -64,7 +64,7 @@ export type GenerateResponseParams = {
     userData: SessionUserToken;
 }
 
-export interface LanguageModelService<GenerateNameType extends string, TokenNameType> {
+export interface LanguageModelService<GenerateNameType extends string, TokenNameType extends string> {
     /** Estimate the amount of tokens a string is */
     estimateTokens(params: EstimateTokensParams): readonly [TokenNameType, number];
     /** Generates config for setting up bot persona and task instructions */
@@ -145,7 +145,7 @@ export const getDefaultConfigObject = async ({
  * 
  * Can be used as a fallback for services that don't have a specific implementation.
  */
-export const generateDefaultContext = async <GenerateNameType extends string, TokenNameType>({
+export const generateDefaultContext = async <GenerateNameType extends string, TokenNameType extends string>({
     respondingBotId,
     respondingBotConfig,
     messageContextInfo,
@@ -286,7 +286,7 @@ export const fetchMessagesFromDatabase = async (messageIds: string[]): Promise<S
     return messages;
 };
 
-export const getLanguageModelService = (botSettings: BotSettings): LanguageModelService<any, any> => {
+export const getLanguageModelService = (botSettings: BotSettings): LanguageModelService<string, string> => {
     const { model } = botSettings;
     if (!model) return new OpenAIService();
     if (model.includes("claude")) return new AnthropicService();

@@ -1,6 +1,9 @@
-import { LlmTask } from "@local/shared";
+import { BotSettings, LlmTask } from "@local/shared";
 import { logger } from "../../events/logger";
+import { PreMapUserData } from "../../models/base/chatMessage";
+import { SessionUserToken } from "../../types";
 import { CommandToTask, LlmCommandProperty, getUnstructuredTaskConfig } from "./config";
+import { LanguageModelService } from "./service";
 
 export type LlmCommand = {
     task: LlmTask | `${LlmTask}`;
@@ -487,4 +490,89 @@ export const removeCommands = (inputString: string, commands: LlmCommand[]): str
     }
 
     return resultString;
+};
+
+/**
+ * Extracts valid commands from a message and returns the message without the commands.
+ * @param message The message containing the commands
+ * @param task The current task
+ * @param language The language of the user
+ * @param commandToTask A function for converting a command and action to a valid task name
+ * @returns An object containing the valid commands and the message without the commands
+ */
+export const getValidCommandsFromMessage = async (
+    message: string,
+    task: LlmTask | `${LlmTask}`,
+    language: string,
+    commandToTask: CommandToTask,
+): Promise<{ commands: LlmCommand[], messageWithoutCommands: string }> => {
+    const maybeCommands = extractCommands(message, commandToTask);
+    const commands = await filterInvalidCommands(maybeCommands, task, language);
+    const messageWithoutCommands = removeCommands(message, commands);
+    return { commands, messageWithoutCommands };
+};
+
+export type ForceGetCommandParams = {
+    chatId: string,
+    commandToTask: CommandToTask,
+    language: string,
+    participantsData: Record<string, PreMapUserData>;
+    respondingBotConfig: BotSettings,
+    respondingBotId: string,
+    respondingToMessage: {
+        id: string,
+        text: string,
+    } | null,
+    service: LanguageModelService<string, string>,
+    task: LlmTask | `${LlmTask}`,
+    userData: SessionUserToken,
+}
+
+/**
+ * Repeatedly generates a bot response until it contains a valid command.
+ * @returns The valid command and the rest of the message without the commands
+ */
+export const forceGetCommand = async ({
+    chatId,
+    commandToTask,
+    language,
+    participantsData,
+    respondingBotConfig,
+    respondingBotId,
+    respondingToMessage,
+    service,
+    task,
+    userData,
+}: ForceGetCommandParams): Promise<{ command: LlmCommand, messageWithoutCommands: string } | null> => {
+    let retryCount = 0;
+    const MAX_RETRIES = 3; // Set a maximum number of retries to avoid infinite loops
+
+    while (retryCount < MAX_RETRIES) {
+        const startResponse = await service.generateResponse({
+            chatId,
+            force: true, // Force the bot to respond with a command
+            participantsData,
+            respondingBotConfig,
+            respondingBotId,
+            respondingToMessage,
+            task,
+            userData,
+        });
+
+        // Check for commands in the start response
+        const { commands, messageWithoutCommands } = await getValidCommandsFromMessage(startResponse, task, language, commandToTask);
+
+        // If a valid command is found, return it
+        if (commands.length > 0) {
+            // Only use the first command found
+            return { command: commands[0], messageWithoutCommands };
+        } else {
+            // Increment the retry count if no command is found
+            retryCount++;
+            logger.warning(`No command found in start response. Retrying... (${retryCount}/${MAX_RETRIES})`, { trace: "0349", chatId, respondingBotId, task });
+        }
+    }
+
+    logger.error("Failed to find a command in start response after maximum retries.", { trace: "0350", chatId, respondingBotId, task });
+    return null;
 };
