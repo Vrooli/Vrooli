@@ -23,7 +23,7 @@ type CurrentLlmCommand = Omit<LlmCommand, "properties" | "task"> & {
     properties: (string | number | null)[];
 };
 
-type CommandSection = "outside" | "command" | "action" | "propName" | "propValue";
+type CommandSection = "outside" | "code" | "command" | "action" | "propName" | "propValue";
 
 /** Maximum length for a command, action, or property name */
 const MAX_COMMAND_ACTION_PROP_LENGTH = 32;
@@ -56,6 +56,14 @@ type CommandTransitionTrack = {
     buffer: string[],
 }
 
+export type CommandWrapper = {
+    label: string,
+    start: string,
+    end: string,
+    delimiter: string,
+    allowMultiple: boolean,
+}
+
 /**
  * Handles the transition between parsing a command, action, property name, or property value. 
  * 
@@ -69,25 +77,108 @@ export const handleCommandTransition = ({
     prev,
     section,
     buffer,
+    activeWrapper,
     onCommit,
     onComplete,
     onCancel,
     onStart,
+    wrappers,
 }: CommandTransitionTrack & {
     curr: string,
     prev: string,
+    activeWrapper: CommandWrapper | null,
     onCommit: (section: CommandSection, text: string | number | null) => unknown,
     onComplete: () => unknown, // When a full command (including any actions/props) is completed
     onCancel: () => unknown, // When a full command is cancelled. Typically only when there's a problem with the beginning slash command 
     onStart: () => unknown, // When a full command is started
+    wrappers?: CommandWrapper[],
 }): CommandTransitionTrack => {
-
     // Handle each section type
     if (section === "outside") {
         // Start a command if there's a slash without a previous character
         if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev))) {
             onStart();
             return { section: "command", buffer: [] }; // Don't include the slash in the buffer
+        }
+        // If buffer + curr matches a wrapper start, switch to 
+        // Reset buffer when there's whitespace or a newline
+        if (isWhitespace(curr) || isNewline(curr)) {
+            return { section, buffer: [] };
+        }
+        // Start a code block if the buffer + curr is "`" or "```" or "<code>"
+        if (
+            (buffer.length === 0 && curr === "`") ||
+            (buffer.length === 2 && buffer[0] === "`" && buffer[1] === "`" && curr === "`") ||
+            (buffer.length === 5 && buffer[0] === "<" && buffer[1] === "c" && buffer[2] === "o" && buffer[3] === "d" && buffer[4] === "e" && curr === ">")
+        ) {
+            buffer.push(curr);
+            return { section: "code", buffer }; // Keep in buffer so we can match the closing backticks/tag
+        }
+    }
+    else if (section === "code") {
+        // Shouldn't be here if the buffer is empty
+        if (buffer.length === 0) {
+            return { section: "outside", buffer: [] };
+        }
+        // Determine which type of code block we're in
+        let codeType: "single" | "multi" | "tag" | null = null;
+        if (buffer[0] === "<") {
+            codeType = "tag";
+        } else if (
+            (buffer.length > 2 && buffer[0] === "`" && buffer[1] === "`" && buffer[2] === "`") ||
+            (buffer.length === 2 && buffer[0] === "`" && buffer[1] === "`" && curr === "`")
+        ) {
+            codeType = "multi";
+        } else if (buffer.length === 1 && buffer[0] === "`") {
+            codeType = "single";
+        }
+        // If we couldn't determine the code type, cancel the code block
+        if (!codeType) {
+            console.log("could not determine code type", buffer, curr);
+            onCancel();
+            return { section: "outside", buffer: [] };
+        }
+        // If we're in a single code block, cancel on newline
+        if (codeType === "single" && isNewline(curr)) {
+            console.log("code block newline cancel");
+            onCancel();
+            return { section: "outside", buffer: [] };
+        }
+        // If we're in a multi code block, cancel when encountering the closing backticks
+        if (codeType === "multi") {
+            // Cancel at fourth backtick in a row
+            if (buffer.length === 3 && buffer.every(b => b === "`") && curr === "`") {
+                console.log("multi code block closing backticks cancel 1");
+                onCancel();
+                return { section: "outside", buffer: [] };
+            }
+            // Cancel when closing triple backticks found
+            if (buffer.length > 3 && curr === "`" && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`") {
+                console.log("multi code block closing backticks cancel 2");
+                onCancel();
+                return { section: "outside", buffer: [] };
+            }
+        }
+        // If we're in a tag code block
+        if (codeType === "tag") {
+            // When the buffer is short, stop if the tag never forms
+            if (buffer.length < 6) {
+                // Cancel if we run into any characters not in "<code>"
+                if (!"<code>".startsWith([...buffer, curr].join(""))) {
+                    console.log("canceling tag code block 1", buffer, curr);
+                    onCancel();
+                    return { section: "outside", buffer: [] };
+                }
+            }
+            // When the buffer is longer, stop if the tag is complete
+            if (buffer.length >= 13) {
+                // Cancel if it end with "</code>"
+                if (buffer.slice(-6).join("") === "</code" && curr === ">") {
+                    console.log("canceling tag code block 2", buffer, curr);
+                    onCancel();
+                    return { section: "outside", buffer: [] };
+                }
+            }
         }
     }
     else if (section === "command") {
@@ -165,6 +256,10 @@ export const handleCommandTransition = ({
             // Commit action if previous character was whitespace
             if (isWhitespace(prev)) {
                 onCommit("action", buffer.join(""));
+                // If it's a backtick, start a code block
+                if (curr === "`") {
+                    return { section: "code", buffer: [curr] };
+                }
             }
             onComplete();
             return { section: "outside", buffer: [] };
@@ -204,9 +299,19 @@ export const handleCommandTransition = ({
                 return { section: "outside", buffer: [] };
             }
         }
-        // Complete on newline or non alpha-numeric characters
-        if (isNewline(curr) || !isAlphaNum(curr)) {
+        // Complete on newline
+        if (isNewline(curr)) {
             onComplete();
+            return { section: "outside", buffer: [] };
+        }
+        // Complete on non alpha-numeric characters
+        if (!isAlphaNum(curr)) {
+            onComplete();
+            // If previous character was whitespace and it's a backtick, start a code block
+            if (isWhitespace(prev) && curr === "`") {
+                return { section: "code", buffer: [curr] };
+            }
+            // Otherwise, move to the outside state
             return { section: "outside", buffer: [] };
         }
         // Complete if the buffer is too long
@@ -269,6 +374,92 @@ export const handleCommandTransition = ({
 };
 
 /**
+ * Detects suggested commands within a message string based on specified wrapper substrings.
+ *
+ * @param start The substring that marks the start of the suggested commands wrapper.
+ * @param end The substring that marks the end of the suggested commands wrapper.
+ * @param delimiter The delimiter used to separate multiple commands within the wrapper.
+ * @param allowMultiple A flag indicating whether multiple commands are allowed within the wrapper.
+ * @param commands The list of commands extracted from the message string.
+ * @param messageString The original message string.
+ * @returns An array of indices representing the commands that are marked as suggested.
+ */
+export const detectWrappedCommands = (
+    start: string,
+    end: string,
+    delimiter: string,
+    allowMultiple: boolean,
+    commands: MaybeLlmCommand[],
+    messageString: string,
+): number[] => {
+    const suggestedIndices: number[] = [];
+    const MAX_WHITESPACE_LENGTH = 5;
+
+    commands.forEach((command, i) => {
+        let isStartMatch = false;
+        let isEndMatch = false;
+
+        // Check for start substring before command
+        let whitespaceCount = 0;
+        let charIndex = command.start - 1;
+        while (charIndex >= 0 && whitespaceCount <= MAX_WHITESPACE_LENGTH) {
+            const char = messageString[charIndex];
+            if (isWhitespace(char)) break;
+            if (char.trim().length === 0) {
+                whitespaceCount++;
+                charIndex--;
+                continue;
+            }
+
+            // Begin comparison with start substring
+            let match = true;
+            for (let k = 0; k < start.length; k++) {
+                if (messageString[charIndex - start.length + k + 1] !== start[k]) {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match) {
+                isStartMatch = true;
+                break;
+            } else break; // Non-matching character found
+        }
+
+        // Check for end substring after command
+        whitespaceCount = 0;
+        charIndex = command.end;
+        while (charIndex < messageString.length && whitespaceCount <= MAX_WHITESPACE_LENGTH) {
+            const char = messageString[charIndex];
+            if (isWhitespace(char)) break;
+            if (char.trim().length === 0) {
+                whitespaceCount++;
+                charIndex++;
+                continue;
+            }
+
+            // Begin comparison with end substring
+            let match = true;
+            for (let k = 0; k < end.length; k++) {
+                if (messageString[charIndex + k] !== end[k]) {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match) {
+                isEndMatch = true;
+                break;
+            } else break; // Non-matching character found
+        }
+
+        if (isStartMatch && isEndMatch) suggestedIndices.push(i);
+    });
+
+    return suggestedIndices;
+};
+
+/**
  * Extracts commands from a given string based on predefined formats.
  * 
  * The function searches for patterns that match commands in the format "/command action property1=value1 property2=value2".
@@ -282,7 +473,10 @@ export const handleCommandTransition = ({
  * @returns An array of Command objects, each containing the command, action (if any), an object of properties (if any), 
  * and the the task the command is associated with (if valid).
  */
-export const extractCommands = (inputString: string, commandToTask: CommandToTask): MaybeLlmCommand[] => {
+export const extractCommands = (
+    inputString: string,
+    commandToTask: CommandToTask,
+): MaybeLlmCommand[] => {
     const commands: MaybeLlmCommand[] = [];
     let currentCommand: CurrentLlmCommand | null = null;
 
