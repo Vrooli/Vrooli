@@ -1,17 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
+import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai";
 import { logger } from "../../../events/logger";
 import { ChatContextCollector } from "../context";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
-type AnthropicGenerateModel = "claude-3-opus-20240229" | "claude-3-sonnet-20240229";
-type AnthropicTokenModel = "default";
+type MistralGenerateModel = "open-mistral-7b" | "open-mixtral-8x7b";
+type MistralTokenModel = "default";
 
-export class AnthropicService implements LanguageModelService<AnthropicGenerateModel, AnthropicTokenModel> {
-    private client: Anthropic;
-    private defaultModel: AnthropicGenerateModel = "claude-3-sonnet-20240229";
+export class MistralService implements LanguageModelService<MistralGenerateModel, MistralTokenModel> {
+    private client: MistralClient;
+    private defaultModel: MistralGenerateModel = "open-mistral-7b";
 
     constructor() {
-        this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        this.client = new MistralClient(process.env.MISTRAL_API_KEY);
     }
 
     estimateTokens(params: EstimateTokensParams) {
@@ -54,12 +54,12 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
             requestedModel: model,
         });
 
-        // Ensure roles alternate between "user" and "assistant". This is a requirement of the Anthropic API.
+        // Ensure roles alternate between "user" and "assistant". This is a requirement of the Mistral API.
         const alternatingMessages: LanguageModelMessage[] = [];
         const messagesWithResponding = respondingToMessage ? [...messages, { role: "user" as const, content: respondingToMessage.text }] : messages;
         let lastRole: LanguageModelMessage["role"] = "assistant";
         for (const { role, content } of messagesWithResponding) {
-            // Skip empty messages. This is another requirement of the Anthropic API.
+            // Skip empty messages. This is another requirement of the Mistral API.
             if (content.trim() === "") {
                 continue;
             }
@@ -76,32 +76,35 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
             }
         }
 
-        // Ensure first message is from the user. This is another requirement of the Anthropic API.
+        // Ensure first message is from the user. This is another requirement of the Mistral API.
         if (alternatingMessages.length && alternatingMessages[0].role === "assistant") {
             alternatingMessages.shift();
         }
 
-        const params: Anthropic.MessageCreateParams = {
-            messages: alternatingMessages.map(({ role, content }) => ({ role, content })),
+        const params = {
+            messages: [
+                // Add system message first
+                { role: "system" as const, content: systemMessage },
+                // Add other messages
+                ...alternatingMessages.map(({ role, content }) => ({ role, content })),
+            ],
             model,
             max_tokens: 1024, // Adjust as needed
-            system: systemMessage,
         };
 
-        const completion: Anthropic.Message = await this.client.messages
-            .create(params)
+        const completion: ChatCompletionResponse = await this.client
+            .chat(params)
             .catch((error) => {
-                const message = "Failed to call Anthropic";
+                const message = "Failed to call Mistral";
                 logger.error(message, { trace: "0010", error });
                 throw new Error(message);
             });
-        const responseText = completion.content?.map(block => block.text).join("") ?? "";
-        return responseText;
+        return completion.choices[0].message.content ?? "";
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getContextSize(_requestedModel?: string | null) {
-        return 200000;
+        return 32000;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -115,8 +118,8 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
 
     getModel(requestedModel?: string | null) {
         if (typeof requestedModel !== "string") return this.defaultModel;
-        if (requestedModel.includes("opus")) return "claude-3-opus-20240229";
-        if (requestedModel.includes("sonnet")) return "claude-3-sonnet-20240229";
+        if (requestedModel.includes("8x7b")) return "open-mixtral-8x7b";
+        if (requestedModel.includes("mistral-7b")) return "open-mistral-7b";
         return this.defaultModel;
     }
 }

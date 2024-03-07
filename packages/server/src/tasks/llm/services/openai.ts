@@ -6,13 +6,11 @@ import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, Ge
 type OpenAIGenerateModel = "gpt-3.5-turbo" | "gpt-4";
 type OpenAITokenModel = "default";
 export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, OpenAITokenModel> {
-    private openai: OpenAI;
+    private client: OpenAI;
     private defaultModel: OpenAIGenerateModel = "gpt-3.5-turbo";
 
     constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     }
 
     estimateTokens(params: EstimateTokensParams) {
@@ -67,14 +65,14 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
             model,
             user: userData.name ?? undefined,
         };
-        const chatCompletion: OpenAI.Chat.ChatCompletion = await this.openai.chat.completions
+        const completion: OpenAI.Chat.ChatCompletion = await this.client.chat.completions
             .create(params)
             .catch((error) => {
                 const message = "Failed to call OpenAI";
                 logger.error(message, { trace: "0009", error });
                 throw new Error(message);
             });
-        return chatCompletion.choices[0].message.content ?? "";
+        return completion.choices[0].message.content ?? "";
     }
 
     getContextSize(requestedModel?: string | null) {

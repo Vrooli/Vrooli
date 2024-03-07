@@ -4,6 +4,7 @@ import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { ModelMap } from "../../models";
 import { fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
 import { AnthropicService } from "./services/anthropic";
+import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
@@ -163,6 +164,7 @@ describe("LanguageModelService lmServices", () => {
     const lmServices = [
         { name: "OpenAIService", lmService: new OpenAIService() },
         { name: "AnthropicService", lmService: new AnthropicService() },
+        { name: "MistralService", lmService: new MistralService() },
         // add other lmServices as needed
     ];
 
@@ -196,13 +198,11 @@ describe("LanguageModelService lmServices", () => {
     lmServices.forEach(({ name: lmServiceName, lmService: lmService }) => {
         // Estimate tokens
         it(`${lmServiceName}: estimateTokens returns a tuple with TokenNameType and number`, () => {
-            console.log("estimate tokens start");
             const model = lmService.getModel();
             const [tokenType, count] = lmService.estimateTokens({
                 text: "sample text",
                 requestedModel: model,
             });
-            console.log("estimate tokens end");
             expect(tokenType).toBeDefined(); // Add more specific checks as needed
             expect(count).toBeDefined();
             expect(typeof count).toBe("number");
@@ -210,7 +210,6 @@ describe("LanguageModelService lmServices", () => {
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
-            console.log("generate context returns LanguageModelContext start");
             const model = lmService.getModel();
             await expect(lmService.generateContext({
                 respondingBotId: respondingBotId1,
@@ -222,12 +221,10 @@ describe("LanguageModelService lmServices", () => {
                 userData: userData1,
                 requestedModel: model,
             })).resolves.toBeDefined();
-            console.log("generate context returns LanguageModelContext end");
         });
 
         // Generate response
         it(`${lmServiceName}: generateResponse returns a string - message provided`, async () => {
-            console.log("generate response returns a string - message provided start");
             const response = await lmService.generateResponse({
                 chatId: chatId1,
                 participantsData: participantsData1,
@@ -241,11 +238,9 @@ describe("LanguageModelService lmServices", () => {
                 force: true,
                 userData: userData1,
             });
-            console.log("generate response returns a string - message provided end");
             expect(typeof response).toBe("string");
         });
         it(`${lmServiceName}: generateResponse returns a string - message not provided`, async () => {
-            console.log("generate response returns a string - message not provided start");
             const response = await lmService.generateResponse({
                 chatId: chatId1,
                 participantsData: participantsData1,
@@ -256,7 +251,6 @@ describe("LanguageModelService lmServices", () => {
                 force: true,
                 userData: userData1,
             });
-            console.log("generate response returns a string - message not provided end");
             expect(typeof response).toBe("string");
         });
 

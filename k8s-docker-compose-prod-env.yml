@@ -634,6 +634,11 @@ spec:
                 secretKeyRef:
                   name: ANTHROPIC_API_KEY
                   key: ANTHROPIC_API_KEY
+            - name: MISTRAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: MISTRAL_API_KEY
+                  key: MISTRAL_API_KEY
             - name: VAPID_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:

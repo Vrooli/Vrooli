@@ -8,6 +8,7 @@ import { withPrisma } from "../../utils/withPrisma";
 import { getStructuredTaskConfig } from "./config";
 import { MessageContextInfo } from "./context";
 import { AnthropicService } from "./services/anthropic";
+import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
 
 type SimpleChatMessageData = {
@@ -290,5 +291,6 @@ export const getLanguageModelService = (botSettings: BotSettings): LanguageModel
     const { model } = botSettings;
     if (!model) return new OpenAIService();
     if (model.includes("claude")) return new AnthropicService();
+    if (model.includes("mistral")) return new MistralService();
     return new OpenAIService();
 };
