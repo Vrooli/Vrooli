@@ -23,7 +23,7 @@ type CurrentLlmCommand = Omit<LlmCommand, "properties" | "task"> & {
     properties: (string | number | null)[];
 };
 
-type CommandSection = "outside" | "code" | "command" | "action" | "propName" | "propValue";
+export type CommandSection = "outside" | "code" | "command" | "action" | "propName" | "propValue";
 
 /** Maximum length for a command, action, or property name */
 const MAX_COMMAND_ACTION_PROP_LENGTH = 32;
@@ -54,6 +54,8 @@ function countEndSlashes(charArray: string[]): number {
 type CommandTransitionTrack = {
     section: CommandSection,
     buffer: string[],
+    /** If true, command will be canceled later if we don't find a closing bracket */
+    hasOpenBracket: boolean,
 }
 
 export type CommandWrapper = {
@@ -77,34 +79,41 @@ export const handleCommandTransition = ({
     prev,
     section,
     buffer,
-    activeWrapper,
+    hasOpenBracket,
     onCommit,
     onComplete,
     onCancel,
     onStart,
-    wrappers,
 }: CommandTransitionTrack & {
     curr: string,
     prev: string,
-    activeWrapper: CommandWrapper | null,
     onCommit: (section: CommandSection, text: string | number | null) => unknown,
     onComplete: () => unknown, // When a full command (including any actions/props) is completed
     onCancel: () => unknown, // When a full command is cancelled. Typically only when there's a problem with the beginning slash command 
     onStart: () => unknown, // When a full command is started
-    wrappers?: CommandWrapper[],
 }): CommandTransitionTrack => {
     // Handle each section type
     if (section === "outside") {
-        // Start a command if there's a slash without a previous character
-        if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev))) {
+        // Start a command if there's a slash without a previous character, 
+        // or if the previous character is whitespace, newline, or open bracket (for wrapped commands)
+        if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev) || prev === "[")) {
             onStart();
-            return { section: "command", buffer: [] }; // Don't include the slash in the buffer
+            if (prev === "[") console.log("starting open bracket bloop", prev, curr, buffer);
+            return {
+                section: "command",
+                buffer: [], // Don't include the slash in the buffer
+                hasOpenBracket: hasOpenBracket || prev === "[", // Keep bracket status, or start a new one if the open bracket was found
+            };
         }
-        // If buffer + curr matches a wrapper start, switch to 
-        // Reset buffer when there's whitespace or a newline
-        if (isWhitespace(curr) || isNewline(curr)) {
-            return { section, buffer: [] };
+        // Reset buffer when there's whitespace=
+        if (isWhitespace(curr)) {
+            return { section, buffer: [], hasOpenBracket };
         }
+        if (isNewline(curr)) {
+            console.log("stopping open bracket on command newline", prev, curr, buffer);
+            return { section, buffer: [], hasOpenBracket: false };
+        }
+        // Reset buffer and hasOpenBracket when there's a newline
         // Start a code block if the buffer + curr is "`" or "```" or "<code>"
         if (
             (buffer.length === 0 && curr === "`") ||
@@ -112,13 +121,13 @@ export const handleCommandTransition = ({
             (buffer.length === 5 && buffer[0] === "<" && buffer[1] === "c" && buffer[2] === "o" && buffer[3] === "d" && buffer[4] === "e" && curr === ">")
         ) {
             buffer.push(curr);
-            return { section: "code", buffer }; // Keep in buffer so we can match the closing backticks/tag
+            return { section: "code", buffer, hasOpenBracket }; // Keep in buffer so we can match the closing backticks/tag
         }
     }
     else if (section === "code") {
         // Shouldn't be here if the buffer is empty
         if (buffer.length === 0) {
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
         // Determine which type of code block we're in
         let codeType: "single" | "multi" | "tag" | null = null;
@@ -136,13 +145,13 @@ export const handleCommandTransition = ({
         if (!codeType) {
             console.log("could not determine code type", buffer, curr);
             onCancel();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
         // If we're in a single code block, cancel on newline
         if (codeType === "single" && isNewline(curr)) {
             console.log("code block newline cancel");
             onCancel();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket: false };
         }
         // If we're in a multi code block, cancel when encountering the closing backticks
         if (codeType === "multi") {
@@ -150,13 +159,13 @@ export const handleCommandTransition = ({
             if (buffer.length === 3 && buffer.every(b => b === "`") && curr === "`") {
                 console.log("multi code block closing backticks cancel 1");
                 onCancel();
-                return { section: "outside", buffer: [] };
+                return { section: "outside", buffer: [], hasOpenBracket };
             }
             // Cancel when closing triple backticks found
             if (buffer.length > 3 && curr === "`" && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`") {
                 console.log("multi code block closing backticks cancel 2");
                 onCancel();
-                return { section: "outside", buffer: [] };
+                return { section: "outside", buffer: [], hasOpenBracket };
             }
         }
         // If we're in a tag code block
@@ -167,7 +176,7 @@ export const handleCommandTransition = ({
                 if (!"<code>".startsWith([...buffer, curr].join(""))) {
                     console.log("canceling tag code block 1", buffer, curr);
                     onCancel();
-                    return { section: "outside", buffer: [] };
+                    return { section: "outside", buffer: [], hasOpenBracket };
                 }
             }
             // When the buffer is longer, stop if the tag is complete
@@ -176,7 +185,7 @@ export const handleCommandTransition = ({
                 if (buffer.slice(-6).join("") === "</code" && curr === ">") {
                     console.log("canceling tag code block 2", buffer, curr);
                     onCancel();
-                    return { section: "outside", buffer: [] };
+                    return { section: "outside", buffer: [], hasOpenBracket };
                 }
             }
         }
@@ -185,29 +194,44 @@ export const handleCommandTransition = ({
         // If we run into another slash, the command is invalid
         if (curr === "/") {
             onCancel();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
         // Handle transition from command to action (might actually be property name,
         // but we're not sure yet
         if (isWhitespace(curr)) {
             onCommit("command", buffer.join(""));
-            return { section: "action", buffer: [] };
+            return { section: "action", buffer: [], hasOpenBracket };
         }
         // Commit on newline
         if (isNewline(curr)) {
             onCommit("command", buffer.join(""));
             onComplete();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket: false };
+        }
+        // If there is an open bracket
+        if (hasOpenBracket) {
+            if (curr === "]") {
+                console.log("committing command due to close bracket");
+                onCommit("command", buffer.join(""));
+                onComplete();
+                return { section: "outside", buffer: [], hasOpenBracket: false };
+            }
+            if (curr === ",") {
+                console.log("committing command due to comma");
+                onCommit("command", buffer.join(""));
+                onComplete();
+                return { section: "outside", buffer: [], hasOpenBracket };
+            }
         }
         // Cancel on non alpha-numeric characters
         if (!isAlphaNum(curr)) {
             onCancel();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
         // Cancel if the buffer is too long
         if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
             onCancel();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
     }
     else if (section === "action") {
@@ -218,15 +242,15 @@ export const handleCommandTransition = ({
                 onCommit("action", buffer.join(""));
             }
             onComplete();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket: false };
         }
         // Handle whitespace
         if (isWhitespace(curr)) {
             // Skip if buffer is empty
-            if (buffer.length === 0) return { section, buffer };
+            if (buffer.length === 0) return { section, buffer, hasOpenBracket };
             // Othwerwise, commit as an action
             onCommit("action", buffer.join(""));
-            return { section: "propName", buffer: [] };
+            return { section: "propName", buffer: [], hasOpenBracket };
         }
         // Handle slash
         if (curr === "/") {
@@ -234,7 +258,7 @@ export const handleCommandTransition = ({
             // or start of a new command
             if (!isWhitespace(prev)) {
                 onComplete();
-                return { section: "outside", buffer: [] };
+                return { section: "outside", buffer: [], hasOpenBracket };
             }
             // If there's a buffer, commit it as an action
             if (buffer.length > 0) {
@@ -243,38 +267,53 @@ export const handleCommandTransition = ({
             // Start a new command
             onComplete();
             onStart();
-            return { section: "command", buffer: [] };
+            return { section: "command", buffer: [], hasOpenBracket };
         }
         // If it's an equals sign, commit as a property name 
         // instead of an action
         if (curr === "=") {
             onCommit("propName", buffer.join(""));
-            return { section: "propValue", buffer: [] };
+            return { section: "propValue", buffer: [], hasOpenBracket };
+        }
+        // If there is an open bracket
+        if (hasOpenBracket) {
+            if (curr === "]") {
+                console.log("committing action due to close bracket");
+                onCommit("action", buffer.join(""));
+                onComplete();
+                return { section: "outside", buffer: [], hasOpenBracket: false };
+            }
+            if (curr === ",") {
+                console.log("committing action due to comma");
+                onCommit("action", buffer.join(""));
+                onComplete();
+                return { section: "outside", buffer: [], hasOpenBracket };
+            }
         }
         // Complete if it's not an alpha-numeric character
         if (!isAlphaNum(curr)) {
-            // Commit action if previous character was whitespace
+            // Commit if previous character was whitespace
             if (isWhitespace(prev)) {
                 onCommit("action", buffer.join(""));
-                // If it's a backtick, start a code block
-                if (curr === "`") {
-                    return { section: "code", buffer: [curr] };
-                }
             }
             onComplete();
-            return { section: "outside", buffer: [] };
+            // If it's a backtick, start a code block
+            if (curr === "`") {
+                return { section: "code", buffer: [curr], hasOpenBracket };
+            }
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
         // Complete if the buffer is too long
         if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
             onComplete();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
     }
     else if (section === "propName") {
         // Commit on equals sign
         if (curr === "=") {
             onCommit("propName", buffer.join(""));
-            return { section: "propValue", buffer: [] };
+            return { section: "propValue", buffer: [], hasOpenBracket };
         }
         // Handle slash
         if (curr === "/") {
@@ -282,42 +321,42 @@ export const handleCommandTransition = ({
             // or start of a new command
             if (!isWhitespace(prev)) {
                 onComplete();
-                return { section: "outside", buffer: [] };
+                return { section: "outside", buffer: [], hasOpenBracket };
             }
             // Start a new command. Do not commit the buffer, as it won't have an accompanying value
             onComplete();
             onStart();
-            return { section: "command", buffer: [] };
+            return { section: "command", buffer: [], hasOpenBracket };
         }
         // Handle whitespace
         if (isWhitespace(curr)) {
             // Skip if buffer is empty
-            if (buffer.length === 0) return { section, buffer };
+            if (buffer.length === 0) return { section, buffer, hasOpenBracket };
             // Otherwise, complete command
             if (buffer.length > 0) {
                 onComplete();
-                return { section: "outside", buffer: [] };
+                return { section: "outside", buffer: [], hasOpenBracket };
             }
         }
         // Complete on newline
         if (isNewline(curr)) {
             onComplete();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket: false };
         }
         // Complete on non alpha-numeric characters
         if (!isAlphaNum(curr)) {
             onComplete();
             // If previous character was whitespace and it's a backtick, start a code block
             if (isWhitespace(prev) && curr === "`") {
-                return { section: "code", buffer: [curr] };
+                return { section: "code", buffer: [curr], hasOpenBracket };
             }
             // Otherwise, move to the outside state
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
         // Complete if the buffer is too long
         if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
             onComplete();
-            return { section: "outside", buffer: [] };
+            return { section: "outside", buffer: [], hasOpenBracket };
         }
     }
     else if (section === "propValue") {
@@ -328,16 +367,16 @@ export const handleCommandTransition = ({
         // Check if leaving quotes
         if (isQuote && buffer[0] === curr && !isEscaped) {
             onCommit("propValue", buffer.slice(1).join("")); // Exclude outer quotes
-            return { section: "propName", buffer: [] };
+            return { section: "propName", buffer: [], hasOpenBracket };
         }
         // Check if entering quotes
         if (!isInQuote && isQuote && buffer.length === 0) {
-            return { section: "propValue", buffer: [curr] };
+            return { section: "propValue", buffer: [curr], hasOpenBracket };
         }
         // Allow anything inside quotes
         if (isInQuote) {
             buffer.push(curr);
-            return { section, buffer };
+            return { section, buffer, hasOpenBracket };
         }
         // Only numbers and null are allowed outside quotes
         const bufferString = buffer.join("");
@@ -346,9 +385,9 @@ export const handleCommandTransition = ({
         const maybeNull = "null".startsWith(withCurr);
         if (maybeNumber || maybeNull) {
             buffer.push(curr);
-            return { section, buffer };
+            return { section, buffer, hasOpenBracket };
         }
-        // If we reached whitespace or a newline
+        // If we reached whitespace, a newline, or a comma or end bracket, we'll probably commit
         if (isWhitespace(curr) || isNewline(curr)) {
             // We've already accounted for quotes (i.e. strings). So we can only commit 
             // if it's a valid number or null
@@ -358,105 +397,182 @@ export const handleCommandTransition = ({
                 onCommit("propValue", isNumber ? +bufferString : null);
                 if (isNewline(curr)) {
                     onComplete();
-                    return { section: "outside", buffer: [] };
+                    return { section: "outside", buffer: [], hasOpenBracket: false };
                 }
-                return { section: "propName", buffer: [] };
+                // If there is an open bracket
+                if (hasOpenBracket) {
+                    if (curr === "]") {
+                        console.log("committing propValue due to close bracket");
+                        onComplete();
+                        return { section: "outside", buffer: [], hasOpenBracket: false };
+                    }
+                    if (curr === ",") {
+                        console.log("committing propValue due to comma");
+                        onComplete();
+                        return { section: "outside", buffer: [], hasOpenBracket };
+                    }
+                }
+                return { section: "propName", buffer: [], hasOpenBracket };
             }
         }
         // Otherwise it's invalid, so complete the command
         onComplete();
-        return { section: "outside", buffer: [] };
+        return { section: "outside", buffer: [], hasOpenBracket };
     }
 
     // Otherwise, continue buffering
     buffer.push(curr);
-    return { section, buffer };
+    return { section, buffer, hasOpenBracket };
 };
 
 /**
- * Detects suggested commands within a message string based on specified wrapper substrings.
+ * Helper function which loops forward or backward from an index to find the matching character.
+ * If it finds a non-whitespace character (including newline), passes the max length, or reaches the end of the string,
+ * it returns null. Otherwise, it returns the index of the matching character.
+ * 
+ * @param index The index to start from.
+ * @param forward The direction to search in. If true, it searches forward; otherwise, it searches backward.
+ * @param char The character to search for.
+ * @param input The string to search in.
+ * @param maxLength The maximum number of whitespace characters to allow.
+ * @returns The index of the matching character, or null if it's not found.
+ */
+export const findCharWithLimit = (
+    index: number,
+    forward: boolean,
+    char: string,
+    input: string,
+    maxLength: number,
+): number | null => {
+    let whitespaceCount = 0;
+
+    // Determine the step direction: forward (1) or backward (-1)
+    const step = forward ? 1 : -1;
+
+    // If we're already at the start or end of the string, move the index back one
+    if (index === 0 || index === input.length - 1) index -= step;
+
+    let loopCount = 0;
+    while (loopCount++ < maxLength) {
+        index += step; // Move index in the specified direction
+
+        // Check boundaries
+        if (index < 0 || index >= input.length) {
+            return null; // Reached the end or beginning of the string without finding the character
+        }
+
+        const currentChar = input[index];
+
+        if (currentChar === char) {
+            return index; // Found the target character
+        } else if (isWhitespace(currentChar)) {
+            whitespaceCount++;
+        } else {
+            // Found a non-whitespace character that is not the target
+            return null;
+        }
+    }
+    return null; // Exceeded the maximum loop count
+};
+
+/**
+ * Detects commands wrapped in square brackets, with the specified start substring and delimiter.
+ * If a delimiter is not provided, then the wrapper is assumed to contain only one command.
  *
- * @param start The substring that marks the start of the suggested commands wrapper.
- * @param end The substring that marks the end of the suggested commands wrapper.
- * @param delimiter The delimiter used to separate multiple commands within the wrapper.
- * @param allowMultiple A flag indicating whether multiple commands are allowed within the wrapper.
- * @param commands The list of commands extracted from the message string.
- * @param messageString The original message string.
  * @returns An array of indices representing the commands that are marked as suggested.
  */
-export const detectWrappedCommands = (
+export const detectWrappedCommands = ({
+    start,
+    delimiter,
+    commands,
+    messageString,
+}: {
     start: string,
-    end: string,
-    delimiter: string,
-    allowMultiple: boolean,
+    delimiter?: string | null,
     commands: MaybeLlmCommand[],
     messageString: string,
-): number[] => {
-    const suggestedIndices: number[] = [];
+}): number[] => {
+    const result: number[] = [];
     const MAX_WHITESPACE_LENGTH = 5;
+    const allowMultiple = typeof delimiter === "string" && delimiter.length;
+    let startWrapperIndex = -1; // Index of the start substring for the current wrapper
+    let lastValidIndex = -1; // Last index that matches current wrapper pattern
+    console.log("in detectWrappedCommands", messageString);
 
-    commands.forEach((command, i) => {
-        let isStartMatch = false;
-        let isEndMatch = false;
+    commands.forEach((command, index) => {
+        const { start: startIndex, end: endIndex } = command;
 
-        // Check for start substring before command
-        let whitespaceCount = 0;
-        let charIndex = command.start - 1;
-        while (charIndex >= 0 && whitespaceCount <= MAX_WHITESPACE_LENGTH) {
-            const char = messageString[charIndex];
-            if (isWhitespace(char)) break;
-            if (char.trim().length === 0) {
-                whitespaceCount++;
-                charIndex--;
-                continue;
+        // If we haven't found the start substring yet, search for it
+        if (lastValidIndex < 0) {
+            // Look for open bracket
+            const openBracketIndex = findCharWithLimit(startIndex, false, "[", messageString, MAX_WHITESPACE_LENGTH);
+            if (openBracketIndex === null) {
+                console.log("openBracketIndex === null. returning...", startIndex, endIndex, "[");
+                lastValidIndex = -1;
+                return;
             }
-
-            // Begin comparison with start substring
-            let match = true;
-            for (let k = 0; k < start.length; k++) {
-                if (messageString[charIndex - start.length + k + 1] !== start[k]) {
-                    match = false;
-                    break;
-                }
+            // Look for colon
+            const colonIndex = findCharWithLimit(openBracketIndex, false, ":", messageString, MAX_WHITESPACE_LENGTH);
+            if (colonIndex === null) {
+                console.log("colonIndex === null. returning...", openBracketIndex, ":");
+                lastValidIndex = -1;
+                return;
             }
-
-            if (match) {
-                isStartMatch = true;
-                break;
-            } else break; // Non-matching character found
+            // Check if the start substring is before the colon
+            const possibleStartSubstring = messageString.substring(colonIndex - start.length, colonIndex);
+            if (possibleStartSubstring !== start) {
+                console.log(`!startFound. returning... '${possibleStartSubstring}'`, start);
+                lastValidIndex = -1;
+                return;
+            }
+            // Set the last valid index and start wrapper index
+            lastValidIndex = index;
+            startWrapperIndex = openBracketIndex;
+        }
+        // Otherwise, make sure space between the last valid index and the current start index is whitespace
+        else if (startIndex - lastValidIndex > MAX_WHITESPACE_LENGTH || messageString.substring(lastValidIndex, startIndex).split("").some(c => !isWhitespace(c))) {
+            console.log("start - lastValidIndex > MAX_WHITESPACE_LENGTH or substring has non-whitespace. returning...");
+            lastValidIndex = -1;
+            return;
         }
 
-        // Check for end substring after command
-        whitespaceCount = 0;
-        charIndex = command.end;
-        while (charIndex < messageString.length && whitespaceCount <= MAX_WHITESPACE_LENGTH) {
-            const char = messageString[charIndex];
-            if (isWhitespace(char)) break;
-            if (char.trim().length === 0) {
-                whitespaceCount++;
-                charIndex++;
-                continue;
-            }
-
-            // Begin comparison with end substring
-            let match = true;
-            for (let k = 0; k < end.length; k++) {
-                if (messageString[charIndex + k] !== end[k]) {
-                    match = false;
-                    break;
+        // Search for closing bracket from the command end
+        const closingBracketIndex = findCharWithLimit(endIndex, true, "]", messageString, MAX_WHITESPACE_LENGTH);
+        if (closingBracketIndex === null) {
+            // If we allow multiple commands, check for delimiter
+            if (allowMultiple) {
+                const delimiterIndex = findCharWithLimit(endIndex, true, delimiter, messageString, MAX_WHITESPACE_LENGTH);
+                if (delimiterIndex === null) {
+                    console.log("delimiterIndex === null. returning...");
+                    lastValidIndex = -1;
+                    return;
                 }
+                // Set the last valid index to the current index
+                lastValidIndex = index;
             }
-
-            if (match) {
-                isEndMatch = true;
-                break;
-            } else break; // Non-matching character found
+            // Otherwise, the wrapper is invalid
+            else {
+                console.log("!allowMultiple. returning...");
+                lastValidIndex = -1;
+                return;
+            }
         }
-
-        if (isStartMatch && isEndMatch) suggestedIndices.push(i);
+        else {
+            // If last index of command is actually a newline, cancel the wrapper
+            if (messageString[endIndex] === "\n") {
+                console.log("messageString[endIndex] === '\\n'. returning...");
+                lastValidIndex = -1;
+                return;
+            }
+            // Commit all commands between the start index and the closing bracket index
+            console.log("found closing bracket", endIndex, closingBracketIndex);
+            const commandsInWrapper = commands.filter((c, i) => c.start >= startWrapperIndex && c.end <= closingBracketIndex);
+            result.push(...commandsInWrapper.map(c => commands.indexOf(c)));
+        }
     });
 
-    return suggestedIndices;
+    console.log("result at end", result);
+    return result;
 };
 
 /**
@@ -533,12 +649,14 @@ export const extractCommands = (
 
     let section: CommandSection = "outside";
     let buffer: string[] = [];
+    let hasOpenBracket = false;
     for (let i = 0; i < inputString.length; i++) {
         const curr = handleCommandTransition({
             curr: inputString[i],
             prev: i > 0 ? inputString[i - 1] : "\n", // Pretend there's a newline at the beginning
             section,
             buffer,
+            hasOpenBracket,
             onCommit: (section, text) => onCommit(section, text, i),
             onComplete,
             onStart: () => onStart(i),
@@ -546,6 +664,7 @@ export const extractCommands = (
         });
         section = curr.section;
         buffer = curr.buffer;
+        hasOpenBracket = curr.hasOpenBracket;
     }
     // Call with newline to commit the last command
     handleCommandTransition({
@@ -553,6 +672,7 @@ export const extractCommands = (
         prev: inputString.length > 0 ? inputString[inputString.length - 1] : "\n",
         section,
         buffer,
+        hasOpenBracket,
         onCommit: (section, text) => onCommit(section, text, inputString.length),
         onComplete,
         onCancel,

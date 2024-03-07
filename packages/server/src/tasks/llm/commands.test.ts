@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LlmTask } from "@local/shared";
-import { CommandWrapper, LlmCommand, MaybeLlmCommand, detectWrappedCommands, extractCommands, filterInvalidCommands, handleCommandTransition, isAlphaNum, isNewline, isWhitespace, removeCommands } from "./commands";
+import { LlmCommand, MaybeLlmCommand, detectWrappedCommands, extractCommands, filterInvalidCommands, findCharWithLimit, handleCommandTransition, isAlphaNum, isNewline, isWhitespace, removeCommands } from "./commands";
 import { CommandToTask } from "./config";
 
 describe("isNewline", () => {
@@ -92,11 +92,13 @@ describe("isAlphaNum", () => {
 
 describe("handleCommandTransition", () => {
     let onCommit, onComplete, onCancel, onStart;
+    let rest;
     beforeEach(() => {
         onCommit = jest.fn();
         onComplete = jest.fn();
         onCancel = jest.fn();
         onStart = jest.fn();
+        rest = { onCommit, onComplete, onCancel, onStart, hasOpenBrackets: false };
     });
 
     // Outside tests
@@ -107,13 +109,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("Reset buffer on outside when whitespace encountered - tab", () => {
         const buffer = "asdf";
@@ -122,13 +121,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("Reset buffer on outside when whitespace encountered - newline", () => {
         const buffer = "asdf";
@@ -137,13 +133,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("keep adding to outside when not on a slash - single quote", () => {
         const buffer = "asdf";
@@ -152,13 +145,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "'"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "'"] });
     });
     test("keep adding to outside when not on a slash - double quote", () => {
         const buffer = "asdf";
@@ -167,13 +157,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "\""] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "\""] });
     });
     test("keep adding to outside when not on a slash - equals sign", () => {
         const buffer = "asdf";
@@ -182,13 +169,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "="] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "="] });
     });
     test("keep adding to outside when not on a slash - letter", () => {
         const buffer = "asdf";
@@ -197,13 +181,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "a"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "a"] });
     });
     test("keep adding to outside when not on a slash - number", () => {
         const buffer = "asdf";
@@ -212,13 +193,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "1"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "1"] });
     });
     test("keep adding to outside when not on a slash - other alphabets", () => {
         const buffer = "asdf";
@@ -227,13 +205,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "你"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "你"] });
     });
     test("keep adding to outside when not on a slash - emojis", () => {
         const buffer = "asdf";
@@ -242,13 +217,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "👋"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "👋"] });
     });
     test("keep adding to outside when not on a slash - symbols", () => {
         const buffer = "asdf";
@@ -257,13 +229,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "!"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "!"] });
     });
 
     // Command tests
@@ -274,13 +243,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "/"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "/"] });
     });
     test("does not start a command when the slash is not preceeded by whitespace - number", () => {
         const buffer = "1234";
@@ -289,13 +255,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "/"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "/"] });
     });
     test("does not start a command when the slash is not preceeded by whitespace - symbol", () => {
         const buffer = "!@#$";
@@ -304,13 +267,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             section: "outside", buffer: [...buffer.split(""), "/"],
         });
     });
@@ -321,13 +281,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [...buffer.split(""), "/"] });
+        expect(result).toMatchObject({ section: "outside", buffer: [...buffer.split(""), "/"] });
     });
     test("starts a command when buffer is empty", () => {
         const buffer = "";
@@ -336,13 +293,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "command", buffer: [] });
+        expect(result).toMatchObject({ section: "command", buffer: [] });
     });
     test("starts a command after a newline", () => {
         const buffer = "asdf\n";
@@ -351,13 +305,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "command", buffer: [] });
+        expect(result).toMatchObject({ section: "command", buffer: [] });
     });
     test("starts a command after whitespace - space", () => {
         const buffer = "asdf ";
@@ -366,13 +317,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "command", buffer: [] });
+        expect(result).toMatchObject({ section: "command", buffer: [] });
     });
     test("starts a command after whitespace - tab", () => {
         const buffer = "asdf\t";
@@ -381,13 +329,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "outside",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "command", buffer: [] });
+        expect(result).toMatchObject({ section: "command", buffer: [] });
     });
     test("adds letter to command buffer", () => {
         const buffer = "test";
@@ -396,13 +341,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "command", buffer: [...buffer.split(""), "a"] });
+        expect(result).toMatchObject({ section: "command", buffer: [...buffer.split(""), "a"] });
     });
     test("adds number to command buffer", () => {
         const buffer = "test";
@@ -411,13 +353,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "command", buffer: [...buffer.split(""), "1"] });
+        expect(result).toMatchObject({ section: "command", buffer: [...buffer.split(""), "1"] });
     });
     test("commmits on newline", () => {
         const buffer = "test";
@@ -426,13 +365,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("resets to outside on other alphabets", () => {
         const buffer = "test";
@@ -441,13 +377,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("resets to outside on emojis", () => {
         const buffer = "test";
@@ -456,13 +389,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("resets to outside on symbols", () => {
         const buffer = "test";
@@ -471,13 +401,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 
     // Pending (when we're not sure if it's an action or a property yet) tests
@@ -488,13 +415,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toEqual({ section: "action", buffer: [] });
+        expect(result).toMatchObject({ section: "action", buffer: [] });
     });
     test("starts pending action when we encounter the first space after a command - tab", () => {
         const buffer = "test";
@@ -503,13 +427,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toEqual({ section: "action", buffer: [] });
+        expect(result).toMatchObject({ section: "action", buffer: [] });
     });
     test("does not start pending action for newline", () => {
         const buffer = "test";
@@ -518,13 +439,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("does not start pending action for other alphabets", () => {
         const buffer = "test";
@@ -533,13 +451,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("does not start pending action for emojis", () => {
         const buffer = "test";
@@ -548,13 +463,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("does not start pending action for symbols", () => {
         const buffer = "test";
@@ -563,13 +475,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "command",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels pending action on other alphabets", () => {
         const buffer = "test";
@@ -578,13 +487,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels pending action on emojis", () => {
         const buffer = "test";
@@ -593,13 +499,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels pending action on symbols", () => {
         const buffer = "test";
@@ -608,13 +511,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 
     // Action tests
@@ -625,13 +525,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("action", buffer);
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits pending action buffer to action on whitespace - tab", () => {
         const buffer = "add";
@@ -640,13 +537,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("action", buffer);
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits pending action buffer to action on newline", () => {
         const buffer = "add";
@@ -655,13 +549,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("action", buffer);
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 
     // Property name tests
@@ -672,13 +563,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "action",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propName", buffer);
-        expect(result).toEqual({ section: "propValue", buffer: [] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [] });
     });
     test("commits property name buffer to property name on equals sign", () => {
         const buffer = "name";
@@ -687,13 +575,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propName", buffer);
-        expect(result).toEqual({ section: "propValue", buffer: [] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [] });
     });
     test("cancels property name buffer on whitespace - space", () => {
         const buffer = "name";
@@ -702,13 +587,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property name buffer on whitespace - tab", () => {
         const buffer = "name";
@@ -717,13 +599,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property name buffer on newline", () => {
         const buffer = "name";
@@ -732,13 +611,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property name buffer on other alphabets", () => {
         const buffer = "name";
@@ -747,13 +623,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property name buffer on emojis", () => {
         const buffer = "name";
@@ -762,13 +635,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property name buffer on symbols", () => {
         const buffer = "name";
@@ -777,13 +647,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property name buffer on slash", () => {
         const buffer = "name";
@@ -792,13 +659,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propName",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 
     // Property value tests
@@ -809,14 +673,11 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue", // Should already be marked as propValue because of the equals sign
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
         // Includes the quote in the buffer
-        expect(result).toEqual({ section: "propValue", buffer: ["'"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["'"] });
     });
     test("starts property value on double quote", () => {
         const buffer = "";
@@ -825,14 +686,11 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue", // Should already be marked as propValue because of the equals sign
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
         // Includes the quote in the buffer
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "\""] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "\""] });
     });
     test("continues property value if buffer + curr might be a number - test 1", () => {
         const buffer = "";
@@ -841,13 +699,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "1"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "1"] });
     });
     test("continues property value if buffer + curr might be a number - test 2", () => {
         const buffer = "-";
@@ -856,13 +711,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "1"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "1"] });
     });
     test("continues property value if buffer + curr might be a number - test 3", () => {
         const buffer = "";
@@ -871,13 +723,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "."] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "."] });
     });
     test("continues property value if buffer + curr might be a number - test 4", () => {
         const buffer = "3";
@@ -886,13 +735,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "."] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "."] });
     });
     test("cancels property value if buffer + curr is an invalid number - test 1", () => {
         const buffer = "-";
@@ -901,13 +747,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if buffer + curr is an invalid number - test 2", () => {
         const buffer = "1";
@@ -916,13 +759,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if buffer + curr is an invalid number - test 3", () => {
         const buffer = "3.";
@@ -931,13 +771,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if buffer + curr is an invalid number - test 4", () => {
         const buffer = "1.2";
@@ -946,13 +783,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("continues property value if buffer + curr might be null - test 1", () => {
         const buffer = "";
@@ -961,13 +795,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: ["n"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["n"] });
     });
     test("continues property value if buffer + curr might be null - test 2", () => {
         const buffer = "nul";
@@ -976,13 +807,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "l"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "l"] });
     });
     test("cancels property value if buffer + curr is not null", () => {
         const buffer = "null";
@@ -991,13 +819,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if letter before quote", () => {
         const buffer = "";
@@ -1006,13 +831,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if whitespace before quote - space", () => {
         const buffer = "";
@@ -1021,13 +843,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if whitespace before quote - tab", () => {
         const buffer = "";
@@ -1036,13 +855,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if newline before quote", () => {
         const buffer = "";
@@ -1051,13 +867,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if other alphabets before quote", () => {
         const buffer = "";
@@ -1066,13 +879,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if emojis before quote", () => {
         const buffer = "";
@@ -1081,13 +891,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if symbols before quote", () => {
         const buffer = "";
@@ -1096,13 +903,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels property value if slash before quote", () => {
         const buffer = "";
@@ -1111,13 +915,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("continues property value if already in quotes - letter with single quote start", () => {
         const buffer = "'";
@@ -1126,13 +927,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "a"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "a"] });
     });
     test("continues property value if already in quotes - letter with double quote start", () => {
         const buffer = "\"";
@@ -1141,13 +939,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "a"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "a"] });
     });
     test("continues property value if already in quotes - letter with single quote start and other text in buffer", () => {
         const buffer = "'test";
@@ -1156,13 +951,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "a"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "a"] });
     });
     test("continues property value if already in quotes - other language", () => {
         const buffer = "'test";
@@ -1171,13 +963,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "你"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "你"] });
     });
     test("continues property value if already in quotes - emoji", () => {
         const buffer = "'test";
@@ -1186,13 +975,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "👋"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "👋"] });
     });
     test("continues property value if already in quotes - symbol", () => {
         const buffer = "'test";
@@ -1201,13 +987,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "!"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "!"] });
     });
     test("continues property value if already in quotes - slash", () => {
         const buffer = "'test";
@@ -1216,13 +999,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "/"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "/"] });
     });
     test("continues property value if already in quotes - newline", () => {
         const buffer = "'test";
@@ -1231,13 +1011,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "\n"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "\n"] });
     });
     test("continues property value if already in quotes - space", () => {
         const buffer = "\"test";
@@ -1246,13 +1023,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), " "] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), " "] });
     });
     test("continues property value if already in quotes - tab", () => {
         const buffer = "\"test";
@@ -1261,13 +1035,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "\t"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "\t"] });
     });
     test("continues property value when curr is a different quote type than the starting quote - double with single start", () => {
         const buffer = "'";
@@ -1276,13 +1047,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: ["'", "\""] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["'", "\""] });
     });
     test("continues property value when curr is a different quote type than the starting quote - single with double start", () => {
         const buffer = "\"";
@@ -1291,13 +1059,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: ["\"", "'"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["\"", "'"] });
     });
     test("continues property value for escaped characters - curr is escape character, buffer is quote", () => {
         const buffer = "'";
@@ -1306,13 +1071,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: ["'", "\\"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["'", "\\"] });
     });
     test("continues property value for escaped characters - curr is single quote, buffer is double quote and escape character", () => {
         const buffer = "\"\\";
@@ -1321,13 +1083,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: ["\"", "\\", "\""] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["\"", "\\", "\""] });
     });
     test("continues property value for escaped characters - curr is single quote, buffer is single quote and escape character", () => {
         const buffer = "'\\";
@@ -1336,13 +1095,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: ["'", "\\", "'"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: ["'", "\\", "'"] });
     });
     test("completes property value for an even number of escape characters", () => {
         const buffer = "'\\\\";
@@ -1351,13 +1107,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", "\\\\");
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("continues property value for an odd number of escape characters", () => {
         const buffer = "'\\\\\\";
@@ -1366,13 +1119,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "propValue", buffer: [...buffer.split(""), "'"] });
+        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "'"] });
     });
     test("commits property value on closing quote - single quote", () => {
         const buffer = "'test";
@@ -1381,13 +1131,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", "test");
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits property value on closing quote - double quote", () => {
         const buffer = "\"test";
@@ -1396,13 +1143,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", "test");
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits number property value on space - test 1", () => {
         const buffer = "123";
@@ -1411,13 +1155,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", 123);
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits number property value on space - test 2", () => {
         const buffer = "-123";
@@ -1426,13 +1167,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", -123);
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits number property value on space - test 3", () => {
         const buffer = "-1.23";
@@ -1441,13 +1179,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", -1.23);
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits number property value on tab", () => {
         const buffer = "-1.23";
@@ -1456,13 +1191,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", -1.23);
-        expect(result).toEqual({ section: "propName", buffer: [] });
+        expect(result).toMatchObject({ section: "propName", buffer: [] });
     });
     test("commits number property value on newline", () => {
         const buffer = "-1.23";
@@ -1471,13 +1203,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).toHaveBeenCalledWith("propValue", -1.23);
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels number property value on letter", () => {
         const buffer = "-1.23";
@@ -1486,13 +1215,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels number property value on other alphabet", () => {
         const buffer = "-1.23";
@@ -1501,13 +1227,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels number property value on emoji", () => {
         const buffer = "-1.23";
@@ -1516,13 +1239,10 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
     test("cancels number property value on symbol", () => {
         const buffer = "-1.23";
@@ -1531,19 +1251,53 @@ describe("handleCommandTransition", () => {
             prev: buffer[buffer.length - 1],
             section: "propValue",
             buffer: buffer.split(""),
-            onCommit,
-            onComplete,
-            onCancel,
-            onStart,
+            ...rest,
         });
         expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toEqual({ section: "outside", buffer: [] });
+        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 });
 
 const getStartEnd = (str: string, sub: string): { start: number, end: number } => ({
     start: str.indexOf(sub),
     end: str.indexOf(sub) + sub.length, // Index after the last character
+});
+
+describe("findCharWithLimit", () => {
+    const testString1 = "[/command1]";
+    const testString2 = "  [/command1]  ";
+    const testString3 = "  [  /command1  ]  ";
+    const allTests = [testString1, testString2, testString3];
+
+    for (const testString of allTests) {
+        const openIndex = testString.indexOf("[");
+        const closeIndex = testString.indexOf("]");
+        test("finds \"[\" starting at beginning", () => {
+            // @ts-ignore: expect-message
+            expect(findCharWithLimit(0, true, "[", testString, 5), `input: ${testString}`).toBe(openIndex);
+        });
+        test("doesn't find \"[\" starting at end - runs into non-whitespace", () => {
+            // @ts-ignore: expect-message
+            expect(findCharWithLimit(testString.length - 1, true, "[", testString, 5), `input: ${testString}`).toBeNull();
+        });
+        test("finds \"]\" starting at end", () => {
+            // @ts-ignore: expect-message
+            expect(findCharWithLimit(testString.length - 1, false, "]", testString, 5), `input: ${testString}`).toBe(closeIndex);
+        });
+        test("doesn't find \"]\" starting at beginning - runs into non-whitespace", () => {
+            // @ts-ignore: expect-message
+            expect(findCharWithLimit(0, false, "]", testString, 5), `input: ${testString}`).toBeNull();
+        });
+        test("doesn't find \"[\" starting at middle - runs into non-whitespace", () => {
+            // @ts-ignore: expect-message
+            expect(findCharWithLimit(3, true, "[", testString, 5), `input: ${testString}`).toBeNull();
+        });
+    }
+
+    test("doesn't find \"]\" when a newline is in the way", () => {
+        const testString = " \n ]";
+        expect(findCharWithLimit(0, false, "]", testString, 5)).toBeNull();
+    });
 });
 
 // Mock commandToTask
@@ -1557,43 +1311,41 @@ const commandToTask: CommandToTask = (command, action) => {
  */
 const detectWrappedCommandsTester = ({
     start,
-    end,
     delimiter,
-    allowMultiple,
     input,
     expected,
 }: {
     start: string,
-    end: string,
-    delimiter: string,
-    allowMultiple: boolean,
+    delimiter: string | null,
     input: string,
     expected: number[],
 }) => {
     const allCommands = extractCommands(input, commandToTask);
-    const detectedCommands = detectWrappedCommands(start, end, delimiter, allowMultiple, allCommands, input);
+    console.log("got these commands in detectCommandsTester", allCommands);
+    const detectedCommands = detectWrappedCommands({
+        start,
+        delimiter,
+        commands: allCommands,
+        messageString: input,
+    });
     // @ts-ignore: expect-message
     expect(detectedCommands, `input: ${input}`).toEqual(expected);
 };
 
 describe("detectWrappedCommands", () => {
     const wrapper1 = {
-        start: "suggested: [",
-        end: "]",
-        delimiter: ",",
-        allowMultiple: true,
+        start: "suggested",
+        delimiter: ",", // Allows multiple
     };
     const wrapper2 = {
-        start: "recommend: {",
-        end: "} boop",
-        delimiter: ",",
-        allowMultiple: false,
+        start: "recommend",
+        delimiter: null, // Does not allow multiple
     };
     const allWrappers = [wrapper1, wrapper2];
 
     // Loop through each wrapper and test the same cases for each
     for (const wrapper of allWrappers) {
-        const { start, end, delimiter, allowMultiple } = wrapper;
+        const { start, delimiter } = wrapper;
         test("returns empty array when no commands are present - test 1", () => {
             detectWrappedCommandsTester({
                 input: "a/command",
@@ -1617,133 +1369,138 @@ describe("detectWrappedCommands", () => {
         });
         test("returns empty array when commands are not wrapped - test 2", () => {
             detectWrappedCommandsTester({
-                input: `${start.slice(0, -1)} /command1${end}`,
+                input: `${start.slice(0, -1)}: [/command1]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 3", () => {
             detectWrappedCommandsTester({
-                input: `${start}/command1${end.slice(1)}`,
+                input: `${start}: [/command1`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 4", () => {
             detectWrappedCommandsTester({
-                input: `${start}\n/command1${end}`,
+                input: `${start}:\n[/command1]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 5", () => {
+            console.log("before not wrapped test 5");
             detectWrappedCommandsTester({
-                input: `${start}/command1\n${end}`,
+                input: `${start}: [/command1\n]`,
                 expected: [],
                 ...wrapper,
             });
+            console.log("after not wrapped test 5");
         });
         test("returns empty array when commands are not wrapped - test 6", () => {
             detectWrappedCommandsTester({
-                input: `${start}/command1${delimiter}\n/command2${end}`,
+                input: `${start}: [/command1${delimiter}\n/command2]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 7", () => {
+            console.log("before not wrapped test 7");
             detectWrappedCommandsTester({
-                input: `${start}/command1${start}${end}`,
+                input: `${start}:[/command1 ${start}:]`,
                 expected: [],
                 ...wrapper,
             });
+            console.log("after not wrapped test 7");
         });
         test("returns correct indices for a single wrapped command - test 1", () => {
+            console.log("before single wrapped command 1");
             detectWrappedCommandsTester({
-                input: `${start}/command1${end}`,
+                input: `${start}:[/command1]`,
                 expected: [0],
                 ...wrapper,
             });
+            console.log("after single wrapped command 1");
         });
         test("returns correct indices for a single wrapped command - test 2", () => {
+            console.log("before single wrapped command 2");
             detectWrappedCommandsTester({
-                input: `boop ${start}/command1${end}`,
+                input: `boop ${start}: [/command1]`,
                 expected: [0],
                 ...wrapper,
             });
+            console.log("after single wrapped command 2");
         });
         test("returns correct indices for a single wrapped command - test 3", () => {
+            console.log("before single wrapped command 3");
             detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start}/command1${end}`,
+                input: `/firstCommand hello ${start}:[/command1]`,
                 expected: [1],
                 ...wrapper,
             });
+            console.log("after single wrapped command 3");
         });
         test("returns correct indices for a single wrapped command - test 4", () => {
+            console.log("before single wrapped command 4");
             detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start} /command1${end}`,
+                input: `/firstCommand hello ${start}: [/command1]}`,
                 expected: [1],
                 ...wrapper,
             });
+            console.log("after single wrapped command 4");
         });
         test("returns correct indices for a single wrapped command - test 5", () => {
             detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start}/command1  ${end}`,
+                input: `/firstCommand hello ${start}: [  /command1  ]`,
                 expected: [1],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 6", () => {
             detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start} /command1  ${end}`,
+                input: `/firstCommand hello name="hi" ${start}: [/command1]`,
                 expected: [1],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 7", () => {
             detectWrappedCommandsTester({
-                input: `/firstCommand hello name="hi" ${start}/command1${end}`,
-                expected: [1],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 7", () => {
-            detectWrappedCommandsTester({
-                input: `${start} ${start}/command1${end}`,
+                input: `${start}: ${start}: [/command1 hello]`,
                 expected: [0],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 1", () => {
             detectWrappedCommandsTester({
-                input: `${start}/command1${delimiter}/command2${end}`,
-                expected: allowMultiple ? [0, 1] : [],
+                input: `${start}:[/command1${delimiter ?? ""}/command2]`,
+                expected: delimiter ? [0, 1] : [],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 2", () => {
             detectWrappedCommandsTester({
-                input: `${start}/command1 ${delimiter}/command2${end}`,
-                expected: allowMultiple ? [0, 1] : [],
+                input: `${start}: [/command1 ${delimiter ?? ""}/command2]`,
+                expected: delimiter ? [0, 1] : [],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 3", () => {
             detectWrappedCommandsTester({
-                input: `${start} /command1 ${delimiter} /command2 ${end}`,
-                expected: allowMultiple ? [0, 1] : [],
+                input: `${start}: [/command1 ${delimiter ?? ""} /command2 ]`,
+                expected: delimiter ? [0, 1] : [],
                 ...wrapper,
             });
         });
         test("handles property value trickery - test 1", () => {
             detectWrappedCommandsTester({
-                input: `/command1 action name='${start}/command2${end}'`,
+                input: `/command1 action name='${start}: [/command2]'`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("handles property value trickery - test 2", () => {
             detectWrappedCommandsTester({
-                input: `/command1 action name='${start}' /command2${end}`,
+                input: `/command1 action name='${start}:' [/command2]`,
                 expected: [],
                 ...wrapper,
             });
@@ -1757,13 +1514,12 @@ describe("detectWrappedCommands", () => {
 const extractCommandsTester = ({
     input,
     expected,
-    wrappers,
 }: {
     input: string,
     expected: (Omit<MaybeLlmCommand, "task" | "start" | "end"> & { match: string })[],
-    wrappers?: CommandWrapper[]
 }) => {
     const commands = extractCommands(input, commandToTask);
+    console.log("got commands", commands);
     const expectedCommands = expected.map(({ command, action, properties, match }) => ({
         task: commandToTask(command, action),
         command,
@@ -2001,30 +1757,6 @@ describe("extractCommands", () => {
                 action: "action",
                 properties: {},
                 match: "/command action",
-            }],
-        });
-    });
-
-    const wrapper = {
-        start: "suggested: [",
-        end: "]",
-        delimiter: ",",
-        allowMultiple: true,
-    };
-    test("extracts commands inside wrapper - test 1", () => {
-        extractCommandsTester({
-            input: "suggested: [/command1 /command2]",
-            wrapper,
-            expected: [{
-                command: "command1",
-                action: null,
-                properties: {},
-                match: "/command1",
-            }, {
-                command: "command2",
-                action: null,
-                properties: {},
-                match: "/command2",
             }],
         });
     });
@@ -2294,6 +2026,112 @@ describe("extractCommands", () => {
                 match: "/command prop1=123 prop2='value' prop3=null",
             }],
         });
+    });
+
+    test("handles wrapped commands - test 1", () => {
+        extractCommandsTester({
+            input: "suggested: [/command1]",
+            expected: [{
+                command: "command1",
+                action: null,
+                properties: {},
+                match: "/command1",
+            }],
+        });
+    });
+    test("handles wrapped commands - test 2", () => {
+        extractCommandsTester({
+            input: "/command1 suggested: [/command2]",
+            expected: [{
+                command: "command1",
+                action: null,
+                properties: {},
+                match: "/command1",
+            }, {
+                command: "command2",
+                action: null,
+                properties: {},
+                match: "/command2",
+            }],
+        });
+    });
+    test("handles wrapped commands - test 3", () => {
+        extractCommandsTester({
+            input: "suggested: [/command1] recommended: [/command2]",
+            expected: [{
+                command: "command1",
+                action: null,
+                properties: {},
+                match: "/command1",
+            }, {
+                command: "command2",
+                action: null,
+                properties: {},
+                match: "/command2",
+            }],
+        });
+    });
+    test("handles wrapped commands - test 4", () => {
+        console.log("before wrapped commands 4");
+        extractCommandsTester({
+            input: "suggested: [/command1 action]",
+            expected: [{
+                command: "command1",
+                action: "action",
+                properties: {},
+                match: "/command1 action",
+            }],
+        });
+        console.log("after wrapped commands 4");
+    });
+    test("handles wrapped commands - test 5", () => {
+        console.log("before wrapped commands 5");
+        extractCommandsTester({
+            input: "suggested: [/command1 action, /command2 action2]",
+            expected: [{
+                command: "command1",
+                action: "action",
+                properties: {},
+                match: "/command1 action",
+            }, {
+                command: "command2",
+                action: "action2",
+                properties: {},
+                match: "/command2 action2",
+            }],
+        });
+        console.log("after wrapped commands 5");
+    });
+    test("handles wrapped commands - test 6", () => {
+        console.log("before wrapped commands 6");
+        extractCommandsTester({
+            input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"]",
+            expected: [{
+                command: "command1",
+                action: "action",
+                properties: { name: "value", prop2: 123, thing: "asdf" },
+                match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
+            }],
+        });
+        console.log("after wrapped commands 6");
+    });
+    test("handles wrapped commands - test 7", () => {
+        console.log("before wrapped commands 7");
+        extractCommandsTester({
+            input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
+            expected: [{
+                command: "command1",
+                action: "action",
+                properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
+                match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
+            }, {
+                command: "command2",
+                action: "action2",
+                properties: {},
+                match: "/command2 action2",
+            }],
+        });
+        console.log("after wrapped commands 7");
     });
 
     test("handles newline properly", () => {
