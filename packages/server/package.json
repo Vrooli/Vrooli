@@ -32,7 +32,7 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.16.0",
-        "@aws-sdk/client-s3": "^3.370.0",
+        "@aws-sdk/client-s3": "^3.529.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
         "@local/shared": "*",
@@ -44,6 +44,7 @@
         "cookie": "^0.5.0",
         "cors": "^2.8.5",
         "express": "^4.17.1",
+        "fast-xml-parser": "^4.3.5",
         "file-type": "^18.5.0",
         "graphql": "^15.5.1",
         "graphql-upload": "^12.0.0",
@@ -66,7 +67,7 @@
         "twilio": "^3.61.0",
         "typescript": "5.3.3",
         "web-push": "^3.5.0",
-        "winston": "^3.7.2"
+        "winston": "^3.12.0"
     },
     "devDependencies": {
         "0x": "^5.5.0",

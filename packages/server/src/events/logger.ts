@@ -12,6 +12,7 @@
 import winston from "winston";
 
 const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
+const MAX_LOG_SIZE = 5_242_880; // 5MB
 
 export const logger = winston.createLogger({
     levels: winston.config.syslog.levels,
@@ -25,11 +26,11 @@ export const logger = winston.createLogger({
         new winston.transports.File({
             filename: `${LOG_DIR}/error.log`,
             level: "error",
-            maxsize: 5242880, // 5MB
+            maxsize: MAX_LOG_SIZE,
         }),
         new winston.transports.File({
             filename: `${LOG_DIR}/combined.log`,
-            maxsize: 5242880, // 5MB
+            maxsize: MAX_LOG_SIZE,
         }),
     ],
 });

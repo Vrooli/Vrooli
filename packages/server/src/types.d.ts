@@ -61,6 +61,13 @@ declare module "socket.io" {
     }
 }
 
+declare module "winston" {
+    // Add "warning" to the list of levels
+    interface Logger {
+        warning: winston.LeveledLogMethod;
+    }
+}
+
 // Request type
 declare global {
     namespace Express {
