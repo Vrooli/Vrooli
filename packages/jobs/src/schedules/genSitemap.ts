@@ -1,6 +1,8 @@
 import { logger, ModelMap, PrismaType, UI_URL_REMOTE, withPrisma } from "@local/server";
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import zlib from "zlib";
 
 const sitemapObjectTypes = ["ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"] as const;
@@ -21,7 +23,9 @@ const Links: Record<typeof sitemapObjectTypes[number], string> = {
 };
 
 // Where to save the sitemap index and files
-const sitemapIndexDir = "../../packages/ui/dist";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const sitemapIndexDir = path.resolve(__dirname, "../../../ui/dist");
 const sitemapDir = `${sitemapIndexDir}/sitemaps`;
 
 /**
@@ -159,12 +163,13 @@ const genSitemapForObject = async (
 export const genSitemap = async (): Promise<void> => {
     // Check if sitemap directory exists
     if (!fs.existsSync(sitemapDir)) {
+        console.log("Creating sitemap directory because it does not exist", sitemapDir);
         fs.mkdirSync(sitemapDir);
     }
     // Check if sitemap file for main route exists
     const routeSitemapFileName = "sitemap-routes.xml";
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
-        logger.warning("Sitemap file for main routes does not exist");
+        logger.warning("Sitemap file for main routes does not exist", { trace: "0591", routeSitemapFileName, sitemapDir });
     }
     const success = await withPrisma({
         process: async (prisma) => {
