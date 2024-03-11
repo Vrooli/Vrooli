@@ -163,7 +163,6 @@ const genSitemapForObject = async (
 export const genSitemap = async (): Promise<void> => {
     // Check if sitemap directory exists
     if (!fs.existsSync(sitemapDir)) {
-        console.log("Creating sitemap directory because it does not exist", sitemapDir);
         fs.mkdirSync(sitemapDir);
     }
     // Check if sitemap file for main route exists
@@ -171,6 +170,8 @@ export const genSitemap = async (): Promise<void> => {
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
         logger.warning("Sitemap file for main routes does not exist", { trace: "0591", routeSitemapFileName, sitemapDir });
     }
+    // Initialize ModelMap, which is needed later
+    await ModelMap.init();
     const success = await withPrisma({
         process: async (prisma) => {
             const sitemapFileNames: string[] = [];
