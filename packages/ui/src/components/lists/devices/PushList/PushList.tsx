@@ -1,23 +1,80 @@
-/**
- * Displays a list of push devices for the user to manage
- */
 import { DeleteOneInput, DeleteType, endpointPostDeleteOne, endpointPostPushDevice, endpointPutPushDevice, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, pushDeviceValidation, Success } from "@local/shared";
-import { Button, Stack } from "@mui/material";
+import { Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useFormik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon } from "icons";
+import { AddIcon, DeleteIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { multiLineEllipsis } from "styles";
 import { getDeviceInfo } from "utils/display/device";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { updateArray } from "utils/shape/general";
-import { PushListItem } from "../PushListItem/PushListItem";
-import { PushListProps } from "../types";
+import { PushListItemProps, PushListProps } from "../types";
+
+//  TODO copied from emaillistitem. need to rewrite
+export function PushListItem({
+    handleDelete,
+    handleUpdate,
+    index,
+    data,
+}: PushListItemProps) {
+    const { palette } = useTheme();
+
+    const onDelete = useCallback(() => {
+        handleDelete(data);
+    }, [data, handleDelete]);
+
+    return (
+        <ListItem
+            disablePadding
+            sx={{
+                display: "flex",
+                padding: 1,
+            }}
+        >
+            {/* Left informational column */}
+            <Stack direction="column" spacing={1} pl={2} sx={{ marginRight: "auto" }}>
+                <ListItemText
+                    primary={data.name ?? data.id}
+                    sx={{ ...multiLineEllipsis(1) }}
+                />
+                {/* Verified indicator */}
+                {/* <Box sx={{
+                    borderRadius: 1,
+                    border: `2px solid ${data.verified ? Status.Verified : Status.NotVerified}`,
+                    color: data.verified ? Status.Verified : Status.NotVerified,
+                    height: 'fit-content',
+                    fontWeight: 'bold',
+                    marginTop: 'auto',
+                    marginBottom: 'auto',
+                    textAlign: 'center',
+                    padding: 0.25,
+                    width: 'fit-content',
+                }}>
+                    {data.verified ? "Verified" : "Not Verified"}
+                </Box> */}
+            </Stack>
+            {/* Right action buttons */}
+            <Stack direction="row" spacing={1}>
+                <Tooltip title="Delete Email">
+                    <IconButton
+                        onClick={onDelete}
+                    >
+                        <DeleteIcon fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+        </ListItem>
+    );
+}
 
 //TODO copied from emaillist. need to rewrite
+/**
+ * Displays a list of push devices for the user to manage
+ */
 export const PushList = ({
     handleUpdate,
     list,
