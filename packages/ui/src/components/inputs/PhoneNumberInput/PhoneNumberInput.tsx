@@ -1,5 +1,6 @@
 import { Box, FormControl, FormControlProps, FormHelperText, InputAdornment, InputLabel, List, ListItem, OutlinedInput, Popover, TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
+import { useDebounce } from "hooks/useDebounce";
 import { useStableCallback } from "hooks/useStableCallback";
 import { PhoneIcon } from "icons";
 import { CountryCallingCode, CountryCode } from "libphonenumber-js";
@@ -51,24 +52,20 @@ export const PhoneNumberInputBase = ({
                 }
                 // Perform normal validation
                 const valid = lib.isValidPhoneNumber(value, selectedCountry);
-                console.log("is valid?", valid, parsedNumber, selectedCountry, value);
                 if (valid) {
                     stableSetError(undefined);
                     if (value !== parsedNumber.number) {
-                        console.log("setting value to parsed number", parsedNumber.number, value, parsedNumber.number !== value);
                         stableOnChange(parsedNumber.number);
                     }
                 } else {
                     stableSetError("Invalid phone number");
                 }
             } catch (error) {
-                console.log("error parsing phone number", value);
                 console.error(error);
                 stableSetError("Invalid phone number");
             }
         });
     }, [selectedCountry, stableOnChange, stableSetError, value]);
-
 
     const handleCountryChange = useCallback(async (newCountry: CountryCode) => {
         const libphonenumber = await import("libphonenumber-js");
@@ -77,48 +74,48 @@ export const PhoneNumberInputBase = ({
         closePopover();
     }, [stableOnChange]);
 
-    const handlePhoneNumberChange = useCallback((event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const newPhoneNumber = event.target.value;
-        console.log("in handlePhoneNumberChange", event, newPhoneNumber);
-        const cursorPosition = event.target.selectionStart ?? 0;
-        const isBackspaceOnFormattingChar = phoneNumberRef.current[cursorPosition] === ")" && newPhoneNumber.length < phoneNumberRef.current.length;
-
+    const handlePhoneNumberChange = useCallback(() => {
         const libphonenumber = import("libphonenumber-js");
         libphonenumber.then(async (lib) => {
-            if (isBackspaceOnFormattingChar) {
-                // Adjust the phone number by removing the character before the formatting character
-                const adjustedPhoneNumber = phoneNumberRef.current.slice(0, cursorPosition - 1) + phoneNumberRef.current.slice(cursorPosition);
-                setPhoneNumber(adjustedPhoneNumber);
-                phoneNumberRef.current = adjustedPhoneNumber;
-                stableOnChange(`+${lib.getCountryCallingCode(selectedCountry ?? "US")}${adjustedPhoneNumber.replace(/[^0-9]/g, "")}`);
-                // Optionally, set the cursor position to ensure it remains in the correct place
-                setTimeout(() => event.target.setSelectionRange(cursorPosition - 1, cursorPosition - 1), 0);
+            // Get AsYouType instance for phone number formatting
+            const asYouType = new lib.AsYouType(selectedCountry);
+            const formattedNumber = asYouType.input(phoneNumberRef.current);
+            // Use it to set the shown phone number
+            setPhoneNumber(formattedNumber);
+            phoneNumberRef.current = formattedNumber;
+            // If the phone number is empty, set value to an empty string
+            if (formattedNumber.trim() === "") {
+                stableOnChange("");
             } else {
-                // Proceed with normal handling if not dealing with a special case
-                // Get AsYouType instance for phone number formatting
-                const asYouType = new lib.AsYouType(selectedCountry);
-                const formattedNumber = asYouType.input(newPhoneNumber);
-                // Use it to set the shown phone number
-                setPhoneNumber(formattedNumber);
-                phoneNumberRef.current = formattedNumber;
-                // If the phone number is empty, set value to an empty string
-                if (formattedNumber.trim() === "") {
-                    stableOnChange("");
-                } else {
-                    // If the number does not include a country code, add it when setting field value
-                    let parsedNumber: { country?: CountryCode | undefined } = {};
-                    try {
-                        parsedNumber = lib.parsePhoneNumber(newPhoneNumber);
-                    } catch (error) {
-                        console.error(error);
-                    }
-                    const withCountry = parsedNumber.country ? formattedNumber : `+${lib.getCountryCallingCode(selectedCountry)}${formattedNumber}`;
-                    stableOnChange(withCountry);
+                // If the number does not include a country code, add it when setting field value
+                let parsedNumber: { country?: CountryCode | undefined } = {};
+                try {
+                    parsedNumber = lib.parsePhoneNumber(phoneNumberRef.current);
+                } catch (error) {
+                    console.error(error);
                 }
+                const withCountry = parsedNumber.country ? formattedNumber : `+${lib.getCountryCallingCode(selectedCountry)}${formattedNumber}`;
+                stableOnChange(withCountry);
             }
         });
     }, [stableOnChange, selectedCountry]);
-    // const [handlePhoneNumberChangeDebounced] = useDebounce(handlePhoneNumberChange, 500);
+    const [handlePhoneNumberChangeDebounced] = useDebounce(handlePhoneNumberChange, 50);
+
+    const handleImmediateChange = useCallback((event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        let value = event.target.value;
+        const cursorPosition = event.target.selectionStart ?? 0;
+        // If you backspaced on a formatting character, remove an additional character 
+        // (so that you remove the next number, and it doesn't just reformat the same number)
+        const isBackspaceOnFormattingChar = phoneNumberRef.current[cursorPosition] === ")" && value.length < phoneNumberRef.current.length;
+        if (isBackspaceOnFormattingChar) {
+            value = value.slice(0, cursorPosition - 1) + value.slice(cursorPosition);
+        }
+        // Change the phone number to the new value
+        setPhoneNumber(value);
+        phoneNumberRef.current = value;
+        // Trigger debounce for formatting and validation
+        handlePhoneNumberChangeDebounced(event);
+    }, [handlePhoneNumberChangeDebounced]);
 
     const [filteredCountries, setFilteredCountries] = useState<{ country: CountryCode, num: CountryCallingCode }[]>([]);
     useMemo(() => {
@@ -135,14 +132,14 @@ export const PhoneNumberInputBase = ({
     return (
         <>
             <Box sx={{ width: "-webkit-fill-available" }}>
-                <FormControl fullWidth={fullWidth} variant="outlined" error={Boolean(helperText && !!error)} {...props as FormControlProps}>
+                <FormControl fullWidth={fullWidth} variant="outlined" error={!!error} {...props as FormControlProps}>
                     <InputLabel htmlFor={name}>{label ?? "Phone Number"}</InputLabel>
                     <OutlinedInput
                         id={name}
                         name={name}
                         type="tel"
                         value={phoneNumber}
-                        onChange={handlePhoneNumberChange}
+                        onChange={handleImmediateChange}
                         autoFocus={autoFocus}
                         startAdornment={
                             <InputAdornment position="start" onClick={openPopover} sx={{ cursor: "pointer" }}>
@@ -150,17 +147,17 @@ export const PhoneNumberInputBase = ({
                                 <Typography variant="body1" sx={{ marginRight: "4px" }}>{selectedCountry}</Typography>
                             </InputAdornment>
                         }
-                        error={Boolean(helperText && !!error)}
+                        error={!!error}
                         label={label ?? "Phone Number"}
                         sx={{
                             "& .MuiOutlinedInput-notchedOutline": {
-                                borderColor: (helperText && !!error) ? palette.error.main : "",
+                                borderColor: error ? palette.error.main : "",
                             },
                             "&:hover .MuiOutlinedInput-notchedOutline": {
-                                borderColor: (helperText && !!error) ? palette.error.main : "",
+                                borderColor: error ? palette.error.main : "",
                             },
                             "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                                borderColor: (helperText && !!error) ? palette.error.main : palette.primary.main, // Keep primary color on focus if not invalid
+                                borderColor: error ? palette.error.main : palette.primary.main, // Keep primary color on focus if not invalid
                             },
                         }}
                     />
@@ -222,7 +219,9 @@ export const PhoneNumberInput = ({
                 if (onChange) onChange(newValue);
                 helpers.setValue(newValue);
             }}
-            setError={helpers.setError}
+            setError={(error) => {
+                helpers.setError(error);
+            }}
         />
     );
 };
