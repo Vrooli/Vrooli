@@ -1,3 +1,4 @@
+import { BUSINESS_NAME } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 
@@ -42,4 +43,12 @@ export async function setupSmsQueue() {
 
 export function sendSms(to = [], body: string) {
     smsQueue.add({ to, body });
+}
+
+/** Adds a verification code text to a task queue */
+export const sendSmsVerification = (phoneNumber: string, code: string) => {
+    smsQueue.add({
+        to: [phoneNumber],
+        body: `${code} is your ${BUSINESS_NAME} verification code`,
+    });
 }

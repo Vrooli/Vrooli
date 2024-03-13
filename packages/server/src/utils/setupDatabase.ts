@@ -1,5 +1,4 @@
-// Sets up database on server initialization
-
+/** Performs database setup, including seeding */
 export const setupDatabase = async () => {
     const { init } = await import("../db/seeds/init.js");
     const { withPrisma } = await import("./withPrisma.js");

@@ -27,7 +27,7 @@ export const setupTransporter = () => {
     }
 };
 
-export async function emailProcess(job: Job<EmailProcessPayload>) {
+export const emailProcess = async (job: Job<EmailProcessPayload>) => {
     setupTransporter();
     transporter!.sendMail({
         from: `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,

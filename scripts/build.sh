@@ -212,7 +212,7 @@ DOMAIN=$(echo "${UI_URL%/}" | sed -E 's|https?://([^/]+)|\1|')
 echo "Got domain ${DOMAIN} from UI_URL ${UI_URL}"
 
 # Generate sitemap.xml
-npx tsx node ./src/tools/sitemap.ts
+npx tsx ./src/tools/sitemap.ts
 if [ $? -ne 0 ]; then
     error "Failed to generate sitemap.xml using ${HERE}/../packages/ui/src/tools/sitemap.ts"
     # This is not a critical error, so we won't exit
@@ -236,6 +236,20 @@ else
     echo "This is a Brave Rewards publisher verification file.\n" >brave-rewards-verification.txt
     echo "Domain: vrooli.com" >>brave-rewards-verification.txt
     echo "Token: ${BRAVE_REWARDS_TOKEN}" >>brave-rewards-verification.txt
+    cd ../..
+fi
+
+# Create Twilio domain verification file
+# WARNING: This probably won't work, as it's an html file, so our app will get confused and think we're 
+# trying to serve a page that doesn't exist. If this happens, you can add a new DNS record instead. 
+# Set the host to "_twilio", the type to "TXT", and the value to what you would have put in the file.
+if [ -z "${TWILIO_DOMAIN_VERIFICATION_CODE}" ]; then
+    error "TWILIO_DOMAIN_VERIFICATION_CODE is not set. Not creating Twilio domain verification file, which is needed to send SMS messages."
+else
+    # File name is the same as the value
+    info "Creating dist/${TWILIO_DOMAIN_VERIFICATION_CODE}.html file..."
+    cd ${HERE}/../packages/ui/dist
+    echo "twilio-domain-verification=${TWILIO_DOMAIN_VERIFICATION_CODE}" >${TWILIO_DOMAIN_VERIFICATION_CODE}.html
     cd ../..
 fi
 
