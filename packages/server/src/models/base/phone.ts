@@ -1,5 +1,6 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
 import { PhoneFormat } from "../formats";
@@ -23,6 +24,35 @@ export const PhoneModel: PhoneModelLogic = ({
     format: PhoneFormat,
     mutate: {
         shape: {
+            pre: async ({ Create, Delete, prisma, userData }) => {
+                // Prevent creating phones if at least one is already in use
+                if (Create.length) {
+                    const phoneNumbers = Create.map(x => x.input.phoneNumber);
+                    const existingPhones = await prisma.phone.findMany({
+                        where: { phoneNumber: { in: phoneNumbers } },
+                    });
+                    if (existingPhones.length > 0) {
+                        throw new CustomError("0147", "PhoneInUse", userData.languages, { phoneNumbers });
+                    }
+                }
+                // Prevent deleting phones if it will leave you with less than one verified authentication method
+                if (Delete.length) {
+                    const allPhones = await prisma.phone.findMany({
+                        where: { user: { id: userData.id } },
+                        select: { id: true, verified: true },
+                    });
+                    const remainingVerifiedPhonesCount = allPhones.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
+                    const verifiedEmailsCount = await prisma.email.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
+                    const verifiedWalletsCount = await prisma.wallet.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
+                    if (remainingVerifiedPhonesCount + verifiedEmailsCount + verifiedWalletsCount < 1)
+                        throw new CustomError("0153", "MustLeaveVerificationMethod", userData.languages);
+                }
+                return {};
+            },
             create: async ({ data, userData }) => ({
                 phoneNumber: data.phoneNumber,
                 user: { connect: { id: userData.id } },
