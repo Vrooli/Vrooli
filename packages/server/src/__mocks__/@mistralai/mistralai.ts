@@ -13,7 +13,7 @@ interface ChatCompletionResponseChoice {
     finish_reason: string;
 }
 
-interface ChatCompletionResponse {
+export interface ChatCompletionResponse {
     id: string;
     object: "chat.completion";
     created: number;
@@ -23,6 +23,11 @@ interface ChatCompletionResponse {
 }
 
 class MistralMock {
+
+    constructor(key: string | undefined) {
+        // Do nothing
+    }
+
     chat = (params): Promise<ChatCompletionResponse> => {
         // Dynamically generate the content based on the input params
         let mockContent: string;
