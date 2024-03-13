@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -27,6 +27,7 @@ export function EmailListItem({
     data,
 }: EmailListItemProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const onDelete = useCallback(() => {
         handleDelete(data);
@@ -64,19 +65,19 @@ export function EmailListItem({
                     padding: 0.25,
                     width: "fit-content",
                 }}>
-                    {data.verified ? "Verified" : "Not Verified"}
+                    {t(data.verified ? "Verified" : "VerifiedNot")}
                 </Box>
             </Stack>
             {/* Right action buttons */}
             <Stack direction="row" spacing={1}>
-                {!data.verified && <Tooltip title="Resend email verification">
+                {!data.verified && <Tooltip title={t("ResendVerificationEmail")}>
                     <IconButton
                         onClick={onVerify}
                     >
                         <CompleteIcon fill={Status.NotVerified} />
                     </IconButton>
                 </Tooltip>}
-                <Tooltip title="Delete Email">
+                <Tooltip title={t("EmailDelete")}>
                     <IconButton
                         onClick={onDelete}
                     >
@@ -90,7 +91,7 @@ export function EmailListItem({
 
 export const EmailList = ({
     handleUpdate,
-    numVerifiedWallets,
+    numOtherVerified,
     list,
 }: EmailListProps) => {
     const { palette } = useTheme();
@@ -100,17 +101,16 @@ export const EmailList = ({
     const [addMutation, { loading: loadingAdd }] = useLazyFetch<EmailCreateInput, Email>(endpointPostEmail);
     const formik = useFormik({
         initialValues: {
+            id: DUMMY_ID,
             emailAddress: "",
         },
-        enableReinitialize: true,
+        enableReinitialize: false,
         validationSchema: emailValidation.create({ env: process.env.NODE_ENV as "development" | "production" }),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             fetchLazyWrapper<EmailCreateInput, Email>({
                 fetch: addMutation,
-                inputs: {
-                    emailAddress: values.emailAddress,
-                },
+                inputs: { ...values, id: uuid() },
                 onSuccess: (data) => {
                     PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);
@@ -125,8 +125,7 @@ export const EmailList = ({
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
-        // (i.e. one other email or one other wallet)
-        if (list.length <= 1 && numVerifiedWallets === 0) {
+        if (list.length <= 1 && numOtherVerified === 0) {
             PubSub.get().publish("snack", { messageKey: "MustLeaveVerificationMethod", severity: "Error" });
             return;
         }
@@ -150,7 +149,7 @@ export const EmailList = ({
                 { labelKey: "Cancel" },
             ],
         });
-    }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
+    }, [deleteMutation, handleUpdate, list, loadingDelete, numOtherVerified]);
 
     const [verifyMutation, { loading: loadingVerifyEmail }] = useLazyFetch<SendVerificationEmailInput, Success>(endpointPostEmailVerification);
     const sendVerificationEmail = useCallback((email: Email) => {
@@ -169,7 +168,6 @@ export const EmailList = ({
             <ListContainer
                 emptyText={t("NoEmails", { ns: "error" })}
                 isEmpty={list.length === 0}
-                sx={{ maxWidth: "500px" }}
             >
                 {/* Email list */}
                 {list.map((email: Email, index) => (

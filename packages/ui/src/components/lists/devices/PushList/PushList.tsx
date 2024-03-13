@@ -92,7 +92,7 @@ export const PushList = ({
                 p256dh: "",
             },
         },
-        enableReinitialize: true,
+        enableReinitialize: false,
         validationSchema: pushDeviceValidation.create({ env: process.env.NODE_ENV as "development" | "production" }),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
@@ -146,7 +146,6 @@ export const PushList = ({
             <ListContainer
                 emptyText={t("NoPushDevices", { ns: "error" })}
                 isEmpty={list.length === 0}
-                sx={{ maxWidth: "500px" }}
             >
                 {/* Push device list */}
                 {list.map((device: PushDevice, index) => (

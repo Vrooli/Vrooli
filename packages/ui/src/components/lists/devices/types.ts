@@ -1,8 +1,8 @@
-import { Email, PushDevice, Wallet } from "@local/shared";
+import { Email, Phone, PushDevice, Wallet } from "@local/shared";
 
 export interface EmailListProps {
     handleUpdate: (emails: Email[]) => unknown;
-    numVerifiedWallets: number;
+    numOtherVerified: number;
     list: Email[];
 }
 
@@ -11,6 +11,19 @@ export interface EmailListItemProps {
     handleVerify: (email: Email) => unknown;
     index: number;
     data: Email;
+}
+
+export interface PhoneListProps {
+    handleUpdate: (Phones: Phone[]) => unknown;
+    numOtherVerified: number;
+    list: Phone[];
+}
+
+export interface PhoneListItemProps {
+    data: Phone;
+    handleDelete: (phone: Phone) => unknown;
+    handleUpdate: (index: number, phone: Phone) => unknown;
+    index: number;
 }
 
 export interface PushListProps {
@@ -27,7 +40,7 @@ export interface PushListItemProps {
 
 export interface WalletListProps {
     handleUpdate: (wallets: Wallet[]) => unknown;
-    numVerifiedEmails: number;
+    numOtherVerified: number;
     list: Wallet[];
 }
 

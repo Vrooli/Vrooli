@@ -28,7 +28,7 @@ export async function setupSmsQueue() {
 
         // Initialize the Bull queue
         smsQueue = new Bull<SmsProcessPayload>("sms", {
-            redis: { port: PORT, host: HOST }
+            redis: { port: PORT, host: HOST },
         });
         smsQueue.process(smsProcess);
     } catch (error) {
@@ -51,4 +51,4 @@ export const sendSmsVerification = (phoneNumber: string, code: string) => {
         to: [phoneNumber],
         body: `${code} is your ${BUSINESS_NAME} verification code`,
     });
-}
+};

@@ -27,6 +27,7 @@ export function WalletListItem({
     data,
 }: WalletListItemProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const isNamed = useMemo(() => data.name && data.name.length > 0, [data.name]);
 
     const onDelete = useCallback(() => {
@@ -81,19 +82,19 @@ export function WalletListItem({
                     padding: 0.25,
                     width: "fit-content",
                 }}>
-                    {data.verified ? "Verified" : "Not Verified"}
+                    {t(data.verified ? "Verified" : "VerifiedNot")}
                 </Box>
             </Stack>
             {/* Right action buttons */}
             <Stack direction="row" spacing={1}>
-                {!data.verified && <Tooltip title="Verify Wallet">
+                {!data.verified && <Tooltip title={t("VerifyWallet")}>
                     <IconButton
                         onClick={onVerify}
                     >
                         <CompleteIcon fill={Status.NotVerified} />
                     </IconButton>
                 </Tooltip>}
-                <Tooltip title="Delete Wallet">
+                <Tooltip title={t("WalletDelete")}>
                     <IconButton
                         onClick={onDelete}
                     >
@@ -110,7 +111,7 @@ export function WalletListItem({
  */
 export const WalletList = ({
     handleUpdate,
-    numVerifiedEmails,
+    numOtherVerified,
     list,
 }: WalletListProps) => {
     const { t } = useTranslation();
@@ -134,8 +135,7 @@ export const WalletList = ({
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
-        // (i.e. one other wallet or one other email)
-        if (list.length <= 1 && numVerifiedEmails === 0) {
+        if (list.length <= 1 && numOtherVerified === 0) {
             PubSub.get().publish("snack", { messageKey: "MustLeaveVerificationMethod", severity: "Error" });
             return;
         }
@@ -159,7 +159,7 @@ export const WalletList = ({
                 { labelKey: "Cancel" },
             ],
         });
-    }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);
+    }, [deleteMutation, handleUpdate, list, loadingDelete, numOtherVerified]);
 
     // Wallet provider popups
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -266,7 +266,6 @@ export const WalletList = ({
             <ListContainer
                 emptyText={t("NoWallets", { ns: "error" })}
                 isEmpty={list.length === 0}
-                sx={{ maxWidth: "500px" }}
             >
                 {/* Wallet list */}
                 {list.map((w: Wallet, index) => (
