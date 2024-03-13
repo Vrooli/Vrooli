@@ -26,8 +26,16 @@ export type LanguageModelContext = {
 }
 
 export type EstimateTokensParams = {
+    /** The requested model to base token logic on */
+    model: string;
+    /** The text to estimate tokens for */
     text: string;
-    requestedModel: string;
+}
+export type EstimateTokensResult = {
+    /** The name of the token estimation model used (if requested one was invalid/incomplete) */
+    model: string;
+    /** The estimated amount of tokens */
+    tokens: number;
 }
 export type GetConfigObjectParams = {
     botSettings: BotSettings,
@@ -37,17 +45,17 @@ export type GetConfigObjectParams = {
     force: boolean,
 }
 export type GenerateContextParams = {
-    respondingBotId: string;
-    respondingBotConfig: BotSettings;
-    messageContextInfo: MessageContextInfo[];
-    participantsData: Record<string, PreMapUserData>;
-    task: LlmTask | `${LlmTask}`;
     /** 
      * Determines if context should be written to force the response to be a command 
      */
     force: boolean;
+    messageContextInfo: MessageContextInfo[];
+    model: string;
+    participantsData: Record<string, PreMapUserData>;
+    respondingBotConfig: BotSettings;
+    respondingBotId: string;
+    task: LlmTask | `${LlmTask}`;
     userData: SessionUserToken;
-    requestedModel: string;
 }
 export type GenerateResponseParams = {
     chatId: string;
@@ -64,24 +72,43 @@ export type GenerateResponseParams = {
     task: LlmTask | `${LlmTask}`;
     userData: SessionUserToken;
 }
+export type GenerateResponseResult = {
+    message: string;
+    cost: number;
+}
+
+export type GetResponseCostParams = {
+    model: string;
+    usage: { input: number, output: number };
+}
 
 export interface LanguageModelService<GenerateNameType extends string, TokenNameType extends string> {
     /** Estimate the amount of tokens a string is */
-    estimateTokens(params: EstimateTokensParams): readonly [TokenNameType, number];
+    estimateTokens(params: EstimateTokensParams): EstimateTokensResult;
     /** Generates config for setting up bot persona and task instructions */
     getConfigObject(params: GetConfigObjectParams): Promise<Record<string, unknown>>;
     /** Generates context prompt from messages */
     generateContext(params: GenerateContextParams): Promise<LanguageModelContext>;
     /** Generate a message response */
-    generateResponse(params: GenerateResponseParams): Promise<string>;
+    generateResponse(params: GenerateResponseParams): Promise<GenerateResponseResult>;
     /** @returns the context size of the model */
     getContextSize(requestedModel?: string | null): number;
+    /** 
+     * Calculates the api credits used by the generation of an LLM response, 
+     * based on the model's input token and output token costs (in cents per 1_000_000 tokens).
+     * 
+     * NOTE: Instead of using decimals, the cost is in cents multiplied by 1_000_000. This 
+     * can be normalized in the UI so the number isn't overwhelming. 
+     * 
+     * @returns the total cost of the response
+     */
+    getResponseCost(params: GetResponseCostParams): number;
     /** @returns the estimation method for the model */
-    getEstimationMethod(requestedModel?: string | null): TokenNameType;
+    getEstimationMethod(model?: string | null): TokenNameType;
     /** @returns a list of token estimation types used by this service */
     getEstimationTypes(): readonly TokenNameType[];
     /** Convert a preferred model to an available one */
-    getModel(requestedModel?: string | null): GenerateNameType;
+    getModel(model?: string | null): GenerateNameType;
 }
 
 /**
@@ -98,7 +125,7 @@ export const tokenEstimationDefault = ({ text }: EstimateTokensParams) => {
         // Also increment for whitespace
         tokens++;
     }
-    return ["default", tokens] as const;
+    return { model: "default" as const, tokens };
 };
 
 /**
@@ -147,14 +174,14 @@ export const getDefaultConfigObject = async ({
  * Can be used as a fallback for services that don't have a specific implementation.
  */
 export const generateDefaultContext = async <GenerateNameType extends string, TokenNameType extends string>({
+    messageContextInfo,
+    model,
     respondingBotId,
     respondingBotConfig,
-    messageContextInfo,
     participantsData,
     task,
     force,
     userData,
-    requestedModel,
     service,
 }: GenerateContextParams & {
     service: LanguageModelService<GenerateNameType, TokenNameType>;
@@ -215,8 +242,8 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
     }
 
     // Calculate token size for the YAML configuration
-    const systemMessageSize = service.estimateTokens({ text: systemMessage, requestedModel })[1];
-    const maxContentSize = service.getContextSize(requestedModel);
+    const { tokens: systemMessageSize } = service.estimateTokens({ text: systemMessage, model });
+    const maxContentSize = service.getContextSize(model);
 
     // Fetch messages from the database
     const messagesFromDB = await fetchMessagesFromDatabase(messageContextInfo.map(info => info.messageId));
@@ -240,7 +267,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
         const role: LanguageModelMessage["role"] = isBot ? "assistant" : "user";
 
         const content = hasOtherParticipants ? `[${role === "assistant" ? "Bot" : "User"}: ${userName ?? "Unknown"}]: ${messageTranslation.text}` : messageTranslation.text;
-        const tokenSize = contextInfo.tokenSize + service.estimateTokens({ text: content, requestedModel })[1];
+        const tokenSize = contextInfo.tokenSize + service.estimateTokens({ text: content, model }).tokens;
 
         // Stop if adding this message would exceed the context size
         if (currentTokenCount + tokenSize > maxContentSize) {

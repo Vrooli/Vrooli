@@ -1,13 +1,25 @@
-import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai";
+// import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai"; //TODO waiting on https://github.com/mistralai/client-js/pull/42
+import MistralClient, { ChatCompletionResponse } from "../../../__mocks__/@mistralai/mistralai";
 import { logger } from "../../../events/logger";
 import { ChatContextCollector } from "../context";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
-type MistralGenerateModel = "open-mistral-7b" | "open-mixtral-8x7b";
+type MistralGenerateModel = "open-mixtral-8x7b" | "open-mistral-7b";
 type MistralTokenModel = "default";
 
+/** Cost in cents per 1_000_000 input tokens */
+const inputCosts: Record<MistralGenerateModel, number> = {
+    "open-mixtral-8x7b": 70,
+    "open-mistral-7b": 25,
+};
+/** Cost in cents per 1_000_000 output tokens */
+const outputCosts: Record<MistralGenerateModel, number> = {
+    "open-mixtral-8x7b": 70,
+    "open-mistral-7b": 25,
+};
+
 export class MistralService implements LanguageModelService<MistralGenerateModel, MistralTokenModel> {
-    private client: MistralClient;
+    private client: any;//MistralClient;
     private defaultModel: MistralGenerateModel = "open-mistral-7b";
 
     constructor() {
@@ -44,14 +56,14 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
             await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
             [];
         const { messages, systemMessage } = await this.generateContext({
+            force,
+            messageContextInfo,
+            model,
+            participantsData,
             respondingBotId,
             respondingBotConfig,
-            messageContextInfo,
-            participantsData,
             task,
-            force,
             userData,
-            requestedModel: model,
         });
 
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Mistral API.
@@ -81,6 +93,7 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
             alternatingMessages.shift();
         }
 
+        // Generate response
         const params = {
             messages: [
                 // Add system message first
@@ -91,7 +104,6 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
             model,
             max_tokens: 1024, // Adjust as needed
         };
-
         const completion: ChatCompletionResponse = await this.client
             .chat(params)
             .catch((error) => {
@@ -99,16 +111,29 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
                 logger.error(message, { trace: "0010", error });
                 throw new Error(message);
             });
-        return completion.choices[0].message.content ?? "";
+        const message = completion.choices[0].message.content ?? "";
+        const cost = this.getResponseCost({
+            model,
+            usage: {
+                input: completion.usage.prompt_tokens,
+                output: completion.usage?.completion_tokens,
+            }
+        })
+        return { message, cost };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getContextSize(_requestedModel?: string | null) {
-        return 32000;
+    getContextSize(_model?: string | null) {
+        return 8192;
+    }
+
+    getResponseCost({ model, usage }: GetResponseCostParams) {
+        const { input, output } = usage;
+        return (inputCosts[model] * input) + (outputCosts[model] * output);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getEstimationMethod(_requestedModel?: string | null | undefined): "default" {
+    getEstimationMethod(_model?: string | null | undefined): "default" {
         return "default";
     }
 
@@ -116,10 +141,10 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
         return ["default"] as const;
     }
 
-    getModel(requestedModel?: string | null) {
-        if (typeof requestedModel !== "string") return this.defaultModel;
-        if (requestedModel.includes("8x7b")) return "open-mixtral-8x7b";
-        if (requestedModel.includes("mistral-7b")) return "open-mistral-7b";
+    getModel(model?: string | null) {
+        if (typeof model !== "string") return this.defaultModel;
+        if (model.includes("8x7b")) return "open-mixtral-8x7b";
+        if (model.includes("mistral-7b")) return "open-mistral-7b";
         return this.defaultModel;
     }
 }

@@ -1,5 +1,4 @@
 import { AutoFillInput, AutoFillResult, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, Success, uuidValidate } from "@local/shared";
-import { PreMapMessageData, PreMapUserData } from "models/base/chatMessage";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -7,6 +6,7 @@ import { assertRequestFrom } from "../../auth/request";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
+import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { ChatMessageModelLogic } from "../../models/base/types";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";

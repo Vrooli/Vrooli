@@ -14,7 +14,7 @@ The easiest way to find custom fonts is by using [Google Fonts](https://fonts.go
 Alternatively, you can supply your own fonts. Using a site such as [1001 Fonts](https://www.1001fonts.com/) allows you to download a `.woff` or `.woff2` file for your desired font. This can be placed in the UI's `assets` folder, and registered in the global css section of your `App.tsx` like so:  
 
 ```javascript
-    import Roboto from './assets/fonts/Roboto.woff';
+    import Roboto from "./assets/fonts/Roboto.woff";
     ...
     "@global": {
         ...

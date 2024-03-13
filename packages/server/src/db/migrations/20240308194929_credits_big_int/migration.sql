@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "api_key" ALTER COLUMN "creditsUsedBeforeLimit" SET DEFAULT 10000000000,
+ALTER COLUMN "creditsUsedBeforeLimit" SET DATA TYPE BIGINT,
+ALTER COLUMN "absoluteMax" SET DEFAULT 25000000000;
+
+-- AlterTable
+ALTER TABLE "premium" ALTER COLUMN "credits" SET DEFAULT 0,
+ALTER COLUMN "credits" SET DATA TYPE BIGINT;

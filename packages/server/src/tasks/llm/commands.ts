@@ -98,7 +98,6 @@ export const handleCommandTransition = ({
         // or if the previous character is whitespace, newline, or open bracket (for wrapped commands)
         if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev) || prev === "[")) {
             onStart();
-            if (prev === "[") console.log("starting open bracket bloop", prev, curr, buffer);
             return {
                 section: "command",
                 buffer: [], // Don't include the slash in the buffer
@@ -110,7 +109,6 @@ export const handleCommandTransition = ({
             return { section, buffer: [], hasOpenBracket };
         }
         if (isNewline(curr)) {
-            console.log("stopping open bracket on command newline", prev, curr, buffer);
             return { section, buffer: [], hasOpenBracket: false };
         }
         // Reset buffer and hasOpenBracket when there's a newline
@@ -143,13 +141,11 @@ export const handleCommandTransition = ({
         }
         // If we couldn't determine the code type, cancel the code block
         if (!codeType) {
-            console.log("could not determine code type", buffer, curr);
             onCancel();
             return { section: "outside", buffer: [], hasOpenBracket };
         }
         // If we're in a single code block, cancel on newline
         if (codeType === "single" && isNewline(curr)) {
-            console.log("code block newline cancel");
             onCancel();
             return { section: "outside", buffer: [], hasOpenBracket: false };
         }
@@ -157,13 +153,11 @@ export const handleCommandTransition = ({
         if (codeType === "multi") {
             // Cancel at fourth backtick in a row
             if (buffer.length === 3 && buffer.every(b => b === "`") && curr === "`") {
-                console.log("multi code block closing backticks cancel 1");
                 onCancel();
                 return { section: "outside", buffer: [], hasOpenBracket };
             }
             // Cancel when closing triple backticks found
             if (buffer.length > 3 && curr === "`" && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`") {
-                console.log("multi code block closing backticks cancel 2");
                 onCancel();
                 return { section: "outside", buffer: [], hasOpenBracket };
             }
@@ -174,7 +168,6 @@ export const handleCommandTransition = ({
             if (buffer.length < 6) {
                 // Cancel if we run into any characters not in "<code>"
                 if (!"<code>".startsWith([...buffer, curr].join(""))) {
-                    console.log("canceling tag code block 1", buffer, curr);
                     onCancel();
                     return { section: "outside", buffer: [], hasOpenBracket };
                 }
@@ -183,7 +176,6 @@ export const handleCommandTransition = ({
             if (buffer.length >= 13) {
                 // Cancel if it end with "</code>"
                 if (buffer.slice(-6).join("") === "</code" && curr === ">") {
-                    console.log("canceling tag code block 2", buffer, curr);
                     onCancel();
                     return { section: "outside", buffer: [], hasOpenBracket };
                 }
@@ -211,13 +203,11 @@ export const handleCommandTransition = ({
         // If there is an open bracket
         if (hasOpenBracket) {
             if (curr === "]") {
-                console.log("committing command due to close bracket");
                 onCommit("command", buffer.join(""));
                 onComplete();
                 return { section: "outside", buffer: [], hasOpenBracket: false };
             }
             if (curr === ",") {
-                console.log("committing command due to comma");
                 onCommit("command", buffer.join(""));
                 onComplete();
                 return { section: "outside", buffer: [], hasOpenBracket };
@@ -278,13 +268,11 @@ export const handleCommandTransition = ({
         // If there is an open bracket
         if (hasOpenBracket) {
             if (curr === "]") {
-                console.log("committing action due to close bracket");
                 onCommit("action", buffer.join(""));
                 onComplete();
                 return { section: "outside", buffer: [], hasOpenBracket: false };
             }
             if (curr === ",") {
-                console.log("committing action due to comma");
                 onCommit("action", buffer.join(""));
                 onComplete();
                 return { section: "outside", buffer: [], hasOpenBracket };
@@ -402,12 +390,10 @@ export const handleCommandTransition = ({
                 // If there is an open bracket
                 if (hasOpenBracket) {
                     if (curr === "]") {
-                        console.log("committing propValue due to close bracket");
                         onComplete();
                         return { section: "outside", buffer: [], hasOpenBracket: false };
                     }
                     if (curr === ",") {
-                        console.log("committing propValue due to comma");
                         onComplete();
                         return { section: "outside", buffer: [], hasOpenBracket };
                     }
@@ -444,7 +430,7 @@ export const findCharWithLimit = (
     input: string,
     maxLength: number,
 ): number | null => {
-    let whitespaceCount = 0;
+    if (input[index] === char) return index; // If the current character is the target, return it
 
     // Determine the step direction: forward (1) or backward (-1)
     const step = forward ? 1 : -1;
@@ -465,9 +451,7 @@ export const findCharWithLimit = (
 
         if (currentChar === char) {
             return index; // Found the target character
-        } else if (isWhitespace(currentChar)) {
-            whitespaceCount++;
-        } else {
+        } else if (!isWhitespace(currentChar)) {
             // Found a non-whitespace character that is not the target
             return null;
         }
@@ -497,9 +481,8 @@ export const detectWrappedCommands = ({
     const allowMultiple = typeof delimiter === "string" && delimiter.length;
     let startWrapperIndex = -1; // Index of the start substring for the current wrapper
     let lastValidIndex = -1; // Last index that matches current wrapper pattern
-    console.log("in detectWrappedCommands", messageString);
 
-    commands.forEach((command, index) => {
+    commands.forEach((command) => {
         const { start: startIndex, end: endIndex } = command;
 
         // If we haven't found the start substring yet, search for it
@@ -507,31 +490,27 @@ export const detectWrappedCommands = ({
             // Look for open bracket
             const openBracketIndex = findCharWithLimit(startIndex, false, "[", messageString, MAX_WHITESPACE_LENGTH);
             if (openBracketIndex === null) {
-                console.log("openBracketIndex === null. returning...", startIndex, endIndex, "[");
                 lastValidIndex = -1;
                 return;
             }
             // Look for colon
             const colonIndex = findCharWithLimit(openBracketIndex, false, ":", messageString, MAX_WHITESPACE_LENGTH);
             if (colonIndex === null) {
-                console.log("colonIndex === null. returning...", openBracketIndex, ":");
                 lastValidIndex = -1;
                 return;
             }
             // Check if the start substring is before the colon
             const possibleStartSubstring = messageString.substring(colonIndex - start.length, colonIndex);
             if (possibleStartSubstring !== start) {
-                console.log(`!startFound. returning... '${possibleStartSubstring}'`, start);
                 lastValidIndex = -1;
                 return;
             }
             // Set the last valid index and start wrapper index
-            lastValidIndex = index;
+            lastValidIndex = colonIndex;
             startWrapperIndex = openBracketIndex;
         }
         // Otherwise, make sure space between the last valid index and the current start index is whitespace
-        else if (startIndex - lastValidIndex > MAX_WHITESPACE_LENGTH || messageString.substring(lastValidIndex, startIndex).split("").some(c => !isWhitespace(c))) {
-            console.log("start - lastValidIndex > MAX_WHITESPACE_LENGTH or substring has non-whitespace. returning...");
+        else if (startIndex - lastValidIndex > MAX_WHITESPACE_LENGTH || messageString.substring(lastValidIndex + 1, startIndex).split("").some(c => !isWhitespace(c))) {
             lastValidIndex = -1;
             return;
         }
@@ -543,16 +522,14 @@ export const detectWrappedCommands = ({
             if (allowMultiple) {
                 const delimiterIndex = findCharWithLimit(endIndex, true, delimiter, messageString, MAX_WHITESPACE_LENGTH);
                 if (delimiterIndex === null) {
-                    console.log("delimiterIndex === null. returning...");
                     lastValidIndex = -1;
                     return;
                 }
                 // Set the last valid index to the current index
-                lastValidIndex = index;
+                lastValidIndex = delimiterIndex;
             }
             // Otherwise, the wrapper is invalid
             else {
-                console.log("!allowMultiple. returning...");
                 lastValidIndex = -1;
                 return;
             }
@@ -560,18 +537,15 @@ export const detectWrappedCommands = ({
         else {
             // If last index of command is actually a newline, cancel the wrapper
             if (messageString[endIndex] === "\n") {
-                console.log("messageString[endIndex] === '\\n'. returning...");
                 lastValidIndex = -1;
                 return;
             }
             // Commit all commands between the start index and the closing bracket index
-            console.log("found closing bracket", endIndex, closingBracketIndex);
             const commandsInWrapper = commands.filter((c, i) => c.start >= startWrapperIndex && c.end <= closingBracketIndex);
             result.push(...commandsInWrapper.map(c => commands.indexOf(c)));
         }
     });
 
-    console.log("result at end", result);
     return result;
 };
 
@@ -857,12 +831,13 @@ export const forceGetCommand = async ({
     service,
     task,
     userData,
-}: ForceGetCommandParams): Promise<{ command: LlmCommand, messageWithoutCommands: string } | null> => {
+}: ForceGetCommandParams): Promise<{ command: LlmCommand | null, messageWithoutCommands: string | null, cost: number }> => {
     let retryCount = 0;
     const MAX_RETRIES = 3; // Set a maximum number of retries to avoid infinite loops
+    let totalCost = 0;
 
     while (retryCount < MAX_RETRIES) {
-        const startResponse = await service.generateResponse({
+        const { message, cost } = await service.generateResponse({
             chatId,
             force: true, // Force the bot to respond with a command
             participantsData,
@@ -872,14 +847,15 @@ export const forceGetCommand = async ({
             task,
             userData,
         });
+        totalCost += cost;
 
         // Check for commands in the start response
-        const { commands, messageWithoutCommands } = await getValidCommandsFromMessage(startResponse, task, language, commandToTask);
+        const { commands, messageWithoutCommands } = await getValidCommandsFromMessage(message, task, language, commandToTask);
 
         // If a valid command is found, return it
         if (commands.length > 0) {
             // Only use the first command found
-            return { command: commands[0], messageWithoutCommands };
+            return { command: commands[0], messageWithoutCommands, cost };
         } else {
             // Increment the retry count if no command is found
             retryCount++;
@@ -888,5 +864,5 @@ export const forceGetCommand = async ({
     }
 
     logger.error("Failed to find a command in start response after maximum retries.", { trace: "0350", chatId, respondingBotId, task });
-    return null;
+    return { command: null, messageWithoutCommands: null, cost: totalCost };
 };

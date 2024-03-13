@@ -207,7 +207,9 @@ export const SideMenu = () => {
             </Avatar>
             <ListItemText
                 primary={account.name ?? account.handle}
-                secondary={`${t("Credit", { count: 2 })}: ${account.credits ?? 0}`}
+                // Credits are calculated in cents * 1 million. 
+                // We'll convert it to dollars
+                secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(1_000_000)) / 100).toFixed(2)}`}
             />
         </ListItem>
     ), [accounts, handleUserClick]);

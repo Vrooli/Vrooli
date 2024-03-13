@@ -1321,7 +1321,6 @@ const detectWrappedCommandsTester = ({
     expected: number[],
 }) => {
     const allCommands = extractCommands(input, commandToTask);
-    console.log("got these commands in detectCommandsTester", allCommands);
     const detectedCommands = detectWrappedCommands({
         start,
         delimiter,
@@ -1389,13 +1388,11 @@ describe("detectWrappedCommands", () => {
             });
         });
         test("returns empty array when commands are not wrapped - test 5", () => {
-            console.log("before not wrapped test 5");
             detectWrappedCommandsTester({
                 input: `${start}: [/command1\n]`,
                 expected: [],
                 ...wrapper,
             });
-            console.log("after not wrapped test 5");
         });
         test("returns empty array when commands are not wrapped - test 6", () => {
             detectWrappedCommandsTester({
@@ -1405,49 +1402,39 @@ describe("detectWrappedCommands", () => {
             });
         });
         test("returns empty array when commands are not wrapped - test 7", () => {
-            console.log("before not wrapped test 7");
             detectWrappedCommandsTester({
                 input: `${start}:[/command1 ${start}:]`,
                 expected: [],
                 ...wrapper,
             });
-            console.log("after not wrapped test 7");
         });
         test("returns correct indices for a single wrapped command - test 1", () => {
-            console.log("before single wrapped command 1");
             detectWrappedCommandsTester({
                 input: `${start}:[/command1]`,
                 expected: [0],
                 ...wrapper,
             });
-            console.log("after single wrapped command 1");
         });
         test("returns correct indices for a single wrapped command - test 2", () => {
-            console.log("before single wrapped command 2");
             detectWrappedCommandsTester({
                 input: `boop ${start}: [/command1]`,
                 expected: [0],
                 ...wrapper,
             });
-            console.log("after single wrapped command 2");
         });
         test("returns correct indices for a single wrapped command - test 3", () => {
-            console.log("before single wrapped command 3");
             detectWrappedCommandsTester({
                 input: `/firstCommand hello ${start}:[/command1]`,
                 expected: [1],
                 ...wrapper,
             });
-            console.log("after single wrapped command 3");
         });
         test("returns correct indices for a single wrapped command - test 4", () => {
-            console.log("before single wrapped command 4");
             detectWrappedCommandsTester({
                 input: `/firstCommand hello ${start}: [/command1]}`,
                 expected: [1],
                 ...wrapper,
             });
-            console.log("after single wrapped command 4");
         });
         test("returns correct indices for a single wrapped command - test 5", () => {
             detectWrappedCommandsTester({
@@ -1470,23 +1457,30 @@ describe("detectWrappedCommands", () => {
                 ...wrapper,
             });
         });
+        test("returns correct indices for a single wrapped command - test 8", () => {
+            detectWrappedCommandsTester({
+                input: `/hi there ${start}: [/command1 hello name="hi" value=123 thing='hi']`,
+                expected: [1],
+                ...wrapper,
+            });
+        });
         test("returns correct indices for multiple wrapped commands - test 1", () => {
             detectWrappedCommandsTester({
-                input: `${start}:[/command1${delimiter ?? ""}/command2]`,
+                input: `${start}:[/command1${delimiter ?? ""} /command2]`,
                 expected: delimiter ? [0, 1] : [],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 2", () => {
             detectWrappedCommandsTester({
-                input: `${start}: [/command1 ${delimiter ?? ""}/command2]`,
+                input: `${start}: [/command1 ${delimiter ?? ""} /command2 ]`,
                 expected: delimiter ? [0, 1] : [],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 3", () => {
             detectWrappedCommandsTester({
-                input: `${start}: [/command1 ${delimiter ?? ""} /command2 ]`,
+                input: `${start}: [/command1 ${delimiter ?? ""} /command2 action name='hi']`,
                 expected: delimiter ? [0, 1] : [],
                 ...wrapper,
             });
@@ -1519,7 +1513,6 @@ const extractCommandsTester = ({
     expected: (Omit<MaybeLlmCommand, "task" | "start" | "end"> & { match: string })[],
 }) => {
     const commands = extractCommands(input, commandToTask);
-    console.log("got commands", commands);
     const expectedCommands = expected.map(({ command, action, properties, match }) => ({
         task: commandToTask(command, action),
         command,
@@ -1622,31 +1615,24 @@ describe("extractCommands", () => {
         });
     });
     test("ignores commands in code blocks - test 1", () => {
-        console.log("before code block test 1");
         extractCommandsTester({
             input: "```/command```",
             expected: [],
         });
-        console.log("after code block test 1");
     });
     test("ignores commands in code blocks - test 2", () => {
-        console.log("before code block test 2");
         extractCommandsTester({
             input: "here is some code:\n```/command action```\n",
             expected: [],
         });
-        console.log("after code block test 2");
     });
     test("ignores commands in code blocks - test 3", () => {
-        console.log("before code block test 3");
         extractCommandsTester({
             input: "here is some code:\n```bloop /command action\nother words```",
             expected: [],
         });
-        console.log("after code block test 3");
     });
     test("ignores commands in code blocks - test 4", () => {
-        console.log("before code block test 4");
         extractCommandsTester({
             input: "```command inside code block: /codeCommand action```command outside code block: /otherCommand action\n",
             expected: [{
@@ -1656,31 +1642,24 @@ describe("extractCommands", () => {
                 match: "/otherCommand action",
             }],
         });
-        console.log("after code block test 4");
     });
     test("ignores commands in code blocks - test 5", () => {
-        console.log("before code block test 5");
         extractCommandsTester({
             input: "Single-tick code block: `/command action`",
             expected: [],
         });
-        console.log("after code block test 5");
     });
     test("ignores commands inside code blocks - test 6", () => {
-        console.log("before code block test 6");
         extractCommandsTester({
             input: "<code>/command action</code>",
             expected: [],
         });
-        console.log("after code block test 6");
     });
     test("ignores commands inside code blocks - test 7", () => {
-        console.log("before code block test 7");
         extractCommandsTester({
             input: "hello <code>\n/command action\n</code> there",
             expected: [],
         });
-        console.log("after code block test 7");
     });
     test("doesn't ignore code-looking commands when there's property value trickery - test 1", () => {
         extractCommandsTester({
@@ -1737,7 +1716,6 @@ describe("extractCommands", () => {
         });
     });
     test("doesn't ignore double-tick code blocks", () => {
-        console.log("before double-tick code block test 1");
         extractCommandsTester({
             input: "Double-tick code block: `` /command action ``",
             expected: [{
@@ -1747,7 +1725,6 @@ describe("extractCommands", () => {
                 match: "/command action",
             }],
         });
-        console.log("after double-tick code block test 1");
     });
     test("doesn't ignore single-tick code block when newline is encountered", () => {
         extractCommandsTester({
@@ -2072,7 +2049,6 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 4", () => {
-        console.log("before wrapped commands 4");
         extractCommandsTester({
             input: "suggested: [/command1 action]",
             expected: [{
@@ -2082,10 +2058,8 @@ describe("extractCommands", () => {
                 match: "/command1 action",
             }],
         });
-        console.log("after wrapped commands 4");
     });
     test("handles wrapped commands - test 5", () => {
-        console.log("before wrapped commands 5");
         extractCommandsTester({
             input: "suggested: [/command1 action, /command2 action2]",
             expected: [{
@@ -2100,10 +2074,8 @@ describe("extractCommands", () => {
                 match: "/command2 action2",
             }],
         });
-        console.log("after wrapped commands 5");
     });
     test("handles wrapped commands - test 6", () => {
-        console.log("before wrapped commands 6");
         extractCommandsTester({
             input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"]",
             expected: [{
@@ -2113,10 +2085,8 @@ describe("extractCommands", () => {
                 match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
             }],
         });
-        console.log("after wrapped commands 6");
     });
     test("handles wrapped commands - test 7", () => {
-        console.log("before wrapped commands 7");
         extractCommandsTester({
             input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
             expected: [{
@@ -2131,7 +2101,6 @@ describe("extractCommands", () => {
                 match: "/command2 action2",
             }],
         });
-        console.log("after wrapped commands 7");
     });
 
     test("handles newline properly", () => {

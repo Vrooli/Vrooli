@@ -492,7 +492,7 @@ const BotForm = ({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
-                sideActionButtons={credits && credits > 0 ? (
+                sideActionButtons={credits && BigInt(credits) > 0 ? (
                     <Tooltip title={t("AutoFill")} placement="top">
                         <IconButton
                             aria-label={t("AutoFill")}

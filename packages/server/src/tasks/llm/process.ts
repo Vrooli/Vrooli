@@ -33,33 +33,28 @@ const parseBotInformation = (
 };
 
 type ForceGetAndProcessCommandParams = ForceGetCommandParams;
-const forceGetAndProcessCommand = async ({
-    ...rest
-}: ForceGetAndProcessCommandParams): Promise<{ messageWithoutCommands: string | null }> => {
-    const forcedCommand = await forceGetCommand({
-        ...rest,
-    });
-    if (!forcedCommand) return { messageWithoutCommands: null };
-    const { command, messageWithoutCommands } = forcedCommand;
-    processCommand({
-        command,
-        ...rest,
-    });
-    return { messageWithoutCommands };
+type ForceGetAndProcessCommandResult = { messageWithoutCommands: string | null, cost: number };
+const forceGetAndProcessCommand = async (params: ForceGetAndProcessCommandParams): Promise<ForceGetAndProcessCommandResult> => {
+    const { command, messageWithoutCommands, cost } = await forceGetCommand(params);
+    if (!command || !messageWithoutCommands) {
+        return { messageWithoutCommands: null, cost };
+    }
+    processCommand({ command, ...params });
+    return { messageWithoutCommands, cost };
 };
 
 export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
-    let chatId: string | undefined = undefined;
-    let respondingBotId: string | undefined = undefined;
+    // Extract data from payload
+    const { parent, task, participantsData, userData, ...rest } = data;
+    const chatId = rest.chatId;
+    const respondingBotId = rest.respondingBotId;
+    const language = userData.languages[0] ?? "en";
+
     let wasResponseSent = false;
+    let totalCost = 0;
+
     await withPrisma({
         process: async (prisma) => {
-            // Extract data from payload
-            const { parent, task, participantsData, userData, ...rest } = data;
-            chatId = rest.chatId;
-            respondingBotId = rest.respondingBotId;
-            const language = userData.languages[0] ?? "en";
-
             // Parse bot information
             const { botSettings, service } = parseBotInformation(participantsData, respondingBotId, logger, language);
             const commandToTask = await importCommandToTask(language);
@@ -94,7 +89,7 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
             // If we're not in a "Start" task (the only task that allows general conversation), 
             // we'll demand a valid command immediately
             if (task !== "Start") {
-                const { messageWithoutCommands } = await forceGetAndProcessCommand({
+                const { messageWithoutCommands, cost } = await forceGetAndProcessCommand({
                     chatId,
                     commandToTask,
                     language,
@@ -107,11 +102,12 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                     userData,
                 });
                 responseMessage = messageWithoutCommands;
+                totalCost += cost;
             }
             // Otherwise, we'll generate a normal response and handle any commands that it contains
             else {
                 // Generate bot response
-                const botResponse = await service.generateResponse({
+                const { message: botResponse, cost } = await service.generateResponse({
                     chatId,
                     force: false,
                     participantsData,
@@ -121,6 +117,7 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                     task,
                     userData,
                 });
+                totalCost += cost;
 
                 // Check for commands in bot's response
                 const { commands, messageWithoutCommands: botResponseWithoutCommands } = await getValidCommandsFromMessage(botResponse, task, language, commandToTask);
@@ -134,7 +131,7 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                     // If we're in the "Start" task, the commands won't have the full information we need to process them. 
                     // So we'll have to make a separate call to get the full command information
                     if (task === "Start") {
-                        const { messageWithoutCommands } = await forceGetAndProcessCommand({
+                        const { messageWithoutCommands, cost } = await forceGetAndProcessCommand({
                             chatId,
                             commandToTask,
                             language,
@@ -146,6 +143,7 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                             task: command.task,
                             userData,
                         });
+                        totalCost += cost;
                         // If we don't have a response message yet and this one isn't empty, use it
                         if (!responseMessage && messageWithoutCommands && messageWithoutCommands.trim() !== "") {
                             responseMessage = messageWithoutCommands;
@@ -209,7 +207,7 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
             // Reduce user's credits by 1
             const updatedUser = await prisma.user.update({
                 where: { id: userData.id },
-                data: { premium: { update: { credits: { decrement: 1 } } } },
+                data: { premium: { update: { credits: { decrement: totalCost } } } },
                 select: { premium: { select: { credits: true } } },
             });
             if (updatedUser.premium) {

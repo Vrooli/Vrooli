@@ -27,10 +27,13 @@ export const WalletModel: WalletModelLogic = ({
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
+                    const verifiedPhonesCount = await prisma.phone.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
                     const verifiedEmailsCount = await prisma.email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
+                    if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)
                         throw new CustomError("0275", "MustLeaveVerificationMethod", userData.languages);
                 }
             },

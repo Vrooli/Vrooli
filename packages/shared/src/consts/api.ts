@@ -51,5 +51,22 @@ export enum HttpStatus {
     NetworkAuthenticationRequired = 511
 }
 
-export const API_CREDITS_FREE = 100;
-export const API_CREDITS_PREMIUM = 10_000;
+/**
+ * The number of API credits a user gets for free, 
+ * when they verify their phone number.
+ * 
+ * These are based on USD cents multiplied by 1_000_000. 
+ * This way, we can use integers instead of floats.
+ */
+export const API_CREDITS_FREE = BigInt(100_000_000);
+/**
+ * The number of API credits a user gets for a standard 
+ * premium subscription.
+ * 
+ * These are based on USD cents multiplied by 1_000_000. 
+ * This way, we can use integers instead of floats.
+ * 
+ * NOTE: This should ideally be less than the cost of a premium subscription, 
+ * so that we don't lose money. This is the main source of expenses for the app.
+ */
+export const API_CREDITS_PREMIUM = BigInt(1_500_000_000);

@@ -218,7 +218,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             ...rest,
             bookmarksCount: _count?.bookmarks ?? 0,
         })) as SessionUser["bookmarkLists"],
-        credits: userData.premium?.credits ?? 0,
+        credits: (userData.premium?.credits ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
         focusModes: focusModesWithSupp,
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),

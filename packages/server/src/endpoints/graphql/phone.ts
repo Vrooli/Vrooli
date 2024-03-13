@@ -3,10 +3,15 @@ import { EndpointsPhone, PhoneEndpoints } from "../logic/phone";
 
 export const typeDef = gql`
     input PhoneCreateInput {
+        id: ID!
         phoneNumber: String!
     }
     input SendVerificationTextInput {
         phoneNumber: String!
+    }
+    input ValidateVerificationTextInput {
+        phoneNumber: String!
+        verificationCode: String!
     }
 
     type Phone {
@@ -18,6 +23,7 @@ export const typeDef = gql`
     extend type Mutation {
         phoneCreate(input: PhoneCreateInput!): Phone!
         sendVerificationText(input: SendVerificationTextInput!): Success!
+        validateVerificationText(input: ValidateVerificationTextInput!): Success!
     }
 `;
 

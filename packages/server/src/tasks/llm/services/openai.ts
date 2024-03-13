@@ -1,13 +1,25 @@
 import OpenAI from "openai";
 import { logger } from "../../../events/logger";
 import { ChatContextCollector } from "../context";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, LanguageModelContext, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
-type OpenAIGenerateModel = "gpt-3.5-turbo" | "gpt-4";
+type OpenAIGenerateModel = "gpt-4-0125-preview" | "gpt-3.5-turbo-0125";
 type OpenAITokenModel = "default";
+
+/** Cost in cents per 1_000_000 input tokens */
+const inputCosts: Record<OpenAIGenerateModel, number> = {
+    "gpt-4-0125-preview": 1000,
+    "gpt-3.5-turbo-0125": 50,
+};
+/** Cost in cents per 1_000_000 output tokens */
+const outputCosts: Record<OpenAIGenerateModel, number> = {
+    "gpt-4-0125-preview": 3000,
+    "gpt-3.5-turbo-0125": 150,
+};
+
 export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, OpenAITokenModel> {
     private client: OpenAI;
-    private defaultModel: OpenAIGenerateModel = "gpt-3.5-turbo";
+    private defaultModel: OpenAIGenerateModel = "gpt-3.5-turbo-0125";
 
     constructor() {
         this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -43,16 +55,17 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
             await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
             [];
         const { messages, systemMessage } = await this.generateContext({
-            respondingBotId,
-            respondingBotConfig,
-            messageContextInfo,
-            participantsData,
-            task,
             force,
+            messageContextInfo,
+            model,
+            participantsData,
+            respondingBotConfig,
+            respondingBotId,
+            task,
             userData,
-            requestedModel: model,
         });
 
+        // Generate response
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
             messages: [
                 // Add system message first
@@ -72,23 +85,34 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
                 logger.error(message, { trace: "0009", error });
                 throw new Error(message);
             });
-        return completion.choices[0].message.content ?? "";
+        const message = completion.choices[0].message.content ?? "";
+        const cost = this.getResponseCost({
+            model,
+            usage: {
+                input: completion.usage?.prompt_tokens ?? this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens,
+                output: completion.usage?.completion_tokens ?? this.estimateTokens({ model, text: message }).tokens,
+            }
+        })
+        return { message, cost };
     }
 
     getContextSize(requestedModel?: string | null) {
         const model = this.getModel(requestedModel);
         switch (model) {
-            case "gpt-3.5-turbo":
-                return 4096;
-            case "gpt-4":
-                return 8192;
+            case "gpt-4-0125-preview":
+                return 120_000;
             default:
-                return 4096;
+                return 16_000;
         }
     }
 
+    getResponseCost({ model, usage }: GetResponseCostParams) {
+        const { input, output } = usage;
+        return (inputCosts[model] * input) + (outputCosts[model] * output);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getEstimationMethod(_requestedModel?: string | null | undefined): "default" {
+    getEstimationMethod(_model?: string | null | undefined): "default" {
         return "default";
     }
 
@@ -96,9 +120,9 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         return ["default"] as const;
     }
 
-    getModel(requestedModel?: string | null) {
-        if (typeof requestedModel !== "string") return this.defaultModel;
-        if (requestedModel.startsWith("gpt-4")) return "gpt-4";
+    getModel(model?: string | null) {
+        if (typeof model !== "string") return this.defaultModel;
+        if (model.startsWith("gpt-4")) return "gpt-4-0125-preview";
         return this.defaultModel;
     }
 }

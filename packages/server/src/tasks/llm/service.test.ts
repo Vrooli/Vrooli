@@ -72,7 +72,7 @@ const allBots = [botSettings1, botSettings2, botSettings3, botSettings4, botSett
 describe("tokenEstimationDefault function", () => {
     test("ensures token count is more than 0 and less than the character count", () => {
         const text = "The quick brown fox";
-        const [model, tokens] = tokenEstimationDefault({ text, requestedModel: "default" });
+        const { model, tokens } = tokenEstimationDefault({ text, model: "default" });
         expect(model).toBe("default");
         expect(tokens).toBeGreaterThan(0);
         expect(tokens).toBeLessThanOrEqual(text.length);
@@ -82,8 +82,8 @@ describe("tokenEstimationDefault function", () => {
         const shortText = "Hello";
         const longText = "Hello, this is a longer piece of text to estimate";
 
-        const [modelShort, tokensShort] = tokenEstimationDefault({ text: shortText, requestedModel: "default" });
-        const [modelLong, tokensLong] = tokenEstimationDefault({ text: longText, requestedModel: "default" });
+        const { model: modelShort, tokens: tokensShort } = tokenEstimationDefault({ text: shortText, model: "default" });
+        const { model: modelLong, tokens: tokensLong } = tokenEstimationDefault({ text: longText, model: "default" });
 
         expect(modelShort).toBe("default");
         expect(modelLong).toBe("default");
@@ -94,7 +94,7 @@ describe("tokenEstimationDefault function", () => {
 
     test("handles empty strings appropriately", () => {
         const text = "";
-        const [model, tokens] = tokenEstimationDefault({ text, requestedModel: "default" });
+        const { model, tokens } = tokenEstimationDefault({ text, model: "default" });
         expect(model).toBe("default");
         // 0 or 1 is fine
         expect(tokens).toBeGreaterThanOrEqual(0);
@@ -199,32 +199,33 @@ describe("LanguageModelService lmServices", () => {
         // Estimate tokens
         it(`${lmServiceName}: estimateTokens returns a tuple with TokenNameType and number`, () => {
             const model = lmService.getModel();
-            const [tokenType, count] = lmService.estimateTokens({
+            const { model: tokenModel, tokens } = lmService.estimateTokens({
                 text: "sample text",
-                requestedModel: model,
+                model: model,
             });
-            expect(tokenType).toBeDefined(); // Add more specific checks as needed
-            expect(count).toBeDefined();
-            expect(typeof count).toBe("number");
+            expect(tokenModel).toBeDefined();
+            expect(typeof tokenModel).toBe("string");
+            expect(tokens).toBeDefined();
+            expect(typeof tokens).toBe("number");
         });
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
             const model = lmService.getModel();
             await expect(lmService.generateContext({
-                respondingBotId: respondingBotId1,
-                respondingBotConfig: respondingBotConfig1,
-                messageContextInfo: messageContextInfo1,
-                participantsData: participantsData1,
-                task: "Start",
                 force: true,
+                messageContextInfo: messageContextInfo1,
+                model,
+                participantsData: participantsData1,
+                respondingBotConfig: respondingBotConfig1,
+                respondingBotId: respondingBotId1,
+                task: "Start",
                 userData: userData1,
-                requestedModel: model,
             })).resolves.toBeDefined();
         });
 
         // Generate response
-        it(`${lmServiceName}: generateResponse returns a string - message provided`, async () => {
+        it(`${lmServiceName}: generateResponse returns a valid object - message provided`, async () => {
             const response = await lmService.generateResponse({
                 chatId: chatId1,
                 participantsData: participantsData1,
@@ -238,9 +239,13 @@ describe("LanguageModelService lmServices", () => {
                 force: true,
                 userData: userData1,
             });
-            expect(typeof response).toBe("string");
+            expect(typeof response).toBe("object");
+            expect(typeof response.message).toBe("string");
+            expect(typeof response.cost).toBe("number");
+            expect(response.cost).toBeGreaterThan(0);
+            expect(response.cost).not.toBeNaN();
         });
-        it(`${lmServiceName}: generateResponse returns a string - message not provided`, async () => {
+        it(`${lmServiceName}: generateResponse returns a valid object - message not provided`, async () => {
             const response = await lmService.generateResponse({
                 chatId: chatId1,
                 participantsData: participantsData1,
@@ -251,7 +256,11 @@ describe("LanguageModelService lmServices", () => {
                 force: true,
                 userData: userData1,
             });
-            expect(typeof response).toBe("string");
+            expect(typeof response).toBe("object");
+            expect(typeof response.message).toBe("string");
+            expect(typeof response.cost).toBe("number");
+            expect(response.cost).toBeGreaterThan(0);
+            expect(response.cost).not.toBeNaN();
         });
 
         // Get config object
