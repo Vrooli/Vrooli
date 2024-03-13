@@ -23,7 +23,7 @@ import "highlight.js/styles/monokai-sublime.css";
 import { $INTERNAL_isPointSelection, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalEditor, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, TextNode, createEditor } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
-import { LINE_HEIGHT_MULTIPLIER } from "../RichInputBase/RichInputBase";
+import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";

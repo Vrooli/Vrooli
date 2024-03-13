@@ -4,7 +4,7 @@ import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceList } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";

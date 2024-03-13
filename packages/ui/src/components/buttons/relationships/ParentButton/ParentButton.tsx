@@ -17,11 +17,11 @@ import { PubSub } from "utils/pubsub";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { ParentButtonProps } from "../types";
 
-export function ParentButton({
+export const ParentButton = ({
     isEditing,
     isFormDirty,
     objectType,
-}: ParentButtonProps) {
+}: ParentButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();

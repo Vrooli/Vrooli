@@ -15,10 +15,10 @@ import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { RunProjectButtonProps } from "../types";
 
-export function RunProjectButton({
+export const RunProjectButton = ({
     isEditing,
     objectType,
-}: RunProjectButtonProps) {
+}: RunProjectButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

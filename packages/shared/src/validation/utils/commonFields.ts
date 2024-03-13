@@ -7,7 +7,6 @@
 import { ReportFor, urlRegexDev, uuidValidate, YupMutateParams } from "@local/shared";
 import * as yup from "yup";
 import { enumToYup } from "./builders";
-import { toPosInt } from "./builders/toPosInt";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex";
 import { minVersionTest } from "./versions";
@@ -156,7 +155,7 @@ export const summary = yup.string().trim().removeEmptyString().max(1024, maxStrE
 export const reportReason = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);
 export const instructions = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const jsonVariable = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
-export const phoneNumber = yup.string().trim().removeEmptyString().transform(toPosInt).max(16, maxStrErr);
+export const phoneNumber = yup.string().trim().removeEmptyString().max(16, maxStrErr);
 
 // enums
 export const reportCreatedFor = enumToYup(ReportFor);

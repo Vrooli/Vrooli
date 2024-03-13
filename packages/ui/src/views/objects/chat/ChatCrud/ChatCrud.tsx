@@ -6,7 +6,7 @@ import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "component
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";

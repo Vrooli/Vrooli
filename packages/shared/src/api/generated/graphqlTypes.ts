@@ -1147,6 +1147,7 @@ export enum DeleteType {
   NoteVersion = 'NoteVersion',
   Notification = 'Notification',
   Organization = 'Organization',
+  Phone = 'Phone',
   Post = 'Post',
   Project = 'Project',
   ProjectVersion = 'ProjectVersion',
@@ -1183,6 +1184,7 @@ export type Email = {
 
 export type EmailCreateInput = {
   emailAddress: Scalars['String'];
+  id: Scalars['ID'];
 };
 
 export type EmailLogInInput = {
@@ -2302,6 +2304,7 @@ export type Mutation = {
   transferUpdate: Transfer;
   userDeleteOne: Session;
   validateSession: Session;
+  validateVerificationText: Success;
   walletComplete: WalletComplete;
   walletInit: Scalars['String'];
   walletUpdate: Wallet;
@@ -3075,6 +3078,11 @@ export type MutationUserDeleteOneArgs = {
 
 export type MutationValidateSessionArgs = {
   input: ValidateSessionInput;
+};
+
+
+export type MutationValidateVerificationTextArgs = {
+  input: ValidateVerificationTextInput;
 };
 
 
@@ -4088,6 +4096,7 @@ export type Phone = {
 };
 
 export type PhoneCreateInput = {
+  id: Scalars['ID'];
   phoneNumber: Scalars['String'];
 };
 
@@ -8402,7 +8411,7 @@ export type SessionUser = {
   activeFocusMode?: Maybe<ActiveFocusMode>;
   apisCount: Scalars['Int'];
   bookmarkLists: Array<BookmarkList>;
-  credits: Scalars['Int'];
+  credits: Scalars['String'];
   focusModes: Array<FocusMode>;
   handle?: Maybe<Scalars['String']>;
   hasPremium: Scalars['Boolean'];
@@ -9736,6 +9745,7 @@ export type User = {
   notifications?: Maybe<Array<Notification>>;
   organizationsCreate?: Maybe<Array<Organization>>;
   paymentHistory?: Maybe<Array<Payment>>;
+  phones?: Maybe<Array<Phone>>;
   premium?: Maybe<Premium>;
   profileImage?: Maybe<Scalars['String']>;
   projects?: Maybe<Array<Project>>;
@@ -9858,6 +9868,11 @@ export type UserYou = {
 
 export type ValidateSessionInput = {
   timeZone: Scalars['String'];
+};
+
+export type ValidateVerificationTextInput = {
+  phoneNumber: Scalars['String'];
+  verificationCode: Scalars['String'];
 };
 
 export type VersionYou = {
@@ -10783,6 +10798,7 @@ export type ResolversTypes = {
   UserTranslationUpdateInput: UserTranslationUpdateInput;
   UserYou: ResolverTypeWrapper<UserYou>;
   ValidateSessionInput: ValidateSessionInput;
+  ValidateVerificationTextInput: ValidateVerificationTextInput;
   VersionYou: ResolverTypeWrapper<VersionYou>;
   View: ResolverTypeWrapper<Omit<View, 'to'> & { to: ResolversTypes['ViewTo'] }>;
   ViewEdge: ResolverTypeWrapper<ViewEdge>;
@@ -11452,6 +11468,7 @@ export type ResolversParentTypes = {
   UserTranslationUpdateInput: UserTranslationUpdateInput;
   UserYou: UserYou;
   ValidateSessionInput: ValidateSessionInput;
+  ValidateVerificationTextInput: ValidateVerificationTextInput;
   VersionYou: VersionYou;
   View: Omit<View, 'to'> & { to: ResolversParentTypes['ViewTo'] };
   ViewEdge: ViewEdge;
@@ -12392,6 +12409,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   transferUpdate?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferUpdateArgs, 'input'>>;
   userDeleteOne?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
   validateSession?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationValidateSessionArgs, 'input'>>;
+  validateVerificationText?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationValidateVerificationTextArgs, 'input'>>;
   walletComplete?: Resolver<ResolversTypes['WalletComplete'], ParentType, ContextType, RequireFields<MutationWalletCompleteArgs, 'input'>>;
   walletInit?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationWalletInitArgs, 'input'>>;
   walletUpdate?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType, RequireFields<MutationWalletUpdateArgs, 'input'>>;
@@ -14274,7 +14292,7 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   activeFocusMode?: Resolver<Maybe<ResolversTypes['ActiveFocusMode']>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   bookmarkLists?: Resolver<Array<ResolversTypes['BookmarkList']>, ParentType, ContextType>;
-  credits?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  credits?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   focusModes?: Resolver<Array<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasPremium?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -14953,6 +14971,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   notifications?: Resolver<Maybe<Array<ResolversTypes['Notification']>>, ParentType, ContextType>;
   organizationsCreate?: Resolver<Maybe<Array<ResolversTypes['Organization']>>, ParentType, ContextType>;
   paymentHistory?: Resolver<Maybe<Array<ResolversTypes['Payment']>>, ParentType, ContextType>;
+  phones?: Resolver<Maybe<Array<ResolversTypes['Phone']>>, ParentType, ContextType>;
   premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
   profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projects?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;

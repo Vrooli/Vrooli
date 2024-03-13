@@ -6,7 +6,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
+import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";

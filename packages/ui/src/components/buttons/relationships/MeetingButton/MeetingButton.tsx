@@ -16,10 +16,10 @@ import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { MeetingButtonProps } from "../types";
 
-export function MeetingButton({
+export const MeetingButton = ({
     isEditing,
     objectType,
-}: MeetingButtonProps) {
+}: MeetingButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();

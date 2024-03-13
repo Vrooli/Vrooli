@@ -7,7 +7,7 @@ import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";

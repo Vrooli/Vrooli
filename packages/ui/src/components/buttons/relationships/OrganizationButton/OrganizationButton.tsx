@@ -14,10 +14,10 @@ import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { OrganizationButtonProps } from "../types";
 
-export function OrganizationButton({
+export const OrganizationButton = ({
     isEditing,
     objectType,
-}: OrganizationButtonProps) {
+}: OrganizationButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

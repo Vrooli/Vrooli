@@ -214,6 +214,24 @@ export type PasswordTextInputProps = TextInputProps & {
     name: string;
 }
 
+export type PhoneNumberInputProps = TextInputProps & {
+    autoComplete?: string;
+    autoFocus?: boolean;
+    fullWidth?: boolean;
+    label?: string;
+    name: string;
+    onChange?: (value: string) => unknown;
+}
+
+export type PhoneNumberInputBaseProps = Omit<PhoneNumberInputProps, "onChange"> & {
+    error?: boolean;
+    helperText?: string | boolean | null | undefined;
+    onBlur?: (event: React.FocusEvent<any>) => unknown;
+    onChange: (value: string) => unknown;
+    setError: (error: string | undefined) => unknown;
+    value: string;
+}
+
 export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
     disabled?: boolean;
     isPreviewOn: boolean;

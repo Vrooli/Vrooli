@@ -9,7 +9,7 @@ export const useSocketConnect = () => {
                 console.info("Websocket connected to server");
             }],
             ["disconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected", autoHideDuration: 10000 });
+                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected", autoHideDuration: 15000 });
             }],
             ["reconnect_attempt", () => {
                 PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: "ServerReconnectAttempt", autoHideDuration: 10000 });

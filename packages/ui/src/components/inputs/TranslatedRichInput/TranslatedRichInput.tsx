@@ -1,7 +1,7 @@
 import { getDotNotationValue, setDotNotationValue } from "@local/shared";
 import { useField } from "formik";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
-import { RichInputBase } from "../RichInputBase/RichInputBase";
+import { RichInputBase } from "../RichInput/RichInput";
 import { TranslatedRichInputProps } from "../types";
 
 export const TranslatedRichInput = ({

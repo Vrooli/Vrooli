@@ -285,7 +285,8 @@ export const endpoints = {
         const { success: successPartial } = await import("./partial/success");
         return {
             create: toMutation("phoneCreate", "PhoneCreateInput", phonePartial, "full"),
-            update: toMutation("sendVerificationText", "SendVerificationTextInput", successPartial, "full"),
+            verify: toMutation("sendVerificationText", "SendVerificationTextInput", successPartial, "full"),
+            validate: toMutation("validateVerificationText", "ValidateVerificationTextInput", successPartial, "full"),
         };
     },
     popular: async () => {

@@ -20,7 +20,12 @@ export interface SvgProps {
     fill?: string;
     iconTitle?: string;
     id?: string;
-    style?: { [x: string]: string | number | null };
+    style?: {
+        [key: string]: string | number | null,
+    } & {
+        [key: `&:${string}`]: { [key: string]: string | number | null },
+        [key: `@media ${string}`]: { [key: string]: string | number | null },
+    };
     onClick?: () => unknown;
     width?: number | string | null;
     height?: number | string | null;

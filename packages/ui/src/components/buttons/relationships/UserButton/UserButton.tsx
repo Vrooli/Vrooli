@@ -14,10 +14,10 @@ import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { UserButtonProps } from "../types";
 
-export function UserButton({
+export const UserButton = ({
     isEditing,
     objectType,
-}: UserButtonProps) {
+}: UserButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

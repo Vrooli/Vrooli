@@ -63,7 +63,7 @@ const menusDisplayData: { [key in SideMenuPub["id"]]: { persistentOnDesktop: boo
     "chat-side-menu": chatSideMenuDisplayData,
 };
 
-export function App() {
+export const App = () => {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);

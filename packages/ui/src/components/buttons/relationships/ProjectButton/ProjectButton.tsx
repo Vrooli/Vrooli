@@ -16,10 +16,10 @@ import { openObject } from "utils/navigation/openObject";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { ProjectButtonProps } from "../types";
 
-export function ProjectButton({
+export const ProjectButton = ({
     isEditing,
     objectType,
-}: ProjectButtonProps) {
+}: ProjectButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
