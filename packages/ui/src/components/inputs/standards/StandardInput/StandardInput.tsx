@@ -1,7 +1,7 @@
 import { Box, Typography, useTheme } from "@mui/material";
-import { GeneratedInputComponent } from "components/inputs/generated";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
+import { SelectorBase } from "components/inputs/Selector/Selector";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
+import { GeneratedInputComponent } from "components/inputs/generated";
 import { useField } from "formik";
 import { FieldData } from "forms/types";
 import { BuildIcon, VisibleIcon } from "icons";

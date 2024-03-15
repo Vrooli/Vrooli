@@ -239,6 +239,11 @@ export const user_profileUpdate = {
     },
     "__typename": "FocusMode"
   },
+  "phones": {
+    "id": true,
+    "phoneNumber": true,
+    "verified": true
+  },
   "pushDevices": {
     "id": true,
     "expires": true,

@@ -26,6 +26,7 @@ export const typeDef = gql`
         NoteVersion
         Notification
         Organization
+        Phone
         Post
         Project
         ProjectVersion

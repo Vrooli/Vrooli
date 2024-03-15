@@ -19,7 +19,8 @@ import { findRecipientsAndLimit, updateNotificationSettings } from "./notificati
 
 export type NotificationUrgency = "low" | "normal" | "critical";
 
-export type NotificationCategory = "AccountCreditsOrApi" |
+export type NotificationCategory =
+    "AccountCreditsOrApi" |
     "Award" |
     "IssueStatus" |
     "Message" |
@@ -498,6 +499,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         link: "/awards",
         prisma,
         titleKey: "AwardEarnedTitle",
+    }),
+    pushFreeCreditsReceived: (): NotifyResultType => NotifyResult({
+        bodyKey: "FreeCreditsReceivedBody",
+        category: "AccountCreditsOrApi",
+        languages,
+        prisma,
+        titleKey: "FreeCreditsReceivedTitle",
     }),
     pushIssueStatusChange: (
         issueId: string,

@@ -4,7 +4,7 @@ import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceList } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
@@ -65,7 +65,8 @@ export const DashboardView = ({
     const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
-    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
     const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
 
     const {
@@ -82,6 +83,11 @@ export const DashboardView = ({
 
     const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
     const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS));
+    useEffect(() => {
+        if (loadedChat?.participants) {
+            setParticipants(loadedChat.participants);
+        }
+    }, [loadedChat?.participants]);
     // When a chat is loaded, store chat ID by participant and task
     useEffect(() => {
         if (!loadedChat?.id) return;
@@ -341,8 +347,11 @@ export const DashboardView = ({
         addMessages: messageTree.addMessages,
         chat,
         editMessage: messageTree.editMessage,
+        participants,
         removeMessages: messageTree.removeMessages,
+        setParticipants,
         setUsersTyping,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
         usersTyping,
     });
 
@@ -505,6 +514,7 @@ export const DashboardView = ({
                     handleReply={messageTree.replyToMessage}
                     handleRetry={messageActions.regenerateResponse}
                     isBotOnlyChat={isBotOnlyChat}
+                    messageTasks={messageTree.messageTasks}
                     removeMessages={messageTree.removeMessages}
                     setBranches={messageTree.setBranches}
                     tree={messageTree.tree}

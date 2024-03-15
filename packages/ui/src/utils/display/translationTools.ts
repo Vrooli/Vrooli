@@ -805,7 +805,7 @@ export const combineErrorsWithTranslations = (
 };
 
 /**
- * Adds a new, empty translation object (all fields '') to a formik translation field
+ * Adds a new, empty translation object (all fields "") to a formik translation field
  */
 export const addEmptyTranslation = (
     field: FieldInputProps<TranslationObject[]>,

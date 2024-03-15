@@ -1,8 +1,8 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, DUMMY_ID, Session, endpointGetChatMessageTree } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, DUMMY_ID, LlmTaskInfo, Session, endpointGetChatMessageTree } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/cookies";
+import { BranchMap, getCookieMessageTree, getCookieTasksForMessage, setCookieMessageTree } from "utils/cookies";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
@@ -285,6 +285,15 @@ export const useMessageTree = (chatId: string) => {
     const [tree, setTree] = useState<MessageTree<ChatMessageShape>>({ map: new Map(), roots: [] });
     const messagesCount = useMemo(() => tree.map.size, [tree.map.size]);
 
+    // Tasks suggested or ran by messages
+    const [messageTasks, setMessageTasks] = useState<Record<string, LlmTaskInfo[]>>({});
+    const updateTasksForMessage = useCallback((messageId: string, tasks: LlmTaskInfo[]) => {
+        setMessageTasks(prevTasks => {
+            prevTasks[messageId] = tasks;
+            return prevTasks;
+        });
+    }, []);
+
     /**
      * Clears all messages from the tree, resetting the state to its initial state.
      */
@@ -301,76 +310,93 @@ export const useMessageTree = (chatId: string) => {
     }, [branches, chatId]);
 
     const addMessages = useCallback((newMessages: ChatMessageShape[]) => {
-        setTree(({ map: prevMessageMap, roots: prevRoots }) => {
-            const map = new Map(prevMessageMap);
-            const roots = [...prevRoots];
-            const orphans: string[] = [];
+        setMessageTasks(prevTasks => {
+            setTree(({ map: prevMessageMap, roots: prevRoots }) => {
+                const map = new Map(prevMessageMap);
+                const roots = [...prevRoots];
+                const orphans: string[] = [];
 
-            newMessages.forEach(message => {
-                if (map.has(message.id)) {
-                    console.warn(`Message ${message.id} already exists in messageMap`);
-                } else {
-                    map.set(message.id, { message, children: [] });
-                }
-            });
-
-            newMessages.forEach(message => {
-                if (message.parent?.id) {
-                    const parentNode = map.get(message.parent.id);
-                    if (parentNode) {
-                        // Since all edited versions have the same parentId and are not nested,
-                        // they will be siblings in the tree structure.
-                        parentNode.children.push(message.id);
-                        // Sort children to ensure the correct order of message versions
-                        sortSiblings(map, parentNode.children);
+                newMessages.forEach(message => {
+                    if (map.has(message.id)) {
+                        console.warn(`Message ${message.id} already exists in messageMap`);
                     } else {
-                        // This may be a root node, or it chould be an orphaned node 
-                        orphans.push(message.id);
+                        map.set(message.id, { message, children: [] });
                     }
-                } else {
-                    // If there's no parent ID, we'll assume it's a root node
-                    roots.push(message.id);
-                }
+                    // Also find tasks associated with the message
+                    const tasks = getCookieTasksForMessage(message.id);
+                    if (tasks) {
+                        prevTasks[message.id] = tasks.tasks;
+                    }
+                });
+
+                newMessages.forEach(message => {
+                    if (message.parent?.id) {
+                        const parentNode = map.get(message.parent.id);
+                        if (parentNode) {
+                            // Since all edited versions have the same parentId and are not nested,
+                            // they will be siblings in the tree structure.
+                            parentNode.children.push(message.id);
+                            // Sort children to ensure the correct order of message versions
+                            sortSiblings(map, parentNode.children);
+                        } else {
+                            // This may be a root node, or it chould be an orphaned node 
+                            orphans.push(message.id);
+                        }
+                    } else {
+                        // If there's no parent ID, we'll assume it's a root node
+                        roots.push(message.id);
+                    }
+                });
+
+                // Attempt to reattach orphaned nodes.
+                handleOrphanedNodes(map, roots, orphans);
+
+                // Sort roots
+                sortSiblings(map, roots);
+
+                console.log("at the end of addMessages", prevTasks);
+                return { map, roots };
             });
-
-            // Attempt to reattach orphaned nodes.
-            handleOrphanedNodes(map, roots, orphans);
-
-            // Sort roots
-            sortSiblings(map, roots);
-
-            return { map, roots };
+            return prevTasks;
         });
     }, []);
 
     const removeMessages = useCallback((messageIds: string[]) => {
-        setTree(({ map: prevMessageMap, roots: prevRoots }) => {
-            const map = new Map(prevMessageMap);
-            let roots = [...prevRoots];
+        setMessageTasks(prevTasks => {
+            setTree(({ map: prevMessageMap, roots: prevRoots }) => {
+                const map = new Map(prevMessageMap);
+                let roots = [...prevRoots];
 
-            messageIds.forEach(messageId => {
-                // Remove from map
-                const nodeToRemove = map.get(messageId);
-                if (!nodeToRemove) {
-                    console.error(`Message ${messageId} not found in messageMap`);
-                    return;
-                }
-                map.delete(messageId); // Remove the node from the messageMap
-
-                // Remove from parent's children
-                if (nodeToRemove.message.parent?.id) {
-                    const parentNode = map.get(nodeToRemove.message.parent.id);
-                    if (parentNode) {
-                        parentNode.children = parentNode.children.filter(childId => childId !== messageId);
-                        parentNode.children.push(...nodeToRemove.children);
+                messageIds.forEach(messageId => {
+                    // Remove from map
+                    const nodeToRemove = map.get(messageId);
+                    if (!nodeToRemove) {
+                        console.error(`Message ${messageId} not found in messageMap`);
+                        return;
                     }
-                }
+                    map.delete(messageId); // Remove the node from the messageMap
 
-                // Remove from root
-                roots = roots.filter(rootId => rootId !== messageId);
+                    // Remove from parent's children
+                    if (nodeToRemove.message.parent?.id) {
+                        const parentNode = map.get(nodeToRemove.message.parent.id);
+                        if (parentNode) {
+                            parentNode.children = parentNode.children.filter(childId => childId !== messageId);
+                            parentNode.children.push(...nodeToRemove.children);
+                        }
+                    }
+
+                    // Remove from root
+                    roots = roots.filter(rootId => rootId !== messageId);
+
+                    // Update tasks
+                    if (prevTasks[messageId]) {
+                        delete prevTasks[messageId];
+                    }
+                });
+
+                return { map, roots };
             });
-
-            return { map, roots };
+            return prevTasks;
         });
     }, []);
 
@@ -417,11 +443,12 @@ export const useMessageTree = (chatId: string) => {
         //TODO fix and probably put in useMessageActions
     }, [branches, session, tree]);
 
-    // When chatId changes, clear the message tree and branches, and fetch new data
+    // When chatId changes, clear everything and fetch new data
     useEffect(() => {
         if (chatId === DUMMY_ID) return;
         clearMessages();
         setBranches({});
+        setMessageTasks({});
         getTreeData({ chatId });
     }, [chatId, clearMessages, getTreeData]);
     useEffect(() => {
@@ -448,9 +475,11 @@ export const useMessageTree = (chatId: string) => {
         editMessage,
         isTreeLoading,
         messagesCount,
+        messageTasks,
         removeMessages,
         replyToMessage,
         setBranches,
         tree,
+        updateTasksForMessage,
     };
 };

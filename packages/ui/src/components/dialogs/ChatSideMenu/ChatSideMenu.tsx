@@ -1,7 +1,7 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, endpointPostBookmark, noop, uuid } from "@local/shared";
 import { Box, IconButton, SwipeableDrawer, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
+import { SelectorBase } from "components/inputs/Selector/Selector";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { SessionContext } from "contexts/SessionContext";
 import { useFindMany } from "hooks/useFindMany";

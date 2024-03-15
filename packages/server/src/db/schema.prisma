@@ -128,9 +128,9 @@ model api_key {
     created_at             DateTime      @default(now()) @db.Timestamptz(6)
     updated_at             DateTime      @default(now()) @db.Timestamptz(6)
     key                    String        @unique @db.VarChar(255)
-    creditsUsedBeforeLimit Int           @default(20000)
+    creditsUsedBeforeLimit BigInt        @default(10000000000)
     stopAtLimit            Boolean       @default(true)
-    absoluteMax            Int?          @default(1000000)
+    absoluteMax            Int?          @default(25000000000)
     organizationId         String?       @db.Uuid
     userId                 String?       @db.Uuid
     organization           organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -358,7 +358,7 @@ model email {
     emailAddress                       String        @unique @db.Citext
     verified                           Boolean       @default(false)
     lastVerifiedTime                   DateTime?     @db.Timestamptz(6)
-    verificationCode                   String?       @unique @db.VarChar(256)
+    verificationCode                   String?       @db.VarChar(256)
     lastVerificationCodeRequestAttempt DateTime?     @db.Timestamptz(6)
     organizationId                     String?       @db.Uuid
     userId                             String?       @db.Uuid
@@ -1077,7 +1077,7 @@ model phone {
     phoneNumber                        String        @unique @db.VarChar(16)
     verified                           Boolean       @default(false)
     lastVerifiedTime                   DateTime?     @db.Timestamptz(6)
-    verificationCode                   String?       @unique @db.VarChar(6)
+    verificationCode                   String?       @db.VarChar(16)
     lastVerificationCodeRequestAttempt DateTime?     @db.Timestamptz(6)
     organizationId                     String?       @db.Uuid
     userId                             String?       @db.Uuid
@@ -1103,14 +1103,15 @@ model payment {
 }
 
 model premium {
-    id           String        @id @default(uuid()) @db.Uuid
-    credits      Int           @default(100)
-    customPlan   String?       @db.VarChar(2048)
-    enabledAt    DateTime?     @db.Timestamptz(6)
-    expiresAt    DateTime?     @db.Timestamptz(6)
-    isActive     Boolean       @default(false)
-    organization organization?
-    user         user?
+    id                   String        @id @default(uuid()) @db.Uuid
+    credits              BigInt        @default(0)
+    customPlan           String?       @db.VarChar(2048)
+    enabledAt            DateTime?     @db.Timestamptz(6)
+    expiresAt            DateTime?     @db.Timestamptz(6)
+    hasReceivedFreeTrial Boolean       @default(false)
+    isActive             Boolean       @default(false)
+    organization         organization?
+    user                 user?
 }
 
 model project {

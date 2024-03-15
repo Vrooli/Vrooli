@@ -1,9 +1,10 @@
 import { DeleteType, LlmTask, pascalCase, toBotSettings, uuid, uuidValidate } from "@local/shared";
 import { noEmptyString, validNumber, validUuid } from "../../../builders/noNull";
 import { logger } from "../../../events/logger";
-import { CommandToTask, LlmCommandProperty, LlmTaskConfig, LlmTaskConverters, LlmTaskUnstructuredConfig } from "../config";
+import { CommandToTask, LlmTaskConfig, LlmTaskConverters, LlmTaskProperty, LlmTaskUnstructuredConfig } from "../config";
 
 export const config: LlmTaskConfig = {
+    __suggested_prefix: "suggested",
     __response_formats_with_actions: {
         one_command: "/${command} ${action}",
         multiple_commands: "/${command} ${action} /${command} ${action}",
@@ -35,6 +36,7 @@ export const config: LlmTaskConfig = {
         "When using a command, do not use any other modifiers, or provide any other text in the message. For example, if a user wants to remember something, you may responsd with just `/note add` and nothing else.",
         "In general, a command can be used when the user wants to perform an action. For example, if a user asks 'What's the weather?', you can respond with `/routine find`.",
         "When not using a command, you can provide suggested commands at the end of the message. Never suggest more than 4 commands.",
+        "When suggesting commands, do not start the suggestion with anything like 'Here are some commands you can use'. Just use the 'suggested_commands' format directly after the message and some whitespace.",
     ],
     __finish_context_rules: [
         "Use the provided command(s) to complete the user's request. This is the only way you can perform real actions.",
@@ -42,7 +44,7 @@ export const config: LlmTaskConfig = {
         "Do not play pretend. If you cannot do something directly, do not pretend to do it.",
         "When using a command, do not use any other modifiers, or provide any other text in the message. For example, if a user wants to remember something, you may responsd with just `/note add` and nothing else.",
     ],
-    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmCommandProperty, "name">>) {
+    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmTaskProperty, "name">>) {
         return selectedFields.map(([fieldName, isRequired]) => ({
             ...__availableFields[fieldName],
             name: fieldName,
@@ -85,6 +87,7 @@ export const config: LlmTaskConfig = {
         } : undefined,
         _response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
         ...rest,
+        label: undefined, // Label is for displaying the task to the user, and is not needed in the context
     }),
     __construct_context_force: (props: LlmTaskUnstructuredConfig) => ({
         ...config.__construct_context(props),
@@ -101,6 +104,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     ApiAdd: () => ({
+        label: "Add API",
         commands: {
             add: "Create an API with the provided properties.",
         },
@@ -112,6 +116,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ApiDelete: () => ({
+        label: "Delete API",
         commands: {
             delete: "Permanently delete an API. Ensure this is intended before proceeding.",
         },
@@ -124,6 +129,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ApiFind: () => ({
+        label: "Find API",
         commands: {
             find: "Search for existing APIs.",
         },
@@ -141,6 +147,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     ApiUpdate: () => ({
+        label: "Update API",
         commands: {
             update: "Update an API with the provided properties.",
         },
@@ -190,6 +197,7 @@ export const config: LlmTaskConfig = {
         },
     },
     BotAdd: () => ({
+        label: "Add Bot",
         commands: {
             add: "Create a bot with the provided properties.",
         },
@@ -208,6 +216,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     BotDelete: () => ({
+        label: "Delete Bot",
         commands: {
             delete: "Permanentely delete a bot. Make sure you want to do this before proceeding.",
         },
@@ -220,6 +229,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     BotFind: () => ({
+        label: "Find Bot",
         commands: {
             find: "Look for existing bots.",
         },
@@ -244,6 +254,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     BotUpdate: () => ({
+        label: "Update Bot",
         commands: {
             add: "Update a bot with the provided properties.",
         },
@@ -266,6 +277,7 @@ export const config: LlmTaskConfig = {
         // TODO
     },
     MembersAdd: () => ({
+        label: "Add Members",
         commands: {
             add: "Create member with the provided properties.",
         },
@@ -275,6 +287,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     MembersDelete: () => ({
+        label: "Delete Members",
         commands: {
             delete: "Permanently remove members from a team. Ensure this is intended before proceeding. Note that this will not delete the bot/users themselves.",
         },
@@ -287,6 +300,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     MembersFind: () => ({
+        label: "Find Members",
         commands: {
             find: "Look for existing members.",
         },
@@ -311,6 +325,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     MembersUpdate: () => ({
+        label: "Update Members",
         commands: {
             update: "Update a member with the provided properties.",
         },
@@ -329,6 +344,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     NoteAdd: () => ({
+        label: "Add Note",
         commands: {
             add: "Create a note with the provided properties.",
         },
@@ -338,6 +354,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     NoteDelete: () => ({
+        label: "Delete Note",
         commands: {
             delete: "Permanentely delete a note. Make sure you want to do this before proceeding.",
         },
@@ -350,6 +367,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     NoteFind: () => ({
+        label: "Find Note",
         commands: {
             find: "Look for existing notes.",
         },
@@ -367,6 +385,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     NoteUpdate: () => ({
+        label: "Update Note",
         commands: {
             update: "Update a note with the provided properties.",
         },
@@ -385,6 +404,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     ProjectAdd: () => ({
+        label: "Add Project",
         commands: {
             add: "Create a project with the provided properties.",
         },
@@ -394,6 +414,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ProjectDelete: () => ({
+        label: "Delete Project",
         commands: {
             delete: "Permanentely delete a project. Make sure you want to do this before proceeding.",
         },
@@ -406,6 +427,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ProjectFind: () => ({
+        label: "Find Project",
         commands: {
             find: "Look for existing projects.",
         },
@@ -423,6 +445,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     ProjectUpdate: () => ({
+        label: "Update Project",
         commands: {
             update: "Update a project with the provided properties.",
         },
@@ -441,6 +464,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     ReminderAdd: () => ({
+        label: "Add Reminder",
         commands: {
             add: "Create a reminder with the provided properties.",
         },
@@ -450,6 +474,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ReminderDelete: () => ({
+        label: "Delete Reminder",
         commands: {
             delete: "Permanentely delete a reminder. Make sure you want to do this before proceeding.",
         },
@@ -462,6 +487,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ReminderFind: () => ({
+        label: "Find Reminder",
         commands: {
             find: "Look for existing reminders.",
         },
@@ -479,6 +505,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     ReminderUpdate: () => ({
+        label: "Update Reminder",
         commands: {
             update: "Update a reminder with the provided properties.",
         },
@@ -501,6 +528,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     RoleAdd: () => ({
+        label: "Add Role",
         commands: {
             add: "Create a role with the provided properties.",
         },
@@ -510,6 +538,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     RoleDelete: () => ({
+        label: "Delete Role",
         commands: {
             delete: "Permanentely delete a role. Make sure you want to do this before proceeding.",
         },
@@ -522,6 +551,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     RoleFind: () => ({
+        label: "Find Role",
         commands: {
             find: "Look for existing roles.",
         },
@@ -544,6 +574,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     RoleUpdate: () => ({
+        label: "Update Role",
         commands: {
             update: "Update a role with the provided properties.",
         },
@@ -562,6 +593,7 @@ export const config: LlmTaskConfig = {
         // TODO continue
     },
     RoutineAdd: () => ({
+        label: "Add Routine",
         commands: {
             add: "Create a routine with the provided properties.",
         },
@@ -573,6 +605,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     RoutineDelete: () => ({
+        label: "Delete Routine",
         commands: {
             delete: "Permanentely delete a routine. Make sure you want to do this before proceeding.",
         },
@@ -585,6 +618,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     RoutineFind: () => ({
+        label: "Find Routine",
         commands: {
             find: "Look for existing routines.",
         },
@@ -602,6 +636,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     RoutineUpdate: () => ({
+        label: "Update Routine",
         commands: {
             update: "Update a routine with the provided properties.",
         },
@@ -620,6 +655,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     ScheduleAdd: () => ({
+        label: "Add Schedule",
         commands: {
             add: "Create a schedule with the provided properties.",
         },
@@ -629,6 +665,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ScheduleDelete: () => ({
+        label: "Delete Schedule",
         commands: {
             delete: "Permanentely delete a schedule. Make sure you want to do this before proceeding.",
         },
@@ -641,6 +678,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     ScheduleFind: () => ({
+        label: "Find Schedule",
         commands: {
             find: "Look for existing schedules.",
         },
@@ -658,6 +696,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     ScheduleUpdate: () => ({
+        label: "Update Schedule",
         commands: {
             update: "Update a schedule with the provided properties.",
         },
@@ -676,6 +715,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     SmartContractAdd: () => ({
+        label: "Add Smart Contract",
         commands: {
             add: "Create a smart contract with the provided properties.",
         },
@@ -685,6 +725,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     SmartContractDelete: () => ({
+        label: "Delete Smart Contract",
         commands: {
             delete: "Permanentely delete a smart contract. Make sure you want to do this before proceeding.",
         },
@@ -697,6 +738,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     SmartContractFind: () => ({
+        label: "Find Smart Contract",
         commands: {
             find: "Look for existing smart contracts.",
         },
@@ -714,6 +756,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     SmartContractUpdate: () => ({
+        label: "Update Smart Contract",
         commands: {
             update: "Update a smart contract with the provided properties.",
         },
@@ -732,6 +775,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     StandardAdd: () => ({
+        label: "Add Standard",
         commands: {
             add: "Create a standard with the provided properties.",
         },
@@ -741,6 +785,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     StandardDelete: () => ({
+        label: "Delete Standard",
         commands: {
             delete: "Permanentely delete a standard. Make sure you want to do this before proceeding.",
         },
@@ -753,6 +798,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     StandardFind: () => ({
+        label: "Find Standard",
         commands: {
             find: "Look for existing standards.",
         },
@@ -770,6 +816,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     StandardUpdate: () => ({
+        label: "Update Standard",
         commands: {
             update: "Update a standard with the provided properties.",
         },
@@ -779,6 +826,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     Start: () => ({
+        label: "Start",
         actions: ["add", "find", "update", "delete"],
         commands: {
             note: "Store information that you want to remember. Can add, find, update, and delete.",
@@ -809,6 +857,7 @@ export const config: LlmTaskConfig = {
         //...
     },
     TeamAdd: () => ({
+        label: "Add Team",
         commands: {
             add: "Create a team with the provided properties.",
         },
@@ -818,6 +867,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     TeamDelete: () => ({
+        label: "Delete Team",
         commands: {
             delete: "Permanentely delete a team. Make sure you want to do this before proceeding.",
         },
@@ -830,6 +880,7 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     TeamFind: () => ({
+        label: "Find Team",
         commands: {
             find: "Look for existing teams.",
         },
@@ -847,6 +898,7 @@ export const config: LlmTaskConfig = {
         ],
     }),
     TeamUpdate: () => ({
+        label: "Update Team",
         commands: {
             update: "Update a team with the provided properties.",
         },

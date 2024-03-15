@@ -28,10 +28,10 @@ const questionForTypeIcons: Record<QuestionForType, SvgComponent> = {
     Standard: StandardIcon,
 };
 
-export function QuestionForButton({
+export const QuestionForButton = ({
     isEditing,
     objectType,
-}: QuestionForButtonProps) {
+}: QuestionForButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

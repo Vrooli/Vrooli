@@ -1,6 +1,6 @@
 import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
-import { randomString } from "../../auth/wallet";
+import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { PrismaType, SessionUserToken } from "../../types";

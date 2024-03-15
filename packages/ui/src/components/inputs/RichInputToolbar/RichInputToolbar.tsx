@@ -328,7 +328,7 @@ export const RichInputToolbar = ({
                     visibility: disabled ? "hidden" : "visible",
                 }}
             >
-                {credits && credits > 0 && !disableAssistant && <ToolButton
+                {credits && BigInt(credits) > 0 && !disableAssistant && <ToolButton
                     icon={<MagicIcon fill={palette.primary.contrastText} />}
                     label={t("AIAssistant")}
                     onClick={() => handleToggleAction("Assistant")}

@@ -219,7 +219,7 @@ export async function generateSessionJwt(
                 stopCondition: user.activeFocusMode.stopCondition,
                 stopTime: user.activeFocusMode.stopTime,
             } : undefined,
-            credits: user.credits,
+            credits: user.credits + "", // Convert to string because BigInt cannot be serialized
             handle: user.handle,
             hasPremium: user.hasPremium ?? false,
             languages: user.languages ?? [],

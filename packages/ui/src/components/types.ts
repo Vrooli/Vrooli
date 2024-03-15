@@ -1,4 +1,4 @@
-import { User } from "@local/shared";
+import { LlmTaskInfo, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
@@ -17,6 +17,7 @@ export interface ChatBubbleProps {
     onReply: (message: ChatMessageShape) => unknown;
     onRetry: (message: ChatMessageShape) => unknown;
     onUpdated: (message: ChatMessageShape) => unknown;
+    tasks: LlmTaskInfo[];
 }
 
 export interface ChatBubbleTreeProps {

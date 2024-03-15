@@ -1,17 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "../../../events/logger";
 import { ChatContextCollector } from "../context";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type AnthropicGenerateModel = "claude-3-opus-20240229" | "claude-3-sonnet-20240229";
 type AnthropicTokenModel = "default";
 
+/** Cost in cents per 1_000_000 input tokens */
+const inputCosts: Record<AnthropicGenerateModel, number> = {
+    "claude-3-opus-20240229": 1500,
+    "claude-3-sonnet-20240229": 300,
+};
+/** Cost in cents per 1_000_000 output tokens */
+const outputCosts: Record<AnthropicGenerateModel, number> = {
+    "claude-3-opus-20240229": 7500,
+    "claude-3-sonnet-20240229": 1500,
+};
+
 export class AnthropicService implements LanguageModelService<AnthropicGenerateModel, AnthropicTokenModel> {
-    private anthropic: Anthropic;
-    private defaultModel: AnthropicGenerateModel = "claude-3-opus-20240229";
+    private client: Anthropic;
+    private defaultModel: AnthropicGenerateModel = "claude-3-sonnet-20240229";
 
     constructor() {
-        this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     }
 
     estimateTokens(params: EstimateTokensParams) {
@@ -44,14 +55,14 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
             await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
             [];
         const { messages, systemMessage } = await this.generateContext({
+            force,
+            messageContextInfo,
+            model,
+            participantsData,
             respondingBotId,
             respondingBotConfig,
-            messageContextInfo,
-            participantsData,
             task,
-            force,
             userData,
-            requestedModel: model,
         });
 
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Anthropic API.
@@ -77,7 +88,7 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         }
 
         // Ensure first message is from the user. This is another requirement of the Anthropic API.
-        if (alternatingMessages[0].role === "assistant") {
+        if (alternatingMessages.length && alternatingMessages[0].role === "assistant") {
             alternatingMessages.shift();
         }
 
@@ -88,15 +99,23 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
             system: systemMessage,
         };
 
-        const message: Anthropic.Message = await this.anthropic.messages
+        // Generate response
+        const completion: Anthropic.Message = await this.client.messages
             .create(params)
             .catch((error) => {
                 const message = "Failed to call Anthropic";
                 logger.error(message, { trace: "0010", error });
                 throw new Error(message);
             });
-        const responseText = message.content?.map(block => block.text).join("") ?? "";
-        return responseText;
+        const message = completion.content?.map(block => block.text).join("") ?? "";
+        const cost = this.getResponseCost({
+            model,
+            usage: {
+                input: completion.usage.input_tokens,
+                output: completion.usage.output_tokens,
+            },
+        });
+        return { message, cost };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -104,8 +123,13 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         return 200000;
     }
 
+    getResponseCost({ model, usage }: GetResponseCostParams) {
+        const { input, output } = usage;
+        return (inputCosts[model] * input) + (outputCosts[model] * output);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getEstimationMethod(_requestedModel?: string | null | undefined): "default" {
+    getEstimationMethod(_model?: string | null | undefined): "default" {
         return "default";
     }
 
@@ -113,10 +137,10 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         return ["default"] as const;
     }
 
-    getModel(requestedModel?: string | null) {
-        if (typeof requestedModel !== "string") return this.defaultModel;
-        if (requestedModel.includes("opus")) return "claude-3-opus-20240229";
-        if (requestedModel.includes("sonnet")) return "claude-3-sonnet-20240229";
+    getModel(model?: string | null) {
+        if (typeof model !== "string") return this.defaultModel;
+        if (model.includes("opus")) return "claude-3-opus-20240229";
+        if (model.includes("sonnet")) return "claude-3-sonnet-20240229";
         return this.defaultModel;
     }
 }

@@ -1,8 +1,6 @@
 import { batch, sendSubscriptionEnded } from "@local/server";
 import { Prisma } from "@prisma/client";
 
-const CREDITS_FREE = 100;
-
 const commonSelect = {
     id: true,
     emails: { select: { emailAddress: true } },
@@ -34,7 +32,7 @@ export const paymentsExpirePremium = async () => {
             // Remove premium status for organizations
             const premiumIds = batch.map(organization => organization.premium?.id).filter(id => id !== null) as string[];
             await prisma.premium.updateMany({
-                data: { isActive: false, credits: CREDITS_FREE },
+                data: { isActive: false }, // Don't remove credits, as they may have paid for them
                 where: { id: { in: premiumIds } },
             });
             // Send notifications
@@ -54,7 +52,7 @@ export const paymentsExpirePremium = async () => {
             // Remove premium status for users
             const premiumIds = batch.map(user => user.premium?.id).filter(id => id !== null) as string[];
             await prisma.premium.updateMany({
-                data: { isActive: false, credits: CREDITS_FREE },
+                data: { isActive: false }, // Don't remove credits, as they may have paid for them
                 where: { id: { in: premiumIds } },
             });
             // Send notifications

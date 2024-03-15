@@ -1,49 +1,34 @@
-import { batch } from "@local/server";
-import { API_CREDITS_FREE, API_CREDITS_PREMIUM } from "@local/shared";
+import { Notify, batch } from "@local/server";
+import { API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 /**
- * Provides free credits to users based on their premium status.
- * NOTE: Skips users who don't have a verified email address or wallet.
+ * Provides free credits to premium users.
  */
-export const paymentsFreeCredits = async (): Promise<void> => {
+export const paymentsCreditsFreePremium = async (): Promise<void> => {
     await batch<Prisma.userFindManyArgs>({
         objectType: "User",
         processBatch: async (batch, prisma) => {
             for (const user of batch) {
-                // If the user doesn't have a verified email or wallet, skip them
-                const hasVerifiedEmail = user.emails.some(email => email.verified);
-                const hasVerifiedWallet = user.wallets.some(wallet => wallet.verified);
-                if (!(hasVerifiedEmail || hasVerifiedWallet)) continue;
+                if (!user.premium || user.premium.isActive === false) continue;
 
-                const currentCredits = user.premium?.credits ?? 0;
-                const newCredits = user.premium?.isActive
-                    ? Math.max(API_CREDITS_PREMIUM, currentCredits)
-                    : Math.max(API_CREDITS_FREE, currentCredits);
-
-                if (user.premium) {
-                    // Update existing premium record
-                    await prisma.premium.update({
-                        where: { id: user.premium.id },
-                        data: { credits: newCredits },
-                    });
-                } else {
-                    // Create new premium record
-                    await prisma.premium.create({
-                        data: {
-                            user: { connect: { id: user.id } },
-                            isActive: false,
-                            credits: newCredits,
-                        },
-                    });
+                await prisma.premium.update({
+                    where: { id: user.premium.id },
+                    // Make sure not to get rid of any existing credits over the free amount
+                    data: { credits: API_CREDITS_PREMIUM > user.premium.credits ? API_CREDITS_PREMIUM : user.premium.credits },
+                });
+                // Notify user of free credits
+                if (API_CREDITS_PREMIUM > user.premium.credits) {
+                    const language = user.languages.length > 0 ? user.languages[0].language : "en";
+                    Notify(prisma, language).pushFreeCreditsReceived().toUser(user.id);
                 }
             }
         },
         select: {
             id: true,
-            emails: {
+            languages: {
                 select: {
-                    verified: true,
+                    language: true
                 },
             },
             premium: {
@@ -51,11 +36,6 @@ export const paymentsFreeCredits = async (): Promise<void> => {
                     id: true,
                     isActive: true,
                     credits: true,
-                },
-            },
-            wallets: {
-                select: {
-                    verified: true,
                 },
             },
         },

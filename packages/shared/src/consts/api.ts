@@ -1,4 +1,5 @@
 import { ValueOf } from ".";
+import { LlmTask } from "../api/generated/graphqlTypes";
 
 export const COOKIE = {
     Jwt: "session-f234y7fdiafhdja2",
@@ -51,5 +52,60 @@ export enum HttpStatus {
     NetworkAuthenticationRequired = 511
 }
 
-export const API_CREDITS_FREE = 100;
-export const API_CREDITS_PREMIUM = 10_000;
+/**
+ * The number of API credits a user gets for free, 
+ * when they verify their phone number.
+ * 
+ * These are based on USD cents multiplied by 1_000_000. 
+ * This way, we can use integers instead of floats.
+ */
+export const API_CREDITS_FREE = BigInt(100_000_000);
+/**
+ * The number of API credits a user gets for a standard 
+ * premium subscription.
+ * 
+ * These are based on USD cents multiplied by 1_000_000. 
+ * This way, we can use integers instead of floats.
+ * 
+ * NOTE: This should ideally be less than the cost of a premium subscription, 
+ * so that we don't lose money. This is the main source of expenses for the app.
+ */
+export const API_CREDITS_PREMIUM = BigInt(1_500_000_000);
+
+/**
+ * A task that an AI can, is, or has performed, along with 
+ * other information about the task for display and execution.
+ */
+export type LlmTaskInfo = {
+    /** 
+     * The action being performed. Can be thought of as a modifier to the command. 
+     * For example, if the command is "note", the action could be "add" or "delete".
+     * 
+     * NOTE: This is in the user's language, not the server's language.
+     */
+    action: string | null;
+    /**
+     * The command string of the task, in the user's language.
+     */
+    command: string;
+    /** Unique ID to track command */
+    id: string;
+    /** A user-friendly label to display to the user */
+    label: string;
+    /** Message associated with the command */
+    messageId?: string;
+    /**
+     * Data passed in when executing the task.
+     */
+    properties: {
+        [key: string]: string | number | null;
+    } | null;
+    /**
+     * The task being performed, as a language-independent type.
+     */
+    task: LlmTask | `${LlmTask}`;
+    /**
+     * The latest status of the command.
+     */
+    status: "suggested" | "running" | "completed" | "failed"
+};

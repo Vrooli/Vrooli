@@ -1,6 +1,9 @@
 {
     "compilerOptions": {
         "target": "ESNext",
+        "baseUrl": "./src",
+        "rootDir": "./src",
+        "outDir": "./dist",
         "useDefineForClassFields": true,
         "lib": [
             "DOM",
@@ -24,7 +27,6 @@
         "noImplicitAny": false,
         "removeComments": true,
         "jsx": "react-jsx",
-        "baseUrl": "./src",
         "types": [
             "jest",
             "@testing-library/jest-dom"

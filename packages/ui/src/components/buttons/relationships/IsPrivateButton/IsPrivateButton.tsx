@@ -7,10 +7,10 @@ import { useTranslation } from "react-i18next";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { IsPrivateButtonProps } from "../types";
 
-export function IsPrivateButton({
+export const IsPrivateButton = ({
     isEditing,
     objectType,
-}: IsPrivateButtonProps) {
+}: IsPrivateButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

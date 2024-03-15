@@ -16,7 +16,6 @@
         "pre-prod": "echo 'no pre-prod steps required'",
         "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" nodemon dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
-        "prisma-generate": "prisma generate",
         "type-check": "NODE_OPTIONS=\"--max-old-space-size=6144\" tsc --noEmit"
     },
     "dependencies": {
@@ -25,7 +24,7 @@
         "@graphql-tools/schema": "^8.2.0",
         "@local/server": "*",
         "@local/shared": "*",
-        "@prisma/client": "^4.12.0",
+        "@prisma/client": "5.7.1",
         "apollo-server-express": "^3.3.0",
         "bcrypt": "^5.0.1",
         "bull": "^4.11.4",
@@ -61,7 +60,6 @@
         "@graphql-codegen/cli": "^2.16.1",
         "@graphql-codegen/typescript": "^2.8.5",
         "@graphql-codegen/typescript-resolvers": "^2.7.10",
-        "@prisma/client": "^4.12.0",
         "@swc/cli": "^0.1.63",
         "@swc/core": "^1.3.104",
         "@swc/jest": "^0.2.30",

@@ -6,6 +6,7 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, SearchIcon } from "icons";
@@ -269,6 +270,13 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
 
     const focusSearch = () => { scrollIntoFocusedView("search-bar-find-object-search-list"); };
 
+    const findManyData = useFindMany<ListObject>({
+        controlsUrl: false,
+        searchType,
+        take: 20,
+        where,
+    })
+
     return (
         <>
             {CreateView && <CreateView
@@ -332,14 +340,12 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 }}>
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
+                        {...findManyData}
                         id="find-object-search-list"
                         canNavigate={() => false}
                         display="dialog"
                         dummyLength={3}
                         onItemClick={onInputSelect}
-                        take={20}
-                        searchType={searchType}
-                        where={where}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (

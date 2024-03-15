@@ -6,7 +6,7 @@ import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "component
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
@@ -34,7 +34,6 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
-import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
 import { getYou } from "utils/display/listTools";
@@ -58,7 +57,7 @@ export const VALYXA_INFO = {
 
 export const chatInitialValues = (
     session: Session | undefined,
-    task: AssistantTask | undefined,
+    task: string | undefined,
     t: TFunction<"common", undefined, "common">,
     language: string,
     existing?: Partial<Chat> | null | undefined,
@@ -172,7 +171,8 @@ const ChatForm = ({
     const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
-    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
 
     const {
         fetch,
@@ -210,6 +210,9 @@ const ChatForm = ({
         chatCreateStatus.current = "notStarted";
     }, [isOpen]);
 
+    useEffect(() => {
+        setParticipants(existing.participants);
+    }, [existing.participants]);
     // When a chat is loaded, store chat ID by participants and task
     useEffect(() => {
         const userIds = existing.participants?.map(p => p.user?.id);
@@ -255,8 +258,12 @@ const ChatForm = ({
         addMessages: messageTree.addMessages,
         chat: existing,
         editMessage: messageTree.editMessage,
+        participants,
         removeMessages: messageTree.removeMessages,
+        setParticipants,
         setUsersTyping,
+        task,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
         usersTyping,
     });
 
@@ -470,6 +477,7 @@ const ChatForm = ({
                             handleReply={messageTree.replyToMessage}
                             handleRetry={messageActions.regenerateResponse}
                             isBotOnlyChat={isBotOnlyChat}
+                            messageTasks={messageTree.messageTasks}
                             removeMessages={messageTree.removeMessages}
                             setBranches={messageTree.setBranches}
                             tree={messageTree.tree}

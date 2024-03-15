@@ -2,7 +2,7 @@ import { ChatInviteStatus, DUMMY_ID, LangsKey, isEqual, uuid } from "@local/shar
 import { Box, Grid, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
+import { SelectorBase } from "components/inputs/Selector/Selector";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Status } from "utils/consts";
@@ -697,7 +697,7 @@ export const CodeInputBase = ({
     const actions = useMemo(() => {
         const actionsList: Action[] = [];
         // If user has premium, add button for AI assistant
-        if (credits && credits > 0) {
+        if (credits && BigInt(credits) > 0) {
             actionsList.push({
                 label: "AI assistant",
                 Icon: MagicIcon,

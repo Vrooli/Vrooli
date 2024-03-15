@@ -21,10 +21,11 @@ export const EmailModel: EmailModelLogic = ({
             pre: async ({ Create, Delete, prisma, userData }) => {
                 // Prevent creating emails if at least one is already in use
                 if (Create.length) {
+                    const emailAddresses = Create.map(x => x.input.emailAddress);
                     const existingEmails = await prisma.email.findMany({
-                        where: { emailAddress: { in: Create.map(x => x.input.emailAddress) } },
+                        where: { emailAddress: { in: emailAddresses } },
                     });
-                    if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages);
+                    if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages, { emailAddresses });
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
                 if (Delete.length) {
@@ -33,10 +34,13 @@ export const EmailModel: EmailModelLogic = ({
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
+                    const verifiedPhonesCount = await prisma.phone.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
                     const verifiedWalletsCount = await prisma.wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    if (remainingVerifiedEmailsCount + verifiedWalletsCount < 1)
+                    if (remainingVerifiedEmailsCount + verifiedPhonesCount + verifiedWalletsCount < 1)
                         throw new CustomError("0049", "MustLeaveVerificationMethod", userData.languages);
                 }
                 return {};

@@ -2,11 +2,11 @@ import { Button, Popover, useTheme } from "@mui/material";
 import { useState } from "react";
 import { PopupMenuProps } from "../types";
 
-export function PopupMenu({
+export const PopupMenu = ({
     text = "Menu",
     children,
     ...props
-}: PopupMenuProps) {
+}: PopupMenuProps) => {
     const { palette } = useTheme();
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);

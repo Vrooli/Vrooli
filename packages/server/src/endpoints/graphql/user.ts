@@ -72,6 +72,7 @@ export const typeDef = gql`
         notificationSubscriptions: [NotificationSubscription!]
         notificationSettings: String
         paymentHistory: [Payment!]
+        phones: [Phone!]
         premium: Premium
         projects: [Project!]
         projectsCount: Int!

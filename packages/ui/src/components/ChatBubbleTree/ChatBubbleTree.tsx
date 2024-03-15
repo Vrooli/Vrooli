@@ -1,3 +1,4 @@
+import { LlmTaskInfo } from "@local/shared";
 import { Box, IconButton, Typography, useTheme } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { Dimensions } from "components/graphs/types";
@@ -141,6 +142,7 @@ export const ChatBubbleTree = ({
     handleReply,
     handleRetry,
     isBotOnlyChat,
+    messageTasks,
     removeMessages,
     setBranches,
     tree,
@@ -148,13 +150,14 @@ export const ChatBubbleTree = ({
     branches: BranchMap,
     dimensions: Dimensions,
     dimRef: RefObject<HTMLElement>,
-    editMessage: (updatedMessage: ChatMessageShape) => unknown;
-    handleReply: (message: ChatMessageShape) => unknown;
-    handleRetry: (message: ChatMessageShape) => unknown;
-    isBotOnlyChat: boolean;
-    removeMessages: (messageIds: string[]) => unknown;
-    setBranches: Dispatch<SetStateAction<BranchMap>>;
-    tree: MessageTree<ChatMessageShape>;
+    editMessage: (updatedMessage: ChatMessageShape) => unknown,
+    handleReply: (message: ChatMessageShape) => unknown,
+    handleRetry: (message: ChatMessageShape) => unknown,
+    isBotOnlyChat: boolean,
+    messageTasks: Record<string, LlmTaskInfo[]>,
+    removeMessages: (messageIds: string[]) => unknown,
+    setBranches: Dispatch<SetStateAction<BranchMap>>,
+    tree: MessageTree<ChatMessageShape>,
 }) => {
     const session = useContext(SessionContext);
 
@@ -221,6 +224,7 @@ export const ChatBubbleTree = ({
                     onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
                     message={data.message}
                     isOwn={data.isOwn}
+                    tasks={messageTasks[data.message.id] || []}
                 />
             ))}
         </Box>

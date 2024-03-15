@@ -239,23 +239,23 @@ describe("Yup validation tests", () => {
             invalid: ["invalid-date", ""],
         },
         versionLabel: {
-            schema: versionLabel({ minVersion: '1.0.0' }),
+            schema: versionLabel({ minVersion: "1.0.0" }),
             valid: [
-                '1.0.0',
-                '1.0.1',
-                '1.1.0',
-                '2.0.0',
+                "1.0.0",
+                "1.0.1",
+                "1.1.0",
+                "2.0.0",
             ],
             invalid: [
-                '0.9.9',
-                '0.0.9',
-                'a.b.c',
-                '1.0.0.0', // Assuming this format is invalid
-                ''.repeat(17), // Exceeds max length of 16
+                "0.9.9",
+                "0.0.9",
+                "a.b.c",
+                "1.0.0.0", // Assuming this format is invalid
+                "".repeat(17), // Exceeds max length of 16
             ],
             transforms: [
-                [' 1.0.0 ', '1.0.0'],
-                ['1.0.0', '1.0.0'],
+                [" 1.0.0 ", "1.0.0"],
+                ["1.0.0", "1.0.0"],
             ],
         },
     };

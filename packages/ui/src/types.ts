@@ -20,7 +20,12 @@ export interface SvgProps {
     fill?: string;
     iconTitle?: string;
     id?: string;
-    style?: { [x: string]: string | number | null };
+    style?: {
+        [key: string]: string | number | null,
+    } & {
+        [key: `&:${string}`]: { [key: string]: string | number | null },
+        [key: `@media ${string}`]: { [key: string]: string | number | null },
+    };
     onClick?: () => unknown;
     width?: number | string | null;
     height?: number | string | null;
@@ -249,9 +254,6 @@ export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<unknown> ? NonN
 
 /** Makes a value lazy or not */
 export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
-
-/** A task mode supported by Valyxa */
-export type AssistantTask = "start" | "note" | "standard";
 
 export type SxType = NonNullable<SystemStyleObject<Theme>> & {
     color?: string;

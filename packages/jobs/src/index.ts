@@ -8,7 +8,7 @@ import { moderatePullRequests } from "./schedules/moderatePullRequests";
 import { moderateReports } from "./schedules/moderateReports";
 import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium";
 import { paymentsFail } from "./schedules/paymentsFail";
-import { paymentsFreeCredits } from "./schedules/paymentsFreeCredits";
+import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits";
 import { scheduleNotify } from "./schedules/scheduleNotify";
 import { initStatsPeriod } from "./schedules/stats";
 
@@ -50,10 +50,10 @@ const cronJobs: Record<string, CronJobDefinition> = {
         jobFunction: paymentsFail,
         description: "fail payments",
     },
-    paymentsFreeCredits: {
+    paymentsCreditsFreePremium: {
         schedule: "0 0 1 * *", // Every month on the 1st at midnight (UTC)
-        jobFunction: paymentsFreeCredits,
-        description: "free credits",
+        jobFunction: paymentsCreditsFreePremium,
+        description: "free credits for premium users",
     },
     pullRequests: {
         schedule: "58 4 * * *", // Every day at 4:58am (UTC)
@@ -162,13 +162,19 @@ export const initializeCronJob = (
 export const initializeAllCronJobs = () => {
     Object.values(cronJobs).forEach(async cronJob => {
         if (cronJob.runRightAway) {
-            const runNow = await cronJob.runRightAway();
-            if (runNow) {
-                await cronJob.jobFunction(cronJob.schedule);
+            try {
+                const runNow = await cronJob.runRightAway();
+                if (runNow) {
+                    await cronJob.jobFunction(cronJob.schedule);
+                }
+            } catch (error) {
+                logger.error(`Run-right-away failed for ${cronJob.description} job.`, { trace: "0590", error });
             }
         }
         initializeCronJob(cronJob.schedule, cronJob.jobFunction, cronJob.description);
     });
+
+    logger.info("🚀 Jobs running");
 };
 
 initializeAllCronJobs();

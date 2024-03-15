@@ -3,6 +3,8 @@
     "ApiOutOfCreditsBody": "Your API ran out of credits. Please add more credits to your account if you want to continue using it, or wait until tomorrow to receive new credits.",
     "AwardEarnedTitle": "New award earned",
     "AwardEarnedBody": "You earned the \"{{awardName}}\" award! {{awardDescription}}",
+    "FreeCreditsReceivedTitle": "You received free credits!",
+    "FreeCreditsReceivedBody": "Your account received free credits. Enjoy!💙",
     "IssueStatusOpenTitle": "Issue opened",
     "IssueStatusOpenBody": "\"{{issueName}}\" has been opened on \"{{objectName}}\". Do you know how to fix it?",
     "IssueStatusClosedResolvedTitle": "Issue closed",

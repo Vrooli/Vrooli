@@ -1,4 +1,4 @@
-import { CommonKey, LINKS, NotificationSettingsUpdateInput, ProfileEmailUpdateInput, ProfileUpdateInput } from "@local/shared";
+import { CommonKey, LINKS, NotificationSettingsUpdateInput, ProfileUpdateInput } from "@local/shared";
 import { FormikProps } from "formik";
 import { SvgComponent } from "types";
 import { ViewDisplayType, ViewProps } from "views/types";
@@ -29,7 +29,11 @@ interface SettingsFormBaseProps {
     isLoading: boolean;
     onCancel: () => unknown;
 }
-export interface SettingsAuthenticationFormProps extends FormikProps<ProfileEmailUpdateInput>, SettingsFormBaseProps { }
+export interface SettingsAuthenticationFormProps extends FormikProps<{
+    currentPassword: string;
+    newPassword: string;
+    newPasswordConfirmation: string;
+}>, SettingsFormBaseProps { }
 export interface SettingsDataFormProps extends FormikProps<any>, SettingsFormBaseProps { } //TODO
 export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput>, SettingsFormBaseProps { }

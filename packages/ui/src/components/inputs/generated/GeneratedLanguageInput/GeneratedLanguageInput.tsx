@@ -7,7 +7,6 @@ export const GeneratedLanguageInput = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering language input');
     const [field, , helpers] = useField(fieldData.fieldName);
 
     const addLanguage = (lang: string) => {

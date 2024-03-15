@@ -15,10 +15,10 @@ import { openObject } from "utils/navigation/openObject";
 import { largeButtonProps } from "../styles";
 import { RunRoutineButtonProps } from "../types";
 
-export function RunRoutineButton({
+export const RunRoutineButton = ({
     isEditing,
     objectType,
-}: RunRoutineButtonProps) {
+}: RunRoutineButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

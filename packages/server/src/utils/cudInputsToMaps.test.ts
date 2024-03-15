@@ -6,8 +6,6 @@ import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initia
 import { InputNode } from "./inputNode";
 import { IdsByAction, IdsByType, InputsByType } from "./types";
 
-// jest.mock("@prisma/client");
-
 describe("fetchAndMapPlaceholder", () => {
     let prismaMock;
     let placeholderToIdMap;
@@ -859,6 +857,7 @@ describe("processCreateOrUpdate", () => {
         expect(parentNode.children[1].id).toEqual(secondChildInput.id);
     });
 });
+
 describe("processConnectDisconnectOrDelete", () => {
     let idsByAction, idsByType, inputsById, inputsByType, parentNode, closestWithId;
 
@@ -997,6 +996,7 @@ describe("processConnectDisconnectOrDelete", () => {
         expect(parentNode.children[0].id).toEqual("123");
     });
 });
+
 describe("processInputObjectField", () => {
     let parentNode, idsByAction, idsByType, inputsById, inputsByType, inputInfo, format, closestWithId;
     const initialIdsByAction = { Create: [], Update: [], Connect: [], Disconnect: [] };

@@ -10,11 +10,11 @@ import { PrismaType, SessionUserToken } from "../../types";
 
 export const DEFAULT_LANGUAGE = "en";
 
-type LlmCommandDataValue = string | number | null;
-export type LlmCommandData = Record<string, LlmCommandDataValue>;
+type LlmTaskDataValue = string | number | null;
+export type LlmTaskData = Record<string, LlmTaskDataValue>;
 
 /** Information about a property provided with a command */
-export type LlmCommandProperty = {
+export type LlmTaskProperty = {
     name: string,
     type?: string,
     description?: string,
@@ -29,8 +29,9 @@ export type LlmCommandProperty = {
  */
 export type LlmTaskUnstructuredConfig = {
     actions?: string[];
-    properties?: (string | LlmCommandProperty)[],
+    properties?: (string | LlmTaskProperty)[],
     commands: Record<string, string>,
+    label: string,
 } & Record<string, any>;
 
 /** Structured command information, which can be used to provide context to the LLM */
@@ -41,6 +42,11 @@ export type LlmTaskStructuredConfig = Record<string, any>;
  * convert unstructured task information into structured task information
  */
 export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> & {
+    /**
+     * Prefix for suggested commands. These are commands that are not run right away.
+     * Instead, they are suggested to the user, who can then choose to run them.
+     */
+    __suggested_prefix: string;
     /**
      * Builds context object to add to the LLM's context, so that it 
      * can start or execute commands
@@ -53,7 +59,7 @@ export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> &
     __construct_context_force: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
     // Allow for additional properties, as long as they're prefixed with "__"
     [Key: `__${string}`]: any;
-    [Key: `__${string}Properties`]: Record<string, Omit<LlmCommandProperty, "name">>;
+    [Key: `__${string}Properties`]: Record<string, Omit<LlmTaskProperty, "name">>;
 }
 
 /** 
@@ -63,8 +69,8 @@ export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> &
  * type's CreateInput type, which is then used later to call the corresponding API endpoint.
  */
 type ConverterFunc<ShapedData, U = undefined> = U extends undefined
-    ? (data: LlmCommandData, language: string) => ShapedData
-    : (data: LlmCommandData, language: string, existingData: U) => ShapedData;
+    ? (data: LlmTaskData, language: string) => ShapedData
+    : (data: LlmTaskData, language: string, existingData: U) => ShapedData;
 export type LlmTaskConverters = {
     ApiAdd: ConverterFunc<ApiCreateInput>,
     ApiDelete: ConverterFunc<DeleteOneInput>,
@@ -215,7 +221,7 @@ export const getStructuredTaskConfig = async (
 /**
  * Wrapper function for executing a task
  */
-type LlmTaskExec = (data: LlmCommandData) => (unknown | Promise<unknown>);
+type LlmTaskExec = (data: LlmTaskData) => (unknown | Promise<unknown>);
 
 /**
  * Creates the task execution function for a given task type
@@ -245,8 +251,8 @@ export const generateTaskExec = async (
     };
 
     /** Ensures that required fields are present */
-    const validateFields = (...validators: [string, ((data: LlmCommandData) => boolean)][]) => {
-        return (data: LlmCommandData) => {
+    const validateFields = (...validators: [string, ((data: LlmTaskData) => boolean)][]) => {
+        return (data: LlmTaskData) => {
             for (const [field, validator] of validators) {
                 if (!validator(data)) {
                     throw new CustomError("0047", "InvalidArgs", userData.languages, { field, task });

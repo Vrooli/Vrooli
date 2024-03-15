@@ -69,7 +69,7 @@ export const typeDef = gql`
         activeFocusMode: ActiveFocusMode
         apisCount: Int!
         bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
-        credits: Int!
+        credits: String! # Stringified BigInt
         focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!

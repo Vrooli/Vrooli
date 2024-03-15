@@ -1,5 +1,5 @@
-import { DUMMY_ID, endpointPostReact, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
-import { Avatar, Box, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { DUMMY_ID, endpointPostReact, LlmTaskInfo, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
+import { Avatar, Box, Chip, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
@@ -7,14 +7,14 @@ import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
-import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, PlayIcon, RefreshIcon, ReplyIcon, SearchIcon, SuccessIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -32,7 +32,7 @@ import { ChatMessageStatus } from "utils/shape/models/chatMessage";
  * It shows a CircularProgress that progresses as the message is sending,
  * and changes color and icon based on the success or failure of the operation.
  */
-const ChatBubbleStatus = ({
+export const ChatBubbleStatus = ({
     isEditing,
     onDelete,
     onEdit,
@@ -48,6 +48,9 @@ const ChatBubbleStatus = ({
     showButtons: boolean;
     status: ChatMessageStatus;
 }) => {
+    const { palette } = useTheme();
+    console.log("in chatbubblestatus", useTranslation);
+    const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
 
@@ -94,11 +97,11 @@ const ChatBubbleStatus = ({
                 value={progress}
                 size={24}
                 sx={{
-                    color: status === "sending" ?
-                        "secondary.main" :
-                        status === "failed" ?
-                            red[500] :
-                            green[500],
+                    color: status === "sending"
+                        ? palette.secondary.main
+                        : status === "failed"
+                            ? red[500]
+                            : green[500],
                 }}
             />
         );
@@ -111,7 +114,11 @@ const ChatBubbleStatus = ({
     // If there was an error, show an ErrorIcon
     if (status === "failed") {
         return (
-            <IconButton onClick={() => { onRetry(); }} sx={{ color: red[500] }}>
+            <IconButton
+                aria-label={t("Retry")}
+                onClick={() => { onRetry(); }}
+                sx={{ color: red[500] }}
+            >
                 <ErrorIcon />
             </IconButton>
         );
@@ -119,10 +126,18 @@ const ChatBubbleStatus = ({
     // If allowed to show buttons, show edit and delete buttons
     if (showButtons) return (
         <>
-            <IconButton onClick={onEdit} sx={{ color: green[500] }}>
+            <IconButton
+                aria-label={t("Edit")}
+                onClick={onEdit}
+                sx={{ color: green[500] }}
+            >
                 <EditIcon />
             </IconButton>
-            <IconButton onClick={onDelete} sx={{ color: red[500] }}>
+            <IconButton
+                aria-label={t("Delete")}
+                onClick={onDelete}
+                sx={{ color: red[500] }}
+            >
                 <DeleteIcon />
             </IconButton>
         </>
@@ -306,6 +321,90 @@ const ChatBubbleReactions = ({
     );
 };
 
+/** Displays a suggested, active, or finished task that is associated with the message */
+export const TaskChip = ({
+    taskInfo,
+    onTaskClick,
+}: {
+    taskInfo: LlmTaskInfo,
+    onTaskClick: (task: LlmTaskInfo) => unknown,
+}) => {
+    const { label, status, task } = taskInfo;
+    const canPress = ["suggested", "running"].includes(status);
+
+    const getStatusColor = () => {
+        switch (status) {
+            case "running":
+                return "primary";
+            case "completed":
+                return "success";
+            case "failed":
+                return "error";
+            default:
+                return "default";
+        }
+    };
+
+    const getStatusIcon = () => {
+        switch (status) {
+            case "running":
+                return <CircularProgress size={20} color="inherit" />;
+            case "completed":
+                return <SuccessIcon />;
+            case "failed":
+                return <ErrorIcon />;
+            default:
+                // Base Icon style on task type
+                if (task.endsWith("Add"))
+                    return <AddIcon />;
+                if (task.endsWith("Delete"))
+                    return <DeleteIcon />;
+                if (task.endsWith("Find"))
+                    return <SearchIcon />;
+                if (task.endsWith("Update"))
+                    return <EditIcon />;
+                return <PlayIcon />;
+        }
+    };
+
+    const getStatusTooltip = () => {
+        switch (status) {
+            case "suggested":
+                return `Press to start task: ${label}`;
+            case "running":
+                return `Task is running: ${label}`;
+            case "completed":
+                return `Task completed: ${label}`;
+            case "failed":
+                return `Task failed: ${label}`;
+            default:
+                return `Task: ${label}`;
+        }
+    };
+
+    return (
+        <Tooltip title={getStatusTooltip()}>
+            {/* Wrap in span so tooltip displayed when disabled */}
+            <span>
+                <Chip
+                    label={label}
+                    onClick={() => canPress ? onTaskClick(taskInfo) : undefined}
+                    color={getStatusColor()}
+                    icon={getStatusIcon()}
+                    style={{
+                        transition: "all 0.3s ease",
+                        cursor: canPress ? "pointer" : "default",
+                        borderRadius: "4px",
+                        border: status === "suggested" ? "1px solid" : "none",
+                        paddingLeft: "4px",
+                    }}
+                    disabled={!canPress}
+                />
+            </span>
+        </Tooltip>
+    );
+};
+
 export const ChatBubble = ({
     activeIndex,
     chatWidth,
@@ -318,6 +417,7 @@ export const ChatBubble = ({
     onReply,
     onRetry,
     onUpdated,
+    tasks,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -594,6 +694,14 @@ export const ChatBubble = ({
                     reactions={message.reactionSummaries}
                     status={message.status}
                 />
+                {/* Tasks associated with message */}
+                {tasks && tasks.length > 0 && (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
+                        {tasks.map((taskInfo) => (
+                            <TaskChip key={taskInfo.id} taskInfo={taskInfo} onTaskClick={() => { }} /> //TODO
+                        ))}
+                    </Box>
+                )}
             </Box>
         </>
     );

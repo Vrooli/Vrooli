@@ -754,6 +754,18 @@ export const endpointPostPhone = {
     tag: "phone",
 } as const;
 
+export const endpointPostPhoneVerificationText = {
+    endpoint: "/phone/verificationText",
+    method: "POST",
+    tag: "phone",
+} as const;
+
+export const endpointPostPhoneValidateText = {
+    endpoint: "/phone/validateText",
+    method: "POST",
+    tag: "phone",
+} as const;
+
 export const endpointGetPost = {
     endpoint: "/post/:id",
     method: "GET",

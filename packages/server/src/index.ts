@@ -18,11 +18,11 @@ import { setupStripe } from "./services";
 import { io } from "./sockets/io";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
 import { userSocketRoomHandlers } from "./sockets/rooms/user";
-import { setupCommandQueue } from "./tasks/command/queue";
 import { setupEmailQueue } from "./tasks/email/queue";
 import { setupExportQueue } from "./tasks/export/queue";
 import { setupImportQueue } from "./tasks/import/queue";
 import { setupLlmQueue } from "./tasks/llm/queue";
+import { setupLlmTaskQueue } from "./tasks/llmTask/queue";
 import { setupPushQueue } from "./tasks/push/queue";
 import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
@@ -48,7 +48,7 @@ const main = async () => {
     await ModelMap.init();
 
     // Setup queues
-    await setupCommandQueue();
+    await setupLlmTaskQueue();
     await setupEmailQueue();
     await setupExportQueue();
     await setupImportQueue();
@@ -178,7 +178,10 @@ const main = async () => {
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 };
 
-main();
+// Only call this from the "server" package
+if (process.env.npm_package_name === "@local/server") {
+    main();
+}
 
 // Export files for "jobs" package
 export * from "./builders";

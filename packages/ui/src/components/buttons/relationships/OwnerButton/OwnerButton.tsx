@@ -30,10 +30,10 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
     { labelKey: "Organization", value: OwnerTypesEnum.Organization },
 ];
 
-export function OwnerButton({
+export const OwnerButton = ({
     isEditing,
     objectType,
-}: OwnerButtonProps) {
+}: OwnerButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();

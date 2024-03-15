@@ -58,7 +58,7 @@ export async function setupEmailQueue() {
 }
 
 /** Adds an email to a task queue */
-export function sendMail(to: string[] = [], subject = "", text = "", html = "", delay = 0) {
+export const sendMail = (to: string[] = [], subject = "", text = "", html = "", delay = 0) => {
     emailQueue.add({
         to,
         subject,
@@ -68,7 +68,7 @@ export function sendMail(to: string[] = [], subject = "", text = "", html = "", 
 }
 
 /** Adds a password reset link email to a task queue */
-export function sendResetPasswordLink(email: string, userId: string | number, code: string) {
+export const sendResetPasswordLink = (email: string, userId: string, code: string) => {
     const link = `${UI_URL}${LINKS.ResetPassword}?code=${userId}:${code}`;
     emailQueue.add({
         to: [email],
@@ -79,7 +79,7 @@ export function sendResetPasswordLink(email: string, userId: string | number, co
 }
 
 /** Adds a verification link email to a task queue */
-export function sendVerificationLink(email: string, userId: string | number, code: string) {
+export const sendVerificationLink = (email: string, userId: string, code: string) => {
     // Replace all "${VERIFY_LINK}" in welcomeTemplate with the the actual link
     const link = `${UI_URL}${LINKS.Login}?code=${userId}:${code}`;
     const html = welcomeTemplate.replace(/\$\{VERIFY_LINK\}/g, link);
@@ -92,7 +92,7 @@ export function sendVerificationLink(email: string, userId: string | number, cod
 }
 
 /** Adds a feedback notification email for the admin to a task queue */
-export function feedbackNotifyAdmin(text: string, from?: string) {
+export const feedbackNotifyAdmin = (text: string, from?: string) => {
     emailQueue.add({
         to: [process.env.SITE_EMAIL_USERNAME ?? ""],
         subject: "Received Vrooli Feedback!",
@@ -101,7 +101,7 @@ export function feedbackNotifyAdmin(text: string, from?: string) {
 }
 
 /** Adds a thank you email for a completed payment (not recurring) to a task queue */
-export function sendPaymentThankYou(emailAddress: string, paymentType: PaymentType) {
+export const sendPaymentThankYou = (emailAddress: string, paymentType: PaymentType) => {
     emailQueue.add({
         to: [emailAddress],
         subject: `Thank you for your ${paymentType === PaymentType.Donation ? "donation" : "purchase"}!`,
@@ -112,7 +112,7 @@ export function sendPaymentThankYou(emailAddress: string, paymentType: PaymentTy
 }
 
 /** Adds a payment failed email to a task queue */
-export function sendPaymentFailed(emailAddress: string, paymentType: PaymentType) {
+export const sendPaymentFailed = (emailAddress: string, paymentType: PaymentType) => {
     emailQueue.add({
         to: [emailAddress],
         subject: `Your ${paymentType === PaymentType.Donation ? "donation" : "purchase"} failed`,
@@ -123,7 +123,7 @@ export function sendPaymentFailed(emailAddress: string, paymentType: PaymentType
 }
 
 /** Adds a credit card expiring soon warning to a task queue */
-export function sendCreditCardExpiringSoon(emailAddress: string) {
+export const sendCreditCardExpiringSoon = (emailAddress: string) => {
     emailQueue.add({
         to: [emailAddress],
         subject: "Your credit card is expiring soon!",
@@ -132,7 +132,7 @@ export function sendCreditCardExpiringSoon(emailAddress: string) {
 }
 
 /** Adds a "sorry to see you go" email for users who canceled their subscription to a task queue */
-export function sendSubscriptionCanceled(emailAddress: string) {
+export const sendSubscriptionCanceled = (emailAddress: string) => {
     emailQueue.add({
         to: [emailAddress],
         subject: "Sorry to see you go!",
@@ -141,7 +141,7 @@ export function sendSubscriptionCanceled(emailAddress: string) {
 }
 
 /** Adds subscription ended email to a task queue */
-export function sendSubscriptionEnded(emailAddress: string) {
+export const sendSubscriptionEnded = (emailAddress: string) => {
     emailQueue.add({
         to: [emailAddress],
         subject: "Your subscription has ended",

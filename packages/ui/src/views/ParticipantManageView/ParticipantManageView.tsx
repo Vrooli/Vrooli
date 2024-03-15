@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteStatus, DUMMY_ID, noop, User } from "@local/shared";
+import { ChatInvite, ChatInviteStatus, DUMMY_ID, noop, User, uuidValidate } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -6,6 +6,7 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useFindMany } from "hooks/useFindMany";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
@@ -37,6 +38,14 @@ export const ParticipantManageView = ({
         tabs,
         where,
     } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
+
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(chat.id),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where(chat.id),
+    })
 
     const {
         isSelecting,
@@ -76,9 +85,8 @@ export const ParticipantManageView = ({
 
     // Handle deleting participants
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<ListObject>({
-        allData: [] as any, //TODO
+        ...findManyData,
         selectedData,
-        setAllData: noop, //TODO
         setSelectedData: (data) => {
             setSelectedData(data);
             setIsSelecting(false);
@@ -173,14 +181,12 @@ export const ParticipantManageView = ({
             />
             <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
                 {searchType && <SearchList
+                    {...findManyData}
                     id="participant-manage-list"
                     display={display}
                     dummyLength={display === "page" ? 5 : 3}
                     handleToggleSelect={handleToggleSelect}
                     isSelecting={isSelecting}
-                    take={20}
-                    searchType={searchType}
-                    where={where(chat.id)}
                     selectedItems={selectedData}
                     sxs={{
                         search: { marginTop: 2 },

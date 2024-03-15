@@ -77,12 +77,12 @@ export class RedisClientMock {
     hSet = jest.fn((key: string, fieldOrObject: any, value?: any) => {
         if (!RedisClientMock.dataStore[key]) RedisClientMock.dataStore[key] = {};
 
-        if (typeof fieldOrObject === 'object' && value === undefined) {
+        if (typeof fieldOrObject === "object" && value === undefined) {
             // Assuming the entire object is passed as the second argument
             Object.entries(fieldOrObject).forEach(([field, val]) => {
                 RedisClientMock.dataStore[key][field] = val;
             });
-        } else if (typeof fieldOrObject === 'string') {
+        } else if (typeof fieldOrObject === "string") {
             // Handle the field-value pair case
             RedisClientMock.dataStore[key][fieldOrObject] = value;
         }
@@ -206,7 +206,7 @@ export class RedisClientMock {
 
     static __deleteMockData = (key: string) => {
         delete RedisClientMock.dataStore[key];
-    }
+    };
 
     static __resetMockData = () => {
         RedisClientMock.dataStore = {};

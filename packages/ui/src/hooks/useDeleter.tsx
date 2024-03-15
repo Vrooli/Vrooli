@@ -34,6 +34,7 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     NoteVersion: "minimal",
     Notification: "none",
     Organization: "full",
+    Phone: "minimal",
     Post: "minimal",
     Project: "full",
     ProjectVersion: "minimal",

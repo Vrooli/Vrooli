@@ -1,4 +1,4 @@
-import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, noop, User, uuid } from "@local/shared";
+import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, noop, User, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
@@ -16,6 +16,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
+import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
@@ -29,7 +30,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
 import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
+import { defaultYou, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
@@ -118,6 +119,14 @@ export const UserView = ({
         tabs,
         where,
     } = useTabs<UserPageTabOption>({ id: "user-tabs", tabParams: availableTabs, display });
+
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(user?.id ?? ""),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where({ userId: user?.id ?? "", permissions }),
+    })
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -363,11 +372,11 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.startMessage && <TextInput
+                        {botData.startingMessage && <TextInput
                             disabled
                             fullWidth
                             label={t("StartMessage")}
-                            value={botData.startMessage}
+                            value={botData.startingMessage}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -450,12 +459,12 @@ export const UserView = ({
                 )}
                 {currTab.tabType !== UserPageTabOption.Details && <Box>
                     <SearchList
+                        {...findManyData}
                         display={display}
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
-                        searchType={searchType}
                         searchPlaceholder={searchPlaceholderKey}
                         sxs={showSearchFilters ? {
                             search: { marginTop: 2 },
@@ -465,8 +474,6 @@ export const UserView = ({
                             buttons: { display: "none" },
                             listContainer: { borderRadius: 0 },
                         }}
-                        take={20}
-                        where={where({ userId: user?.id ?? "", permissions })}
                     />
                 </Box>}
             </Box>

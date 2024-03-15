@@ -1,5 +1,5 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus, SubscribableObject } from "@local/shared";
-import { setupVerificationCode } from "../auth/email";
+import { setupEmailVerificationCode } from "../auth/email";
 import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base/chatMessage";
 import { Notify, isObjectSubscribable } from "../notify";
 import { emitSocketEvent } from "../sockets/events";
@@ -40,7 +40,7 @@ type Owner = { __typename: "User" | "Organization", id: string };
 export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     acountNew: async (userId: string, emailAddress?: string) => {
         // Send a welcome/verification email (if not created with wallet)
-        if (emailAddress) await setupVerificationCode(emailAddress, prisma, languages);
+        if (emailAddress) await setupEmailVerificationCode(emailAddress, userId, prisma, languages);
         // Give the user an award
         Award(prisma, userId, languages).update("AccountNew", 1);
     },
