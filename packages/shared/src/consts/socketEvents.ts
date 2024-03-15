@@ -1,4 +1,5 @@
-import { ChatMessage } from "../api/generated/graphqlTypes";
+import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
+import { LlmTaskInfo } from "./api";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinUserRoom" | "leaveUserRoom";
@@ -8,7 +9,7 @@ export type UserSocketEventPayloads = {
      * Updates to the number of API credits the user has
      */
     apiCredits: {
-        credits: BigInt;
+        credits: bigint;
     };
     joinUserRoom: { userId: string };
     leaveUserRoom: { userId: string };
@@ -32,15 +33,17 @@ export type ChatSocketEventPayloads = {
         stopping?: string[]
     };
     participants: {
-        /** IDs of users who joined the chat */
-        joining?: string[];
+        /** Users who joined the chat */
+        joining?: Omit<ChatParticipant, "chat">[];
         /** IDs of users who left the chat */
         leaving?: string[]
     };
+    /** Tasks that can or have been performed */
+    llmTasks: {
+        tasks: LlmTaskInfo[];
+    };
     joinChatRoom: { chatId: string };
     leaveChatRoom: { chatId: string };
-    //TODO need types for these
-    llmTasks: unknown[];
 }
 export type ReservedSocketEventPayloads = {
     connect: never;

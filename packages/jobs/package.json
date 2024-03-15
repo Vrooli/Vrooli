@@ -16,7 +16,6 @@
         "pre-prod": "echo 'no pre-prod steps required'",
         "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" nodemon dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
-        "prisma-generate": "prisma generate",
         "type-check": "NODE_OPTIONS=\"--max-old-space-size=6144\" tsc --noEmit"
     },
     "dependencies": {

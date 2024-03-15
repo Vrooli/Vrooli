@@ -1,11 +1,11 @@
 import { SessionUserToken } from "@local/server";
+import { LlmTaskInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { LlmCommand } from "../llm/commands";
 
-export type CommandProcessPayload = {
-    /** The command to be run */
-    command: LlmCommand;
+export type LlmTaskProcessPayload = {
+    /** The task to be run */
+    taskInfo: Omit<LlmTaskInfo, "status">;
     /** The chat the command was triggered in */
     chatId: string
     /** The language the command was triggered in */
@@ -17,11 +17,11 @@ export type CommandProcessPayload = {
 let logger: winston.Logger;
 let HOST: string;
 let PORT: number;
-let commandProcess: (job: Bull.Job<CommandProcessPayload>) => Promise<unknown>;
-let commandQueue: Bull.Queue<CommandProcessPayload>;
+let llmTaskProcess: (job: Bull.Job<LlmTaskProcessPayload>) => Promise<unknown>;
+let llmTaskQueue: Bull.Queue<LlmTaskProcessPayload>;
 
 // Call this on server startup
-export async function setupCommandQueue() {
+export async function setupLlmTaskQueue() {
     try {
         const loggerModule = await import("../../events/logger.js");
         logger = loggerModule.logger;
@@ -31,13 +31,13 @@ export async function setupCommandQueue() {
         PORT = redisConnModule.PORT;
 
         const processModule = await import("./process.js");
-        commandProcess = processModule.commandProcess;
+        llmTaskProcess = processModule.llmTaskProcess;
 
         // Initialize the Bull queue
-        commandQueue = new Bull<CommandProcessPayload>("command", {
+        llmTaskQueue = new Bull<LlmTaskProcessPayload>("command", {
             redis: { port: PORT, host: HOST },
         });
-        commandQueue.process(commandProcess);
+        llmTaskQueue.process(llmTaskProcess);
     } catch (error) {
         const errorMessage = "Failed to setup command queue";
         if (logger) {
@@ -48,6 +48,6 @@ export async function setupCommandQueue() {
     }
 }
 
-export const processCommand = (data: CommandProcessPayload) => {
-    commandQueue.add(data, { timeout: 1000 * 60 * 1 });
+export const processLlmTask = (data: LlmTaskProcessPayload) => {
+    llmTaskQueue.add(data, { timeout: 1000 * 60 * 1 });
 };

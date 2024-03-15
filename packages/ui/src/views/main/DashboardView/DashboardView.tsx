@@ -65,7 +65,8 @@ export const DashboardView = ({
     const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
-    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
     const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
 
     const {
@@ -82,6 +83,11 @@ export const DashboardView = ({
 
     const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
     const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS));
+    useEffect(() => {
+        if (loadedChat?.participants) {
+            setParticipants(loadedChat.participants);
+        }
+    }, [loadedChat?.participants]);
     // When a chat is loaded, store chat ID by participant and task
     useEffect(() => {
         if (!loadedChat?.id) return;
@@ -341,8 +347,11 @@ export const DashboardView = ({
         addMessages: messageTree.addMessages,
         chat,
         editMessage: messageTree.editMessage,
+        participants,
         removeMessages: messageTree.removeMessages,
+        setParticipants,
         setUsersTyping,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
         usersTyping,
     });
 
@@ -505,6 +514,7 @@ export const DashboardView = ({
                     handleReply={messageTree.replyToMessage}
                     handleRetry={messageActions.regenerateResponse}
                     isBotOnlyChat={isBotOnlyChat}
+                    messageTasks={messageTree.messageTasks}
                     removeMessages={messageTree.removeMessages}
                     setBranches={messageTree.setBranches}
                     tree={messageTree.tree}

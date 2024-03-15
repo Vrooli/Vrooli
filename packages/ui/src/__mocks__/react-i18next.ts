@@ -5,7 +5,7 @@ const reactI18nextMock = {
             changeLanguage: jest.fn(),
         },
     }),
-    withTranslation: () => (Component: any) => {
+    withTranslation: () => (Component: object) => {
         Component.defaultProps = { ...Component.defaultProps, t: (str: string) => str };
         return Component;
     },

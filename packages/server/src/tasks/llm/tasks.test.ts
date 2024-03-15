@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask } from "@local/shared";
-import { LlmCommand, MaybeLlmCommand, detectWrappedCommands, extractCommands, filterInvalidCommands, findCharWithLimit, handleCommandTransition, isAlphaNum, isNewline, isWhitespace, removeCommands } from "./commands";
+import { LlmTask, uuid } from "@local/shared";
 import { CommandToTask } from "./config";
+import { MaybeLlmTaskInfo, PartialTaskInfo, detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, handleTaskTransition, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
 
 describe("isNewline", () => {
     test("recognizes newline character", () => {
@@ -90,7 +90,7 @@ describe("isAlphaNum", () => {
     });
 });
 
-describe("handleCommandTransition", () => {
+describe("handleTaskTransition", () => {
     let onCommit, onComplete, onCancel, onStart;
     let rest;
     beforeEach(() => {
@@ -104,7 +104,7 @@ describe("handleCommandTransition", () => {
     // Outside tests
     test("Reset buffer on outside when whitespace encountered - space", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -116,7 +116,7 @@ describe("handleCommandTransition", () => {
     });
     test("Reset buffer on outside when whitespace encountered - tab", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -128,7 +128,7 @@ describe("handleCommandTransition", () => {
     });
     test("Reset buffer on outside when whitespace encountered - newline", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -140,7 +140,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - single quote", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -152,7 +152,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - double quote", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\"",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -164,7 +164,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - equals sign", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "=",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -176,7 +176,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - letter", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -188,7 +188,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - number", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "1",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -200,7 +200,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - other alphabets", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -212,7 +212,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - emojis", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -224,7 +224,7 @@ describe("handleCommandTransition", () => {
     });
     test("keep adding to outside when not on a slash - symbols", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -238,7 +238,7 @@ describe("handleCommandTransition", () => {
     // Command tests
     test("does not start a command when the slash is not preceeded by whitespace - letter", () => {
         const buffer = "asdf";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -250,7 +250,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start a command when the slash is not preceeded by whitespace - number", () => {
         const buffer = "1234";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -262,7 +262,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start a command when the slash is not preceeded by whitespace - symbol", () => {
         const buffer = "!@#$";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -276,7 +276,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start a command when the slash is not preceeded by whitespace - emoji", () => {
         const buffer = "🙌💃";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -288,7 +288,7 @@ describe("handleCommandTransition", () => {
     });
     test("starts a command when buffer is empty", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -300,7 +300,7 @@ describe("handleCommandTransition", () => {
     });
     test("starts a command after a newline", () => {
         const buffer = "asdf\n";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -312,7 +312,7 @@ describe("handleCommandTransition", () => {
     });
     test("starts a command after whitespace - space", () => {
         const buffer = "asdf ";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -324,7 +324,7 @@ describe("handleCommandTransition", () => {
     });
     test("starts a command after whitespace - tab", () => {
         const buffer = "asdf\t";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "outside",
@@ -336,7 +336,7 @@ describe("handleCommandTransition", () => {
     });
     test("adds letter to command buffer", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -348,7 +348,7 @@ describe("handleCommandTransition", () => {
     });
     test("adds number to command buffer", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "1",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -360,7 +360,7 @@ describe("handleCommandTransition", () => {
     });
     test("commmits on newline", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -372,7 +372,7 @@ describe("handleCommandTransition", () => {
     });
     test("resets to outside on other alphabets", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -384,7 +384,7 @@ describe("handleCommandTransition", () => {
     });
     test("resets to outside on emojis", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -396,7 +396,7 @@ describe("handleCommandTransition", () => {
     });
     test("resets to outside on symbols", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -410,7 +410,7 @@ describe("handleCommandTransition", () => {
     // Pending (when we're not sure if it's an action or a property yet) tests
     test("starts pending actionwhen we encounter the first space after a command - space", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -422,7 +422,7 @@ describe("handleCommandTransition", () => {
     });
     test("starts pending action when we encounter the first space after a command - tab", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -434,7 +434,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start pending action for newline", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -446,7 +446,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start pending action for other alphabets", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -458,7 +458,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start pending action for emojis", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -470,7 +470,7 @@ describe("handleCommandTransition", () => {
     });
     test("does not start pending action for symbols", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "command",
@@ -482,7 +482,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels pending action on other alphabets", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -494,7 +494,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels pending action on emojis", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -506,7 +506,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels pending action on symbols", () => {
         const buffer = "test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -520,7 +520,7 @@ describe("handleCommandTransition", () => {
     // Action tests
     test("commits pending action buffer to action on whitespace - space", () => {
         const buffer = "add";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -532,7 +532,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits pending action buffer to action on whitespace - tab", () => {
         const buffer = "add";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -544,7 +544,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits pending action buffer to action on newline", () => {
         const buffer = "add";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -558,7 +558,7 @@ describe("handleCommandTransition", () => {
     // Property name tests
     test("commits pending action buffer to property name on equals sign", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "=",
             prev: buffer[buffer.length - 1],
             section: "action",
@@ -570,7 +570,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits property name buffer to property name on equals sign", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "=",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -582,7 +582,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on whitespace - space", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -594,7 +594,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on whitespace - tab", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -606,7 +606,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on newline", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -618,7 +618,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on other alphabets", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -630,7 +630,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on emojis", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -642,7 +642,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on symbols", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -654,7 +654,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property name buffer on slash", () => {
         const buffer = "name";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "propName",
@@ -668,7 +668,7 @@ describe("handleCommandTransition", () => {
     // Property value tests
     test("starts property value on single quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "propValue", // Should already be marked as propValue because of the equals sign
@@ -681,7 +681,7 @@ describe("handleCommandTransition", () => {
     });
     test("starts property value on double quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\"",
             prev: buffer[buffer.length - 1],
             section: "propValue", // Should already be marked as propValue because of the equals sign
@@ -694,7 +694,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if buffer + curr might be a number - test 1", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "1",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -706,7 +706,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if buffer + curr might be a number - test 2", () => {
         const buffer = "-";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "1",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -718,7 +718,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if buffer + curr might be a number - test 3", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: ".",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -730,7 +730,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if buffer + curr might be a number - test 4", () => {
         const buffer = "3";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: ".",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -742,7 +742,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if buffer + curr is an invalid number - test 1", () => {
         const buffer = "-";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "-",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -754,7 +754,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if buffer + curr is an invalid number - test 2", () => {
         const buffer = "1";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "-",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -766,7 +766,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if buffer + curr is an invalid number - test 3", () => {
         const buffer = "3.";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: ".",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -778,7 +778,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if buffer + curr is an invalid number - test 4", () => {
         const buffer = "1.2";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: ".",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -790,7 +790,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if buffer + curr might be null - test 1", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "n",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -802,7 +802,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if buffer + curr might be null - test 2", () => {
         const buffer = "nul";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "l",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -814,7 +814,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if buffer + curr is not null", () => {
         const buffer = "null";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "l",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -826,7 +826,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if letter before quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -838,7 +838,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if whitespace before quote - space", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -850,7 +850,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if whitespace before quote - tab", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -862,7 +862,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if newline before quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -874,7 +874,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if other alphabets before quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -886,7 +886,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if emojis before quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -898,7 +898,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if symbols before quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -910,7 +910,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels property value if slash before quote", () => {
         const buffer = "";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -922,7 +922,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - letter with single quote start", () => {
         const buffer = "'";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -934,7 +934,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - letter with double quote start", () => {
         const buffer = "\"";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -946,7 +946,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - letter with single quote start and other text in buffer", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -958,7 +958,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - other language", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -970,7 +970,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - emoji", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -982,7 +982,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - symbol", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -994,7 +994,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - slash", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "/",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1006,7 +1006,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - newline", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1018,7 +1018,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - space", () => {
         const buffer = "\"test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1030,7 +1030,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value if already in quotes - tab", () => {
         const buffer = "\"test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1042,7 +1042,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value when curr is a different quote type than the starting quote - double with single start", () => {
         const buffer = "'";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\"",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1054,7 +1054,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value when curr is a different quote type than the starting quote - single with double start", () => {
         const buffer = "\"";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1066,7 +1066,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value for escaped characters - curr is escape character, buffer is quote", () => {
         const buffer = "'";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\\",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1078,7 +1078,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value for escaped characters - curr is single quote, buffer is double quote and escape character", () => {
         const buffer = "\"\\";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\"",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1090,7 +1090,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value for escaped characters - curr is single quote, buffer is single quote and escape character", () => {
         const buffer = "'\\";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1102,7 +1102,7 @@ describe("handleCommandTransition", () => {
     });
     test("completes property value for an even number of escape characters", () => {
         const buffer = "'\\\\";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1114,7 +1114,7 @@ describe("handleCommandTransition", () => {
     });
     test("continues property value for an odd number of escape characters", () => {
         const buffer = "'\\\\\\";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1126,7 +1126,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits property value on closing quote - single quote", () => {
         const buffer = "'test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "'",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1138,7 +1138,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits property value on closing quote - double quote", () => {
         const buffer = "\"test";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\"",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1150,7 +1150,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits number property value on space - test 1", () => {
         const buffer = "123";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1162,7 +1162,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits number property value on space - test 2", () => {
         const buffer = "-123";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1174,7 +1174,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits number property value on space - test 3", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: " ",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1186,7 +1186,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits number property value on tab", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\t",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1198,7 +1198,7 @@ describe("handleCommandTransition", () => {
     });
     test("commits number property value on newline", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "\n",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1210,7 +1210,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels number property value on letter", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "a",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1222,7 +1222,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels number property value on other alphabet", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "你",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1234,7 +1234,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels number property value on emoji", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "👋",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1246,7 +1246,7 @@ describe("handleCommandTransition", () => {
     });
     test("cancels number property value on symbol", () => {
         const buffer = "-1.23";
-        const result = handleCommandTransition({
+        const result = handleTaskTransition({
             curr: "!",
             prev: buffer[buffer.length - 1],
             section: "propValue",
@@ -1307,9 +1307,9 @@ const commandToTask: CommandToTask = (command, action) => {
 };
 
 /**
- * Helper function to simplify testing of `detectWrappedCommands`
+ * Helper function to simplify testing of `detectWrappedTasks`
  */
-const detectWrappedCommandsTester = ({
+const detectWrappedTasksTester = ({
     start,
     delimiter,
     input,
@@ -1318,10 +1318,14 @@ const detectWrappedCommandsTester = ({
     start: string,
     delimiter: string | null,
     input: string,
-    expected: number[],
+    expected: {
+        commandIndices: number[],
+        wrapperStart: number,
+        wrapperEnd: number,
+    }[],
 }) => {
-    const allCommands = extractCommands(input, commandToTask);
-    const detectedCommands = detectWrappedCommands({
+    const allCommands = extractTasks(input, commandToTask);
+    const detectedCommands = detectWrappedTasks({
         start,
         delimiter,
         commands: allCommands,
@@ -1331,7 +1335,7 @@ const detectWrappedCommandsTester = ({
     expect(detectedCommands, `input: ${input}`).toEqual(expected);
 };
 
-describe("detectWrappedCommands", () => {
+describe("detectWrappedTasks", () => {
     const wrapper1 = {
         start: "suggested",
         delimiter: ",", // Allows multiple
@@ -1346,154 +1350,209 @@ describe("detectWrappedCommands", () => {
     for (const wrapper of allWrappers) {
         const { start, delimiter } = wrapper;
         test("returns empty array when no commands are present - test 1", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: "a/command",
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when no commands are present - test 2", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: "/command🥴",
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 1", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: "/command1 /command2",
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 2", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `${start.slice(0, -1)}: [/command1]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 3", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `${start}: [/command1`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 4", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `${start}:\n[/command1]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 5", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `${start}: [/command1\n]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 6", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `${start}: [/command1${delimiter}\n/command2]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 7", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `${start}:[/command1 ${start}:]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 1", () => {
-            detectWrappedCommandsTester({
-                input: `${start}:[/command1]`,
-                expected: [0],
+            const input = `${start}:[/command1]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [0],
+                    wrapperStart: 0,
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 2", () => {
-            detectWrappedCommandsTester({
-                input: `boop ${start}: [/command1]`,
-                expected: [0],
+            const input = `boop ${start}: [/command1]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [0],
+                    wrapperStart: 5,
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 3", () => {
-            detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start}:[/command1]`,
-                expected: [1],
+            const input = `/firstCommand hello ${start}:[/command1]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [1],
+                    wrapperStart: "/firstCommand hello ".length,
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 4", () => {
-            detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start}: [/command1]}`,
-                expected: [1],
+            const input = `/firstCommand hello ${start}: [/command1]}`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [1],
+                    wrapperStart: "/firstCommand hello ".length,
+                    wrapperEnd: input.length - 2,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 5", () => {
-            detectWrappedCommandsTester({
-                input: `/firstCommand hello ${start}: [  /command1  ]`,
-                expected: [1],
+            const input = `/firstCommand hello ${start}: [  /command1  ]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [1],
+                    wrapperStart: "/firstCommand hello ".length,
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 6", () => {
-            detectWrappedCommandsTester({
-                input: `/firstCommand hello name="hi" ${start}: [/command1]`,
-                expected: [1],
+            const input = `/firstCommand hello name="hi" ${start}: [/command1]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [1],
+                    wrapperStart: "/firstCommand hello name=\"hi\" ".length,
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 7", () => {
-            detectWrappedCommandsTester({
-                input: `${start}: ${start}: [/command1 hello]`,
-                expected: [0],
+            const input = `${start}: ${start}: [/command1 hello]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [0],
+                    wrapperStart: `${start}: `.length, // First ${start} is ignored
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for a single wrapped command - test 8", () => {
-            detectWrappedCommandsTester({
-                input: `/hi there ${start}: [/command1 hello name="hi" value=123 thing='hi']`,
-                expected: [1],
+            const input = `/hi there ${start}: [/command1 hello name="hi" value=123 thing='hi']`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    commandIndices: [1],
+                    wrapperStart: "/hi there ".length,
+                    wrapperEnd: input.length - 1,
+                }],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 1", () => {
-            detectWrappedCommandsTester({
-                input: `${start}:[/command1${delimiter ?? ""} /command2]`,
-                expected: delimiter ? [0, 1] : [],
+            const input = `${start}:[/command1${delimiter ?? ""} /command2]`;
+            detectWrappedTasksTester({
+                input,
+                expected: delimiter ? [{
+                    commandIndices: [0, 1],
+                    wrapperStart: 0,
+                    wrapperEnd: input.length - 1,
+                }] : [],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 2", () => {
-            detectWrappedCommandsTester({
-                input: `${start}: [/command1 ${delimiter ?? ""} /command2 ]`,
-                expected: delimiter ? [0, 1] : [],
+            const input = `${start}: [/command1 ${delimiter ?? ""} /command2 ]`;
+            detectWrappedTasksTester({
+                input,
+                expected: delimiter ? [{
+                    commandIndices: [0, 1],
+                    wrapperStart: 0,
+                    wrapperEnd: input.length - 1,
+                }] : [],
                 ...wrapper,
             });
         });
         test("returns correct indices for multiple wrapped commands - test 3", () => {
-            detectWrappedCommandsTester({
-                input: `${start}: [/command1 ${delimiter ?? ""} /command2 action name='hi']`,
-                expected: delimiter ? [0, 1] : [],
+            const input = `${start}: [/command1 ${delimiter ?? ""} /command2 action name='hi']`;
+            detectWrappedTasksTester({
+                input,
+                expected: delimiter ? [{
+                    commandIndices: [0, 1],
+                    wrapperStart: 0,
+                    wrapperEnd: input.length - 1,
+                }] : [],
                 ...wrapper,
             });
         });
         test("handles property value trickery - test 1", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `/command1 action name='${start}: [/command2]'`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("handles property value trickery - test 2", () => {
-            detectWrappedCommandsTester({
+            detectWrappedTasksTester({
                 input: `/command1 action name='${start}:' [/command2]`,
                 expected: [],
                 ...wrapper,
@@ -1503,17 +1562,18 @@ describe("detectWrappedCommands", () => {
 });
 
 /**
- * Helper function to simplify testing of `extractCommands`
+ * Helper function to simplify testing of `extractTasks`
  */
-const extractCommandsTester = ({
+const extractTasksTester = ({
     input,
     expected,
 }: {
     input: string,
-    expected: (Omit<MaybeLlmCommand, "task" | "start" | "end"> & { match: string })[],
+    expected: (Omit<MaybeLlmTaskInfo, "task" | "start" | "end"> & { match: string })[],
 }) => {
-    const commands = extractCommands(input, commandToTask);
+    const commands = extractTasks(input, commandToTask);
     const expectedCommands = expected.map(({ command, action, properties, match }) => ({
+        id: expect.any(String),
         task: commandToTask(command, action),
         command,
         action,
@@ -1530,81 +1590,81 @@ const extractCommandsTester = ({
     }
 };
 
-describe("extractCommands", () => {
+describe("extractTasks", () => {
     test("ignores non-command slashes - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "a/command",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "1/3",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop.",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop!",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop你",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop👋",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 7", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop/",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 8", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop\\",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 9", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop=",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 10", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop-",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 11", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/boop.",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 12", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "//boop",
             expected: [],
         });
     });
     test("ignores non-command slashes - test 13", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "//bippity /boppity! /boop💃 /realCommand",
             expected: [{
                 command: "realCommand",
@@ -1615,25 +1675,25 @@ describe("extractCommands", () => {
         });
     });
     test("ignores commands in code blocks - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "```/command```",
             expected: [],
         });
     });
     test("ignores commands in code blocks - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "here is some code:\n```/command action```\n",
             expected: [],
         });
     });
     test("ignores commands in code blocks - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "here is some code:\n```bloop /command action\nother words```",
             expected: [],
         });
     });
     test("ignores commands in code blocks - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "```command inside code block: /codeCommand action```command outside code block: /otherCommand action\n",
             expected: [{
                 command: "otherCommand",
@@ -1644,25 +1704,25 @@ describe("extractCommands", () => {
         });
     });
     test("ignores commands in code blocks - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "Single-tick code block: `/command action`",
             expected: [],
         });
     });
     test("ignores commands inside code blocks - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "<code>/command action</code>",
             expected: [],
         });
     });
     test("ignores commands inside code blocks - test 7", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "hello <code>\n/command action\n</code> there",
             expected: [],
         });
     });
     test("doesn't ignore code-looking commands when there's property value trickery - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1 action1 text='```/note find```'",
             expected: [{
                 command: "command1",
@@ -1673,7 +1733,7 @@ describe("extractCommands", () => {
         });
     });
     test("doesn't ignore code-looking commands when there's property value trickery - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1 action1 text='```' /note find text='```'",
             expected: [{
                 command: "command1",
@@ -1689,7 +1749,7 @@ describe("extractCommands", () => {
         });
     });
     test("doesn't ignore code-looking commands when there's property value trickery - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1 action1 text='<code>/note find</code>'",
             expected: [{
                 command: "command1",
@@ -1700,7 +1760,7 @@ describe("extractCommands", () => {
         });
     });
     test("doesn't ignore code-looking commands when there's property value trickery - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1 action1 text='<code>' /note find text='<code>'",
             expected: [{
                 command: "command1",
@@ -1716,7 +1776,7 @@ describe("extractCommands", () => {
         });
     });
     test("doesn't ignore double-tick code blocks", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "Double-tick code block: `` /command action ``",
             expected: [{
                 command: "command",
@@ -1727,7 +1787,7 @@ describe("extractCommands", () => {
         });
     });
     test("doesn't ignore single-tick code block when newline is encountered", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "Invalid single-tick code block: `\n/command action `",
             expected: [{
                 command: "command",
@@ -1739,7 +1799,7 @@ describe("extractCommands", () => {
     });
 
     test("extracts simple command without action or properties - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command",
             expected: [{
                 command: "command",
@@ -1750,7 +1810,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "  /command",
             expected: [{
                 command: "command",
@@ -1761,7 +1821,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command  ",
             expected: [{
                 command: "command",
@@ -1772,7 +1832,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "aasdf\n/command",
             expected: [{
                 command: "command",
@@ -1783,7 +1843,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command\n",
             expected: [{
                 command: "command",
@@ -1794,7 +1854,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command\t",
             expected: [{
                 command: "command",
@@ -1805,7 +1865,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 7", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command invalidActionBecauseSymbol!",
             expected: [{
                 command: "command",
@@ -1816,7 +1876,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts simple command without action or properties - test 8", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command invalidActionBecauseLanguage你",
             expected: [{
                 command: "command",
@@ -1828,7 +1888,7 @@ describe("extractCommands", () => {
     });
 
     test("extracts command with action - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command action",
             expected: [{
                 command: "command",
@@ -1839,7 +1899,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts command with action - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command action other words",
             expected: [{
                 command: "command",
@@ -1850,7 +1910,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts command with action - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command action invalidProp= 'space after equals'",
             expected: [{
                 command: "command",
@@ -1861,7 +1921,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts command with action - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command action\t",
             expected: [{
                 command: "command",
@@ -1872,7 +1932,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts command with action - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command action\n",
             expected: [{
                 command: "command",
@@ -1883,7 +1943,7 @@ describe("extractCommands", () => {
         });
     });
     test("extracts command with action - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command\taction",
             expected: [{
                 command: "command",
@@ -1895,7 +1955,7 @@ describe("extractCommands", () => {
     });
 
     test("handles command with properties - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=123 prop2='value' prop3=null",
             expected: [{
                 command: "command",
@@ -1906,7 +1966,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=\"123\" prop2='value' prop3=\"null\"",
             expected: [{
                 command: "command",
@@ -1917,7 +1977,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=0.3 prop2='val\"ue' prop3=\"asdf\nfdsa\"",
             expected: [{
                 command: "command",
@@ -1928,7 +1988,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=0.3\" prop2='value' prop3=null",
             expected: [{
                 command: "command",
@@ -1939,7 +1999,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=-2.3 prop2=.2 prop3=\"one\\\"\"",
             expected: [{
                 command: "command",
@@ -1950,7 +2010,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=123 prop2='value' prop3=null\"",
             expected: [{
                 command: "command",
@@ -1961,7 +2021,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 7", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command\tprop1=123 prop2='value' prop3=null\n",
             expected: [{
                 command: "command",
@@ -1972,7 +2032,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 8", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=123 prop2='value' prop3=null ",
             expected: [{
                 command: "command",
@@ -1983,7 +2043,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 9", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=123 prop2='val\\'u\"e' prop3=null\t",
             expected: [{
                 command: "command",
@@ -1994,7 +2054,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles command with properties - test 10", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command prop1=123 prop2='value' prop3=null notaprop",
             expected: [{
                 command: "command",
@@ -2006,7 +2066,7 @@ describe("extractCommands", () => {
     });
 
     test("handles wrapped commands - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "suggested: [/command1]",
             expected: [{
                 command: "command1",
@@ -2017,7 +2077,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1 suggested: [/command2]",
             expected: [{
                 command: "command1",
@@ -2033,7 +2093,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "suggested: [/command1] recommended: [/command2]",
             expected: [{
                 command: "command1",
@@ -2049,7 +2109,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "suggested: [/command1 action]",
             expected: [{
                 command: "command1",
@@ -2060,7 +2120,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "suggested: [/command1 action, /command2 action2]",
             expected: [{
                 command: "command1",
@@ -2076,7 +2136,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"]",
             expected: [{
                 command: "command1",
@@ -2087,7 +2147,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles wrapped commands - test 7", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
             expected: [{
                 command: "command1",
@@ -2104,7 +2164,7 @@ describe("extractCommands", () => {
     });
 
     test("handles newline properly", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1\n/command2",
             expected: [{
                 command: "command1",
@@ -2120,7 +2180,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles space properly", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1 /command2",
             expected: [{
                 command: "command1",
@@ -2136,7 +2196,7 @@ describe("extractCommands", () => {
         });
     });
     test("handles tab properly", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/command1\t/command2",
             expected: [{
                 command: "command1",
@@ -2153,7 +2213,7 @@ describe("extractCommands", () => {
     });
 
     test("handles complex scenario with multiple commands and properties - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/cmd1  prop1=123 /cmd2 action2 \tprop2='text' prop3=4.56\n/cmd3 prop4=null \nprop5='invalid because newline",
             expected: [{
                 command: "cmd1",
@@ -2175,109 +2235,109 @@ describe("extractCommands", () => {
     });
 
     test("does nothing for non-command text - test 1", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "this is a test",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 2", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "/a".repeat(1000),
             expected: [],
         });
     });
     test("does nothing for non-command text - test 3", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 4", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: " ",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 5", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "\n",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 6", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "\t",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 7", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "💃",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 8", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "你",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 9", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "!",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 10", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: ".",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 11", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "123",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 12", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "-123",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 13", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "0.123",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 14", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "null",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 15", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "true",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 16", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "false",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 17", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "123你",
             expected: [],
         });
     });
     test("does nothing for non-command text - test 18", () => {
-        extractCommandsTester({
+        extractTasksTester({
             input: "To whom it may concern,\n\nI am writing to inform you that I am a giant purple dinosaur. I cannot be stopped. I am inevitable. I am Barney.\n\nSincerely,\nYour Worst Nightmare",
             expected: [],
         });
@@ -2294,27 +2354,27 @@ describe("extractCommands", () => {
     // };
     // test('performance test - 10 commands', () => {
     //     const input = generateInput(10);
-    //     console.time('extractCommands with 10 commands');
-    //     extractCommands(input, commandToTask);
-    //     console.timeEnd('extractCommands with 10 commands');
+    //     console.time('extractTasks with 10 commands');
+    //     extractTasks(input, commandToTask);
+    //     console.timeEnd('extractTasks with 10 commands');
     // });
     // test('performance test - 100 commands', () => {
     //     const input = generateInput(100);
-    //     console.time('extractCommands with 100 commands');
-    //     extractCommands(input, commandToTask);
-    //     console.timeEnd('extractCommands with 100 commands');
+    //     console.time('extractTasks with 100 commands');
+    //     extractTasks(input, commandToTask);
+    //     console.timeEnd('extractTasks with 100 commands');
     // });
     // test('performance test - 1000 commands', () => {
     //     const input = generateInput(1000);
-    //     console.time('extractCommands with 1000 commands');
-    //     extractCommands(input, commandToTask);
-    //     console.timeEnd('extractCommands with 1000 commands');
+    //     console.time('extractTasks with 1000 commands');
+    //     extractTasks(input, commandToTask);
+    //     console.timeEnd('extractTasks with 1000 commands');
     // });
 });
 
-describe("filterInvalidCommands", () => {
+describe("filterInvalidTasks", () => {
     test("filters out commands where the task is invalid", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "asjflkdjslafkjslaf" as LlmTask,
             command: "add",
             action: null,
@@ -2323,12 +2383,12 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
         expect(result).toEqual([]);
     });
 
     test("filters out commands not listed in taskConfig", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "Start",
             command: "poutine",
             action: "add",
@@ -2337,12 +2397,12 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "Start");
+        const result = await filterInvalidTasks(potentialCommands, "Start");
         expect(result).toEqual([]);
     });
 
     test("filters out commands with invalid actions", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "Start",
             command: "routine",
             action: "fkdjsalfsda",
@@ -2351,12 +2411,12 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "Start");
+        const result = await filterInvalidTasks(potentialCommands, "Start");
         expect(result).toEqual([]);
     });
 
     test("filters out invalid properties from commands", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "add",
             action: null,
@@ -2365,14 +2425,14 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
         expect(result[0].command).toBe("add");
         expect(result[0].action).toBe(null);
         expect(result[0].properties).toEqual({ "name": "value" });
     });
 
     test("identifies missing required properties", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "add",
             action: null,
@@ -2381,12 +2441,12 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
         expect(result).toEqual([]); // Missing required property
     });
 
     test("accepts valid commands with correct properties", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "add",
             action: null,
@@ -2395,12 +2455,12 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
         expect(result).toEqual(potentialCommands);
     });
 
     test("corrects null task", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: null,
             command: "add",
             action: null,
@@ -2409,7 +2469,7 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
         expect(result).toEqual([{
             ...potentialCommands[0],
             task: "RoutineAdd",
@@ -2420,7 +2480,7 @@ describe("filterInvalidCommands", () => {
     });
 
     test("corrects itself when command was passed in as an action", async () => {
-        const potentialCommands: MaybeLlmCommand[] = [{
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "boop", // Not a valid command
             action: "add", // A valid command
@@ -2429,7 +2489,7 @@ describe("filterInvalidCommands", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidCommands(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
         expect(result).toEqual([{
             ...potentialCommands[0],
             command: "add",
@@ -2438,24 +2498,26 @@ describe("filterInvalidCommands", () => {
     });
 });
 
-describe("removeCommands", () => {
+describe("removeTasks", () => {
     test("removes a single command from the string", () => {
         const input = "/command1 action1 prop1=value1";
-        const commands: LlmCommand[] = [{
+        const commands: PartialTaskInfo[] = [{
             ...getStartEnd(input, "/command1 action1 prop1=value1"),
+            id: uuid(),
             task: "Start",
             command: "command1",
             action: "action1",
             properties: { prop1: "value1" },
         }];
-        expect(removeCommands(input, commands)).toBe("");
+        expect(removeTasks(input, commands)).toBe("");
     });
 
     test("removes multiple commands from the string", () => {
         const input = "Text before /command1 action1 prop1=value1 and text after /command2";
-        const commands: LlmCommand[] = [
+        const commands: PartialTaskInfo[] = [
             {
                 ...getStartEnd(input, "/command1 action1 prop1=value1"),
+                id: uuid(),
                 task: "Start",
                 command: "command1",
                 action: "action1",
@@ -2463,20 +2525,22 @@ describe("removeCommands", () => {
             },
             {
                 ...getStartEnd(input, "/command2"),
+                id: uuid(),
                 task: "Start",
                 command: "command2",
                 action: null,
                 properties: null,
             },
         ];
-        expect(removeCommands(input, commands)).toBe("Text before  and text after ");
+        expect(removeTasks(input, commands)).toBe("Text before  and text after ");
     });
 
     test("handles commands at the start and end of the string", () => {
         const input = "/command1 at start /command2 at end";
-        const commands: LlmCommand[] = [
+        const commands: PartialTaskInfo[] = [
             {
                 ...getStartEnd(input, "/command1 at start"),
+                id: uuid(),
                 task: "Start",
                 command: "command1",
                 action: null,
@@ -2484,20 +2548,22 @@ describe("removeCommands", () => {
             },
             {
                 ...getStartEnd(input, "/command2 at end"),
+                id: uuid(),
                 task: "Start",
                 command: "command2",
                 action: null,
                 properties: null,
             },
         ];
-        expect(removeCommands(input, commands)).toBe(" ");
+        expect(removeTasks(input, commands)).toBe(" ");
     });
 
     test("handles overlapping commands", () => {
         const input = "/command1 /nestedCommand2 /nestedCommand3";
-        const commands: LlmCommand[] = [
+        const commands: PartialTaskInfo[] = [
             {
                 ...getStartEnd(input, "/command1 /nestedCommand2"),
+                id: uuid(),
                 task: "Start",
                 command: "command1",
                 action: null,
@@ -2505,6 +2571,7 @@ describe("removeCommands", () => {
             },
             {
                 ...getStartEnd(input, "/nestedCommand2 /nestedCommand3"),
+                id: uuid(),
                 task: "Start",
                 command: "nestedCommand2",
                 action: null,
@@ -2512,19 +2579,20 @@ describe("removeCommands", () => {
             },
             {
                 ...getStartEnd(input, "/nestedCommand3"),
+                id: uuid(),
                 task: "Start",
                 command: "nestedCommand3",
                 action: null,
                 properties: null,
             },
         ];
-        expect(removeCommands(input, commands)).toBe("");
+        expect(removeTasks(input, commands)).toBe("");
     });
 
     test("leaves string untouched if no commands match", () => {
         const input = "This string has no commands";
-        const commands: LlmCommand[] = [];
-        expect(removeCommands(input, commands)).toBe(input);
+        const commands: PartialTaskInfo[] = [];
+        expect(removeTasks(input, commands)).toBe(input);
     });
 
     // Add more tests for other edge cases as needed

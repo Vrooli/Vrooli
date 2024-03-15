@@ -113,7 +113,7 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
             usage: {
                 input: completion.usage.input_tokens,
                 output: completion.usage.output_tokens,
-            }
+            },
         });
         return { message, cost };
     }

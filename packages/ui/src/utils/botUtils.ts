@@ -22,14 +22,15 @@ export const AVAILABLE_MODELS: LlmModel[] = [{
     name: "GPT-4",
     description: "OpenAI's most advanced model",
     value: "gpt-4",
-}, {
-    name: "Mistral 7b",
-    description: "Mistral's fastest model",
-    value: "open-mistral-7b",
-}, {
-    name: "Mistral 8x7b",
-    description: "Mistral's most advanced model",
-    value: "open-mixtral-8x7b",
+    // }, {
+    //     name: "Mistral 7b",
+    //     description: "Mistral's fastest model",
+    //     value: "open-mistral-7b",
+    // }, {
+    //     name: "Mistral 8x7b",
+    //     description: "Mistral's most advanced model",
+    //     value: "open-mixtral-8x7b",
+    // }];
 }];
 
 export const findBotData = (

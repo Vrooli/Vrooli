@@ -1,4 +1,4 @@
-import { BotSettings, ChatMessage, toBotSettings } from "@local/shared";
+import { BotSettings, ChatMessage, LlmTaskInfo, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -10,12 +10,12 @@ import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { emitSocketEvent } from "../../sockets/events";
-import { processCommand } from "../../tasks/command";
 import { withPrisma } from "../../utils/withPrisma";
-import { ForceGetCommandParams, LlmCommand, forceGetCommand, getValidCommandsFromMessage } from "./commands";
+import { processLlmTask } from "../llmTask";
 import { importCommandToTask } from "./config";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload } from "./queue";
 import { LanguageModelService, getLanguageModelService } from "./service";
+import { ForceGetTaskParams, forceGetTask, getValidTasksFromMessage } from "./tasks";
 
 const parseBotInformation = (
     participants: Record<string, PreMapUserData>,
@@ -32,15 +32,19 @@ const parseBotInformation = (
     return { botSettings, service };
 };
 
-type ForceGetAndProcessCommandParams = ForceGetCommandParams;
-type ForceGetAndProcessCommandResult = { messageWithoutCommands: string | null, cost: number };
+type ForceGetAndProcessCommandParams = ForceGetTaskParams;
+type ForceGetAndProcessCommandResult = {
+    messageWithoutTasks: string | null,
+    tasksToSuggest: Omit<LlmTaskInfo, "status">[],
+    cost: number
+};
 const forceGetAndProcessCommand = async (params: ForceGetAndProcessCommandParams): Promise<ForceGetAndProcessCommandResult> => {
-    const { command, messageWithoutCommands, cost } = await forceGetCommand(params);
-    if (!command || !messageWithoutCommands) {
-        return { messageWithoutCommands: null, cost };
+    const { taskThatWasRun, tasksToSuggest, messageWithoutTasks, cost } = await forceGetTask(params);
+    if (!taskThatWasRun || !messageWithoutTasks) {
+        return { messageWithoutTasks: null, tasksToSuggest: [], cost };
     }
-    processCommand({ command, ...params });
-    return { messageWithoutCommands, cost };
+    processLlmTask({ taskInfo: taskThatWasRun, ...params });
+    return { messageWithoutTasks, tasksToSuggest, cost };
 };
 
 export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
@@ -63,20 +67,20 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
             let respondingToMessage: { id: string, text: string } | null = null;
             if (parent) {
                 // Check for commands in user's message
-                const { commands, messageWithoutCommands } = await getValidCommandsFromMessage(parent.content, task, language, commandToTask);
-                for (const command of commands) {
-                    processCommand({
-                        command,
+                const { tasksToRun, messageWithoutTasks } = await getValidTasksFromMessage(parent.content, task, language, commandToTask);
+                for (const taskInfo of tasksToRun) {
+                    processLlmTask({
+                        taskInfo,
                         chatId,
                         language,
                         userData,
                     });
                 }
                 // If there is no text left after removing commands, don't create a response
-                if (messageWithoutCommands.trim() === "") return;
+                if (messageWithoutTasks.trim() === "") return;
                 respondingToMessage = {
                     id: parent.id,
-                    text: messageWithoutCommands,
+                    text: messageWithoutTasks,
                 };
             }
 
@@ -84,12 +88,13 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
             emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
 
             let responseMessage: string | null = null;
-            let botCommands: LlmCommand[] = [];
+            let botCommandsToRun: Omit<LlmTaskInfo, "status">[] = [];
+            let botTasksToSuggest: Omit<LlmTaskInfo, "status">[] = [];
 
             // If we're not in a "Start" task (the only task that allows general conversation), 
             // we'll demand a valid command immediately
             if (task !== "Start") {
-                const { messageWithoutCommands, cost } = await forceGetAndProcessCommand({
+                const { messageWithoutTasks, tasksToSuggest, cost } = await forceGetAndProcessCommand({
                     chatId,
                     commandToTask,
                     language,
@@ -101,7 +106,8 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                     task,
                     userData,
                 });
-                responseMessage = messageWithoutCommands;
+                responseMessage = messageWithoutTasks;
+                botTasksToSuggest = tasksToSuggest;
                 totalCost += cost;
             }
             // Otherwise, we'll generate a normal response and handle any commands that it contains
@@ -120,18 +126,19 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                 totalCost += cost;
 
                 // Check for commands in bot's response
-                const { commands, messageWithoutCommands: botResponseWithoutCommands } = await getValidCommandsFromMessage(botResponse, task, language, commandToTask);
-                botCommands = commands;
+                const { tasksToRun, tasksToSuggest, messageWithoutTasks: botResponseWithoutCommands } = await getValidTasksFromMessage(botResponse, task, language, commandToTask);
+                botCommandsToRun = tasksToRun;
+                botTasksToSuggest = tasksToSuggest;
                 if (botResponseWithoutCommands.trim() !== "") {
                     responseMessage = botResponseWithoutCommands;
                 }
 
                 // Handle any commands in the bot's response
-                for (const command of botCommands) {
+                for (const command of botCommandsToRun) {
                     // If we're in the "Start" task, the commands won't have the full information we need to process them. 
                     // So we'll have to make a separate call to get the full command information
                     if (task === "Start") {
-                        const { messageWithoutCommands, cost } = await forceGetAndProcessCommand({
+                        const { messageWithoutTasks, cost } = await forceGetAndProcessCommand({
                             chatId,
                             commandToTask,
                             language,
@@ -145,14 +152,14 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                         });
                         totalCost += cost;
                         // If we don't have a response message yet and this one isn't empty, use it
-                        if (!responseMessage && messageWithoutCommands && messageWithoutCommands.trim() !== "") {
-                            responseMessage = messageWithoutCommands;
+                        if (!responseMessage && messageWithoutTasks && messageWithoutTasks.trim() !== "") {
+                            responseMessage = messageWithoutTasks;
                         }
                     }
                     // Otherwise, we can process the command as normal
                     else {
-                        processCommand({
-                            command,
+                        processLlmTask({
+                            taskInfo: command,
                             chatId,
                             language,
                             userData,
@@ -163,13 +170,16 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
 
             // If we still don't have a response message, set a generic one
             if (!responseMessage) {
-                if (botCommands.length > 0) {
-                    responseMessage = i18next.t("common:CommandsProcessed", { lng: language, count: botCommands.length, defaultValue: "Commands processed" }) as string;
+                if (botCommandsToRun.length > 0) {
+                    responseMessage = i18next.t("common:CommandsProcessed", { lng: language, count: botCommandsToRun.length, defaultValue: "Commands processed" }) as string;
+                } else if (botTasksToSuggest.length > 0) {
+                    responseMessage = i18next.t("common:CommandsSuggested", { lng: language, defaultValue: "Here are the suggested next steps..." }) as string;
                 } else {
                     responseMessage = i18next.t("error:SomethingWentWrong", { lng: language, defaultValue: "Something went wrong. Please try again." }) as string;
                 }
             }
 
+            // Store response in database 
             const select = selectHelper(chatMessage_findOne);
             const createdData = await prisma.chat_message.create({
                 data: {
@@ -188,6 +198,8 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
             });
             const formattedResponseMessage = modelToGql(createdData, chatMessage_findOne);
             const fullResponseMessage = (await addSupplementalFields(prisma, userData, [formattedResponseMessage], chatMessage_findOne))[0] as ChatMessage;
+
+            // Perform triggers for notifications, achievements, etc.
             await Trigger(prisma, [language]).objectCreated({
                 createdById: userData.id,
                 hasCompleteAndPublic: true, // N/A
@@ -204,6 +216,25 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                 message: fullResponseMessage,
             });
             wasResponseSent = true;
+
+            // Let the user know about commands that were run or are being suggested
+            if (botCommandsToRun.length > 0 || botTasksToSuggest.length > 0) {
+                emitSocketEvent("llmTasks", chatId, {
+                    tasks: [
+                        ...botCommandsToRun.map((command) => ({
+                            ...command,
+                            messageId: fullResponseMessage.id,
+                            status: "running" as const,
+                        })),
+                        ...botTasksToSuggest.map((command) => ({
+                            ...command,
+                            messageId: fullResponseMessage.id,
+                            status: "suggested" as const,
+                        })),
+                    ],
+                });
+            }
+
             // Reduce user's credits by 1
             const updatedUser = await prisma.user.update({
                 where: { id: userData.id },

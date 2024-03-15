@@ -8,7 +8,7 @@ export const i18nextTMock = (key, _options) => {
     if (key === "ChangePassword")
         return "Change password";
     return key;
-}
+};
 
 const i18nextMock = {
     // Includes some basic keys to test with

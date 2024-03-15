@@ -174,3 +174,5 @@ export const themes = {
     "light": lightTheme,
     "dark": darkTheme,
 };
+
+export const DEFAULT_THEME = "dark";

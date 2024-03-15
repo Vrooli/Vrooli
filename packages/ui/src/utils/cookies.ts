@@ -5,8 +5,8 @@
  * unclear whether EU's Cookie Law applies to localStorage, but it is better to
  * be safe than sorry.
  */
-import { ActiveFocusMode, COOKIE, exists, FocusMode, GqlModelType, ValueOf } from "@local/shared";
-import { AssistantTask, NavigableObject } from "types";
+import { ActiveFocusMode, COOKIE, exists, FocusMode, GqlModelType, LlmTaskInfo, ValueOf } from "@local/shared";
+import { NavigableObject } from "types";
 import { getDeviceInfo } from "./display/device";
 import { chatMatchHash } from "./hash";
 import { LocalStorageLruCache } from "./localStorageLruCache";
@@ -45,7 +45,7 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
-const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T): T | undefined => {
+export const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T): T | undefined => {
     const cookie = localStorage.getItem(name);
     // Try to parse
     try {
@@ -59,7 +59,7 @@ const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => val
     return undefined;
 };
 
-const setCookie = (name: Cookies | string, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
+export const setCookie = (name: Cookies | string, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
 
 /**
  * Gets a cookie if it exists, otherwise sets it to the default value. 
@@ -101,7 +101,13 @@ export const getCookiePreferences = (): CookiePreferences | null => {
  * @param preferences CookiePreferences object
  */
 export const setCookiePreferences = (preferences: CookiePreferences) => {
-    setCookie(Cookies.Preferences, preferences);
+    const validatedPreferences: CookiePreferences = {
+        strictlyNecessary: preferences.strictlyNecessary === true,
+        performance: preferences.performance === true,
+        functional: preferences.functional === true,
+        targeting: preferences.targeting === true,
+    };
+    setCookie(Cookies.Preferences, validatedPreferences);
 };
 
 /**
@@ -112,7 +118,7 @@ export const setCookiePreferences = (preferences: CookiePreferences) => {
  * @param callback Callback function to call if cookie is allowed
  * @param fallback Optional fallback value to use if cookie is not allowed
  */
-const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) => {
+export const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) => {
     const preferences = getCookiePreferences();
     if (cookieType === "strictlyNecessary" || preferences?.[cookieType]) {
         return callback();
@@ -205,7 +211,7 @@ export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functi
 type FormCacheEntry = {
     [key: string]: any; // This would be the form data
 }
-const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", 100);
+const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", 100, 1024 * 512); // 512KB limit
 export const getCookieFormData = (formId: string): FormCacheEntry | undefined => ifAllowed("functional", () => {
     return formDataCache.get(formId);
 });
@@ -220,7 +226,7 @@ export const removeCookieFormData = (formId: string) => ifAllowed("functional", 
 
 /** Indicates if the form for this objectType/ID pair has disabled auto-save */
 type AllowFormCaching = boolean;
-const formCachingCache = new LocalStorageLruCache<AllowFormCaching>("allowFormCaching", 20);
+const formCachingCache = new LocalStorageLruCache<AllowFormCaching>("allowFormCaching", 20, 1024 * 2); // 2KB limit
 export const getCookieAllowFormCache = (objectType: GqlModelType | `${GqlModelType}`, objectId: string): AllowFormCaching => ifAllowed("functional", () => {
     const result = formCachingCache.get(`${objectType}:${objectId}`);
     if (typeof result === "boolean") return result;
@@ -241,7 +247,7 @@ type ChatMessageTreeCookie = {
     /** The message you viewed last */
     locationId: string;
 }
-const chatMessageTreeCache = new LocalStorageLruCache<ChatMessageTreeCookie>("chatMessageTree", 100);
+const chatMessageTreeCache = new LocalStorageLruCache<ChatMessageTreeCookie>("chatMessageTree", 100, 1024 * 256); // 256KB limit
 export const getCookieMessageTree = (chatId: string): ChatMessageTreeCookie | undefined => ifAllowed("functional", () => {
     return chatMessageTreeCache.get(chatId);
 });
@@ -249,25 +255,54 @@ export const setCookieMessageTree = (chatId: string, data: ChatMessageTreeCookie
     chatMessageTreeCache.set(chatId, data);
 });
 
-
-
-
 type ChatGroupCookie = {
     /** The last chatId for the group of userIds */
     chatId: string;
 };
-const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", 100);
-export const getCookieMatchingChat = (userIds: string[], task?: AssistantTask): string | undefined => ifAllowed("functional", () => {
+const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", 100, 1024 * 128); // 128KB limit
+export const getCookieMatchingChat = (userIds: string[], task?: string): string | undefined => ifAllowed("functional", () => {
     return chatGroupCache.get(chatMatchHash(userIds, task))?.chatId;
 });
-export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
+export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: string) => ifAllowed("functional", () => {
     chatGroupCache.set(chatMatchHash(userIds, task), { chatId });
 });
-export const removeCookieMatchingChat = (userIds: string[], task?: AssistantTask) => ifAllowed("functional", () => {
+export const removeCookieMatchingChat = (userIds: string[], task?: string) => ifAllowed("functional", () => {
     chatGroupCache.remove(chatMatchHash(userIds, task));
 });
 
-
+type MessageTasks = {
+    tasks: LlmTaskInfo[];
+}
+const llmTasksCache = new LocalStorageLruCache<MessageTasks>("llmTasks", 100, 1024 * 1024); // 1MB limit
+export const getCookieTasksForMessage = (messageId: string): MessageTasks | undefined => ifAllowed("functional", () => {
+    const existing = llmTasksCache.get(messageId);
+    if (typeof existing === "object" && Array.isArray(existing.tasks)) {
+        return existing;
+    }
+});
+export const setCookieTaskForMessage = (messageId: string, task: LlmTaskInfo) => ifAllowed("functional", () => {
+    const existing = getCookieTasksForMessage(messageId) || { tasks: [] };
+    const taskIndex = existing.tasks.findIndex(t => t.id === task.id);
+    if (taskIndex > -1) {
+        existing.tasks[taskIndex] = task; // Replace existing task with the same ID
+    } else {
+        existing.tasks.push(task); // Add new task
+    }
+    llmTasksCache.set(messageId, existing);
+});
+export const removeTaskForMessage = (messageId: string, taskId: string) => ifAllowed("functional", () => {
+    const existing = getCookieTasksForMessage(messageId);
+    if (!existing || !existing.tasks.length) return;
+    const updated = { tasks: existing.tasks.filter(t => t.id !== taskId) };
+    if (updated.tasks.length) {
+        llmTasksCache.set(messageId, updated);
+    } else {
+        llmTasksCache.remove(messageId); // Remove the entry if no tasks left
+    }
+});
+export const removeTasksForMessage = (messageId: string) => ifAllowed("functional", () => {
+    llmTasksCache.remove(messageId);
+});
 
 /** Supports ID data from URL params, as well as partial object */
 export type CookiePartialData = {

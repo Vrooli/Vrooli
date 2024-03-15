@@ -1,25 +1,19 @@
-import { BotSettings, LlmTask } from "@local/shared";
+import { BotSettings, LlmTask, LlmTaskInfo, uuid } from "@local/shared";
 import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
-import { CommandToTask, LlmCommandProperty, getUnstructuredTaskConfig } from "./config";
+import { CommandToTask, LlmTaskProperty, getUnstructuredTaskConfig, importConfig } from "./config";
 import { LanguageModelService } from "./service";
 
-export type LlmCommand = {
-    task: LlmTask | `${LlmTask}`;
-    command: string;
-    action: string | null;
-    properties: {
-        [key: string]: string | number | null;
-    } | null;
+export type PartialTaskInfo = Omit<LlmTaskInfo, "label" | "status"> & {
     start: number;
     end: number;
 };
-export type MaybeLlmCommand = Omit<LlmCommand, "task"> & {
+export type MaybeLlmTaskInfo = Omit<PartialTaskInfo, "id" | "task"> & {
     task: LlmTask | `${LlmTask}` | null;
 };
 /** Properties stored as an array of [key, value, key, value, ...] */
-type CurrentLlmCommand = Omit<LlmCommand, "properties" | "task"> & {
+type CurrentLlmTaskInfo = Omit<PartialTaskInfo, "properties" | "task"> & {
     properties: (string | number | null)[];
 };
 
@@ -74,7 +68,7 @@ export type CommandWrapper = {
  * handling the transition between sections, invalid characters, and other edge cases.
  * @returns An object containing the new parsing section and buffer
  */
-export const handleCommandTransition = ({
+export const handleTaskTransition = ({
     curr,
     prev,
     section,
@@ -459,13 +453,19 @@ export const findCharWithLimit = (
     return null; // Exceeded the maximum loop count
 };
 
+type WrappedCommands = {
+    commandIndices: number[],
+    wrapperStart: number,
+    wrapperEnd: number,
+}
+
 /**
- * Detects commands wrapped in square brackets, with the specified start substring and delimiter.
+ * Detects tasks wrapped in square brackets, with the specified start substring and delimiter.
  * If a delimiter is not provided, then the wrapper is assumed to contain only one command.
  *
- * @returns An array of indices representing the commands that are marked as suggested.
+ * @returns An array of indices representing the tasks that are marked as suggested.
  */
-export const detectWrappedCommands = ({
+export const detectWrappedTasks = ({
     start,
     delimiter,
     commands,
@@ -473,16 +473,16 @@ export const detectWrappedCommands = ({
 }: {
     start: string,
     delimiter?: string | null,
-    commands: MaybeLlmCommand[],
+    commands: MaybeLlmTaskInfo[],
     messageString: string,
-}): number[] => {
-    const result: number[] = [];
+}): WrappedCommands[] => {
+    const result: WrappedCommands[] = [];
     const MAX_WHITESPACE_LENGTH = 5;
     const allowMultiple = typeof delimiter === "string" && delimiter.length;
     let startWrapperIndex = -1; // Index of the start substring for the current wrapper
     let lastValidIndex = -1; // Last index that matches current wrapper pattern
 
-    commands.forEach((command) => {
+    for (const command of commands) {
         const { start: startIndex, end: endIndex } = command;
 
         // If we haven't found the start substring yet, search for it
@@ -491,28 +491,28 @@ export const detectWrappedCommands = ({
             const openBracketIndex = findCharWithLimit(startIndex, false, "[", messageString, MAX_WHITESPACE_LENGTH);
             if (openBracketIndex === null) {
                 lastValidIndex = -1;
-                return;
+                continue;
             }
             // Look for colon
             const colonIndex = findCharWithLimit(openBracketIndex, false, ":", messageString, MAX_WHITESPACE_LENGTH);
             if (colonIndex === null) {
                 lastValidIndex = -1;
-                return;
+                continue;
             }
             // Check if the start substring is before the colon
             const possibleStartSubstring = messageString.substring(colonIndex - start.length, colonIndex);
             if (possibleStartSubstring !== start) {
                 lastValidIndex = -1;
-                return;
+                continue;
             }
             // Set the last valid index and start wrapper index
             lastValidIndex = colonIndex;
-            startWrapperIndex = openBracketIndex;
+            startWrapperIndex = colonIndex - start.length;
         }
         // Otherwise, make sure space between the last valid index and the current start index is whitespace
         else if (startIndex - lastValidIndex > MAX_WHITESPACE_LENGTH || messageString.substring(lastValidIndex + 1, startIndex).split("").some(c => !isWhitespace(c))) {
             lastValidIndex = -1;
-            return;
+            continue;
         }
 
         // Search for closing bracket from the command end
@@ -523,7 +523,7 @@ export const detectWrappedCommands = ({
                 const delimiterIndex = findCharWithLimit(endIndex, true, delimiter, messageString, MAX_WHITESPACE_LENGTH);
                 if (delimiterIndex === null) {
                     lastValidIndex = -1;
-                    return;
+                    continue;
                 }
                 // Set the last valid index to the current index
                 lastValidIndex = delimiterIndex;
@@ -531,44 +531,43 @@ export const detectWrappedCommands = ({
             // Otherwise, the wrapper is invalid
             else {
                 lastValidIndex = -1;
-                return;
+                continue;
             }
         }
         else {
             // If last index of command is actually a newline, cancel the wrapper
             if (messageString[endIndex] === "\n") {
                 lastValidIndex = -1;
-                return;
+                continue;
             }
             // Commit all commands between the start index and the closing bracket index
-            const commandsInWrapper = commands.filter((c, i) => c.start >= startWrapperIndex && c.end <= closingBracketIndex);
-            result.push(...commandsInWrapper.map(c => commands.indexOf(c)));
+            const commandIndices = commands.map((c, i) => c.start >= startWrapperIndex && c.end <= closingBracketIndex ? i : -1).filter(i => i >= 0) as number[];
+            result.push({ commandIndices, wrapperStart: startWrapperIndex, wrapperEnd: closingBracketIndex });
         }
-    });
+    }
 
     return result;
 };
 
 /**
- * Extracts commands from a given string based on predefined formats.
+ * Extracts tasks from a given string based on predefined formats.
  * 
- * The function searches for patterns that match commands in the format "/command action property1=value1 property2=value2".
- * It supports multiple commands within the same string, separated by spaces or other commands.
+ * The function searches for patterns that match tasks in the format "/command action property1=value1 property2=value2".
+ * It supports multiple tasks within the same string, separated by spaces or other tasks.
  * 
- * NOTE: This may capture commands (and command actions/properties) that are not valid. These should 
- * be ignored when comparing them to the available commands.
+ * NOTE: This may capture tasks (and command actions/properties) that are not valid. These should 
+ * be ignored when comparing them to the available tasks.
  * 
- * @param inputString The string containing one or more commands to be parsed.
+ * @param inputString The string containing one or more taaks to be parsed.
  * @param commandToTask A function for converting a command and action to a valid task name.
- * @returns An array of Command objects, each containing the command, action (if any), an object of properties (if any), 
- * and the the task the command is associated with (if valid).
+ * @returns An array of task data
  */
-export const extractCommands = (
+export const extractTasks = (
     inputString: string,
     commandToTask: CommandToTask,
-): MaybeLlmCommand[] => {
-    const commands: MaybeLlmCommand[] = [];
-    let currentCommand: CurrentLlmCommand | null = null;
+): MaybeLlmTaskInfo[] => {
+    const commands: MaybeLlmTaskInfo[] = [];
+    let currentCommand: CurrentLlmTaskInfo | null = null;
 
     /** When the full command is completed */
     const onComplete = () => {
@@ -610,6 +609,7 @@ export const extractCommands = (
     };
     const onStart = (start: number) => {
         currentCommand = {
+            id: uuid(),
             command: "",
             action: null,
             properties: [],
@@ -625,7 +625,7 @@ export const extractCommands = (
     let buffer: string[] = [];
     let hasOpenBracket = false;
     for (let i = 0; i < inputString.length; i++) {
-        const curr = handleCommandTransition({
+        const curr = handleTaskTransition({
             curr: inputString[i],
             prev: i > 0 ? inputString[i - 1] : "\n", // Pretend there's a newline at the beginning
             section,
@@ -641,7 +641,7 @@ export const extractCommands = (
         hasOpenBracket = curr.hasOpenBracket;
     }
     // Call with newline to commit the last command
-    handleCommandTransition({
+    handleTaskTransition({
         curr: "\n",
         prev: inputString.length > 0 ? inputString[inputString.length - 1] : "\n",
         section,
@@ -657,33 +657,33 @@ export const extractCommands = (
 };
 
 /**
- * Filters out invalid commands based on the task and language.
+ * Filters out invalid tasks based on the current task mode and language.
  * 
- * @param potentialCommands The array of potential commands extracted from the input string.
- * @param task The current task, which determines the available commands, actions, and properties.
- * @returns An array of valid commands after filtering out the invalid ones, and removing any invlaid 
+ * @param potentialTasks The array of potential tasks extracted from the input string.
+ * @param taskMode The current task mode, which determines the tasks that can be triggered next.
+ * @returns An array of valid tasks after filtering out the invalid ones, and removing any invlaid 
  * actions and properties.
  */
-export const filterInvalidCommands = async (
-    potentialCommands: MaybeLlmCommand[],
-    task: LlmTask | `${LlmTask}`,
+export const filterInvalidTasks = async (
+    potentialTasks: MaybeLlmTaskInfo[],
+    taskMode: LlmTask | `${LlmTask}`,
     language?: string,
-): Promise<LlmCommand[]> => {
-    const result: LlmCommand[] = [];
+): Promise<PartialTaskInfo[]> => {
+    const result: PartialTaskInfo[] = [];
 
     // Get task configuration
-    const taskConfig = await getUnstructuredTaskConfig(task, language);
+    const taskConfig = await getUnstructuredTaskConfig(taskMode, language);
 
-    // Loop through each potential command
-    for (const command of potentialCommands) {
-        const modifiedCommand = { ...command };
+    // Loop through each potential task
+    for (const task of potentialTasks) {
+        const modifiedCommand = { ...task };
         const requiresAction = taskConfig.actions && taskConfig.actions.length > 0;
 
         // If the task is not a valid task, skip it
-        if (!command.task) modifiedCommand.task = task;
-        else if (!Object.keys(LlmTask).includes(command.task)) continue;
+        if (!task.task) modifiedCommand.task = taskMode;
+        else if (!Object.keys(LlmTask).includes(task.task)) continue;
 
-        let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, command.command);
+        let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, task.command);
 
         // Attempt corrective measures when command or action are invalid.
         if (!commandIsValid) {
@@ -691,9 +691,9 @@ export const filterInvalidCommands = async (
             // If the command provided is a valid action, and there's only one command available, 
             // then we can change the provided command to an action, and set the command to the only available command
             // E.g. "/action prop1='hello'" -> "/command action prop1='hello'"
-            if (taskConfig.actions && taskConfig.actions.includes(command.command) && commandKeys.length === 1) {
+            if (taskConfig.actions && taskConfig.actions.includes(task.command) && commandKeys.length === 1) {
                 // Set action to the command
-                modifiedCommand.action = command.command;
+                modifiedCommand.action = task.command;
                 // Set command to the only command available in the task config
                 modifiedCommand.command = commandKeys[0];
                 commandIsValid = true; // Mark the command as valid now
@@ -701,11 +701,11 @@ export const filterInvalidCommands = async (
             // If the command is invalid but matches an action, and this task doesn't have any actions, then 
             // we can change the action to a command, and set the action to null
             // E.g. "/invalid command prop1='hello'" -> "/command prop1='hello'"
-            else if (command.action && commandKeys.includes(command.action) && !requiresAction) {
+            else if (task.action && commandKeys.includes(task.action) && !requiresAction) {
                 // Set action to null
                 modifiedCommand.action = null;
                 // Set command to the action
-                modifiedCommand.command = command.action;
+                modifiedCommand.command = task.action;
                 commandIsValid = true; // Mark the command as valid now
             }
         }
@@ -719,15 +719,15 @@ export const filterInvalidCommands = async (
         }
 
         // If the command has properties, filter out the invalid ones and check for required properties
-        if (command.properties) {
+        if (task.properties) {
             // Remove the properties so that we can add the valid ones back
             modifiedCommand.properties = {};
 
             // Identify all required properties from the task configuration to ensure they are present
-            const requiredProperties = taskConfig.properties?.filter(prop => typeof prop === "object" && prop.is_required).map(prop => (prop as LlmCommandProperty).name) ?? [];
+            const requiredProperties = taskConfig.properties?.filter(prop => typeof prop === "object" && prop.is_required).map(prop => (prop as LlmTaskProperty).name) ?? [];
 
             // Check each property in the command
-            Object.entries(command.properties).forEach(([key, value]) => {
+            Object.entries(task.properties).forEach(([key, value]) => {
                 const propertyConfig = taskConfig.properties?.find(prop => (typeof prop === "object" ? prop.name : prop) === key);
 
                 // If the property config exists, keep the property
@@ -745,13 +745,13 @@ export const filterInvalidCommands = async (
             }
             // Otherwise, the command is valid
             else {
-                result.push(modifiedCommand as LlmCommand);
+                result.push(modifiedCommand as PartialTaskInfo);
             }
         } else {
             // If the command has no properties, it's still valid as long as it doesn't require any
             const requiresProperties = taskConfig.properties?.some(prop => typeof prop === "object" && prop.is_required) ?? false;
             if (!requiresProperties) {
-                result.push(modifiedCommand as LlmCommand);
+                result.push(modifiedCommand as PartialTaskInfo);
             }
         }
     }
@@ -760,18 +760,18 @@ export const filterInvalidCommands = async (
 };
 
 /**
- * Removes commands from a string
- * @param inputString The string containing the commands to be removed
- * @param commands The commands to be removed
- * @returns The string with the commands removed
+ * Removes tasks from a string
+ * @param inputString The string containing the tasks to be removed
+ * @param tasks The tasks to be removed
+ * @returns The string with the tasks removed
  */
-export const removeCommands = (inputString: string, commands: LlmCommand[]): string => {
+export const removeTasks = (inputString: string, tasks: PartialTaskInfo[]): string => {
     // Start with the full input string
     let resultString = inputString;
 
-    // Iterate through the commands array backwards
-    for (let i = commands.length - 1; i >= 0; i--) {
-        const command = commands[i];
+    // Iterate through the tasks array backwards
+    for (let i = tasks.length - 1; i >= 0; i--) {
+        const command = tasks[i];
 
         // Use the start and end indices to slice the string and remove the command
         resultString = resultString.slice(0, command.start) + resultString.slice(command.end);
@@ -781,26 +781,68 @@ export const removeCommands = (inputString: string, commands: LlmCommand[]): str
 };
 
 /**
- * Extracts valid commands from a message and returns the message without the commands.
- * @param message The message containing the commands
- * @param task The current task
+ * Extracts valid tasks from a message and returns the message without the tasks.
+ * @param message The message containing the tasks
+ * @param taskMode The current task mode, which determines the tasks we're allowed to start next
  * @param language The language of the user
  * @param commandToTask A function for converting a command and action to a valid task name
- * @returns An object containing the valid commands and the message without the commands
+ * @returns An object containing tasks that should be run right away, suggested tasks, 
+ * and the message without the tasks
  */
-export const getValidCommandsFromMessage = async (
+export const getValidTasksFromMessage = async (
     message: string,
-    task: LlmTask | `${LlmTask}`,
+    taskMode: LlmTask | `${LlmTask}`,
     language: string,
     commandToTask: CommandToTask,
-): Promise<{ commands: LlmCommand[], messageWithoutCommands: string }> => {
-    const maybeCommands = extractCommands(message, commandToTask);
-    const commands = await filterInvalidCommands(maybeCommands, task, language);
-    const messageWithoutCommands = removeCommands(message, commands);
-    return { commands, messageWithoutCommands };
+): Promise<{
+    tasksToRun: Omit<LlmTaskInfo, "status">[],
+    tasksToSuggest: Omit<LlmTaskInfo, "status">[],
+    messageWithoutTasks: string,
+}> => {
+    // Extract all possible commands from the message
+    const maybeTasks = extractTasks(message, commandToTask);
+    // Filter out commands that are not valid for the current task
+    const validTasks = await filterInvalidTasks(maybeTasks, taskMode, language);
+
+    // Add labels to the valid commands
+    const config = await importConfig(language);
+    const labelledTasks = validTasks.map(command => ({
+        ...command,
+        label: config[command.task]().label,
+    })) as (PartialTaskInfo & { label: string })[];
+
+
+    // Find commands that are being suggested rather than run right away
+    const wrappedCommandList = detectWrappedTasks({
+        start: config.__suggested_prefix,
+        delimiter: ",",
+        commands: labelledTasks,
+        messageString: message,
+    });
+    // Only use one wrapper, as there should only be one suggested section
+    const { commandIndices: suggestedIndices, wrapperStart, wrapperEnd } = wrappedCommandList.length > 0
+        ? wrappedCommandList[wrappedCommandList.length - 1]
+        : { commandIndices: [], wrapperStart: -1, wrapperEnd: -1 };
+    const tasksToSuggest = suggestedIndices.map(i => labelledTasks[i]);
+
+    // find commands that should be run right away
+    const tasksToRun = labelledTasks.filter((_, index) => !suggestedIndices.includes(index));
+
+    // Remove suggested commands from the message
+    let messageWithoutTasks = message;
+    if (wrapperStart >= 0 && wrapperEnd >= 0) {
+        messageWithoutTasks = messageWithoutTasks.slice(0, wrapperStart) + messageWithoutTasks.slice(wrapperEnd + 1);
+    }
+    // Remove the commands that should be run right away
+    messageWithoutTasks = removeTasks(messageWithoutTasks, tasksToRun);
+    // Trim the message
+    messageWithoutTasks = messageWithoutTasks.trim();
+
+    // Return the valid commands and the message without the commands
+    return { tasksToRun, tasksToSuggest, messageWithoutTasks };
 };
 
-export type ForceGetCommandParams = {
+export type ForceGetTaskParams = {
     chatId: string,
     commandToTask: CommandToTask,
     language: string,
@@ -817,10 +859,10 @@ export type ForceGetCommandParams = {
 }
 
 /**
- * Repeatedly generates a bot response until it contains a valid command.
- * @returns The valid command and the rest of the message without the commands
+ * Repeatedly generates a bot response until it contains a valid task.
+ * @returns The valid task and the rest of the message without the tasks
  */
-export const forceGetCommand = async ({
+export const forceGetTask = async ({
     chatId,
     commandToTask,
     language,
@@ -831,7 +873,12 @@ export const forceGetCommand = async ({
     service,
     task,
     userData,
-}: ForceGetCommandParams): Promise<{ command: LlmCommand | null, messageWithoutCommands: string | null, cost: number }> => {
+}: ForceGetTaskParams): Promise<{
+    taskThatWasRun: Omit<LlmTaskInfo, "status"> | null,
+    tasksToSuggest: Omit<LlmTaskInfo, "status">[],
+    messageWithoutTasks: string | null,
+    cost: number
+}> => {
     let retryCount = 0;
     const MAX_RETRIES = 3; // Set a maximum number of retries to avoid infinite loops
     let totalCost = 0;
@@ -839,7 +886,7 @@ export const forceGetCommand = async ({
     while (retryCount < MAX_RETRIES) {
         const { message, cost } = await service.generateResponse({
             chatId,
-            force: true, // Force the bot to respond with a command
+            force: true, // Force the bot to respond with a task
             participantsData,
             respondingBotConfig,
             respondingBotId,
@@ -849,20 +896,20 @@ export const forceGetCommand = async ({
         });
         totalCost += cost;
 
-        // Check for commands in the start response
-        const { commands, messageWithoutCommands } = await getValidCommandsFromMessage(message, task, language, commandToTask);
+        // Check for tasks in the start response
+        const { tasksToRun, tasksToSuggest, messageWithoutTasks } = await getValidTasksFromMessage(message, task, language, commandToTask);
 
-        // If a valid command is found, return it
-        if (commands.length > 0) {
-            // Only use the first command found
-            return { command: commands[0], messageWithoutCommands, cost };
+        // If a valid task is found, return it
+        if (tasksToRun.length > 0) {
+            // Only use the first task found
+            return { taskThatWasRun: tasksToRun[0], tasksToSuggest, messageWithoutTasks, cost };
         } else {
-            // Increment the retry count if no command is found
+            // Increment the retry count if no task is found
             retryCount++;
-            logger.warning(`No command found in start response. Retrying... (${retryCount}/${MAX_RETRIES})`, { trace: "0349", chatId, respondingBotId, task });
+            logger.warning(`No task found in start response. Retrying... (${retryCount}/${MAX_RETRIES})`, { trace: "0349", chatId, respondingBotId, task });
         }
     }
 
-    logger.error("Failed to find a command in start response after maximum retries.", { trace: "0350", chatId, respondingBotId, task });
-    return { command: null, messageWithoutCommands: null, cost: totalCost };
+    logger.error("Failed to find a task in start response after maximum retries.", { trace: "0350", chatId, respondingBotId, task });
+    return { taskThatWasRun: null, tasksToSuggest: [], messageWithoutTasks: null, cost: totalCost };
 };

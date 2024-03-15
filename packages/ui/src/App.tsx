@@ -27,7 +27,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
-import { themes } from "utils/display/theme";
+import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { PubSub, SideMenuPub } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
@@ -272,7 +272,7 @@ export const App = () => {
         });
         // Handle theme updates
         const themeSub = PubSub.get().subscribe("theme", (data) => {
-            const newTheme = themes[data] ?? themes.dark;
+            const newTheme = themes[data] ?? themes[DEFAULT_THEME];
             setThemeAndMeta(newTheme);
         });
         // Handle focus mode updates
@@ -502,4 +502,4 @@ export const App = () => {
             </StyledEngineProvider>
         </>
     );
-}
+};

@@ -97,6 +97,7 @@
     "CommandPaletteTitle": "What would you like to do?",
     "CommandsProcessed_one": "Processed {{count}} command",
     "CommandsProcessed_other": "Processed {{count}} commands",
+    "CommandsSuggested": "Here are the suggested next steps...",
     "Comment_one": "Comment",
     "Comment_other": "Comments",
     "CommentCreated": "Comment created.",
