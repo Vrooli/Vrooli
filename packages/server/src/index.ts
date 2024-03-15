@@ -178,7 +178,10 @@ const main = async () => {
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 };
 
-main();
+// Only call this from the "server" package
+if (process.env.npm_package_name === "@local/server") {
+    main();
+}
 
 // Export files for "jobs" package
 export * from "./builders";
