@@ -1,22 +1,22 @@
 import { TextMatchTransformer } from "@lexical/markdown";
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import hljs from "highlight.js";
 import { copyIconPath } from "icons";
-import { $applyNodeReplacement, $createParagraphNode, $getSelection, $isRangeSelection, COMMAND_PRIORITY_HIGH, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedElementNode, TextNode, createCommand, type EditorConfig, type LexicalNode, type NodeKey } from 'lexical';
+import { $applyNodeReplacement, $createParagraphNode, $getSelection, $isRangeSelection, COMMAND_PRIORITY_HIGH, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedElementNode, TextNode, createCommand, type EditorConfig, type LexicalNode, type NodeKey } from "lexical";
 import { PubSub } from "utils/pubsub";
 
 export type SerializedCodeBlockNode = SerializedElementNode & {
-    type: 'codeblock';
+    type: "codeblock";
     language: string;
 };
 
-const LANGUAGE_DATA_ATTRIBUTE = 'data-highlight-language';
+const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
 
 export class CodeBlockNode extends ElementNode {
     __language: string;
 
-    constructor(language: string = '', key?: NodeKey) {
-        console.log('creating code block node')
+    constructor(language = "", key?: NodeKey) {
+        console.log("creating code block node");
         super(key);
         this.__language = language;
     }
@@ -31,61 +31,61 @@ export class CodeBlockNode extends ElementNode {
 
     createDOM(config: EditorConfig): HTMLElement {
         // Create the outer div to position the copy button relative to it
-        const topElement = document.createElement('div');
-        topElement.style.backgroundColor = '#23241f';
-        topElement.style.color = '#f8f8f2';
-        topElement.style.border = '1px solid #ddd';
-        topElement.style.fontFamily = 'Menlo, Consolas, Monaco, monospace';
-        topElement.style.display = 'block';
-        topElement.style.lineHeight = '1.53';
-        topElement.style.fontSize = '13px';
-        topElement.style.margin = '0';
-        topElement.style.marginTop = '8px';
-        topElement.style.marginBottom = '8px';
-        topElement.style.overflowX = 'auto';
-        topElement.style.position = 'relative';
-        topElement.style.tabSize = '2';
-        topElement.style.borderRadius = '4px';
-        topElement.setAttribute('spellcheck', 'false'); // Disable spellcheck
-        topElement.setAttribute('autocomplete', 'off'); // Disable autocomplete
-        topElement.setAttribute('autocorrect', 'off'); // Disable autocorrect
-        topElement.setAttribute('autocapitalize', 'off'); // Disable autocapitalize
+        const topElement = document.createElement("div");
+        topElement.style.backgroundColor = "#23241f";
+        topElement.style.color = "#f8f8f2";
+        topElement.style.border = "1px solid #ddd";
+        topElement.style.fontFamily = "Menlo, Consolas, Monaco, monospace";
+        topElement.style.display = "block";
+        topElement.style.lineHeight = "1.53";
+        topElement.style.fontSize = "13px";
+        topElement.style.margin = "0";
+        topElement.style.marginTop = "8px";
+        topElement.style.marginBottom = "8px";
+        topElement.style.overflowX = "auto";
+        topElement.style.position = "relative";
+        topElement.style.tabSize = "2";
+        topElement.style.borderRadius = "4px";
+        topElement.setAttribute("spellcheck", "false"); // Disable spellcheck
+        topElement.setAttribute("autocomplete", "off"); // Disable autocomplete
+        topElement.setAttribute("autocorrect", "off"); // Disable autocorrect
+        topElement.setAttribute("autocapitalize", "off"); // Disable autocapitalize
         // addClassNamesToElement(element, config.theme.code);
 
         // Create the top bar
-        const topBar = document.createElement('div');
-        topBar.style.display = 'flex';
-        topBar.style.justifyContent = 'space-between';
-        topBar.style.alignItems = 'center';
-        topBar.style.background = '#464c51';
-        topBar.style.padding = '4px 8px';
-        topBar.style.borderBottom = '1px solid #ddd'; // Example styling, adjust as needed
+        const topBar = document.createElement("div");
+        topBar.style.display = "flex";
+        topBar.style.justifyContent = "space-between";
+        topBar.style.alignItems = "center";
+        topBar.style.background = "#464c51";
+        topBar.style.padding = "4px 8px";
+        topBar.style.borderBottom = "1px solid #ddd"; // Example styling, adjust as needed
 
         // Add language label to the top bar
-        const languageLabel = document.createElement('span');
+        const languageLabel = document.createElement("span");
         // languageLabel.textContent = this.__language.toUpperCase(); // Display language in uppercase
         if (this.__language && this.__language.length > 0) {
             languageLabel.textContent = this.__language.toUpperCase();
         } else {
-            languageLabel.textContent = 'Select Language'; // Placeholder text
-            languageLabel.style.cursor = 'pointer';
+            languageLabel.textContent = "Select Language"; // Placeholder text
+            languageLabel.style.cursor = "pointer";
             languageLabel.onclick = () => {
                 //TODO
                 // Trigger your language selection modal or dropdown here
                 // Update the node with the selected language afterwards
             };
         }
-        languageLabel.style.fontFamily = '"Roboto","Helvetica","Arial",sans-serif';
-        languageLabel.style.fontSize = '0.75rem'; // Smaller font size for the language label
+        languageLabel.style.fontFamily = "\"Roboto\",\"Helvetica\",\"Arial\",sans-serif";
+        languageLabel.style.fontSize = "0.75rem"; // Smaller font size for the language label
         topBar.appendChild(languageLabel);
 
         // Create the copy button with an icon
-        const copyButton = document.createElement('button');
-        copyButton.setAttribute('type', 'button'); // Set the button type to 'button' to prevent form submission
-        copyButton.setAttribute('aria-label', 'Copy code to clipboard');
-        copyButton.style.background = 'transparent';
-        copyButton.style.border = 'none';
-        copyButton.style.cursor = 'pointer';
+        const copyButton = document.createElement("button");
+        copyButton.setAttribute("type", "button"); // Set the button type to 'button' to prevent form submission
+        copyButton.setAttribute("aria-label", "Copy code to clipboard");
+        copyButton.style.background = "transparent";
+        copyButton.style.border = "none";
+        copyButton.style.cursor = "pointer";
 
         // Create the SVG element for the copy icon
         const svgNS = "http://www.w3.org/2000/svg";
@@ -100,7 +100,7 @@ export class CodeBlockNode extends ElementNode {
         copyButton.appendChild(copyIcon);
 
         copyButton.onclick = () => {
-            navigator.clipboard.writeText(codeElement.textContent || '');
+            navigator.clipboard.writeText(codeElement.textContent || "");
             PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         };
         topBar.appendChild(copyButton);
@@ -109,12 +109,12 @@ export class CodeBlockNode extends ElementNode {
         topElement.appendChild(topBar);
 
         // Pre and code elements
-        const preElement = document.createElement('pre');
-        preElement.style.margin = '0'; // Reset margin for consistency
-        const codeElement = document.createElement('code');
-        codeElement.setAttribute('class', `language-${this.__language}`);
-        codeElement.style.padding = '16px'; // Add padding to the code text
-        codeElement.style.display = 'block'; // Ensure the code element is block-level for proper padding
+        const preElement = document.createElement("pre");
+        preElement.style.margin = "0"; // Reset margin for consistency
+        const codeElement = document.createElement("code");
+        codeElement.setAttribute("class", `language-${this.__language}`);
+        codeElement.style.padding = "16px"; // Add padding to the code text
+        codeElement.style.display = "block"; // Ensure the code element is block-level for proper padding
         preElement.appendChild(codeElement);
 
         topElement.appendChild(preElement);
@@ -141,14 +141,14 @@ export class CodeBlockNode extends ElementNode {
     // }
 
     exportDOM() {
-        const element = document.createElement('pre');
-        element.setAttribute('spellcheck', 'false');
+        const element = document.createElement("pre");
+        element.setAttribute("spellcheck", "false");
         const language = this.__language;
         if (language && language.length > 0) {
             element.setAttribute(LANGUAGE_DATA_ATTRIBUTE, language);
         }
         return {
-            element
+            element,
         };
     }
 
@@ -160,7 +160,7 @@ export class CodeBlockNode extends ElementNode {
     exportJSON(): SerializedCodeBlockNode {
         return {
             ...super.exportJSON(),
-            type: 'codeblock',
+            type: "codeblock",
             language: this.__language,
         };
     }
@@ -169,7 +169,7 @@ export class CodeBlockNode extends ElementNode {
         return {
             pre: (node: Node) => {
                 const codeElement = node.firstChild;
-                if (codeElement && codeElement.nodeName.toLowerCase() === 'code') {
+                if (codeElement && codeElement.nodeName.toLowerCase() === "code") {
                     return {
                         conversion: CodeBlockNode.fromDOMElement,
                         priority: 1,
@@ -181,16 +181,16 @@ export class CodeBlockNode extends ElementNode {
     }
 
     static fromDOMElement(element: HTMLElement): DOMConversionOutput {
-        console.log('from dom element code block')
-        const codeElement = element.querySelector('code');
-        let language = '';
+        console.log("from dom element code block");
+        const codeElement = element.querySelector("code");
+        let language = "";
 
         // Extract language class if present (assuming class format is language-xxx)
         if (codeElement) {
             const classList = Array.from(codeElement.classList);
-            const languageClass = classList.find(className => className.startsWith('language-'));
+            const languageClass = classList.find(className => className.startsWith("language-"));
             if (languageClass) {
-                language = languageClass.replace('language-', '');
+                language = languageClass.replace("language-", "");
             }
         }
 
@@ -198,7 +198,7 @@ export class CodeBlockNode extends ElementNode {
         const node = new CodeBlockNode(language);
         // Assuming you have a way to set the text content for the code block, e.g., by appending a TextNode
         if (codeElement) {
-            const textNode = new TextNode(codeElement.textContent || '');
+            const textNode = new TextNode(codeElement.textContent || "");
             node.append(textNode);
         }
 
@@ -218,7 +218,7 @@ export class CodeBlockNode extends ElementNode {
     }
 
     getTextContent() {
-        const code = this.getChildren().map(child => child.getTextContent()).join('\n');
+        const code = this.getChildren().map(child => child.getTextContent()).join("\n");
         // Return with backticks and language identifier
         return `\`\`\`${this.__language}\n${code}\n\`\`\``;
     }
@@ -235,8 +235,8 @@ export class CodeBlockNode extends ElementNode {
     // }
 }
 
-export function $createCodeBlockNode(language: string = ""): CodeBlockNode {
-    console.log('creating code block node', language)
+export function $createCodeBlockNode(language = ""): CodeBlockNode {
+    console.log("creating code block node", language);
     // return new CodeBlockNode(language);
     return $applyNodeReplacement(new CodeBlockNode(language));
 }
@@ -260,7 +260,7 @@ const codeBlockCommandListener = () => {
     if (isInCodeBlock) {
         // Logic to unwrap the selected text from the CodeBlockNode
         nodes.forEach(node => {
-            let codeBlockNode = node instanceof CodeBlockNode ? node : node.getParent();
+            const codeBlockNode = node instanceof CodeBlockNode ? node : node.getParent();
             if (codeBlockNode) {
                 const textContent = codeBlockNode.getTextContent();
                 const newTextNode = new TextNode(textContent);
@@ -278,12 +278,12 @@ const codeBlockCommandListener = () => {
     }
 
     return true;
-}
+};
 
 export function CodeBlockPlugin(): null {
     const [editor] = useLexicalComposerContext();
     if (!editor.hasNodes([CodeBlockNode])) {
-        throw new Error('CodeBlockPlugin: CodeBlockNode not registered on editor');
+        throw new Error("CodeBlockPlugin: CodeBlockNode not registered on editor");
     }
     editor.registerCommand(
         TOGGLE_CODE_BLOCK_COMMAND,
@@ -310,6 +310,6 @@ export const CODE_BLOCK_TRANSFORMER: TextMatchTransformer = {
         const codeBlockNode = $createCodeBlockNode(codeContent);
         textNode.replace(codeBlockNode);
     },
-    trigger: '```',
-    type: 'text-match',
+    trigger: "```",
+    type: "text-match",
 };

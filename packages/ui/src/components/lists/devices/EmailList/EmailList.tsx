@@ -12,11 +12,6 @@ import { multiLineEllipsis } from "styles";
 import { PubSub } from "utils/pubsub";
 import { EmailListItemProps, EmailListProps } from "../types";
 
-const Status = {
-    NotVerified: "#a71c2d", // Red
-    Verified: "#19972b", // Green
-};
-
 /**
  * Displays a list of emails for the user to manage
  */
@@ -55,8 +50,8 @@ export function EmailListItem({
                 {/* Verified indicator */}
                 <Box sx={{
                     borderRadius: 1,
-                    border: `2px solid ${data.verified ? Status.Verified : Status.NotVerified}`,
-                    color: data.verified ? Status.Verified : Status.NotVerified,
+                    border: `2px solid ${data.verified ? palette.success.main : palette.error.main}`,
+                    color: data.verified ? palette.success.main : palette.error.main,
                     height: "fit-content",
                     fontWeight: "bold",
                     marginTop: "auto",
@@ -74,7 +69,7 @@ export function EmailListItem({
                     <IconButton
                         onClick={onVerify}
                     >
-                        <CompleteIcon fill={Status.NotVerified} />
+                        <CompleteIcon fill={palette.error.main} />
                     </IconButton>
                 </Tooltip>}
                 <Tooltip title={t("EmailDelete")}>

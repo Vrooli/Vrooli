@@ -289,24 +289,8 @@ const UNDERLINE: TextMatchTransformer = {
     type: "text-match",
 };
 
-// Empty lines are converted to <br> tags
-// TODO this looks fine, but switching back and forth continually adds more newlines
-export const EMPTY_LINE_BREAKS: ElementTransformer = {
-    dependencies: [ParagraphNode],
-    export: () => { return null; },
-    regExp: /^$/,
-    replace: (textNode, nodes, _, isImport) => {
-        if (isImport && nodes.length === 1) {
-            // console.log(textNode);
-            nodes[0].replace($createParagraphNode());
-        }
-    },
-    type: "element",
-};
-
 const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer | ElementTransformer> = [
     UNDERLINE,
-    // EMPTY_LINE_BREAKS,
     SPOILER_LINES_TRANSFORMER,
     SPOILER_TAGS_TRANSFORMER,
     CODE_BLOCK_TRANSFORMER,
@@ -447,7 +431,7 @@ const RichInputLexicalComponents = ({
     const triggerEditorChange = useCallback(() => {
         console.log("updating editor value", value);
         editor.update(() => {
-            console.log('calling convertfrommarkdownstring in triggereditrochange')
+            console.log("calling convertfrommarkdownstring in triggereditrochange");
             $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         }, HISTORY_MERGE_OPTIONS);
     }, [editor, value]);
@@ -503,7 +487,7 @@ const RichInputLexicalComponents = ({
                     }
                     // set value without triggering onChange
                     editor.update(() => {
-                        console.log('calling convertfrommarkdownstring in sethandleaction')
+                        console.log("calling convertfrommarkdownstring in sethandleaction");
                         $convertFromMarkdownString(data, ALL_TRANSFORMERS);
                     }, HISTORY_MERGE_OPTIONS);
                 },
@@ -599,15 +583,15 @@ export const RichInputLexical = ({
         editable: true,
         // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
         editorState: () => {
-            console.log('calling convertfrommarkdownstring in initialconfig.editorState function')
-            $convertFromMarkdownString(value, ALL_TRANSFORMERS)
+            console.log("calling convertfrommarkdownstring in initialconfig.editorState function");
+            $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         },
         namespace: "RichInputEditor",
         nodes: [AutoLinkNode, CodeBlockNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode, TableNode, TableCellNode, TableRowNode],
         onError,
         theme,
     }), [value]);
-    console.log('got initialconfig', initialConfig.editorState);
+    console.log("got initialconfig", initialConfig.editorState);
 
 
     /** Lexical editor context, for finding and manipulating state */

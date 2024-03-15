@@ -14,11 +14,6 @@ import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
 import { WalletListItemProps, WalletListProps } from "../types";
 
-const Status = {
-    NotVerified: "#a71c2d", // Red
-    Verified: "#19972b", // Green
-};
-
 export function WalletListItem({
     handleDelete,
     handleUpdate,
@@ -72,8 +67,8 @@ export function WalletListItem({
                 {/* Verified indicator */}
                 <Box sx={{
                     borderRadius: 1,
-                    border: `2px solid ${data.verified ? Status.Verified : Status.NotVerified}`,
-                    color: data.verified ? Status.Verified : Status.NotVerified,
+                    border: `2px solid ${data.verified ? palette.success.main : palette.error.main}`,
+                    color: data.verified ? palette.success.main : palette.error.main,
                     height: "fit-content",
                     fontWeight: "bold",
                     marginTop: "auto",
@@ -91,7 +86,7 @@ export function WalletListItem({
                     <IconButton
                         onClick={onVerify}
                     >
-                        <CompleteIcon fill={Status.NotVerified} />
+                        <CompleteIcon fill={palette.error.main} />
                     </IconButton>
                 </Tooltip>}
                 <Tooltip title={t("WalletDelete")}>

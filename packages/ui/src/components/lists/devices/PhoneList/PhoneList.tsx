@@ -1,5 +1,5 @@
 import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointPostDeleteOne, endpointPostPhone, endpointPostPhoneValidateText, endpointPostPhoneVerificationText, phoneValidation, uuid } from "@local/shared";
-import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { PhoneNumberInputBase } from "components/inputs/PhoneNumberInput/PhoneNumberInput";
@@ -102,7 +102,8 @@ export function PhoneListItem({
             fetch: validateMutation,
             inputs: { phoneNumber: data.phoneNumber, verificationCode },
             onSuccess: () => {
-                PubSub.get().publish("snack", { messageKey: "PhoneVerified", severity: "Success" });
+                PubSub.get().publish("alertDialog", { messageKey: "PhoneVerifiedMaybeCreditsReceived", buttons: [{ labelKey: "Ok" }] });
+                PubSub.get().publish("celebration");
                 setVerificationCode("");
                 handleUpdate(index, { ...data, verified: true });
             },
@@ -143,6 +144,20 @@ export function PhoneListItem({
                     </Stack>
                 </Stack>
                 {!data.verified && verificationInput}
+                {data.verified && <Box sx={{
+                    borderRadius: 1,
+                    border: `2px solid ${palette.success.main}`,
+                    color: palette.success.main,
+                    height: "fit-content",
+                    fontWeight: "bold",
+                    marginTop: "auto",
+                    marginBottom: "auto",
+                    textAlign: "center",
+                    padding: 0.25,
+                    width: "fit-content",
+                }}>
+                    {t("Verified")}
+                </Box>}
             </Stack>
         </ListItem>
     );

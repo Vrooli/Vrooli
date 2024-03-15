@@ -1,6 +1,6 @@
 import { TextMatchTransformer } from "@lexical/markdown";
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $getSelection, $isRangeSelection, $isTextNode, COMMAND_PRIORITY_LOW, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedLexicalNode, Spread, TextNode, createCommand, type EditorConfig, type LexicalNode, type NodeKey } from 'lexical';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $getSelection, $isRangeSelection, $isTextNode, COMMAND_PRIORITY_LOW, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedLexicalNode, Spread, TextNode, createCommand, type EditorConfig, type LexicalNode, type NodeKey } from "lexical";
 
 export type SerializedSpoilerNode = Spread<
     {
@@ -224,12 +224,12 @@ const spoilerCommandListener = () => {
         spoilerNode.select();
     }
     return true;
-}
+};
 
 export function SpoilerPlugin(): null {
     const [editor] = useLexicalComposerContext();
     if (!editor.hasNodes([SpoilerNode])) {
-        throw new Error('SpoilerPlugin: SpoilerNode not registered on editor');
+        throw new Error("SpoilerPlugin: SpoilerNode not registered on editor");
     }
     editor.registerCommand(
         TOGGLE_SPOILER_COMMAND,

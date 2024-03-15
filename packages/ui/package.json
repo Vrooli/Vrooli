@@ -80,7 +80,7 @@
         "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer --html \"source-tree-$(date '+%Y%m%d%H%M%S').html\" --no-border-checks dist/assets/*",
         "lint": "eslint src",
-        "test": "jest --coverage",
+        "test": "jest --clearCache && jest --coverage",
         "type-check": "tsc --noEmit"
     },
     "browserslist": [

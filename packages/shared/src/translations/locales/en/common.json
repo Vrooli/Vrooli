@@ -563,6 +563,7 @@
     "PhoneListHelp": "This list contains all of your connected phone numbers.\n\nYou may add or remove numbers, but you must keep at least one *verified* authentication method (either a phone number, email address, or crypto wallet).",
     "PhoneNumberPlaceholder": "Enter phone number...",
     "PhoneVerified": "Phone verified!",
+    "PhoneVerifiedMaybeCreditsReceived": "Phone verified! If this is your first time verifying a phone number, you should receive free credits. Check the side menu for your current account balance.",
     "PleaseBeNice": "Please be nice to each other...",
     "PreviewTo": "To preview",
     "Premium": "Premium",
