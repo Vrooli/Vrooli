@@ -5,12 +5,14 @@ import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideAc
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
+import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
+import { ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -37,6 +39,13 @@ export const SearchView = ({
         tabs,
         where,
     } = useTabs<SearchPageTabOption>({ id: "search-tabs", tabParams: searchViewTabParams, display });
+
+    const findManyData = useFindMany<ListObject>({
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where(),
+    });
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         // If tab is 'All', go to "Create" page
@@ -75,12 +84,10 @@ export const SearchView = ({
                 />}
             />
             {searchType && <SearchList
+                {...findManyData}
                 id="main-search-page-list"
                 display={display}
                 dummyLength={display === "page" ? 5 : 3}
-                take={20}
-                searchType={searchType}
-                where={where()}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionsButtons display={display}>

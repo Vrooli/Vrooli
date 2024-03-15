@@ -1,11 +1,14 @@
+import { uuidValidate } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack } from "@mui/material";
+import { PageTabs } from "components/PageTabs/PageTabs";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field } from "formik";
+import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
+import { ListObject } from "utils/display/listTools";
 import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 
@@ -27,6 +30,14 @@ export const MemberManageView = ({
         tabs,
         where,
     } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
+
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(organization.id),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where(organization.id),
+    })
 
     //    // Handle add/update invite dialog
     //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
@@ -107,12 +118,10 @@ export const MemberManageView = ({
                 />
             </Stack >
             {searchType && <SearchList
+                {...findManyData}
                 id="member-manage-list"
                 display={display}
                 dummyLength={display === "page" ? 5 : 3}
-                take={20}
-                searchType={searchType}
-                where={where(organization.id)}
                 sxs={showSearchFilters ? {
                     search: { marginTop: 2 },
                     listContainer: { borderRadius: 0 },

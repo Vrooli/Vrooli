@@ -1,5 +1,6 @@
 import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, Meeting, MeetingInvite, Member, MemberInvite, Notification, OrArray, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
+import { UseFindManyResult } from "hooks/useFindMany";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
 import { NavigableObject, SvgComponent, SxType } from "types";
@@ -163,37 +164,35 @@ export interface SearchListGenerator {
     where: any;
 }
 
-export interface SearchListProps<T extends OrArray<ListObject>> extends Pick<ObjectListProps<T>, "handleToggleSelect" | "isSelecting" | "selectedItems"> {
-    /**
-     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
-     * If the callback returns false, the list item will not be selected.
-     */
-    canNavigate?: (item: any) => boolean,
-    canSearch?: (where: any) => boolean;
-    display: ViewDisplayType | "partial";
-    /**
-     * How many dummy lists to display while loading. Smaller is better for lists displayed 
-     * in dialogs, since a large dummy list with a small number of results will give 
-     * an annoying grow/shrink effect.
-     */
-    dummyLength?: number;
-    handleAdd?: (event?: any) => unknown; // Not shown if not passed
-    /** If update button on list items should be hidden */
-    hideUpdateButton?: boolean;
-    id: string;
-    searchPlaceholder?: CommonKey;
-    take?: number; // Number of items to fetch per page
-    resolve?: (data: any, searchType: SearchType | `${SearchType}`) => unknown;
-    searchType: SearchType | `${SearchType}`;
-    sxs?: {
-        search?: SxType;
-        buttons?: SxType;
-        listContainer?: SxType;
+export type SearchListProps<T extends OrArray<ListObject>> =
+    Pick<ObjectListProps<T>, "handleToggleSelect" | "isSelecting" | "selectedItems"> &
+    Omit<UseFindManyResult<T>, "setAllData"> &
+    {
+        /**
+         * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+         * If the callback returns false, the list item will not be selected.
+         */
+        canNavigate?: (item: any) => boolean,
+        display: ViewDisplayType | "partial";
+        /**
+         * How many dummy lists to display while loading. Smaller is better for lists displayed 
+         * in dialogs, since a large dummy list with a small number of results will give 
+         * an annoying grow/shrink effect.
+         */
+        dummyLength?: number;
+        handleAdd?: (event?: any) => unknown; // Not shown if not passed
+        /** If update button on list items should be hidden */
+        hideUpdateButton?: boolean;
+        id: string;
+        searchPlaceholder?: CommonKey;
+        searchType: SearchType | `${SearchType}`;
+        sxs?: {
+            search?: SxType;
+            buttons?: SxType;
+            listContainer?: SxType;
+        }
+        onItemClick?: (item: any) => unknown;
     }
-    onItemClick?: (item: any) => unknown;
-    /** Additional where clause to pass to the query */
-    where?: { [key: string]: object };
-}
 
 export interface SearchQueryVariablesInput<SortBy> {
     ids?: string[] | null;

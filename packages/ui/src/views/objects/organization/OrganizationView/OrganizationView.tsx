@@ -14,6 +14,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
+import { useFindMany } from "hooks/useFindMany";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useTabs } from "hooks/useTabs";
@@ -23,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
-import { placeholderColor } from "utils/display/listTools";
+import { ListObject, placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -90,6 +91,14 @@ export const OrganizationView = ({
         tabs,
         where,
     } = useTabs<OrganizationPageTabOption>({ id: "organization-tabs", tabParams: organizationTabParams, display });
+
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(organization?.id),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where({ organizationId: organization?.id ?? "", permissions }),
+    })
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -261,13 +270,12 @@ export const OrganizationView = ({
                     {
                         currTab.tabType === OrganizationPageTabOption.Resource ? resources : (
                             <SearchList
-                                canSearch={() => uuidValidate(organization?.id)}
+                                {...findManyData}
                                 display={display}
                                 dummyLength={display === "page" ? 5 : 3}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="organization-view-list"
-                                searchType={searchType}
                                 searchPlaceholder={searchPlaceholderKey}
                                 sxs={showSearchFilters ? {
                                     search: { marginTop: 2 },
@@ -277,8 +285,6 @@ export const OrganizationView = ({
                                     buttons: { display: "none" },
                                     listContainer: { borderRadius: 0 },
                                 }}
-                                take={20}
-                                where={where({ organizationId: organization?.id ?? "", permissions })}
                             />
                         )
                     }
