@@ -461,10 +461,11 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 autoFocus={autoFocus}
                 disabled={disabled}
                 enterWillSubmit={enterWillSubmit}
+                maxRows={maxRows}
+                minRows={minRows}
                 multiline
                 name={name}
                 placeholder={placeholder}
-                rows={minRows}
                 value={value}
                 onBlur={onBlur}
                 onFocus={onFocus}

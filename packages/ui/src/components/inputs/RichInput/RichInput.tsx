@@ -119,22 +119,7 @@ export const RichInputBase = ({
         setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
     }, [disabled, internalValue, session]);
 
-    // Resize input area to fit content
     const id = useMemo(() => `input-container-${name}`, [name]);
-    const resize = useCallback(() => {
-        const container = document.getElementById(id);
-        if (!container || typeof internalValue !== "string" || sxs?.textArea?.height) return;
-        const lines = (internalValue.match(/\n/g)?.length || 0) + 1;
-        const lineHeight = Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER);
-        const minRowsNum = minRows ? Number.parseInt(minRows + "") : 2;
-        const maxRowsNum = maxRows ? Number.parseInt(maxRows + "") : lines;
-        const linesShown = Math.max(minRowsNum, Math.min(lines, maxRowsNum));
-        const padding = 34;
-        container.style.height = `${linesShown * lineHeight + padding}px`;
-    }, [id, minRows, maxRows, typography, internalValue, sxs?.textArea?.height]);
-    useEffect(() => {
-        resize();
-    }, [resize, isMarkdownOn]);
 
     /** Prevents input from losing focus when the toolbar is pressed */
     const handleMouseDown = useCallback((e) => {

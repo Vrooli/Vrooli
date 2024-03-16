@@ -505,6 +505,8 @@ const RichInputLexicalComponents = ({
         });
     }, [editor, openAssistantDialog, redo, setHandleAction, toggleHeading, triggerEditorChange, undo]);
 
+    const lineHeight = useMemo(() => Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER), [typography.fontSize]);
+
     return (
         <Box
             id={id}
@@ -521,7 +523,10 @@ const RichInputLexicalComponents = ({
                 borderTop: "none",
                 fontFamily: typography.fontFamily,
                 fontSize: typography.fontSize + 2,
-                lineHeight: `${Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER)}px`,
+                lineHeight: `${lineHeight}px`,
+                minHeight: lineHeight * minRows + 16.5,
+                maxHeight: lineHeight * (maxRows ?? 4) + 16.5,
+                overflow: "auto",
                 backgroundColor: "transparent",
                 color: palette.text.primary,
                 border: `1px solid ${palette.divider}`,
@@ -591,8 +596,6 @@ export const RichInputLexical = ({
         onError,
         theme,
     }), [value]);
-    console.log("got initialconfig", initialConfig.editorState);
-
 
     /** Lexical editor context, for finding and manipulating state */
     const composerContext: [LexicalEditor, LexicalComposerContextType] = useMemo(() => {
