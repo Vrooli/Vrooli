@@ -330,7 +330,7 @@ const RichInputLexicalComponents = ({
     toggleMarkdown,
     undo,
     value,
-    sx,
+    sxs,
 }: RichInputLexicalProps) => {
     const { palette, spacing, typography } = useTheme();
     const [editor] = useLexicalComposerContext();
@@ -525,7 +525,7 @@ const RichInputLexicalComponents = ({
                 fontSize: typography.fontSize + 2,
                 lineHeight: `${lineHeight}px`,
                 minHeight: lineHeight * minRows + 16.5,
-                maxHeight: lineHeight * (maxRows ?? 4) + 16.5,
+                maxHeight: maxRows ? (lineHeight * (maxRows ?? 4) + 16.5) : "none",
                 overflow: "auto",
                 backgroundColor: "transparent",
                 color: palette.text.primary,
@@ -536,7 +536,7 @@ const RichInputLexicalComponents = ({
                 "&:focus-within": {
                     border: `2px solid ${palette.primary.main}`,
                 },
-                ...sx,
+                ...sxs?.inputRoot,
             }}>
             <RichTextPlugin
                 contentEditable={<ContentEditable
@@ -544,6 +544,7 @@ const RichInputLexicalComponents = ({
                         outline: "none",
                         resize: "none",
                         overflow: "auto",
+                        ...sxs?.textArea,
                     } as CSSProperties}
                 />}
                 placeholder={<></>} // Doesn't work for some reason, so we use our own placeholder

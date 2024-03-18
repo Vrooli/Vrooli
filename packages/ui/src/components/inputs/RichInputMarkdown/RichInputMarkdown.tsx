@@ -125,10 +125,9 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     toggleMarkdown,
     undo,
     value,
-    sx,
+    sxs,
 }: RichInputMarkdownProps) => {
-
-    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const textAreaRef = useRef<HTMLElement>(null);
 
     const insertHeader = useCallback((header: Headers) => {
         if (disabled) return;
@@ -457,7 +456,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
             <TextInput
                 id={id}
-                ref={textAreaRef as any}
+                ref={textAreaRef}
                 autoFocus={autoFocus}
                 disabled={disabled}
                 enterWillSubmit={enterWillSubmit}
@@ -483,13 +482,12 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                         borderTop: "none",
                     },
                     "& .MuiInputBase-root": {
-                        minHeight: sx?.minHeight ?? "unset",
                         "& > textarea": {
-                            minHeight: sx?.minHeight ?? "unset",
-                            marginBottom: "auto",
+                            ...sxs?.inputRoot?.["& > textarea"],
+                            ...sxs?.textArea,
                         },
                     },
-                    ...sx,
+                    ...sxs?.inputRoot,
                 }}
             />
         </>

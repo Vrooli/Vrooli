@@ -1,4 +1,5 @@
 import { TextField, Typography } from "@mui/material";
+import { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { TextInputProps } from "../types";
 
@@ -8,6 +9,7 @@ export const TextInput = ({
     isOptional,
     onSubmit,
     placeholder,
+    ref,
     ...props
 }: TextInputProps) => {
     const { t } = useTranslation();
@@ -42,6 +44,7 @@ export const TextInput = ({
         label={label ? <LabelWithOptional /> : ""}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
+        ref={ref as RefObject<HTMLInputElement>}
         InputLabelProps={(label && placeholder) ? { shrink: true } : {}}
         variant="outlined"
         {...props}

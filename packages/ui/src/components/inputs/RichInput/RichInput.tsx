@@ -42,7 +42,7 @@ export const RichInputBase = ({
     value,
     sxs,
 }: RichInputBaseProps) => {
-    const { palette, typography } = useTheme();
+    const { palette } = useTheme();
     const session = useContext(SessionContext);
     const isLeftHanded = useIsLeftHanded();
 
@@ -190,8 +190,11 @@ export const RichInputBase = ({
         toggleMarkdown,
         undo,
         value: internalValue,
-        sx: sxs?.textArea,
-    }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
+        sxs: {
+            inputRoot: sxs?.inputRoot,
+            textArea: sxs?.textArea,
+        },
+    }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.inputRoot, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
     return (
         <>

@@ -165,7 +165,7 @@ const ChatInvitesForm = ({
                             },
                             topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            textArea: {
+                            inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
                             },

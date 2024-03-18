@@ -2,7 +2,7 @@ import { ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
-import { CSSProperties } from "react";
+import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
 import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
@@ -159,7 +159,8 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
         topBar?: SxType;
         bottomBar?: SxType;
         root?: SxType;
-        textArea?: Record<string, unknown>;
+        inputRoot?: SxType;
+        textArea?: CSSProperties;
     };
 }
 
@@ -174,7 +175,10 @@ export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionBut
     setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
     toggleMarkdown: () => unknown;
     undo: () => unknown;
-    sx?: CSSProperties;
+    sxs?: {
+        inputRoot?: SxType;
+        textArea?: CSSProperties;
+    };
 }
 
 export type RichInputMarkdownProps = RichInputChildProps;
@@ -332,10 +336,11 @@ export interface TagSelectorBaseProps {
     tags: (TagShape | Tag)[];
 }
 
-export type TextInputProps = TextFieldProps & {
+export type TextInputProps = Omit<TextFieldProps, "ref"> & {
     enterWillSubmit?: boolean;
     onSubmit?: () => unknown;
     isOptional?: boolean;
+    ref?: RefObject<HTMLElement>;
 }
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
@@ -372,7 +377,8 @@ export interface TranslatedRichInputProps {
         topBar?: SxType;
         bottomBar?: SxType;
         root?: SxType;
-        textArea?: Record<string, unknown>;
+        inputRoot?: SxType;
+        textArea?: CSSProperties;
     };
 }
 

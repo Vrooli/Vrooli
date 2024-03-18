@@ -179,154 +179,164 @@ const NoteForm = ({
             onClose={onClose}
             sxs={{ paper: { height: "100%" } }}
         >
-            <TopBar
-                display={display}
-                onClose={onClose}
-                titleComponent={<EditableTitle
-                    handleDelete={handleDelete}
-                    isDeletable={!(isCreate || disabled)}
-                    isEditable={!disabled}
-                    language={language}
-                    titleField="name"
-                    subtitleField="description"
-                    variant="subheader"
-                    sxs={{
-                        stack: {
-                            padding: 0,
-                            ...(display === "page" && !isMobile ? {
-                                margin: "auto",
-                                maxWidth: "800px",
-                                paddingTop: 1,
-                                paddingBottom: 1,
-                            } : {}),
-                        },
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100vh",
+                overflow: "hidden",
+            }}>
+                <TopBar
+                    display={display}
+                    keepVisible
+                    onClose={onClose}
+                    titleComponent={<EditableTitle
+                        handleDelete={handleDelete}
+                        isDeletable={!(isCreate || disabled)}
+                        isEditable={!disabled}
+                        language={language}
+                        titleField="name"
+                        subtitleField="description"
+                        variant="subheader"
+                        sxs={{
+                            stack: {
+                                padding: 0,
+                                ...(display === "page" && !isMobile ? {
+                                    margin: "auto",
+                                    maxWidth: "800px",
+                                    paddingTop: 1,
+                                    paddingBottom: 1,
+                                } : {}),
+                            },
+                        }}
+                        DialogContentForm={() => (
+                            <>
+                                <BaseForm
+                                    display="dialog"
+                                    style={{
+                                        width: "min(700px, 100vw)",
+                                        paddingBottom: "16px",
+                                    }}
+                                >
+                                    <FormContainer>
+                                        <RelationshipList
+                                            isEditing={true}
+                                            objectType={"Note"}
+                                            sx={{ marginBottom: 4 }}
+                                        />
+                                        <FormSection sx={{ overflowX: "hidden" }}>
+                                            <LanguageInput
+                                                currentLanguage={language}
+                                                handleAdd={handleAddLanguage}
+                                                handleDelete={handleDeleteLanguage}
+                                                handleCurrent={setLanguage}
+                                                languages={languages}
+                                            />
+                                            <TranslatedTextInput
+                                                fullWidth
+                                                label={t("Name")}
+                                                language={language}
+                                                name="name"
+                                            />
+                                            <TranslatedRichInput
+                                                language={language}
+                                                maxChars={2048}
+                                                minRows={4}
+                                                name="description"
+                                                placeholder={t("Description")}
+                                            />
+                                        </FormSection>
+                                    </FormContainer>
+                                </BaseForm>
+                            </>
+                        )}
+                    />}
+                />
+                <BaseForm
+                    display={display}
+                    isLoading={isLoading}
+                    style={{
+                        width: "min(800px, 100vw)",
+                        height: "100%",
+                        paddingBottom: 0,
+                        display: "contents",
                     }}
-                    DialogContentForm={() => (
-                        <>
-                            <BaseForm
-                                display="dialog"
-                                style={{
-                                    width: "min(700px, 100vw)",
-                                    paddingBottom: "16px",
-                                }}
-                            >
-                                <FormContainer>
-                                    <RelationshipList
-                                        isEditing={true}
-                                        objectType={"Note"}
-                                        sx={{ marginBottom: 4 }}
-                                    />
-                                    <FormSection sx={{ overflowX: "hidden" }}>
-                                        <LanguageInput
+                >
+                    <TranslatedRichInput
+                        language={language}
+                        autoFocus
+                        name="pages[0].text"
+                        placeholder={t("PleaseBeNice")}
+                        disabled={disabled}
+                        sxs={{
+                            root: {
+                                display: "flex",
+                                position: "relative",
+                                width: "100%",
+                                maxWidth: "800px",
+                                borderRadius: { xs: 0, md: 1 },
+                                overflow: "hidden",
+                                margin: "auto",
+                                flex: 1,
+                            },
+                            topBar: {
+                                borderRadius: 0,
+                            },
+                            inputRoot: {
+                                borderRadius: 0,
+                                height: "100%",
+                                overflow: "scroll",
+                                background: palette.background.paper,
+                                border: "none",
+                                flex: 1,
+                            },
+                            textArea: {
+                                paddingBottom: "128px",
+                            },
+                        }}
+                    />
+                </BaseForm>
+                <Box sx={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: isMobile ? "calc(64px - 8px)" : 0,
+                }}>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={(!isCreate || (disabled && languages.length > 1)) ? (
+                            <EllipsisActionButton>
+                                <>
+                                    <Box sx={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}>
+                                        {disabled && languages.length > 1 ? <SelectLanguageMenu
                                             currentLanguage={language}
-                                            handleAdd={handleAddLanguage}
-                                            handleDelete={handleDeleteLanguage}
                                             handleCurrent={setLanguage}
                                             languages={languages}
+                                        /> : undefined}
+                                    </Box>
+                                    {!isCreate && (
+                                        <ObjectActionsRow
+                                            actionData={actionData}
+                                            exclude={[ObjectAction.Delete, ObjectAction.Edit]}
+                                            object={values as ListObject}
                                         />
-                                        <TranslatedTextInput
-                                            fullWidth
-                                            label={t("Name")}
-                                            language={language}
-                                            name="name"
-                                        />
-                                        <TranslatedRichInput
-                                            language={language}
-                                            maxChars={2048}
-                                            minRows={4}
-                                            name="description"
-                                            placeholder={t("Description")}
-                                        />
-                                    </FormSection>
-                                </FormContainer>
-                            </BaseForm>
-                        </>
-                    )}
-                />}
-            />
-            <BaseForm
-                display={display}
-                isLoading={isLoading}
-                style={{
-                    width: "min(800px, 100vw)",
-                    height: "100%",
-                    paddingBottom: 0,
-                }}
-            >
-                <TranslatedRichInput
-                    language={language}
-                    autoFocus
-                    name="pages[0].text"
-                    placeholder={t("PleaseBeNice")}
-                    disabled={disabled}
-                    minRows={10}
-                    sxs={{
-                        topBar: {
-                            borderRadius: 0,
-                            position: "sticky",
-                            top: 0,
-                            ...(isMobile ? {
-                                borderRadius: 0,
-                            } : {}),
-                        },
-                        root: {
-                            height: "100%",
-                            position: "relative",
-                            maxWidth: "800px",
-                            ...(display === "page" ? {
-                                marginBottom: 4,
-                                borderRadius: { xs: 0, md: 1 },
-                                overflow: "overlay",
-                            } : {}),
-                        },
-                        textArea: {
-                            borderRadius: 0,
-                            resize: "none",
-                            height: "100%",
-                            overflow: "hidden", // Container handles scrolling
-                            background: palette.background.paper,
-                            border: "none",
-                            ...(display === "page" ? {
-                                minHeight: "100vh",
-                            } : {}),
-                        },
-                    }}
-                />
-            </BaseForm>
-            <BottomActionsButtons
-                display={display}
-                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                hideButtons={disabled}
-                isCreate={isCreate}
-                loading={isLoading}
-                onCancel={handleCancel}
-                onSetSubmitting={props.setSubmitting}
-                onSubmit={onSubmit}
-                sideActionButtons={(!isCreate || (disabled && languages.length > 1)) ? (
-                    <EllipsisActionButton>
-                        <>
-                            <Box sx={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                            }}>
-                                {disabled && languages.length > 1 ? <SelectLanguageMenu
-                                    currentLanguage={language}
-                                    handleCurrent={setLanguage}
-                                    languages={languages}
-                                /> : undefined}
-                            </Box>
-                            {!isCreate && (
-                                <ObjectActionsRow
-                                    actionData={actionData}
-                                    exclude={[ObjectAction.Delete, ObjectAction.Edit]}
-                                    object={values as ListObject}
-                                />
-                            )}
-                        </>
-                    </EllipsisActionButton>
-                ) : null}
-            />
+                                    )}
+                                </>
+                            </EllipsisActionButton>
+                        ) : null}
+                    />
+                </Box>
+            </Box>
         </MaybeLargeDialog>
     );
 };
