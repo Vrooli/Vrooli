@@ -104,6 +104,7 @@ export const DashboardView = ({
             inputs: transformChatValues(withoutOtherMessages(chatToUse, session), withoutOtherMessages(chatToUse, session), true),
             onSuccess: (data) => {
                 setChat({ ...data, messages: [] });
+                setUsersTyping([]);
                 const userId = getCurrentUser(session).id;
                 if (userId) setCookieMatchingChat(data.id, [userId, VALYXA_ID]);
             },
@@ -315,6 +316,7 @@ export const DashboardView = ({
     const { dimensions, ref: dimRef } = useDimensions();
 
     const [inputFocused, setInputFocused] = useState(false);
+    const onBlur = useCallback(() => { setInputFocused(false); }, []);
     const onFocus = useCallback(() => {
         setInputFocused(true);
         setShowChat(true);
@@ -322,15 +324,22 @@ export const DashboardView = ({
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
         return new Promise<Chat>((resolve, reject) => {
+            // Clear typed message
+            let oldMessage: string | undefined;
+            setMessage((m) => {
+                oldMessage = m;
+                return "";
+            });
             fetchLazyWrapper<ChatUpdateInput, Chat>({
                 fetch,
                 inputs: transformChatValues(withoutOtherMessages(updatedChat ?? chat, session), withoutOtherMessages(chat, session), false),
                 onSuccess: (data) => {
                     setChat({ ...data, messages: [] });
-                    setMessage("");
                     resolve(data);
                 },
                 onError: (data) => {
+                    // Put typed message back if there was a problem
+                    setMessage(oldMessage ?? "");
                     PubSub.get().publish("snack", {
                         message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
                         severity: "Error",
@@ -542,6 +551,7 @@ export const DashboardView = ({
                 maxRows={inputFocused ? 10 : 2}
                 minRows={1}
                 name="search"
+                onBlur={onBlur}
                 onChange={setMessage}
                 onFocus={onFocus}
                 onSubmit={(m) => {
@@ -561,7 +571,7 @@ export const DashboardView = ({
                     },
                     topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                     bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                    textArea: {
+                    inputRoot: {
                         border: "none",
                         background: palette.background.paper,
                     },

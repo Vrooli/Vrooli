@@ -7,7 +7,7 @@ type RequestState<TData> = {
     errors: ServerResponse["errors"] | undefined;
 };
 
-export type UseLazyFetchProps<TInput extends Record<string, any> | undefined, TData> = {
+export type UseLazyFetchProps<TInput extends Record<string, any> | undefined> = {
     endpoint?: string | undefined;
     inputs?: TInput;
     method?: Method;
@@ -42,7 +42,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
     inputs = {} as TInput,
     method = "GET",
     options = {} as RequestInit,
-}: UseLazyFetchProps<TInput, TData>): [
+}: UseLazyFetchProps<TInput>): [
         MakeLazyRequest<TInput, TData>,
         RequestState<TData>
     ] {
@@ -73,6 +73,20 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         }
         // Update the state to loading
         setState(s => ({ ...s, loading: true }));
+        // Helper function for handling response
+        const handleResponse = ({ data, errors, version }: ServerResponse) => {
+            console.log("got data", data, errors, version);
+            setState({ loading: false, data, errors });
+            if (Array.isArray(errors) && errors.length > 0) {
+                if (inputOptions?.onError) {
+                    inputOptions.onError(errors);
+                }
+                if (inputOptions?.displayError !== false) {
+                    displayServerErrors(errors);
+                }
+            }
+            return { data, errors, version };
+        };
         // Make the request
         const result = await fetchData({
             endpoint: inputOptions?.endpointOverride || endpoint as string,
@@ -80,28 +94,8 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
             method,
             options,
         })
-            .then(({ data, errors, version }: ServerResponse) => {
-                setState({ loading: false, data, errors });
-                if (Array.isArray(errors) && errors.length > 0) {
-                    if (inputOptions?.onError) {
-                        inputOptions.onError(errors);
-                    }
-                    if (inputOptions?.displayError !== false) {
-                        displayServerErrors(errors);
-                    }
-                }
-                return { data, errors, version };
-            })
-            .catch(({ errors, version }: ServerResponse) => {
-                setState({ loading: false, data: undefined, errors });
-                if (inputOptions?.onError) {
-                    inputOptions.onError(errors);
-                }
-                if (inputOptions?.displayError !== false) {
-                    displayServerErrors(errors);
-                }
-                return { errors, version };
-            });
+            .then(handleResponse)
+            .catch(handleResponse);
         return result;
     }, []);
 

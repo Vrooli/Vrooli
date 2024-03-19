@@ -1,15 +1,25 @@
-import { ProjectVersionDirectory, Session } from "@local/shared";
+import { ProjectVersionDirectory, Session, TimeFrame } from "@local/shared";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { DirectoryItem, DirectoryListSortBy } from "./types";
+import { DirectoryItem } from "./types";
+
+export enum DirectoryListSortBy {
+    DateCreatedAsc = "DateCreatedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    NameAsc = "NameAsc",
+    NameDesc = "NameDesc",
+}
 
 export const initializeDirectoryList = (
     directory: ProjectVersionDirectory | null | undefined,
     sortBy: DirectoryListSortBy,
+    timeFrame: TimeFrame | undefined,
     session: Session | null | undefined,
 ): DirectoryItem[] => {
     if (!directory) return [];
-    const items = [
+    let items = [
         ...directory.childApiVersions,
         ...directory.childNoteVersions,
         ...directory.childOrganizations,
@@ -19,6 +29,23 @@ export const initializeDirectoryList = (
         ...directory.childStandardVersions,
     ];
     const userLanguages = getUserLanguages(session);
+
+    // Helper function to safely parse dates and return a timestamp
+    const parseDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
+    };
+
+    // Filter items based on time frame
+    if (timeFrame?.after || timeFrame?.before) {
+        const afterTime = timeFrame?.after ? parseDate(timeFrame.after) : -Infinity;
+        const beforeTime = timeFrame?.before ? parseDate(timeFrame.before) : Infinity;
+
+        items = items.filter(item => {
+            const itemTime = parseDate(item.created_at); // Assuming filtering by creation date
+            return itemTime > afterTime && itemTime < beforeTime;
+        });
+    }
 
     return items.sort((a, b) => {
         // Extracting titles for name-based sorting

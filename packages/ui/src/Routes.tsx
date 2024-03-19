@@ -1,8 +1,8 @@
 import { LINKS } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
-import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
+import { NavbarProps } from "components/navigation/types";
 import { lazily } from "react-lazily";
 import { Route, RouteProps, Switch } from "route";
 import { BotUpsert } from "views/objects/bot";
@@ -51,7 +51,7 @@ const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteCrud } = lazily(() => import("./views/objects/note"));
 const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
-const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
+const { ProjectCrud } = lazily(() => import("./views/objects/project"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
 const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
 const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
@@ -247,13 +247,13 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <UserView display="page" />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpsert display="page" isCreate={true} />
+                    <ProjectCrud display="page" isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpsert display="page" isCreate={false} />
+                    <ProjectCrud display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:rootId/:versionId?`} {...props}>
-                    <ProjectView display="page" />
+                    <ProjectCrud display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
                     <QuestionUpsert display="page" isCreate={true} />

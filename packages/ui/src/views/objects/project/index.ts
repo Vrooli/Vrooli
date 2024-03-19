@@ -1,4 +1,3 @@
 
-export * from "./ProjectUpsert/ProjectUpsert";
-export * from "./ProjectView/ProjectView";
+export * from "./ProjectCrud/ProjectCrud";
 

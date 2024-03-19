@@ -36,7 +36,6 @@ import { parseSearchParams, useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
-import { getYou } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { uuidToBase36 } from "utils/navigation/urlTools";
@@ -232,16 +231,23 @@ const ChatForm = ({
                 reject();
                 return;
             }
+            // Clear typed message
+            let oldMessage: string | undefined;
+            setMessage((m) => {
+                oldMessage = m;
+                return "";
+            });
             fetchLazyWrapper<ChatUpdateInput, Chat>({
                 fetch,
                 inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
                 onSuccess: (data) => {
                     handleUpdate({ ...data, messages: [] });
-                    setMessage("");
                     resolve(data);
                 },
                 onCompleted: () => { props.setSubmitting(false); },
                 onError: (data) => {
+                    // Put typed message back if there was a problem
+                    setMessage(oldMessage ?? "");
                     PubSub.get().publish("snack", {
                         message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
                         severity: "Error",
@@ -538,6 +544,7 @@ const ChatForm = ({
                             messageActions.postMessage(trimmed);
                         }}
                         name="newMessage"
+                        placeholder={t("MessagePlaceholder")}
                         sxs={{
                             root: {
                                 background: palette.primary.dark,
@@ -549,7 +556,7 @@ const ChatForm = ({
                             },
                             topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            textArea: {
+                            inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
                             },
@@ -575,7 +582,7 @@ export const ChatCrud = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
         onError: (errors) => {
             // If the chat doesn't exist, switch to create mode
@@ -591,7 +598,6 @@ export const ChatCrud = ({
         overrideObject: overrideObject as unknown as Chat,
         transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -603,7 +609,7 @@ export const ChatCrud = ({
             {(formik) =>
                 <>
                     <ChatForm
-                        disabled={!(isCreate || canUpdate)}
+                        disabled={!(isCreate || permissions.canUpdate)}
                         display={display}
                         existing={existing}
                         handleUpdate={setExisting}

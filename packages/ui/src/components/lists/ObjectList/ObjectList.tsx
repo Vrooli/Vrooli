@@ -166,7 +166,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
     }, [loading, dummyItems, keyPrefix, hideUpdateButton, isMobile, isSelecting]);
 
     return (
-        <Box ref={dimRef}>
+        <Box ref={dimRef} sx={{ width: "100%" }}>
             {/* Context menus */}
             <ObjectActionMenu
                 actionData={actionData}

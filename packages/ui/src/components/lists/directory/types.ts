@@ -8,8 +8,6 @@ import { SmartContractVersionShape } from "utils/shape/models/smartContractVersi
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { ObjectListActions } from "../types";
 
-export type DirectoryListSortBy = "DateCreatedAsc" | "DateCreatedDesc" | "DateUpdatedAsc" | "DateUpdatedDesc" | "NameAsc" | "NameDesc";
-
 export type DirectoryItem = ApiVersionShape |
     NoteVersionShape |
     OrganizationShape |
@@ -31,8 +29,6 @@ export interface DirectoryListProps {
     directory: ProjectVersionDirectory | null;
     loading?: boolean;
     mutate?: boolean;
-    sortBy: DirectoryListSortBy;
-    title?: string;
 }
 
 export type DirectoryListHorizontalProps = DirectoryListProps & {

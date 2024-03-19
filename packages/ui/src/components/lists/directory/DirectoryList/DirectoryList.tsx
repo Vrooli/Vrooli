@@ -1,6 +1,11 @@
-import { ApiVersion, Count, DeleteManyInput, DeleteType, GqlModelType, NoteVersion, Organization, ProjectVersion, ProjectVersionDirectory, RoutineVersion, SmartContractVersion, StandardVersion, endpointPostDeleteMany, isOfType } from "@local/shared";
+import { ApiVersion, Count, DeleteManyInput, DeleteType, GqlModelType, NoteVersion, Organization, ProjectVersion, ProjectVersionDirectory, RoutineVersion, SmartContractVersion, StandardVersion, TimeFrame, endpointPostDeleteMany, isOfType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { SortButton } from "components/buttons/SortButton/SortButton";
+import { TimeButton } from "components/buttons/TimeButton/TimeButton";
+import { searchButtonStyle } from "components/buttons/styles";
+import { SearchButtonsProps } from "components/buttons/types";
+import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectOrCreateObject } from "components/dialogs/types";
@@ -14,7 +19,7 @@ import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
 import usePress from "hooks/usePress";
 import { useSelectableList } from "hooks/useSelectableList";
-import { AddIcon, ApiIcon, CloseIcon, DeleteIcon, EditIcon, HelpIcon, LinkIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
+import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -25,8 +30,51 @@ import { ListObject, getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { initializeDirectoryList } from "../common";
+import { DirectoryListSortBy, initializeDirectoryList } from "../common";
 import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, DirectoryListProps, DirectoryListVerticalProps } from "../types";
+
+type ViewMode = "card" | "list";
+type DirectorySearchButtonsProps = Omit<SearchButtonsProps, "advancedSearchParams" | "advancedSearchSchema" | "controlsUrl" | "searchType" | "setAdvancedSearchParams" | "setSortBy" | "sortByOptions"> & {
+    viewMode: ViewMode;
+    setSortBy: (sortBy: DirectoryListSortBy) => unknown;
+    setViewMode: (mode: ViewMode) => unknown;
+}
+const DirectorySearchButtons = ({
+    setSortBy,
+    setTimeFrame,
+    setViewMode,
+    sortBy,
+    sx,
+    timeFrame,
+    viewMode,
+}: DirectorySearchButtonsProps) => {
+    const { palette } = useTheme();
+    const { t } = useTranslation();
+
+    return (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
+            <SortButton
+                options={DirectoryListSortBy}
+                setSortBy={setSortBy as ((sortBy: string) => unknown)}
+                sortBy={sortBy}
+            />
+            <TimeButton
+                setTimeFrame={setTimeFrame}
+                timeFrame={timeFrame}
+            />
+            {/* Card/list toggle TODO */}
+            <Tooltip title={t(viewMode === "list" ? "CardModeSwitch" : "ListModeSwitch")} placement="top">
+                <Box
+                    id="card-list-toggle-button"
+                    onClick={() => setViewMode(viewMode === "list" ? "card" : "list")}
+                    sx={searchButtonStyle(palette)}
+                >
+                    {viewMode === "list" ? <ListIcon fill={palette.secondary.main} /> : <GridIcon fill={palette.secondary.main} />}
+                </Box>
+            </Tooltip>
+        </Box>
+    );
+};
 
 /**
  * Unlike ResourceCard, these aren't draggable. This is because the objects 
@@ -169,7 +217,6 @@ export const DirectoryListHorizontal = ({
     onAction,
     onDelete,
     openAddDialog,
-    title,
 }: DirectoryListHorizontalProps) => {
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -200,7 +247,7 @@ export const DirectoryListHorizontal = ({
                 width: "100%",
                 marginLeft: "auto",
                 marginRight: "auto",
-                paddingTop: title ? 0 : 1,
+                paddingTop: 1,
                 paddingBottom: 1,
                 overflowX: "auto",
                 // ...sxs?.list,
@@ -257,23 +304,27 @@ export const DirectoryListVertical = ({
 
     return (
         <>
-            <ObjectList
-                canNavigate={() => !isEditing}
-                dummyItems={new Array(5).fill("Project")}
-                handleToggleSelect={handleToggleSelect as (item: ListObject) => unknown}
-                hideUpdateButton={isEditing}
-                isSelecting={isSelecting}
-                items={list}
-                keyPrefix="directory-list-item"
-                loading={loading ?? false}
-                onAction={onAction}
-                onClick={onClick as (item: ListObject) => unknown}
-                selectedItems={selectedData}
-            />
+            <ListContainer
+                isEmpty={list.length === 0 && !loading}
+            >
+                <ObjectList
+                    canNavigate={() => !isEditing}
+                    dummyItems={new Array(5).fill("Project")}
+                    handleToggleSelect={handleToggleSelect as (item: ListObject) => unknown}
+                    hideUpdateButton={isEditing}
+                    isSelecting={isSelecting}
+                    items={list}
+                    keyPrefix="directory-list-item"
+                    loading={loading ?? false}
+                    onAction={onAction}
+                    onClick={onClick as (item: ListObject) => unknown}
+                    selectedItems={selectedData}
+                />
+            </ListContainer>
             {/* Add button */}
             {canUpdate && <Box sx={{
-                maxWidth: "400px",
                 margin: "auto",
+                width: "100%",
             }}>
                 <Button
                     fullWidth onClick={openAddDialog}
@@ -285,48 +336,26 @@ export const DirectoryListVertical = ({
     );
 };
 
-type ViewMode = "card" | "list";
-
-const DirectoryViewModeToggle = ({
-    viewMode,
-    onViewModeChange,
-}: {
-    viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => unknown;
-}) => (
-    <Box sx={{
-        display: "flex",
-        gap: 1,
-        width: "100%",
-        marginRight: "auto",
-        marginBottom: "10px",
-    }}>
-        <Button variant={viewMode === "card" ? "contained" : "outlined"} color="primary" onClick={() => onViewModeChange("card")}>
-            Card View
-        </Button>
-        <Button variant={viewMode === "list" ? "contained" : "outlined"} color="primary" onClick={() => onViewModeChange("list")}>
-            List View
-        </Button>
-    </Box>
-);
-
 export const DirectoryList = (props: DirectoryListProps) => {
-    const { canUpdate, directory, handleUpdate, mutate, sortBy, title } = props;
+    const { canUpdate, directory, handleUpdate, mutate } = props;
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
-    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const list = useMemo(() => initializeDirectoryList(directory, sortBy, session), [directory, session, sortBy]);
     const [viewMode, setViewMode] = useState<ViewMode>("list");
+    const [sortBy, setSortBy] = useState<DirectoryListSortBy>(DirectoryListSortBy.NameAsc);
+    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
+
+    const list = useMemo(() => initializeDirectoryList(
+        directory,
+        sortBy,
+        timeFrame,
+        session,
+    ), [directory, session, sortBy, timeFrame]);
+
     const [isEditing, setIsEditing] = useState(false);
     useEffect(() => {
         if (!canUpdate) setIsEditing(false);
     }, [canUpdate]);
-
-    const handleViewModeChange = useCallback((mode: ViewMode) => {
-        setViewMode(mode);
-    }, []);
 
     // Add dialog
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -489,19 +518,16 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 justifyContent: "center",
                 alignItems: "center",
                 gap: 1,
+                paddingBottom: "80px",
             }}>
-                <DirectoryViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
-                {title && <Box display="flex" flexDirection="row" alignItems="center">
-                    <Typography component="h2" variant="h6" textAlign="left">{title}</Typography>
-                    {true && <Tooltip title={t("Edit")}>
-                        <IconButton onClick={() => { setIsEditing(e => !e); }}>
-                            {isEditing ?
-                                <CloseIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} /> :
-                                <EditIcon fill={palette.secondary.main} style={{ width: "24px", height: "24px" }} />
-                            }
-                        </IconButton>
-                    </Tooltip>}
-                </Box>}
+                <DirectorySearchButtons
+                    setSortBy={setSortBy}
+                    setTimeFrame={setTimeFrame}
+                    setViewMode={setViewMode}
+                    sortBy={sortBy}
+                    timeFrame={timeFrame}
+                    viewMode={viewMode}
+                />
                 {
                     viewMode === "card" ?
                         <DirectoryListHorizontal {...childProps} /> :

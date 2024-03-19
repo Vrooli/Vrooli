@@ -27,6 +27,7 @@ export const useMessageActions = ({
 
     /** Commit a new message */
     const postMessage = useCallback((text: string) => {
+        if (text.trim() === "") return;
         const newMessage: ChatMessageShape = {
             __typename: "ChatMessage" as const,
             id: uuid(),
