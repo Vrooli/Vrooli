@@ -32,6 +32,7 @@ export const apiVersion_update = {
     "__typename": "PullRequest"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,

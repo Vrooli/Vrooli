@@ -1,4 +1,5 @@
 export const smartContract_findOne = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "isLatest": true,

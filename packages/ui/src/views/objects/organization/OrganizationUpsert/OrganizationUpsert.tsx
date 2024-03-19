@@ -21,7 +21,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { OrganizationShape, shapeOrganization } from "utils/shape/models/organization";
 import { validateFormValues } from "utils/validateFormValues";
@@ -195,14 +194,13 @@ export const OrganizationUpsert = ({
 }: OrganizationUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Organization, OrganizationShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Organization, OrganizationShape>({
         ...endpointGetOrganization,
         isCreate,
         objectType: "Organization",
         overrideObject,
         transform: (existing) => organizationInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -212,7 +210,7 @@ export const OrganizationUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformOrganizationValues, organizationValidation)}
         >
             {(formik) => <OrganizationForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

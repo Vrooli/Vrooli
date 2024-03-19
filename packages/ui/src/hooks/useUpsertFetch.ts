@@ -30,8 +30,8 @@ export const useUpsertFetch = <
     isCreate,
     isMutate = true,
 }: UseUpsertFetchParams<typeof isMutate>) => {
-    const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(isMutate === false ? {} : endpointCreate as UseLazyFetchProps<TCreateInput, T>);
-    const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(isMutate === false ? {} : endpointUpdate as UseLazyFetchProps<TUpdateInput, T>);
+    const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(isMutate === false ? {} : endpointCreate as UseLazyFetchProps<TCreateInput>);
+    const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(isMutate === false ? {} : endpointUpdate as UseLazyFetchProps<TUpdateInput>);
     const fetch = (isMutate === false ? noop : isCreate ? fetchCreate : fetchUpdate) as MakeLazyRequest<TCreateInput | TUpdateInput, T>;
 
     return {

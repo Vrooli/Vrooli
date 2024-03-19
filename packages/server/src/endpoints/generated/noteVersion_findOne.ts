@@ -32,6 +32,7 @@ export const noteVersion_findOne = {
     "__typename": "PullRequest"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,

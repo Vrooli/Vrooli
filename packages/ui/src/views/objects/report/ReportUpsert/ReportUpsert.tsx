@@ -20,7 +20,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize, FormContainer } from "styles";
-import { getYou } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { ReportShape, shapeReport } from "utils/shape/models/report";
 import { validateFormValues } from "utils/validateFormValues";
@@ -214,14 +213,13 @@ export const ReportUpsert = ({
 }: ReportUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Report, ReportShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Report, ReportShape>({
         ...endpointGetReport,
         isCreate,
         objectType: "Report",
         overrideObject,
         transform: (existing) => reportInitialValues(session, existing as NewReportShape),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -231,7 +229,7 @@ export const ReportUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformReportValues, reportValidation)}
         >
             {(formik) => <ReportForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

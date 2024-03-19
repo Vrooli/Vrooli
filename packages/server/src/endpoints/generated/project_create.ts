@@ -1,4 +1,5 @@
 export const project_create = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "complexity": true,

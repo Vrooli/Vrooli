@@ -34,6 +34,7 @@ export const routineVersion_findOne = {
       "__typename": "PullRequest"
     },
     "root": {
+      "versionsCount": true,
       "parent": {
         "id": true,
         "isLatest": true,
@@ -463,6 +464,7 @@ export const routineVersion_findOne = {
     "__typename": "ResourceList"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "complexity": true,
@@ -684,6 +686,7 @@ export const routineVersion_findOne = {
       }
     },
     "root": {
+      "versionsCount": true,
       "parent": {
         "id": true,
         "isLatest": true,

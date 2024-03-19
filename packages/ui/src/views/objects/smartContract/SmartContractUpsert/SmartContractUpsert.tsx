@@ -24,7 +24,6 @@ import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { SmartContractShape } from "utils/shape/models/smartContract";
 import { shapeSmartContractVersion, SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
@@ -224,14 +223,13 @@ export const SmartContractUpsert = ({
 }: SmartContractUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<SmartContractVersion, SmartContractVersionShape>({
         ...endpointGetSmartContractVersion,
         isCreate,
         objectType: "SmartContractVersion",
         overrideObject,
         transform: (existing) => smartContractInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -241,7 +239,7 @@ export const SmartContractUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformSmartContractVersionValues, smartContractVersionValidation)}
         >
             {(formik) => <SmartContractForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

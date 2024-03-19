@@ -177,14 +177,14 @@ describe("yupObj", () => {
         expect(parentSchema.cast(strippedCorrectly, { stripUnknown: true })).toEqual(strippedCorrectly);
     });
 
-    it("should enforce exclusion pairs on primitive fields", async () => {
+    it("should enforce exclusion pairs on primitive fields - test 1", async () => {
         const schema = yupObj(
             {
                 field1: opt(yup.string()),
                 field2: opt(yup.string()),
             },
             [],
-            [["field1", "field2"]],
+            [["field1", "field2", true]],
             {},
         );
         const bothFields = { field1: "test", field2: "test" };
@@ -198,6 +198,27 @@ describe("yupObj", () => {
         expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
         expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
     });
+    it("should enforce exclusion pairs on primitive fields - test 2", async () => {
+        const schema = yupObj(
+            {
+                field1: opt(yup.string()),
+                field2: opt(yup.string()),
+            },
+            [],
+            [["field1", "field2", false]],
+            {},
+        );
+        const bothFields = { field1: "test", field2: "test" };
+        const field1Only = { field1: "test" };
+        const field2Only = { field2: "test" };
+        const noFields = {};
+        await expect(schema.validate(bothFields)).rejects.toThrow();
+        await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
+        await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
+        await expect(schema.validate(noFields)).resolves.toEqual(noFields);
+        expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
+        expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
+    });
     it("should enforce exclusion pairs on relationship fields - test1", async () => {
         const relSchema = createDummyYupModel("dummyField");
         const schema = yupObj(
@@ -208,7 +229,7 @@ describe("yupObj", () => {
                 // @ts-ignore: Testing runtime scenario
                 ["rel2", ["Create"], "one", "opt", relSchema],
             ],
-            [["rel1Create", "rel2Create"]],
+            [["rel1Create", "rel2Create", true]],
             {},
         );
         const bothFields = { rel1Create: { dummyField: "test" }, rel2Create: { dummyField: "test" } };
@@ -230,7 +251,7 @@ describe("yupObj", () => {
                 // @ts-ignore: Testing runtime scenario
                 ["rel1", ["Create", "Update"], "one", "opt", relSchema],
             ],
-            [["rel1Create", "rel1Update"]],
+            [["rel1Create", "rel1Update", true]],
             {},
         );
         const bothFields = { rel1Create: { dummyField: "test" }, rel1Update: { dummyField: "test" } };
@@ -252,7 +273,7 @@ describe("yupObj", () => {
                 // @ts-ignore: Testing runtime scenario
                 ["rel1", ["Create"], "one", "opt", relSchema],
             ],
-            [["field1", "rel1Create"]],
+            [["field1", "rel1Create", true]],
             {},
         );
         const bothFields = { field1: "test", rel1Create: { dummyField: "test" } };

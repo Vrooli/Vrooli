@@ -111,7 +111,7 @@ export interface RunButtonProps {
     runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
 }
 
-export interface SearchButtonsProps {
+export type SearchButtonsProps = {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
     controlsUrl: boolean;

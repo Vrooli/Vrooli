@@ -13,7 +13,7 @@ export const reminderValidation: YupModel<["create", "update"]> = {
     }, [
         ["reminderList", ["Connect", "Create"], "one", "opt", reminderListValidation, ["reminders"]],
         ["reminderItems", ["Create"], "many", "opt", reminderItemValidation],
-    ], [["reminderListConnect", "reminderListCreate"]], d),
+    ], [["reminderListConnect", "reminderListCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         name: opt(name),

@@ -34,7 +34,7 @@ export const resourceValidation: YupModel<["create", "update"]> = {
     }, [
         ["list", ["Connect", "Create"], "one", "opt", resourceListValidation, ["resources"]],
         ["translations", ["Create"], "many", "opt", resourceTranslationValidation],
-    ], [["listConnect", "listCreate"]], d),
+    ], [["listConnect", "listCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         index: opt(index),
@@ -43,5 +43,5 @@ export const resourceValidation: YupModel<["create", "update"]> = {
     }, [
         ["list", ["Connect", "Create"], "one", "opt", resourceListValidation, ["resources"]],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceTranslationValidation],
-    ], [["listConnect", "listCreate"]], d),
+    ], [["listConnect", "listCreate", false]], d),
 };

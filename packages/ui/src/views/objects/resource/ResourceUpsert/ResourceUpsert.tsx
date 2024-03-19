@@ -19,7 +19,6 @@ import { CompleteIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "utils/display/translationTools";
 import { shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
@@ -289,14 +288,13 @@ export const ResourceUpsert = ({
 }: ResourceUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
         ...endpointGetResource,
         isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
         transform: (existing) => resourceInitialValues(session, existing as ResourceShape),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -306,7 +304,7 @@ export const ResourceUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformResourceValues, resourceValidation)}
         >
             {(formik) => <ResourceForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

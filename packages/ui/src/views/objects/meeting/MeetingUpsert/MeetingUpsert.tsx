@@ -15,7 +15,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getYou } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
@@ -250,14 +249,13 @@ export const MeetingUpsert = ({
 }: MeetingUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
         ...endpointGetMeeting,
         isCreate,
         objectType: "Meeting",
         overrideObject,
         transform: (data) => meetingInitialValues(session, data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -267,7 +265,7 @@ export const MeetingUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformMeetingValues, meetingValidation)}
         >
             {(formik) => <MeetingForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

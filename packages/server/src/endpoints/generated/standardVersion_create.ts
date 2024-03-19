@@ -57,6 +57,7 @@ export const standardVersion_create = {
     "__typename": "ResourceList"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,

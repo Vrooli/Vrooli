@@ -1,4 +1,5 @@
 export const note_update = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "isLatest": true,

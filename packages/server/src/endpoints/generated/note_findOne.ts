@@ -1,4 +1,5 @@
 export const note_findOne = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "isLatest": true,

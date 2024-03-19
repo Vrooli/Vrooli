@@ -1,4 +1,5 @@
 export const routine_findOne = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "complexity": true,
@@ -60,6 +61,7 @@ export const routine_findOne = {
         "__typename": "PullRequest"
       },
       "root": {
+        "versionsCount": true,
         "parent": {
           "id": true,
           "isLatest": true,
@@ -545,6 +547,7 @@ export const routine_findOne = {
         }
       },
       "root": {
+        "versionsCount": true,
         "parent": {
           "id": true,
           "isLatest": true,

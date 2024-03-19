@@ -29,7 +29,7 @@ const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMod
 const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
 const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud/NoteCrud"));
 const { OrganizationUpsert } = lazily(() => import("../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert"));
-const { ProjectUpsert } = lazily(() => import("../../../views/objects/project/ProjectUpsert/ProjectUpsert"));
+const { ProjectCrud } = lazily(() => import("../../../views/objects/project/ProjectCrud/ProjectCrud"));
 const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert/QuestionUpsert"));
 const { RoutineUpsert } = lazily(() => import("../../../views/objects/routine/RoutineUpsert/RoutineUpsert"));
 const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert/RunProjectUpsert"));
@@ -60,7 +60,7 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
     Meeting: MeetingUpsert as UpsertView,
     Note: NoteCrud as UpsertView,
     Organization: OrganizationUpsert as UpsertView,
-    Project: ProjectUpsert as UpsertView,
+    Project: ProjectCrud as UpsertView,
     Question: QuestionUpsert as UpsertView,
     Routine: RoutineUpsert as UpsertView,
     RunProject: RunProjectUpsert as UpsertView,
@@ -275,7 +275,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         searchType,
         take: 20,
         where,
-    })
+    });
 
     return (
         <>

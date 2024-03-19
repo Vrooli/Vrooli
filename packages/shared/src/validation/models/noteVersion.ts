@@ -56,13 +56,14 @@ export const noteVersionValidation: YupModel<["create", "update"]> = {
         ["root", ["Connect", "Create"], "one", "opt", noteValidation, ["versions"]],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", noteVersionTranslationValidation],
-    ], [["rootConnect", "rootCreate"]], d),
+    ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
+        ["root", ["Update"], "one", "opt", noteValidation, ["versions"]],
         ["directoryListings", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", noteVersionTranslationValidation],
     ], [], d),

@@ -13,7 +13,7 @@ export const postValidation: YupModel<["create", "update"]> = {
         ["repostedFrom", ["Connect"], "one", "opt"],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["organizationConnect", "userConnect"]], d),
+    ], [["organizationConnect", "userConnect", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isPinned: opt(bool),

@@ -1,4 +1,5 @@
 export const standard_create = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "isLatest": true,

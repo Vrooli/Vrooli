@@ -25,7 +25,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getYou } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
@@ -412,7 +411,7 @@ export const ScheduleUpsert = ({
         display,
     });
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Schedule, ScheduleShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
         isCreate,
         objectType: "Schedule",
@@ -431,7 +430,6 @@ export const ScheduleUpsert = ({
             } : {}),
         } as Schedule),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -443,7 +441,7 @@ export const ScheduleUpsert = ({
             {(formik) => <ScheduleForm
                 canSetScheduleFor={canSetScheduleFor}
                 currTab={currTab}
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 display={display}
                 existing={existing}
                 handleTabChange={handleTabChange}

@@ -25,7 +25,7 @@ export const projectVersionValidation: YupModel<["create", "update"]> = {
         ["translations", ["Create"], "many", "opt", projectVersionTranslationValidation],
         ["directories", ["Create"], "many", "opt", projectVersionDirectoryValidation],
         ["suggestedNextByProject", ["Connect"], "many", "opt"],
-    ], [["rootConnect", "rootCreate"]], d),
+    ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
@@ -33,6 +33,7 @@ export const projectVersionValidation: YupModel<["create", "update"]> = {
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
+        ["root", ["Update"], "one", "opt", projectValidation, ["versions"]],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", projectVersionTranslationValidation],
         ["directories", ["Create", "Update", "Delete"], "many", "opt", projectVersionDirectoryValidation],
         ["suggestedNextByProject", ["Connect", "Disconnect"], "many", "opt"],

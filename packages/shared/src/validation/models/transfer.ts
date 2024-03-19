@@ -11,7 +11,7 @@ export const transferRequestSendValidation = (d: YupMutateParams) => yupObj({
     ["object", ["Connect"], "one", "req"],
     ["toOrganization", ["Connect"], "one", "opt"],
     ["toUser", ["Connect"], "one", "opt"],
-], [["toOrganizationConnect", "toUserConnect"]], d);
+], [["toOrganizationConnect", "toUserConnect", true]], d);
 
 export const transferRequestReceiveValidation = (d: YupMutateParams) => yupObj({
     id: req(id),

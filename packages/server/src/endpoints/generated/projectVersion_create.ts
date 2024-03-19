@@ -318,6 +318,7 @@ export const projectVersion_create = {
     "__typename": "PullRequest"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "complexity": true,

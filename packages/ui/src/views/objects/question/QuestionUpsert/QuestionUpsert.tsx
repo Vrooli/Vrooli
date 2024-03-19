@@ -20,7 +20,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 import { validateFormValues } from "utils/validateFormValues";
@@ -197,14 +196,13 @@ export const QuestionUpsert = ({
 }: QuestionUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
         ...endpointGetQuestion,
         isCreate,
         objectType: "Question",
         overrideObject,
         transform: (existing) => questionInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -217,7 +215,7 @@ export const QuestionUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation)}
         >
             {(formik) => <QuestionForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

@@ -28,7 +28,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", apiVersionTranslationValidation],
-    ], [["rootConnect", "rootCreate"]], d),
+    ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         callLink: opt(url(d)),
@@ -37,6 +37,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
+        ["root", ["Update"], "one", "opt", apiValidation, ["versions"]],
         ["resourceList", ["Create", "Update"], "one", "opt", resourceListValidation],
         ["directoryListings", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", apiVersionTranslationValidation],

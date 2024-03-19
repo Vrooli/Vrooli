@@ -16,7 +16,7 @@ export const projectValidation: YupModel<["create", "update"]> = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["versions", ["Create"], "many", "opt", projectVersionValidation, ["root"]],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect", true]], d),
     update: (d) => yupObj({
         id: req(id),
         handle: opt(handle),
@@ -29,5 +29,5 @@ export const projectValidation: YupModel<["create", "update"]> = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["versions", ["Create"], "many", "opt", projectVersionValidation, ["root"]],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect", false]], d),
 };

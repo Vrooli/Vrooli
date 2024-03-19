@@ -55,6 +55,7 @@ export const smartContractVersion_update = {
     }
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,

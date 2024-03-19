@@ -15,7 +15,7 @@ export const smartContractValidation: YupModel<["create", "update"]> = {
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
         ["versions", ["Create"], "many", "req", smartContractVersionValidation, ["root"]],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
@@ -26,5 +26,5 @@ export const smartContractValidation: YupModel<["create", "update"]> = {
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
         ["versions", ["Create", "Update", "Delete"], "many", "req", smartContractVersionValidation, ["root"]],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect"]], d),
+    ], [["ownedByOrganizationConnect", "ownedByUserConnect", false]], d),
 };

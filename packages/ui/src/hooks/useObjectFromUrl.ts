@@ -2,7 +2,7 @@ import { DUMMY_ID, exists, FindByIdInput, FindByIdOrHandleInput, FindVersionInpu
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { parseSearchParams, ParseSearchParamsResult, useLocation } from "route";
 import { PartialWithType } from "types";
-import { getCookieFormData, getCookiePartialData, setCookiePartialData } from "utils/cookies";
+import { getCookieFormData, getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou, YouInflated } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -75,7 +75,7 @@ export function useObjectFromUrl<
     }, [stableTransform]);
 
     // Fetch data
-    const [getData, { data: fetchedData, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
+    const [getData, { data: fetchedData, errors: fetchedErrors, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
         // If overrideObject provided, use it. Also use transform if provided
         if (typeof overrideObject === "object") return applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>;
@@ -132,6 +132,13 @@ export function useObjectFromUrl<
         }
         // If data was queried (i.e. object exists), store it in local state
         if (fetchedData) setCookiePartialData(fetchedData, "full");
+        // If we didn't receive fetched data, and we received an "Unauthorized" error, 
+        // we should clear the cookie data and set the object to its default value
+        else if (fetchedErrors?.some(e => e.code === "Unauthorized")) {
+            removeCookiePartialData({ __typename: objectType, ...urlParams });
+            setObject(applyTransform({}) as ObjectReturnType<TData, TFunc>);
+            return;
+        }
         const knownData = fetchedData ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         if (knownData && typeof knownData === "object" && uuidValidate(knownData.id)) {
             // If transform provided, use it
@@ -139,7 +146,7 @@ export function useObjectFromUrl<
             // Set object
             setObject(changedData as ObjectReturnType<TData, TFunc>);
         }
-    }, [applyTransform, fetchedData, objectType, overrideObject, urlParams]);
+    }, [applyTransform, fetchedData, fetchedErrors, objectType, overrideObject, urlParams]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);

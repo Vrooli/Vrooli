@@ -29,7 +29,7 @@ import { useLocation } from "route";
 import { FormContainer, FormSection } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYou, ListObject } from "utils/display/listTools";
+import { getDisplay, ListObject } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
@@ -219,7 +219,7 @@ const NoteForm = ({
                                 >
                                     <FormContainer>
                                         <RelationshipList
-                                            isEditing={true}
+                                            isEditing={!disabled}
                                             objectType={"Note"}
                                             sx={{ marginBottom: 4 }}
                                         />
@@ -242,7 +242,7 @@ const NoteForm = ({
                                                 maxChars={2048}
                                                 minRows={4}
                                                 name="description"
-                                                placeholder={t("Description")}
+                                                placeholder={t("DescriptionPlaceholder")}
                                             />
                                         </FormSection>
                                     </FormContainer>
@@ -254,12 +254,7 @@ const NoteForm = ({
                 <BaseForm
                     display={display}
                     isLoading={isLoading}
-                    style={{
-                        width: "min(800px, 100vw)",
-                        height: "100%",
-                        paddingBottom: 0,
-                        display: "contents",
-                    }}
+                    style={{ display: "contents" }}
                 >
                     <TranslatedRichInput
                         language={language}
@@ -349,14 +344,13 @@ export const NoteCrud = ({
 }: NoteCrudProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
         ...endpointGetNoteVersion,
         isCreate,
         objectType: "NoteVersion",
         overrideObject,
         transform: (data) => noteInitialValues(session, data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing as ListObject), [existing]);
 
     return (
         <Formik
@@ -368,7 +362,7 @@ export const NoteCrud = ({
             {(formik) =>
                 <>
                     <NoteForm
-                        disabled={!(isCreate || canUpdate)}
+                        disabled={!(isCreate || permissions.canUpdate)}
                         existing={existing}
                         handleUpdate={setExisting}
                         isCreate={isCreate}

@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { InputTypeOptions } from "utils/consts";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/standardVersion";
 import { validateFormValues } from "utils/validateFormValues";
@@ -224,14 +223,13 @@ export const StandardUpsert = ({
 }: StandardUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
         ...endpointGetStandardVersion,
         isCreate,
         objectType: "StandardVersion",
         overrideObject,
         transform: (existing) => standardInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -241,7 +239,7 @@ export const StandardUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformStandardVersionValues, standardVersionValidation)}
         >
             {(formik) => <StandardForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

@@ -39,7 +39,7 @@ export const standardVersionValidation: YupModel<["create", "update"]> = {
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["root", ["Connect", "Create"], "one", "opt", standardValidation, ["versions"]],
         ["translations", ["Create"], "many", "opt", standardVersionTranslationValidation],
-    ], [["rootConnect", "rootCreate"]], d),
+    ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isComplete: opt(bool),

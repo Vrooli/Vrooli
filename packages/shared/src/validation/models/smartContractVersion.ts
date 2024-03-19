@@ -35,7 +35,7 @@ export const smartContractVersionValidation: YupModel<["create", "update"]> = {
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["root", ["Connect", "Create"], "one", "opt", smartContractValidation, ["versions"]],
         ["translations", ["Create"], "many", "opt", smartContractVersionTranslationValidation],
-    ], [["rootConnect", "rootCreate"]], d),
+    ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isComplete: opt(bool),

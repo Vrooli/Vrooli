@@ -55,6 +55,7 @@ export const smartContractVersion_findOne = {
     }
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,

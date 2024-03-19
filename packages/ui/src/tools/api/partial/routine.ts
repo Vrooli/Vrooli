@@ -51,6 +51,7 @@ export const routine: GqlPartial<Routine> = {
         you: () => rel(routineYou, "full"),
     },
     full: {
+        versionsCount: true,
         parent: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
         versions: async () => rel((await import("./routineVersion")).routineVersion, "full", { omit: "root" }),
         stats: async () => rel((await import("./statsRoutine")).statsRoutine, "full"),

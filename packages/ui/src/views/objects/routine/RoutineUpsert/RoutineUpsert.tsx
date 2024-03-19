@@ -26,7 +26,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
@@ -415,14 +414,13 @@ export const RoutineUpsert = ({
 }: RoutineUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
         ...endpointGetRoutineVersion,
         isCreate,
         objectType: "RoutineVersion",
         overrideObject,
         transform: (existing) => routineInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -432,7 +430,7 @@ export const RoutineUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation)}
         >
             {(formik) => <RoutineForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

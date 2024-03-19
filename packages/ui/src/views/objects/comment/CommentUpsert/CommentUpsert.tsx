@@ -18,7 +18,7 @@ import { useWindowSize } from "hooks/useWindowSize";
 import { SendIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { CommentShape, shapeComment } from "utils/shape/models/comment";
 import { validateFormValues } from "utils/validateFormValues";
@@ -297,15 +297,13 @@ export const CommentUpsert = ({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Comment, CommentShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Comment, CommentShape>({
         ...endpointGetComment, // Should never be used, but we still need to pass it
         isCreate,
         objectType, // Type of object being commented on, not "Comment"
         overrideObject,
         transform: (existing) => commentInitialValues(session, objectType, objectId, language, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
-
 
     return (
         <Formik
@@ -316,7 +314,7 @@ export const CommentUpsert = ({
         >
             {(formik) => {
                 if (isMobile) return <CommentDialog
-                    disabled={!(isCreate || canUpdate)}
+                    disabled={!(isCreate || permissions.canUpdate)}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}
@@ -329,7 +327,7 @@ export const CommentUpsert = ({
                     {...formik}
                 />;
                 return <CommentForm
-                    disabled={!(isCreate || canUpdate)}
+                    disabled={!(isCreate || permissions.canUpdate)}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}

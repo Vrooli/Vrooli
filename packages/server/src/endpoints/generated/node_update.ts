@@ -95,6 +95,7 @@ export const node_update = {
         "__typename": "PullRequest"
       },
       "root": {
+        "versionsCount": true,
         "parent": {
           "id": true,
           "isLatest": true,
@@ -437,6 +438,7 @@ export const node_update = {
       "__typename": "ResourceList"
     },
     "root": {
+      "versionsCount": true,
       "parent": {
         "id": true,
         "complexity": true,
@@ -658,6 +660,7 @@ export const node_update = {
         }
       },
       "root": {
+        "versionsCount": true,
         "parent": {
           "id": true,
           "isLatest": true,

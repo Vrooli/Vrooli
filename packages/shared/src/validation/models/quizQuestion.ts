@@ -21,7 +21,7 @@ export const quizQuestionValidation: YupModel<["create", "update"]> = {
         ["standardVersion", ["Connect", "Create"], "one", "opt", standardVersionValidation],
         ["quiz", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", quizQuestionTranslationValidation],
-    ], [["standardVersionConnect", "standardVersionCreate"]], d),
+    ], [["standardVersionConnect", "standardVersionCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         order: opt(intPositiveOrZero),

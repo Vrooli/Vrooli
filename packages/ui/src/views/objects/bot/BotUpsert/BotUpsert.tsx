@@ -28,7 +28,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, shapeBot } from "utils/shape/models/bot";
@@ -517,14 +516,13 @@ export const BotUpsert = ({
 }: BotUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
         ...endpointGetUser,
         isCreate,
         objectType: "User",
         overrideObject,
         transform: (data) => botInitialValues(session, data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -535,7 +533,7 @@ export const BotUpsert = ({
         >
             {(formik) =>
                 <BotForm
-                    disabled={!(isCreate || canUpdate)}
+                    disabled={!(isCreate || permissions.canUpdate)}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}

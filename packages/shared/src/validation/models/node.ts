@@ -32,7 +32,7 @@ export const nodeValidation: YupModel<["create", "update"]> = {
         ["routineList", ["Create"], "one", "opt", nodeRoutineListValidation],
         ["routineVersion", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", nodeTranslationValidation],
-    ], [["endCreate", "routineListCreate"]], d),
+    ], [["endCreate", "routineListCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         columnIndex: opt(columnIndex),

@@ -98,7 +98,7 @@ export const OrganizationView = ({
         searchType,
         take: 20,
         where: where({ organizationId: organization?.id ?? "", permissions }),
-    })
+    });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);

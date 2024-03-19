@@ -27,7 +27,6 @@ import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { ApiShape } from "utils/shape/models/api";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
@@ -296,14 +295,13 @@ export const ApiUpsert = ({
 }: ApiUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
         ...endpointGetApiVersion,
         isCreate,
         objectType: "ApiVersion",
         overrideObject,
         transform: (data) => apiInitialValues(session, data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -313,7 +311,7 @@ export const ApiUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation)}
         >
             {(formik) => <ApiForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
