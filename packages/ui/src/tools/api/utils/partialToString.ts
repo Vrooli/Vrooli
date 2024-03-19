@@ -1,5 +1,5 @@
 import { exists } from "@local/shared";
-import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
+import { DeepPartialBooleanWithFragments, GqlPartial, SelectionType } from "../types";
 import { fragmentsNeeded } from "./fragmentsNeeded";
 import { fragmentsToString } from "./fragmentsToString";
 import { partialToStringHelper } from "./partialToStringHelper";
@@ -9,7 +9,7 @@ type PartialToStringProps<
     EndpointType extends "query" | "mutation",
     EndpointName extends string,
     Partial extends GqlPartial<any>,
-    Selection extends "common" | "full" | "list" | "nav",
+    Selection extends SelectionType,
 > = {
     endpointType: EndpointType,
     endpointName: EndpointName,
@@ -38,7 +38,7 @@ export const partialToString = async <
     EndpointType extends "query" | "mutation",
     EndpointName extends string,
     Partial extends GqlPartial<any>,
-    Selection extends "common" | "full" | "list" | "nav",
+    Selection extends SelectionType,
 >({
     endpointType,
     endpointName,

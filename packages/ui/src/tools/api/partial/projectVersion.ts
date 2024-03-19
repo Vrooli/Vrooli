@@ -65,7 +65,7 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./project")).project, "nav"),
+        root: async () => rel((await import("./project")).project, "nav", { omit: "versions" }),
         translations: () => rel(projectVersionTranslation, "list"),
     },
 };

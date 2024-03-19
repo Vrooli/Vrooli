@@ -56,7 +56,7 @@ export const noteVersion: GqlPartial<NoteVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./note")).note, "nav"),
+        root: async () => rel((await import("./note")).note, "nav", { omit: "versions" }),
         translations: () => rel(noteVersionTranslation, "list"),
     },
 };

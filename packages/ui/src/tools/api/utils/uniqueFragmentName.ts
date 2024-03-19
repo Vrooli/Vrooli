@@ -1,4 +1,6 @@
+import { SelectionType } from "../types";
+
 /**
  * Format for unique fragment name
  */
-export const uniqueFragmentName = (typename: string, actualSelectionType: "common" | "full" | "list" | "nav") => `${typename}_${actualSelectionType}`;
+export const uniqueFragmentName = (typename: string, actualSelectionType: SelectionType) => `${typename}_${actualSelectionType}`;

@@ -29,7 +29,7 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
         canReact: true,
     },
     full: {
-        runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "routineVersion" }),
+        runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "input.routineVersion" }),
     },
 };
 
@@ -89,6 +89,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         translations: () => rel(routineVersionTranslation, "full"),
     },
     list: {
+        root: async () => rel((await import("./routine")).routine, "list", { omit: "versions" }),
         translations: () => rel(routineVersionTranslation, "list"),
     },
     nav: {
@@ -99,7 +100,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        root: async () => rel((await import("./routine")).routine, "nav"),
+        root: async () => rel((await import("./routine")).routine, "nav", { omit: "versions" }),
         translations: () => rel(routineVersionTranslation, "list"),
         versionIndex: true,
         versionLabel: true,

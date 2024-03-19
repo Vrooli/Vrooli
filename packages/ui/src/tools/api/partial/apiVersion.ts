@@ -49,7 +49,7 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./api")).api, "nav"),
+        root: async () => rel((await import("./api")).api, "nav", { omit: "versions" }),
         translations: () => rel(apiVersionTranslation, "list"),
     },
 };
