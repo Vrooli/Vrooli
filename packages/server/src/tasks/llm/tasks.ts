@@ -843,14 +843,14 @@ export const getValidTasksFromMessage = async (
 };
 
 export type ForceGetTaskParams = {
-    chatId: string,
+    chatId?: string | null,
     commandToTask: CommandToTask,
     language: string,
-    participantsData: Record<string, PreMapUserData>;
+    participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings,
     respondingBotId: string,
     respondingToMessage: {
-        id: string,
+        id?: string | null,
         text: string,
     } | null,
     service: LanguageModelService<string, string>,
@@ -874,7 +874,7 @@ export const forceGetTask = async ({
     task,
     userData,
 }: ForceGetTaskParams): Promise<{
-    taskThatWasRun: Omit<LlmTaskInfo, "status"> | null,
+    taskToRun: Omit<LlmTaskInfo, "status"> | null,
     tasksToSuggest: Omit<LlmTaskInfo, "status">[],
     messageWithoutTasks: string | null,
     cost: number
@@ -902,7 +902,7 @@ export const forceGetTask = async ({
         // If a valid task is found, return it
         if (tasksToRun.length > 0) {
             // Only use the first task found
-            return { taskThatWasRun: tasksToRun[0], tasksToSuggest, messageWithoutTasks, cost };
+            return { taskToRun: tasksToRun[0], tasksToSuggest, messageWithoutTasks, cost };
         } else {
             // Increment the retry count if no task is found
             retryCount++;
@@ -911,5 +911,5 @@ export const forceGetTask = async ({
     }
 
     logger.error("Failed to find a task in start response after maximum retries.", { trace: "0350", chatId, respondingBotId, task });
-    return { taskThatWasRun: null, tasksToSuggest: [], messageWithoutTasks: null, cost: totalCost };
+    return { taskToRun: null, tasksToSuggest: [], messageWithoutTasks: null, cost: totalCost };
 };

@@ -1,6 +1,7 @@
+import { PrismaType } from "@local/server";
 import { RedisClientType } from "redis";
 import { logger } from "../../events/logger";
-import { PreMapMessageData } from "../../models/base/chatMessage";
+import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { withRedis } from "../../redisConn";
 import { withPrisma } from "../../utils/withPrisma";
 import { LanguageModelService } from "./service";
@@ -12,12 +13,20 @@ type CachedChatMessage = {
     parentId?: string;
     translatedTokenCounts: string;
 }
-export type MessageContextInfo = {
-    messageId: string;
+type ContextInfoBase = {
+    language: string;
     tokenSize: number;
     userId: string | null;
-    language: string;
-};
+}
+export type MessageContextInfo = ContextInfoBase & {
+    __type: "message";
+    messageId: string;
+}
+export type TextContextInfo = ContextInfoBase & {
+    __type: "text";
+    text: string;
+}
+export type ContextInfo = MessageContextInfo | TextContextInfo;
 
 type TokenCounts = Record<string, Record<string, number>>;
 
@@ -35,7 +44,7 @@ export class ChatContextManager {
 
     async addMessage(chatId: string, message: PreMapMessageData): Promise<void> {
         await withRedis({
-            process: async (redisClient: RedisClientType) => {
+            process: async (redisClient) => {
                 // Make sure the message is actually new
                 if (!message.isNew) {
                     logger.error("Tried to add an message not marked as new", { trace: "0071", message });
@@ -65,7 +74,7 @@ export class ChatContextManager {
 
     async editMessage(message: PreMapMessageData): Promise<void> {
         await withRedis({
-            process: async (redisClient: RedisClientType) => {
+            process: async (redisClient) => {
                 // Make sure the message is actually existing
                 if (message.isNew) {
                     logger.error("Tried to edit a message marked as new", { trace: "0070", message });
@@ -122,7 +131,7 @@ export class ChatContextManager {
 
     async deleteMessage(chatId: string, messageId: string): Promise<void> {
         await withRedis({
-            process: async (redisClient: RedisClientType) => {
+            process: async (redisClient) => {
                 // Find existing data
                 let messageToDelete = await redisClient.hGetAll(`message:${messageId}`);
                 if (typeof messageToDelete !== "object" || Object.keys(messageToDelete).length === 0) {
@@ -157,7 +166,7 @@ export class ChatContextManager {
 
     async deleteChat(chatId: string): Promise<void> {
         await withRedis({
-            process: async (redisClient: RedisClientType) => {
+            process: async (redisClient) => {
                 // Retrieve all message IDs associated with the chat
                 const messageIds = await redisClient.zRange(`chat:${chatId}`, 0, -1);
 
@@ -198,13 +207,12 @@ export class ChatContextManager {
                 // Ensure we only proceed if there's a method to use
                 if (validMethod) {
                     // Safely handle the case where estimateTokens might return undefined
-                    const estimate = this.languageModelService.estimateTokens({
+                    const estimation = this.languageModelService.estimateTokens({
                         text: translation.text,
                         model: validMethod,
                     });
-                    const tokenCount = estimate ? estimate[1] : 0; // Fallback to 0 if estimate is undefined
 
-                    translatedTokenCounts[translation.language][validMethod] = tokenCount;
+                    translatedTokenCounts[translation.language][validMethod] = estimation?.tokens ?? 0;
                 }
             });
         });
@@ -228,15 +236,29 @@ export class ChatContextCollector {
         this.languageModelService = languageModelService;
     }
 
-    async collectMessageContextInfo(chatId: string, model: string, languages: string[], latestMessageId?: string): Promise<MessageContextInfo[]> {
+    async collectMessageContextInfo(
+        chatId: string | null | undefined,
+        model: string,
+        languages: string[],
+        latestMessage?: {
+            id?: string | null;
+            text?: string; // Providing text is useful when we're not responding to a message in a chat (e.g. form autoFill)
+        } | null | undefined,
+    ): Promise<ContextInfo[]> {
         const contextSize = this.languageModelService.getContextSize(model);
         let currentTokenCount = 0;
-        const messageContextInfo: MessageContextInfo[] = [];
+        const contextInfo: ContextInfo[] = [];
 
         await withRedis({
-            process: async (redisClient: RedisClientType) => {
-                let currentMessageId = latestMessageId ?? await this.getLatestMessageId(redisClient, chatId);
+            process: async (redisClient) => {
+                // Get provided message ID, or fetch if text not provided
+                let currentMessageId: string | null = latestMessage?.id ?? null;
+                if (!currentMessageId && !latestMessage?.text?.length && chatId) {
+                    currentMessageId = await this.getLatestMessageId(redisClient, chatId);
+                }
 
+                // If message ID is found, loop up message tree to collect context, 
+                // until context size is reached or no more messages are found
                 while (currentMessageId && currentTokenCount < contextSize) {
                     const messageDetails = await this.getMessageDetails(redisClient, currentMessageId);
                     const estimationMethod = this.languageModelService.getEstimationMethod(model);
@@ -248,7 +270,8 @@ export class ChatContextCollector {
                             break; // Break the loop if the context size is exceeded
                         }
 
-                        messageContextInfo.push({
+                        contextInfo.push({
+                            __type: "message",
                             messageId: currentMessageId,
                             tokenSize: estimatedTokens,
                             userId: messageDetails.userId ?? null,
@@ -261,13 +284,43 @@ export class ChatContextCollector {
                         break; // Break the loop if token estimation fails
                     }
                 }
+
+                // If no message ID was found, but text was provided, collect context info for it
+                if (!currentMessageId && latestMessage?.text?.length) {
+                    const estimationMethod = this.languageModelService.getEstimationMethod(model);
+                    const translations = [{
+                        language: languages.length ? languages[0] : "en",
+                        text: latestMessage.text,
+                    }];
+                    const translatedTokenCounts = (new ChatContextManager(this.languageModelService)).calculateTokenCounts(translations, estimationMethod);
+                    const [estimatedTokens, language] = this.getTokenCountFromTranslatedCounts(translatedTokenCounts, estimationMethod, languages);
+
+                    if (estimatedTokens >= 0 && estimatedTokens <= contextSize) {
+                        contextInfo.push({
+                            __type: "text",
+                            tokenSize: estimatedTokens,
+                            userId: null,
+                            language,
+                            text: latestMessage.text,
+                        });
+                    } else {
+                        logger.warning("Failed to estimate tokens for provided text", { trace: "0075", text: latestMessage.text });
+                    }
+                }
             },
             trace: "0072",
         });
 
         // Reverse the array to get the messages in chronological order
-        messageContextInfo.reverse();
-        return messageContextInfo;
+        contextInfo.reverse();
+
+        // If there are no messages, log warning. This may indicate an problem, 
+        // and may break some llm services
+        if (contextInfo.length === 0) {
+            logger.warning("No messages found in context. This may cause an error with response generation", { trace: "0239" });
+        }
+
+        return contextInfo;
     }
 
     async getLatestMessageId(redisClient: RedisClientType, chatId: string): Promise<string | null> {
@@ -342,6 +395,38 @@ export class ChatContextCollector {
     }
 
     /**
+     * Converts translated token counts into a tuple of [token count, language].
+     * @param translatedTokenCounts The object containing token counts per language and estimation method.
+     * @param estimationMethod The token estimation method.
+     * @param preferredLanguages User's preferred languages.
+     * @returns A tuple of the token count for the message and the language used.
+     */
+    getTokenCountFromTranslatedCounts(
+        translatedTokenCounts: Record<string, Record<string, number>>,
+        estimationMethod: string,
+        preferredLanguages: string[],
+    ): [number, string] {
+        const languagesWithDefault = preferredLanguages.length === 0 ? ["en"] : preferredLanguages;
+
+        // Check if token counts for preferred languages are available
+        for (const language of languagesWithDefault) {
+            if (translatedTokenCounts[language] && translatedTokenCounts[language][estimationMethod] !== undefined) {
+                return [translatedTokenCounts[language][estimationMethod], language];
+            }
+        }
+
+        // Fallback to the first available language if preferred languages are not available
+        for (const language in translatedTokenCounts) {
+            if (translatedTokenCounts[language][estimationMethod] !== undefined) {
+                return [translatedTokenCounts[language][estimationMethod], language];
+            }
+        }
+
+        return [-1, ""]; // Return -1 if no valid token count is found
+    }
+
+
+    /**
      * Tries to find the token count for the given estimation method and preferred languages.
      * If not found, uses the first available language. If none exist, returns -1.
      * Calculates and updates the token count if necessary.
@@ -352,7 +437,12 @@ export class ChatContextCollector {
      * @param languages User's preferred languages
      * @returns The token count for the message and the language used
      */
-    async getTokenCountForLanguages(redisClient: RedisClientType, messageId: string, estimationMethod: string, languages: string[]): Promise<[number, string]> {
+    async getTokenCountForLanguages(
+        redisClient: RedisClientType,
+        messageId: string,
+        estimationMethod: string,
+        languages: string[],
+    ): Promise<[number, string]> {
         const messageData = await redisClient.hGetAll(`message:${messageId}`);
         let translatedTokenCounts = messageData ? JSON.parse(messageData.translatedTokenCounts ?? "{}") : {};
         const languagesWithDefault = languages.length === 0 ? ["en"] : languages;
@@ -387,20 +477,57 @@ export class ChatContextCollector {
             }
         }
 
-        // After updating the cache, try again to find the token count
-        for (const language of languagesWithDefault) {
-            if (translatedTokenCounts[language] && translatedTokenCounts[language][estimationMethod] !== undefined) {
-                return [translatedTokenCounts[language][estimationMethod], language];
-            }
-        }
-
-        // Fallback to the first available language if preferred languages are not available
-        for (const language in translatedTokenCounts) {
-            if (translatedTokenCounts[language][estimationMethod] !== undefined) {
-                return [translatedTokenCounts[language][estimationMethod], language];
-            }
-        }
-
-        return [-1, ""]; // Return -1 if no valid token count is found
+        return this.getTokenCountFromTranslatedCounts(translatedTokenCounts, estimationMethod, languages);
     }
 }
+
+/**
+ * Finds bot information for a given bot ID. 
+ * First checks the redis cache, then falls back to the database.
+ */
+export const getBotInfo = async (botId: string, prisma: PrismaType): Promise<PreMapUserData | null> => {
+    let botInfo: PreMapUserData | null = null;
+
+    // Check Redis cache first
+    await withRedis({
+        process: async (redisClient) => {
+            const rawData = await redisClient.hGetAll(`bot:${botId}`);
+            if (rawData && Object.keys(rawData).length >= 4) {
+                // Convert isBot back to boolean
+                botInfo = {
+                    ...rawData,
+                    isBot: rawData.isBot === "true",
+                } as unknown as PreMapUserData;
+            }
+        },
+        trace: "0233",
+    });
+
+    // If not found in cache, query the database
+    if (!botInfo || Object.keys(botInfo).length < 4) { // There are 4 fields in PreMapUserData. Can add better check if needed
+        botInfo = await prisma.user.findUnique({
+            where: { id: botId },
+            select: {
+                id: true,
+                name: true,
+                isBot: true,
+                botSettings: true,
+            },
+        }) as PreMapUserData;
+        // Store the fetched data in Redis for future use
+        await withRedis({
+            process: async (redisClient) => {
+                // Convert isBot to string, since Redis only accepts string values
+                const botInfoForRedis = {
+                    ...botInfo,
+                    isBot: botInfo!.isBot.toString(),
+                };
+                await redisClient.hSet(`bot:${botId}`, botInfoForRedis);
+                await redisClient.expire(`bot:${botId}`, 60 * 60 * 24); // Expire in 24 hours
+            },
+            trace: "0235",
+        });
+    }
+
+    return botInfo;
+};

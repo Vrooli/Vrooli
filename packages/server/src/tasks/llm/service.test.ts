@@ -174,8 +174,14 @@ describe("LanguageModelService lmServices", () => {
         model: "default_model",
         maxTokens: 100,
     };
-    const messageContextInfo1 = [
-        { messageId: "msg_1", tokenSize: 10, userId: "user_1", language: "en" },
+    const contextInfo1 = [
+        {
+            __type: "message" as const,
+            messageId: "msg_1",
+            tokenSize: 10,
+            userId: "user_1",
+            language: "en",
+        },
     ];
     const participantsData1 = {
         "user_1": { botSettings: "default", id: "user_1", name: "User One", isBot: true },
@@ -201,7 +207,7 @@ describe("LanguageModelService lmServices", () => {
             const model = lmService.getModel();
             const { model: tokenModel, tokens } = lmService.estimateTokens({
                 text: "sample text",
-                model: model,
+                model: model as string,
             });
             expect(tokenModel).toBeDefined();
             expect(typeof tokenModel).toBe("string");
@@ -213,13 +219,14 @@ describe("LanguageModelService lmServices", () => {
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
             const model = lmService.getModel();
             await expect(lmService.generateContext({
+                contextInfo: contextInfo1,
                 force: true,
-                messageContextInfo: messageContextInfo1,
                 model,
                 participantsData: participantsData1,
                 respondingBotConfig: respondingBotConfig1,
                 respondingBotId: respondingBotId1,
                 task: "Start",
+                // @ts-ignore: Testing runtime scenario
                 userData: userData1,
             })).resolves.toBeDefined();
         });
@@ -237,6 +244,7 @@ describe("LanguageModelService lmServices", () => {
                 respondingBotConfig: respondingBotConfig1,
                 task: "Start",
                 force: true,
+                // @ts-ignore: Testing runtime scenario
                 userData: userData1,
             });
             expect(typeof response).toBe("object");
@@ -254,6 +262,7 @@ describe("LanguageModelService lmServices", () => {
                 respondingBotConfig: respondingBotConfig1,
                 task: "Start",
                 force: true,
+                // @ts-ignore: Testing runtime scenario
                 userData: userData1,
             });
             expect(typeof response).toBe("object");

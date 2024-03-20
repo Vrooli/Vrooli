@@ -6,7 +6,7 @@ import { objectToYaml } from "../../utils";
 import { bestTranslation } from "../../utils/bestTranslation";
 import { withPrisma } from "../../utils/withPrisma";
 import { getStructuredTaskConfig } from "./config";
-import { MessageContextInfo } from "./context";
+import { ContextInfo, MessageContextInfo } from "./context";
 import { AnthropicService } from "./services/anthropic";
 import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
@@ -16,7 +16,7 @@ type SimpleChatMessageData = {
     translations: { language: string, text: string }[];
 }
 
-export type LanguageModelMessage = Partial<MessageContextInfo> & {
+export type LanguageModelMessage = Partial<ContextInfo> & {
     role: "user" | "assistant";
     content: string;
 }
@@ -49,24 +49,25 @@ export type GenerateContextParams = {
      * Determines if context should be written to force the response to be a command 
      */
     force: boolean;
-    messageContextInfo: MessageContextInfo[];
+    contextInfo: ContextInfo[];
     model: string;
-    participantsData: Record<string, PreMapUserData>;
+    participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
     task: LlmTask | `${LlmTask}`;
     userData: SessionUserToken;
 }
 export type GenerateResponseParams = {
-    chatId: string;
+    chatId?: string | null;
     /** 
     * Determines if context should be written to force the response to be a command 
     */
-    force: boolean; participantsData: Record<string, PreMapUserData>;
+    force: boolean;
+    participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
     respondingToMessage: {
-        id: string;
+        id?: string | null;
         text: string;
     } | null;
     task: LlmTask | `${LlmTask}`;
@@ -174,7 +175,7 @@ export const getDefaultConfigObject = async ({
  * Can be used as a fallback for services that don't have a specific implementation.
  */
 export const generateDefaultContext = async <GenerateNameType extends string, TokenNameType extends string>({
-    messageContextInfo,
+    contextInfo,
     model,
     respondingBotId,
     respondingBotConfig,
@@ -194,7 +195,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
     // Add information to set up the bot's persona and task instructions
     const config = await service.getConfigObject({
         botSettings: respondingBotConfig,
-        includeInitMessage: messageContextInfo.length === 0,
+        includeInitMessage: contextInfo.length === 0,
         userData,
         task,
         force,
@@ -202,7 +203,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
     systemMessage += objectToYaml(config) + "\n";
 
     // If there are other users/bots in the chat
-    const hasOtherParticipants = Object.keys(participantsData).length > 2;
+    const hasOtherParticipants = participantsData && Object.keys(participantsData).length > 2;
     if (hasOtherParticipants) {
         // Add info about message labeling
         systemMessage += "In the conversation, each message will be preceded by a participant identifier in the format [Role: Name], where 'Role' is either 'User' or 'Bot', and 'Name' is the name of the user or bot. For example:\n";
@@ -212,7 +213,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
 
         // If there are other bots besides the one responding, add their configurations 
         // and instructions for how to prompt them
-        const otherBots = Object.entries(participantsData).filter(([id, data]) => id !== respondingBotId && data.isBot);
+        const otherBots = Object.entries(participantsData ?? {}).filter(([id, data]) => id !== respondingBotId && data.isBot);
         if (otherBots.length > 0) {
             systemMessage += "\n";
             systemMessage += "There are other bots in the conversation. You may prompt these if you feel their input is necessary for generating a response. Use this only when strictly necessary. Here are the configurations for the other bots:\n\n";
@@ -246,7 +247,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
     const maxContentSize = service.getContextSize(model);
 
     // Fetch messages from the database
-    const messagesFromDB = await fetchMessagesFromDatabase(messageContextInfo.map(info => info.messageId));
+    const messagesFromDB = await fetchMessagesFromDatabase(contextInfo.filter(info => info.__type === "message").map(info => (info as MessageContextInfo).messageId));
     let currentTokenCount = systemMessageSize;
 
     // If the YAML configuration exceeds the context size, omit context entirely
@@ -255,19 +256,21 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
     }
 
     // Convert every message into a role/content pair
-    for (const contextInfo of messageContextInfo) {
-        const messageData = messagesFromDB.find(message => message.id === contextInfo.messageId);
+    for (const context of contextInfo) {
+        const messageData = context.__type === "message"
+            ? messagesFromDB.find(message => message.id === context.messageId)
+            : { translations: [{ language: context.language, text: context.text }] };
         if (!messageData) continue;
 
-        const messageTranslation = messageData.translations.find(translation => translation.language === contextInfo.language);
+        const messageTranslation = messageData.translations.find(translation => translation.language === context.language);
         if (!messageTranslation) continue;
 
-        const userName = contextInfo.userId ? participantsData[contextInfo.userId]?.name : undefined;
-        const isBot = contextInfo.userId ? participantsData[contextInfo.userId]?.isBot : true;
+        const userName = (context.userId && participantsData) ? participantsData[context.userId]?.name : undefined;
+        const isBot = (context.userId && participantsData) ? participantsData[context.userId]?.isBot : true;
         const role: LanguageModelMessage["role"] = isBot ? "assistant" : "user";
 
         const content = hasOtherParticipants ? `[${role === "assistant" ? "Bot" : "User"}: ${userName ?? "Unknown"}]: ${messageTranslation.text}` : messageTranslation.text;
-        const tokenSize = contextInfo.tokenSize + service.estimateTokens({ text: content, model }).tokens;
+        const tokenSize = context.tokenSize + service.estimateTokens({ text: content, model }).tokens;
 
         // Stop if adding this message would exceed the context size
         if (currentTokenCount + tokenSize > maxContentSize) {

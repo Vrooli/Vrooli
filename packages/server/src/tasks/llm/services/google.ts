@@ -40,18 +40,16 @@
 //         userData,
 //     }: GenerateResponseParams) {
 //         const model = this.getModel(respondingBotConfig?.model);
-//         const messageContextInfo = respondingToMessage ?
-//             await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
-//             [];
+//         const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
 //         const { messages, systemMessage } = await this.generateContext({
-//             respondingBotId,
-//             respondingBotConfig,
-//             messageContextInfo,
-//             participantsData,
-//             task,
+//             contextInfo,
 //             force,
+//             model,
+//             participantsData,
+//             respondingBotConfig,
+//             respondingBotId,
+//             task,
 //             userData,
-//             requestedModel: model,
 //         });
 
 //         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Google API.

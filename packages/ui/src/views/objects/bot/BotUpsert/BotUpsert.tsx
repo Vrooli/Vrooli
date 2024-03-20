@@ -230,7 +230,6 @@ const BotForm = ({
 
     const [getAutoFill, { loading: isLoadingAutoFill }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
     const autoFill = useCallback(() => {
-        console.log("in autofill", values);
         fetchLazyWrapper<AutoFillInput, AutoFillResult>({
             fetch: getAutoFill,
             inputs: {

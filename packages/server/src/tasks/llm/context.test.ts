@@ -5,7 +5,7 @@ import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { RedisClientMock } from "../../__mocks__/redis";
 import { PreMapMessageData } from "../../models/base/chatMessage";
 import { initializeRedis } from "../../redisConn";
-import { ChatContextCollector, ChatContextManager } from "./context";
+import { ChatContextCollector, ChatContextManager, MessageContextInfo } from "./context";
 import { EstimateTokensParams } from "./service";
 import { OpenAIService } from "./services/openai";
 
@@ -447,7 +447,7 @@ describe("ChatContextManager", () => {
             { language: "es", text: "Hola mundo" },
         ];
         const estimationTypes = lmService.getEstimationTypes();
-        const tokenEstimationMock = ({ text, requestedModel }: EstimateTokensParams) => ([requestedModel, text.split(" ").length] as readonly [any, number]);
+        const tokenEstimationMock = ({ text, model }: EstimateTokensParams) => ({ model: model as "default", tokens: text.split(" ").length });
         it(`${lmServiceName}: should calculate token counts for each translation using provided estimation methods`, () => {
             // Mock the estimateTokens method
             jest.spyOn(lmService, "estimateTokens").mockImplementation(tokenEstimationMock);
@@ -615,14 +615,14 @@ describe("ChatContextCollector", () => {
             const chatId = "chat1";
             const model = "defaultModel";
             const languages = ["en"];
-            const latestMessageId = "message6";
+            const latestMessage = { id: "message6" };
 
-            const messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+            const contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
 
             // Expect to collect context for message6, its parent (message3), and its grandparent (message1)
-            expect(messageContextInfo.length).toBe(3);
-            expect(messageContextInfo.map(info => info.messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
-            messageContextInfo.forEach(info => {
+            expect(contextInfo.length).toBe(3);
+            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
+            contextInfo.forEach(info => {
                 expect(info.tokenSize).toBe(100); // Based on initialMessageData
             });
         });
@@ -631,12 +631,12 @@ describe("ChatContextCollector", () => {
             const model = "defaultModel";
             const languages = ["en"];
 
-            const messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages);
+            const contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages);
 
             // Since the most recent message is message6, the result should be the same as the previous test
-            expect(messageContextInfo.length).toBe(3);
-            expect(messageContextInfo.map(info => info.messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
-            messageContextInfo.forEach(info => {
+            expect(contextInfo.length).toBe(3);
+            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
+            contextInfo.forEach(info => {
                 expect(info.tokenSize).toBe(100); // Based on initialMessageData
             });
         });
@@ -644,20 +644,20 @@ describe("ChatContextCollector", () => {
             const chatId = "chat1";
             const model = "defaultModel";
             const languages = ["en"];
-            const latestMessageId = "message5"; // Starting from a deep child
+            const latestMessage = { id: "message5" }; // Starting from a deep child
 
-            let messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+            let contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
 
             // Given the context size of 350 and token count of 100 per message, expect to collect up to 3 messages
-            expect(messageContextInfo.length).toBe(3);
+            expect(contextInfo.length).toBe(3);
 
             // Now let's lower the context size to 200 and try again
             jest.spyOn(lmService, "getContextSize").mockReturnValue(200 as any);
 
-            messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+            contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
 
             // Given the context size of 200 and token count of 100 per message, expect to collect up to 2 messages
-            expect(messageContextInfo.length).toBe(2);
+            expect(contextInfo.length).toBe(2);
         });
         it(`${lmServiceName}: should stop early when missing messages in the chain`, async () => {
             // Remove message2 from Redis
@@ -666,13 +666,13 @@ describe("ChatContextCollector", () => {
             const chatId = "chat1";
             const model = "defaultModel";
             const languages = ["en"];
-            const latestMessageId = "message5";
+            const latestMessage = { id: "message5" };
 
-            const messageContextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessageId);
+            const contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
 
             // Should be able to collect message5 and its parent (message4), but not its grandparent (message2) or any other ancestors
-            expect(messageContextInfo.length).toBe(2);
-            expect(messageContextInfo.map(info => info.messageId)).toEqual(expect.arrayContaining(["message4", "message5"]));
+            expect(contextInfo.length).toBe(2);
+            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).toEqual(expect.arrayContaining(["message4", "message5"]));
         });
 
         // Latest message ID

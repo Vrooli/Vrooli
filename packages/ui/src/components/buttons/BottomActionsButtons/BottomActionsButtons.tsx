@@ -89,7 +89,6 @@ export const BottomActionsButtons = ({
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                     fullWidth
                     onClick={(event: React.MouseEvent | React.TouchEvent) => {
-                        console.log("in CANCELLLLL", event);
                         event.preventDefault();
                         event.stopPropagation();
                         onCancel();

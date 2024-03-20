@@ -52,6 +52,10 @@ export type RequestAutoFillPayload = {
      * could be used.
      */
     task: LlmTask | `${LlmTask}`;
+    /**
+    * The user data of the user who triggered the bot response
+    */
+    userData: SessionUserToken;
 }
 
 export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload;

@@ -52,12 +52,10 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
         userData,
     }: GenerateResponseParams) {
         const model = this.getModel(respondingBotConfig?.model);
-        const messageContextInfo = respondingToMessage ?
-            await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
-            [];
+        const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
         const { messages, systemMessage } = await this.generateContext({
+            contextInfo,
             force,
-            messageContextInfo,
             model,
             participantsData,
             respondingBotId,
@@ -117,8 +115,8 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
             usage: {
                 input: completion.usage.prompt_tokens,
                 output: completion.usage?.completion_tokens,
-            }
-        })
+            },
+        });
         return { message, cost };
     }
 

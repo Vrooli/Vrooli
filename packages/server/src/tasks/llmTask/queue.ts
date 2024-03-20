@@ -7,7 +7,7 @@ export type LlmTaskProcessPayload = {
     /** The task to be run */
     taskInfo: Omit<LlmTaskInfo, "status">;
     /** The chat the command was triggered in */
-    chatId: string
+    chatId?: string | null;
     /** The language the command was triggered in */
     language: string;
     /** The user who's running the command (not the bot) */

@@ -1,4 +1,4 @@
-import { BotSettings, ChatMessage, LlmTaskInfo, toBotSettings } from "@local/shared";
+import { AutoFillResult, BotSettings, ChatMessage, LlmTaskInfo, VALYXA_ID, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -13,6 +13,7 @@ import { emitSocketEvent } from "../../sockets/events";
 import { withPrisma } from "../../utils/withPrisma";
 import { processLlmTask } from "../llmTask";
 import { importCommandToTask } from "./config";
+import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload } from "./queue";
 import { LanguageModelService, getLanguageModelService } from "./service";
 import { ForceGetTaskParams, forceGetTask, getValidTasksFromMessage } from "./tasks";
@@ -39,21 +40,23 @@ type ForceGetAndProcessCommandResult = {
     cost: number
 };
 const forceGetAndProcessCommand = async (params: ForceGetAndProcessCommandParams): Promise<ForceGetAndProcessCommandResult> => {
-    const { taskThatWasRun, tasksToSuggest, messageWithoutTasks, cost } = await forceGetTask(params);
-    if (!taskThatWasRun || !messageWithoutTasks) {
+    const { taskToRun, tasksToSuggest, messageWithoutTasks, cost } = await forceGetTask(params);
+    if (!taskToRun || !messageWithoutTasks) {
         return { messageWithoutTasks: null, tasksToSuggest: [], cost };
     }
-    processLlmTask({ taskInfo: taskThatWasRun, ...params });
+    processLlmTask({ taskInfo: taskToRun, ...params });
     return { messageWithoutTasks, tasksToSuggest, cost };
 };
 
-export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
-    // Extract data from payload
-    const { parent, task, participantsData, userData, ...rest } = data;
-    const chatId = rest.chatId;
-    const respondingBotId = rest.respondingBotId;
+export const llmProcessBotMessage = async ({
+    chatId,
+    parent,
+    participantsData,
+    respondingBotId,
+    task,
+    userData,
+}: RequestBotMessagePayload) => {
     const language = userData.languages[0] ?? "en";
-
     let wasResponseSent = false;
     let totalCost = 0;
 
@@ -235,7 +238,7 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
                 });
             }
 
-            // Reduce user's credits by 1
+            // Reduce user's credits
             const updatedUser = await prisma.user.update({
                 where: { id: userData.id },
                 data: { premium: { update: { credits: { decrement: totalCost } } } },
@@ -257,11 +260,55 @@ export const llmProcessBotMessage = async (data: RequestBotMessagePayload) => {
     }
 };
 
-export const llmProcessAutoFill = async ({ data, task }: RequestAutoFillPayload) => {
-    try {
-        //TODO
-    } catch (error) {
-        logger.error("Failed to process autofill", { trace: "0331", error });
+export const llmProcessAutoFill = async ({
+    data,
+    task,
+    userData,
+}: RequestAutoFillPayload): Promise<AutoFillResult> => {
+    let result: Omit<LlmTaskInfo, "status"> | null = null;
+    await withPrisma({
+        process: async (prisma) => {
+            // Get response data
+            const language = userData.languages[0] ?? "en";
+            const botInfo = await getBotInfo(VALYXA_ID, prisma);
+            if (!botInfo) {
+                throw new CustomError("0238", "InternalError", userData.languages, { task });
+            }
+            const participantsData = { [VALYXA_ID]: botInfo };
+            const { botSettings, service } = parseBotInformation(participantsData, VALYXA_ID, logger, language);
+            const commandToTask = await importCommandToTask(language);
+            const { taskToRun, cost } = await forceGetTask({
+                //TODO need way to provide "data" (i.e. what's already on the form)
+                commandToTask,
+                language,
+                participantsData,
+                respondingBotConfig: botSettings,
+                respondingBotId: VALYXA_ID,
+                respondingToMessage: {
+                    text: data + "TODO use 'data' here. Something like 'Here is the existing information: <formatted_data>'. Need way to format it",
+                },
+                service,
+                task,
+                userData,
+            });
+            // Reduce user's credits
+            const updatedUser = await prisma.user.update({
+                where: { id: userData.id },
+                data: { premium: { update: { credits: { decrement: cost } } } },
+                select: { premium: { select: { credits: true } } },
+            });
+            if (updatedUser.premium) {
+                emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits });
+            }
+            // Set result
+            result = taskToRun;
+        },
+        trace: "0331",
+    });
+    if (result) {
+        return { __typename: "AutoFillResult", data: (result as Omit<LlmTaskInfo, "status">).properties };
+    } else {
+        throw new CustomError("0230", "InternalError", userData.languages, { task });
     }
 };
 

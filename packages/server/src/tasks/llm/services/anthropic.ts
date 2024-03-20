@@ -51,12 +51,10 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         userData,
     }: GenerateResponseParams) {
         const model = this.getModel(respondingBotConfig?.model);
-        const messageContextInfo = respondingToMessage ?
-            await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
-            [];
+        const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
         const { messages, systemMessage } = await this.generateContext({
+            contextInfo,
             force,
-            messageContextInfo,
             model,
             participantsData,
             respondingBotId,

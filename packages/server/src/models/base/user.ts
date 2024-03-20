@@ -2,6 +2,7 @@ import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidat
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { withRedis } from "../../redisConn";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
@@ -102,6 +103,20 @@ export const UserModel: UserModelLogic = ({
                 return isBot ?
                     await updateBot({ data: data as BotUpdateInput, ...rest }) :
                     await updateProfile({ data: data as ProfileUpdateInput, ...rest });
+            },
+        },
+        trigger: {
+            afterMutations: async ({ deletedIds, updatedIds }) => {
+                // Remove all updated and deleted users from botSettings cache
+                if (deletedIds.length || updatedIds.length) {
+                    await withRedis({
+                        process: async (redisClient) => {
+                            const keys = [...deletedIds, ...updatedIds].map((id) => `bot:${id}`);
+                            await redisClient.del(...keys as never); // Redis' types are being weird
+                        },
+                        trace: "0236",
+                    });
+                }
             },
         },
         yup: userValidation,

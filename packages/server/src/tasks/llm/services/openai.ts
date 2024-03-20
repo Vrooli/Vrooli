@@ -51,12 +51,10 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
         userData,
     }: GenerateResponseParams) {
         const model = this.getModel(respondingBotConfig?.model);
-        const messageContextInfo = respondingToMessage ?
-            await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage.id) :
-            [];
+        const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
         const { messages, systemMessage } = await this.generateContext({
+            contextInfo,
             force,
-            messageContextInfo,
             model,
             participantsData,
             respondingBotConfig,
@@ -91,8 +89,8 @@ export class OpenAIService implements LanguageModelService<OpenAIGenerateModel, 
             usage: {
                 input: completion.usage?.prompt_tokens ?? this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens,
                 output: completion.usage?.completion_tokens ?? this.estimateTokens({ model, text: message }).tokens,
-            }
-        })
+            },
+        });
         return { message, cost };
     }
 

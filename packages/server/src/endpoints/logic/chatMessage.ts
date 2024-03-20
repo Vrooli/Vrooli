@@ -8,6 +8,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
 import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { ChatMessageModelLogic } from "../../models/base/types";
+import { llmProcessAutoFill } from "../../tasks/llm/process";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 import { bestTranslation } from "../../utils/bestTranslation";
@@ -168,8 +169,10 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             return { __typename: "Success", success: true };
         },
         autoFill: async (_, { input }, { prisma, req }, info) => {
-            console.log("got autoFill input", JSON.stringify(input));
-            return { __typename: "AutoFillResult", data: {} }; //TODO
+            const userData = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ maxUser: 1000, req });
+
+            return llmProcessAutoFill({ ...input, userData, __process: "AutoFill" });
         },
     },
 };
