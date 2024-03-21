@@ -7,6 +7,7 @@
 // type GoogleTokenModel = "default";
 
 // export class GoogleService implements LanguageModelService<GoogleGenerateModel, GoogleTokenModel> {
+//     public __id = "google";
 //     private client: GoogleClient;
 //     private defaultModel: GoogleGenerateModel = "open-mistral-7b";
 
@@ -39,6 +40,11 @@
 //         task,
 //         userData,
 //     }: GenerateResponseParams) {
+// // Check if service is active
+// if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
+//     throw new CustomError("0244", "InternalError", userData.languages);
+// }
+
 //         const model = this.getModel(respondingBotConfig?.model);
 //         const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
 //         const { messages, systemMessage } = await this.generateContext({
@@ -93,9 +99,11 @@
 //         const completion: ChatCompletionResponse = await this.client
 //             .chat(params)
 //             .catch((error) => {
-//                 const message = "Failed to call Google";
-//                 logger.error(message, { trace: "0010", error });
-//                 throw new Error(message);
+// const trace = "0011";
+// const errorType = this.getErrorType(error);
+// LlmServiceRegistry.get().updateServiceState(this.__id, errorType)
+// logger.error("Failed to call Google", { trace, error, errorType });
+// throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
 //             });
 //         return completion.choices[0].message.content ?? "";
 //     }
@@ -120,6 +128,10 @@
 //         if (requestedModel.includes("mistral-7b")) return "open-mistral-7b";
 //         return this.defaultModel;
 //     }
+
+// getErrorType(error: unknown) {
+//     return LlmServiceErrorType.Authentication; //TODO
+// }
 // }
 
 export { };

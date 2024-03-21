@@ -1,26 +1,28 @@
 // import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai"; //TODO waiting on https://github.com/mistralai/client-js/pull/42
 import MistralClient, { ChatCompletionResponse } from "../../../__mocks__/@mistralai/mistralai";
+import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { ChatContextCollector } from "../context";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState, MistralModel } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
-type MistralGenerateModel = "open-mixtral-8x7b" | "open-mistral-7b";
 type MistralTokenModel = "default";
 
 /** Cost in cents per 1_000_000 input tokens */
-const inputCosts: Record<MistralGenerateModel, number> = {
-    "open-mixtral-8x7b": 70,
-    "open-mistral-7b": 25,
+const inputCosts: Record<MistralModel, number> = {
+    [MistralModel.Mistral8x7b]: 70,
+    [MistralModel.Mistral7b]: 25,
 };
 /** Cost in cents per 1_000_000 output tokens */
-const outputCosts: Record<MistralGenerateModel, number> = {
-    "open-mixtral-8x7b": 70,
-    "open-mistral-7b": 25,
+const outputCosts: Record<MistralModel, number> = {
+    [MistralModel.Mistral8x7b]: 70,
+    [MistralModel.Mistral7b]: 25,
 };
 
-export class MistralService implements LanguageModelService<MistralGenerateModel, MistralTokenModel> {
+export class MistralService implements LanguageModelService<MistralModel, MistralTokenModel> {
+    public __id = LlmServiceId.Mistral;
     private client: any;//MistralClient;
-    private defaultModel: MistralGenerateModel = "open-mistral-7b";
+    private defaultModel: MistralModel = MistralModel.Mistral7b;
 
     constructor() {
         this.client = new MistralClient(process.env.MISTRAL_API_KEY);
@@ -51,6 +53,11 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
         task,
         userData,
     }: GenerateResponseParams) {
+        // Check if service is active
+        if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
+            throw new CustomError("0248", "InternalError", userData.languages);
+        }
+
         const model = this.getModel(respondingBotConfig?.model);
         const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
         const { messages, systemMessage } = await this.generateContext({
@@ -105,9 +112,11 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
         const completion: ChatCompletionResponse = await this.client
             .chat(params)
             .catch((error) => {
-                const message = "Failed to call Mistral";
-                logger.error(message, { trace: "0010", error });
-                throw new Error(message);
+                const trace = "0249";
+                const errorType = this.getErrorType(error);
+                LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+                logger.error("Failed to call Mistral", { trace, error, errorType });
+                throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
             });
         const message = completion.choices[0].message.content ?? "";
         const cost = this.getResponseCost({
@@ -141,8 +150,12 @@ export class MistralService implements LanguageModelService<MistralGenerateModel
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
-        if (model.includes("8x7b")) return "open-mixtral-8x7b";
-        if (model.includes("mistral-7b")) return "open-mistral-7b";
+        if (model.includes("8x7b")) return MistralModel.Mistral8x7b;
+        if (model.includes("mistral-7b")) return MistralModel.Mistral7b;
         return this.defaultModel;
+    }
+
+    getErrorType(error: unknown) {
+        return LlmServiceErrorType.Authentication; //TODO can't find error codes
     }
 }

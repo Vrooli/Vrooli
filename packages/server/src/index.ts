@@ -22,6 +22,7 @@ import { setupEmailQueue } from "./tasks/email/queue";
 import { setupExportQueue } from "./tasks/export/queue";
 import { setupImportQueue } from "./tasks/import/queue";
 import { setupLlmQueue } from "./tasks/llm/queue";
+import { LlmServiceRegistry } from "./tasks/llm/registry";
 import { setupLlmTaskQueue } from "./tasks/llmTask/queue";
 import { setupPushQueue } from "./tasks/push/queue";
 import { setupSmsQueue } from "./tasks/sms/queue";
@@ -46,6 +47,7 @@ const main = async () => {
 
     // Initialize singletons
     await ModelMap.init();
+    await LlmServiceRegistry.init();
 
     // Setup queues
     await setupLlmTaskQueue();

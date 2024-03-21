@@ -176,7 +176,7 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
                 },
             });
         }
-        emitSocketEvent("apiCredits", payment.user.id, { credits: API_CREDITS_PREMIUM });
+        emitSocketEvent("apiCredits", payment.user.id, { credits: API_CREDITS_PREMIUM + "" });
     }
     // Send thank you notification
     for (const email of payment.user.emails) {
@@ -335,7 +335,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
                 },
             },
         });
-        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_PREMIUM });
+        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_PREMIUM + "" });
         for (const email of premiumRecord.user.emails) {
             sendPaymentThankYou(email.emailAddress, paymentType);
         }
@@ -352,7 +352,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
                 },
             },
         });
-        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_FREE });
+        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_FREE + "" });
         for (const email of premiumRecord.user.emails) {
             sendSubscriptionCanceled(email.emailAddress);
         }

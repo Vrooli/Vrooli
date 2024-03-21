@@ -53,19 +53,26 @@ export class ModelMap {
     private async initializeMap() {
         const modelNames = Object.keys(GqlModelType) as (keyof typeof ModelMap.prototype.map)[];
         const dirname = path.dirname(fileURLToPath(import.meta.url));
-        for (const modelName of modelNames) {
-            const modelPath = `./${lowercaseFirstLetter(modelName)}`;
+
+        // Create a promise for each model import and process them in parallel
+        const importPromises = modelNames.map(async (modelName) => {
+            const fileName = lowercaseFirstLetter(modelName);
+            const modelPath = `./${fileName}`;
+            const filePathWithoutExtension = `${dirname}/${fileName}`;
             try {
-                this.map[modelName] = (await import(`./${lowercaseFirstLetter(modelName)}`))[`${modelName}Model`];
+                if (fs.existsSync(`${filePathWithoutExtension}.js`) || fs.existsSync(`${filePathWithoutExtension}.ts`)) {
+                    this.map[modelName] = (await import(modelPath))[`${modelName}Model`];
+                } else {
+                    this.map[modelName] = {};
+                }
             } catch (error) {
                 this.map[modelName] = {};
-                // Check if the file exists. If so, it's likely a secret circular dependency.
-                const filePathWithoutExtension = `${dirname}/${lowercaseFirstLetter(modelName)}`;
-                if (fs.existsSync(`${filePathWithoutExtension}.js`) || fs.existsSync(`${filePathWithoutExtension}.ts`)) {
-                    logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
-                }
+                logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
             }
-        }
+        });
+
+        // Wait for all promises to settle
+        await Promise.all(importPromises);
     }
 
     public static isModel(objectType: GqlModelType | `${GqlModelType}`): boolean {

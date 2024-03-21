@@ -3,7 +3,7 @@ import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
 import { CommandToTask, LlmTaskProperty, getUnstructuredTaskConfig, importConfig } from "./config";
-import { LanguageModelService } from "./service";
+import { generateResponseWithFallback } from "./service";
 
 export type PartialTaskInfo = Omit<LlmTaskInfo, "label" | "status"> & {
     start: number;
@@ -823,7 +823,10 @@ export const getValidTasksFromMessage = async (
     const { commandIndices: suggestedIndices, wrapperStart, wrapperEnd } = wrappedCommandList.length > 0
         ? wrappedCommandList[wrappedCommandList.length - 1]
         : { commandIndices: [], wrapperStart: -1, wrapperEnd: -1 };
-    const tasksToSuggest = suggestedIndices.map(i => labelledTasks[i]);
+    const tasksToSuggest = suggestedIndices
+        .map(i => labelledTasks[i])
+        // Cannot suggest the current task or the "Start" task
+        .filter((task) => task.task === taskMode || task.task === "Start");
 
     // find commands that should be run right away
     const tasksToRun = labelledTasks.filter((_, index) => !suggestedIndices.includes(index));
@@ -853,7 +856,6 @@ export type ForceGetTaskParams = {
         id?: string | null,
         text: string,
     } | null,
-    service: LanguageModelService<string, string>,
     task: LlmTask | `${LlmTask}`,
     userData: SessionUserToken,
 }
@@ -870,7 +872,6 @@ export const forceGetTask = async ({
     respondingBotConfig,
     respondingBotId,
     respondingToMessage,
-    service,
     task,
     userData,
 }: ForceGetTaskParams): Promise<{
@@ -884,7 +885,7 @@ export const forceGetTask = async ({
     let totalCost = 0;
 
     while (retryCount < MAX_RETRIES) {
-        const { message, cost } = await service.generateResponse({
+        const { message, cost } = await generateResponseWithFallback({
             chatId,
             force: true, // Force the bot to respond with a task
             participantsData,

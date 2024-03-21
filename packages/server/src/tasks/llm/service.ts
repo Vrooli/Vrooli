@@ -1,4 +1,5 @@
 import { BotSettings, BotSettingsTranslation, LlmTask, toBotSettings } from "@local/shared";
+import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
@@ -7,9 +8,7 @@ import { bestTranslation } from "../../utils/bestTranslation";
 import { withPrisma } from "../../utils/withPrisma";
 import { getStructuredTaskConfig } from "./config";
 import { ContextInfo, MessageContextInfo } from "./context";
-import { AnthropicService } from "./services/anthropic";
-import { MistralService } from "./services/mistral";
-import { OpenAIService } from "./services/openai";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry";
 
 type SimpleChatMessageData = {
     id: string;
@@ -84,6 +83,8 @@ export type GetResponseCostParams = {
 }
 
 export interface LanguageModelService<GenerateNameType extends string, TokenNameType extends string> {
+    /** Identifier for service */
+    __id: LlmServiceId;
     /** Estimate the amount of tokens a string is */
     estimateTokens(params: EstimateTokensParams): EstimateTokensResult;
     /** Generates config for setting up bot persona and task instructions */
@@ -110,6 +111,8 @@ export interface LanguageModelService<GenerateNameType extends string, TokenName
     getEstimationTypes(): readonly TokenNameType[];
     /** Convert a preferred model to an available one */
     getModel(model?: string | null): GenerateNameType;
+    /** Converts error received by service to a standardized type */
+    getErrorType(error: unknown): LlmServiceErrorType;
 }
 
 /**
@@ -317,10 +320,44 @@ export const fetchMessagesFromDatabase = async (messageIds: string[]): Promise<S
     return messages;
 };
 
-export const getLanguageModelService = (botSettings: BotSettings): LanguageModelService<string, string> => {
-    const { model } = botSettings;
-    if (!model) return new OpenAIService();
-    if (model.includes("claude")) return new AnthropicService();
-    if (model.includes("mistral")) return new MistralService();
-    return new OpenAIService();
+/**
+ * Attempts to generate a response using a preferred LLM service, falling back to 
+ * other services if the preferred one is unavailable.
+ */
+export const generateResponseWithFallback = async ({
+    respondingBotConfig,
+    userData,
+    ...rest
+}: GenerateResponseParams): Promise<GenerateResponseResult> => {
+    const retryLimit = 3; // Set a limit to prevent infinite loops
+    let attempts = 0;
+
+    while (attempts < retryLimit) {
+        const serviceId = LlmServiceRegistry.get().getBestService(respondingBotConfig.model);
+        if (!serviceId) {
+            throw new CustomError("0252", "InternalError", userData.languages, { respondingBotConfig });
+        }
+
+        try {
+            // Try using the service to generate a response
+            const serviceInstance = LlmServiceRegistry.get().getService(serviceId);
+            return await serviceInstance.generateResponse({
+                respondingBotConfig,
+                userData,
+                ...rest,
+            });
+        } catch (error) {
+            const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);
+            // If the service is still active, then the error was likely due 
+            // to the request we made. So we'll throw the error instead of retrying.
+            if (serviceState === LlmServiceState.Active) {
+                throw error;
+            }
+            // Otherwise, we'll retry with the next best service
+        }
+
+        attempts++;
+    }
+
+    throw new CustomError("0253", "InternalError", userData.languages, { respondingBotConfig });
 };

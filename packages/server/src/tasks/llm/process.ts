@@ -15,7 +15,7 @@ import { processLlmTask } from "../llmTask";
 import { importCommandToTask } from "./config";
 import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload } from "./queue";
-import { LanguageModelService, getLanguageModelService } from "./service";
+import { generateResponseWithFallback } from "./service";
 import { ForceGetTaskParams, forceGetTask, getValidTasksFromMessage } from "./tasks";
 
 const parseBotInformation = (
@@ -23,14 +23,12 @@ const parseBotInformation = (
     respondingBotId: string,
     logger: { error: (message: string, data?: Record<string, any>) => unknown },
     language: string,
-): { botSettings: BotSettings, service: LanguageModelService<string, string> } => {
+): BotSettings => {
     const bot = participants[respondingBotId];
     if (!bot) {
         throw new CustomError("0176", "InternalError", [language]);
     }
-    const botSettings = toBotSettings(bot, logger);
-    const service = getLanguageModelService(botSettings);
-    return { botSettings, service };
+    return toBotSettings(bot, logger);
 };
 
 type ForceGetAndProcessCommandParams = ForceGetTaskParams;
@@ -63,7 +61,7 @@ export const llmProcessBotMessage = async ({
     await withPrisma({
         process: async (prisma) => {
             // Parse bot information
-            const { botSettings, service } = parseBotInformation(participantsData, respondingBotId, logger, language);
+            const botSettings = parseBotInformation(participantsData, respondingBotId, logger, language);
             const commandToTask = await importCommandToTask(language);
 
             // Parse previous message
@@ -105,7 +103,6 @@ export const llmProcessBotMessage = async ({
                     respondingBotConfig: botSettings,
                     respondingBotId,
                     respondingToMessage,
-                    service,
                     task,
                     userData,
                 });
@@ -116,7 +113,7 @@ export const llmProcessBotMessage = async ({
             // Otherwise, we'll generate a normal response and handle any commands that it contains
             else {
                 // Generate bot response
-                const { message: botResponse, cost } = await service.generateResponse({
+                const { message: botResponse, cost } = await generateResponseWithFallback({
                     chatId,
                     force: false,
                     participantsData,
@@ -149,7 +146,6 @@ export const llmProcessBotMessage = async ({
                             respondingBotConfig: botSettings,
                             respondingBotId,
                             respondingToMessage,
-                            service,
                             task: command.task,
                             userData,
                         });
@@ -245,7 +241,7 @@ export const llmProcessBotMessage = async ({
                 select: { premium: { select: { credits: true } } },
             });
             if (updatedUser.premium) {
-                emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits });
+                emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
             }
         },
         trace: "0081",
@@ -275,7 +271,7 @@ export const llmProcessAutoFill = async ({
                 throw new CustomError("0238", "InternalError", userData.languages, { task });
             }
             const participantsData = { [VALYXA_ID]: botInfo };
-            const { botSettings, service } = parseBotInformation(participantsData, VALYXA_ID, logger, language);
+            const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger, language);
             const commandToTask = await importCommandToTask(language);
             const { taskToRun, cost } = await forceGetTask({
                 //TODO need way to provide "data" (i.e. what's already on the form)
@@ -287,7 +283,6 @@ export const llmProcessAutoFill = async ({
                 respondingToMessage: {
                     text: data + "TODO use 'data' here. Something like 'Here is the existing information: <formatted_data>'. Need way to format it",
                 },
-                service,
                 task,
                 userData,
             });
@@ -298,7 +293,7 @@ export const llmProcessAutoFill = async ({
                 select: { premium: { select: { credits: true } } },
             });
             if (updatedUser.premium) {
-                emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits });
+                emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
             }
             // Set result
             result = taskToRun;

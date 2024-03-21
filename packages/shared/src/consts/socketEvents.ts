@@ -9,7 +9,8 @@ export type UserSocketEventPayloads = {
      * Updates to the number of API credits the user has
      */
     apiCredits: {
-        credits: bigint;
+        /** Stringified BigInt */
+        credits: string;
     };
     joinUserRoom: { userId: string };
     leaveUserRoom: { userId: string };

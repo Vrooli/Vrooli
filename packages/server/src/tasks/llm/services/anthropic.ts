@@ -1,25 +1,27 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { ChatContextCollector } from "../context";
+import { AnthropicModel, LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
-type AnthropicGenerateModel = "claude-3-opus-20240229" | "claude-3-sonnet-20240229";
 type AnthropicTokenModel = "default";
 
 /** Cost in cents per 1_000_000 input tokens */
-const inputCosts: Record<AnthropicGenerateModel, number> = {
-    "claude-3-opus-20240229": 1500,
-    "claude-3-sonnet-20240229": 300,
+const inputCosts: Record<AnthropicModel, number> = {
+    [AnthropicModel.Opus]: 1500,
+    [AnthropicModel.Sonnet]: 300,
 };
 /** Cost in cents per 1_000_000 output tokens */
-const outputCosts: Record<AnthropicGenerateModel, number> = {
-    "claude-3-opus-20240229": 7500,
-    "claude-3-sonnet-20240229": 1500,
+const outputCosts: Record<AnthropicModel, number> = {
+    [AnthropicModel.Opus]: 7500,
+    [AnthropicModel.Sonnet]: 1500,
 };
 
-export class AnthropicService implements LanguageModelService<AnthropicGenerateModel, AnthropicTokenModel> {
+export class AnthropicService implements LanguageModelService<AnthropicModel, AnthropicTokenModel> {
+    public __id = LlmServiceId.Anthropic;
     private client: Anthropic;
-    private defaultModel: AnthropicGenerateModel = "claude-3-sonnet-20240229";
+    private defaultModel: AnthropicModel = AnthropicModel.Sonnet;
 
     constructor() {
         this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -50,6 +52,11 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         task,
         userData,
     }: GenerateResponseParams) {
+        // Check if service is active
+        if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
+            throw new CustomError("0243", "InternalError", userData.languages);
+        }
+
         const model = this.getModel(respondingBotConfig?.model);
         const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
         const { messages, systemMessage } = await this.generateContext({
@@ -101,9 +108,11 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
         const completion: Anthropic.Message = await this.client.messages
             .create(params)
             .catch((error) => {
-                const message = "Failed to call Anthropic";
-                logger.error(message, { trace: "0010", error });
-                throw new Error(message);
+                const trace = "0010";
+                const errorType = this.getErrorType(error);
+                LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+                logger.error("Failed to call Anthropic", { trace, error, errorType });
+                throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
             });
         const message = completion.content?.map(block => block.text).join("") ?? "";
         const cost = this.getResponseCost({
@@ -137,8 +146,30 @@ export class AnthropicService implements LanguageModelService<AnthropicGenerateM
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
-        if (model.includes("opus")) return "claude-3-opus-20240229";
-        if (model.includes("sonnet")) return "claude-3-sonnet-20240229";
+        if (model.includes("opus")) return AnthropicModel.Opus;
+        if (model.includes("sonnet")) return AnthropicModel.Sonnet;
         return this.defaultModel;
+    }
+
+    getErrorType(error: unknown): LlmServiceErrorType {
+        if (!error || typeof error !== "object") return LlmServiceErrorType.ApiError;
+        const errorType = (error as { error?: { type?: string } }).error?.type;
+
+        switch (errorType) {
+            case "invalid_request_error":
+            case "not_found_error":
+                return LlmServiceErrorType.InvalidRequest;
+            case "authentication_error":
+            case "permission_error":
+                return LlmServiceErrorType.Authentication;
+            case "rate_limit_error":
+                return LlmServiceErrorType.RateLimit;
+            case "api_error":
+                return LlmServiceErrorType.ApiError;
+            case "overloaded_error":
+                return LlmServiceErrorType.Overloaded;
+            default:
+                return LlmServiceErrorType.ApiError;
+        }
     }
 }
