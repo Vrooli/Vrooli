@@ -1,73 +1,18 @@
-import { LINKS, PaymentType } from "@local/shared";
-import { Box, Button, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, keyframes, useTheme } from "@mui/material";
-import Blob1 from "assets/img/blob1.svg";
-import Blob2 from "assets/img/blob2.svg";
+import { API_CREDITS_PREMIUM, LINKS, PaymentType } from "@local/shared";
+import { Box, Button, Link, List, ListItem, ListItemText, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
+import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
 import { Testimonials } from "components/Testimonials/Testimonials";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useStripe } from "hooks/useStripe";
-import { CompleteIcon, LogInIcon } from "icons";
-import { useTranslation } from "react-i18next";
-import { stringifySearchParams, useLocation } from "route";
-import { PremiumViewProps } from "../types";
 import { useWindowSize } from "hooks/useWindowSize";
-import { getDisplay } from "utils/display/listTools";
+import { CompleteIcon, OpenInNewIcon } from "icons";
+import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { getDeviceInfo } from "utils/display/device";
+import { PremiumViewProps } from "../types";
 
 const purpleRadial = "radial-gradient(circle, rgb(16 6 46) 15%, rgb(11 1 36) 55%, rgb(8 3 20) 85%)";
-
-const blob1Animation = keyframes`
-    0% {
-        transform: translateY(0) scale(0.55);
-        filter: hue-rotate(0deg) blur(140px);
-    }
-    33% {
-        transform: translateY(-150px) scale(0.85) rotate(-100deg);
-        filter: hue-rotate(40deg) blur(140px);
-    }
-    66% {
-        transform: translate(45px, 10px) scale(0.65) rotate(-180deg);
-        filter: hue-rotate(80deg) blur(140px);
-    }
-    100% {
-        transform: translate(0px, 0px) scale(0.55) rotate(0deg);
-        filter: hue-rotate(0deg) blur(140px);
-    }
-`;
-
-const blob2Animation = keyframes`
-    0% {
-        transform: translateX(0) scale(0.95);
-        filter: hue-rotate(0deg) blur(60px);
-    }
-    50% {
-        transform: translateX(140px) scale(1.1);
-        filter: hue-rotate(-60deg) blur(60px);
-    }
-    100% {
-        transform: translateX(0) scale(0.95);
-        filter: hue-rotate(0deg) blur(60px);
-    }
-`;
-
-const blob3Animation = keyframes`
-    0% {
-        transform: translateY(0) scale(0.7);
-        filter: hue-rotate(0deg) blur(100px);
-    }
-    33% {
-        transform: translateY(-110px) scale(1) rotate(-150deg);
-        filter: hue-rotate(40deg) blur(100px);
-    }
-    66% {
-        transform: translate(30px, -50px) scale(0.8) rotate(-250deg);
-        filter: hue-rotate(80deg) blur(100px);
-    }
-    100% {
-        transform: translate(0px, 0px) scale(0.7) rotate(0deg);
-        filter: hue-rotate(0deg) blur(100px);
-    }
-`;
 
 // Features comparison table data
 function createData(feature, nonPremium, premium) {
@@ -117,78 +62,7 @@ export const PremiumView = ({
             padding: 2,
             marginBottom: (isMobile && getDeviceInfo().isStandalone) ? pagePaddingBottom : 0,
         }}>
-            {/* Blob 1 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                top: -200,
-                left: -50,
-                width: "100%",
-                height: "100%",
-                opacity: 0.5,
-                filter: "hue-rotate(150deg)",
-                transition: "opacity 1s ease-in-out",
-                zIndex: 0,
-            }}>
-                <Box
-                    component="img"
-                    src={Blob1}
-                    alt="Blob 1"
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        animation: `${blob1Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
-            {/* Blob 2 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                bottom: -175,
-                right: -300,
-                width: "150%",
-                height: "150%",
-                opacity: 0.5,
-                filter: "hue-rotate(300deg)",
-                transition: "opacity 1s ease-in-out",
-                zIndex: 0,
-            }}>
-                <Box
-                    component="img"
-                    src={Blob2}
-                    alt="Blob 2"
-                    sx={{
-                        width: "150%",
-                        height: "150%",
-                        animation: `${blob2Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
-            {/* Blob 3 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                bottom: -175,
-                left: -360,
-                width: "100%",
-                height: "100%",
-                opacity: 0.5,
-                filter: "hue-rotate(100deg)",
-                transition: "opacity 1s ease-in-out",
-                zIndex: 0,
-            }}>
-                <Box
-                    component="img"
-                    src={Blob1}
-                    alt="Blob 1"
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        animation: `${blob1Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
+            <RandomBlobs numberOfBlobs={isMobile ? 3 : 5} />
             <TopBar
                 display={display}
                 hideTitleOnDesktop

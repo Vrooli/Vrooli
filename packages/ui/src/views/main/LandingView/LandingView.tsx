@@ -14,7 +14,6 @@ import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, greenNeonText, textPop } from "styles";
 import { SvgComponent } from "types";
-import { Forms } from "utils/consts";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -169,7 +168,7 @@ export const LandingView = ({
                                 autoFocus
                                 variant="outlined"
                                 color="secondary"
-                                onClick={() => openLink(setLocation, LINKS.Signup, { form: Forms.SignUp })}
+                                onClick={() => openLink(setLocation, LINKS.Signup)}
                                 startIcon={<PlayIcon fill='white' />}
                                 sx={{
                                     fontSize: isMobile ? "1.3rem" : "1.8rem",

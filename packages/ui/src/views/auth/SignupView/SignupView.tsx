@@ -1,14 +1,13 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
-import { Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, keyframes, Link, Typography, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, Link, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
-import Blob1 from "assets/img/blob1.svg";
-import Blob2 from "assets/img/blob2.svg";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
 import { Testimonials } from "components/Testimonials/Testimonials";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -247,45 +246,6 @@ const SignupForm = () => {
 
 const blueRadial = "radial-gradient(circle, rgb(6 46 46) 12%, rgb(1 36 36) 52%, rgb(3 20 20) 80%)";
 
-// Animation for blob1
-// Moves up and grows, then moves down to the right and shrinks.
-// Then it moves to the left - while continuing to shrink- until it reaches the starting position.
-const blob1Animation = keyframes`
-    0% {
-        transform: translateY(0) scale(0.7);
-        filter: hue-rotate(0deg) blur(100px);
-    }
-    33% {
-        transform: translateY(-110px) scale(1) rotate(-150deg);
-        filter: hue-rotate(40deg) blur(100px);
-    }
-    66% {
-        transform: translate(30px, -50px) scale(0.8) rotate(-250deg);
-        filter: hue-rotate(80deg) blur(100px);
-    }
-    100% {
-        transform: translate(0px, 0px) scale(0.7) rotate(0deg);
-        filter: hue-rotate(0deg) blur(100px);
-    }
-`;
-
-// Animation for blob2
-// Moves to the right and changes hue, then moves back to the left and turns its original color.
-const blob2Animation = keyframes`
-    0% {
-        transform: translateX(0) scale(0.8);
-        filter: hue-rotate(0deg) blur(50px);
-    }
-    50% {
-        transform: translateX(120px) scale(0.9);
-        filter: hue-rotate(-70deg) blur(50px);
-    }
-    100% {
-        transform: translateX(0) scale(0.8);
-        filter: hue-rotate(0deg) blur(50px);
-    }
-`;
-
 const ImageWithCaption = ({ src, alt, caption }) => (
     <Box sx={{
         flex: "0 0 auto",
@@ -301,54 +261,7 @@ const ImageWithCaption = ({ src, alt, caption }) => (
 const Promo = () => {
     return (
         <>
-            {/* Blob 1 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                top: -200,
-                left: -50,
-                width: "100%",
-                height: "100%",
-                opacity: 0.5,
-                filter: "hue-rotate(150deg)",
-                transition: "opacity 1s ease-in-out",
-                zIndex: 0,
-            }}>
-                <Box
-                    component="img"
-                    src={Blob1}
-                    alt="Blob 1"
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        animation: `${blob1Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
-            {/* Blob 2 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                bottom: -175,
-                right: -250,
-                width: "100%",
-                height: "100%",
-                opacity: 0.5,
-                filter: "hue-rotate(300deg)",
-                transition: "opacity 1s ease-in-out",
-                zIndex: 0,
-            }}>
-                <Box
-                    component="img"
-                    src={Blob2}
-                    alt="Blob 2"
-                    sx={{
-                        width: "150%",
-                        height: "150%",
-                        animation: `${blob2Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
+            <RandomBlobs numberOfBlobs={5} />
             <Box sx={{ position: "relative", zIndex: 1 }}>
                 <Typography variant="h4" sx={{ marginBottom: 2 }}>
                     Where Imagination Drives Automation
