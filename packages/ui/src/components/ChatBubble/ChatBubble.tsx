@@ -192,6 +192,22 @@ export const NavigationArrows = ({
     );
 };
 
+type ChatBubbleReactionsProps = {
+    activeIndex: number,
+    handleActiveIndexChange: (newIndex: number) => unknown,
+    handleCopy,
+    handleReactionAdd: (emoji: string) => unknown,
+    handleReply: () => unknown,
+    handleRetry: () => unknown,
+    isBot: boolean,
+    isLastMessage: boolean,
+    isOwn: boolean,
+    numSiblings: number,
+    messageId: string,
+    reactions: ReactionSummary[],
+    status: ChatMessageStatus,
+}
+
 /**
  * Displays message reactions and actions (i.e. refresh and report). 
  * Reactions are displayed as a list of emojis on the left, and bot actions are displayed
@@ -205,25 +221,13 @@ const ChatBubbleReactions = ({
     handleReply,
     handleRetry,
     isBot,
+    isLastMessage,
     isOwn,
     numSiblings,
     messageId,
     reactions,
     status,
-}: {
-    activeIndex: number,
-    handleActiveIndexChange: (newIndex: number) => unknown,
-    handleCopy,
-    handleReactionAdd: (emoji: string) => unknown,
-    handleReply: () => unknown,
-    handleRetry: () => unknown,
-    isBot: boolean,
-    isOwn: boolean,
-    numSiblings: number,
-    messageId: string,
-    reactions: ReactionSummary[],
-    status: ChatMessageStatus,
-}) => {
+}: ChatBubbleReactionsProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -298,19 +302,17 @@ const ChatBubbleReactions = ({
                         <CopyIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Tooltip>
-                {isBot && <>
-                    <Tooltip title={t("Retry")}>
-                        <IconButton size="small" onClick={handleRetry}>
-                            <RefreshIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t("Reply")}>
-                        <IconButton size="small" onClick={handleReply}>
-                            <ReplyIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
-                    <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
-                </>}
+                {(isBot || (isOwn && isLastMessage)) && <Tooltip title={t("Retry")}>
+                    <IconButton size="small" onClick={handleRetry}>
+                        <RefreshIcon fill={palette.background.textSecondary} />
+                    </IconButton>
+                </Tooltip>}
+                {isBot && <Tooltip title={t("Reply")}>
+                    <IconButton size="small" onClick={handleReply}>
+                        <ReplyIcon fill={palette.background.textSecondary} />
+                    </IconButton>
+                </Tooltip>}
+                {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
                 <NavigationArrows
                     activeIndex={activeIndex}
                     numSiblings={numSiblings}
@@ -409,6 +411,7 @@ export const ChatBubble = ({
     activeIndex,
     chatWidth,
     isBotOnlyChat,
+    isLastMessage,
     isOwn,
     message,
     numSiblings,
@@ -416,6 +419,7 @@ export const ChatBubble = ({
     onDeleted,
     onReply,
     onRetry,
+    onTaskClick,
     onUpdated,
     tasks,
 }: ChatBubbleProps) => {
@@ -688,6 +692,7 @@ export const ChatBubble = ({
                     handleReply={() => { onReply(message); }}
                     handleRetry={() => { onRetry(message); }}
                     isBot={message.user?.isBot ?? false}
+                    isLastMessage={isLastMessage}
                     isOwn={isOwn}
                     numSiblings={numSiblings}
                     messageId={message.id}
@@ -698,7 +703,7 @@ export const ChatBubble = ({
                 {tasks && tasks.length > 0 && (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
                         {tasks.map((taskInfo) => (
-                            <TaskChip key={taskInfo.id} taskInfo={taskInfo} onTaskClick={() => { }} /> //TODO
+                            <TaskChip key={taskInfo.id} taskInfo={taskInfo} onTaskClick={onTaskClick} />
                         ))}
                     </Box>
                 )}

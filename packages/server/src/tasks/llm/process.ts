@@ -274,14 +274,15 @@ export const llmProcessAutoFill = async ({
             const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger, language);
             const commandToTask = await importCommandToTask(language);
             const { taskToRun, cost } = await forceGetTask({
-                //TODO need way to provide "data" (i.e. what's already on the form)
                 commandToTask,
                 language,
                 participantsData,
                 respondingBotConfig: botSettings,
                 respondingBotId: VALYXA_ID,
                 respondingToMessage: {
-                    text: data + "TODO use 'data' here. Something like 'Here is the existing information: <formatted_data>'. Need way to format it",
+                    text: Object.keys(data).length ?
+                        "Your goal is to auto-fill a form. Here is the existing data:\n" + JSON.stringify(data, null, 2) + "\nRespond with the missing information"
+                        : "Your goal is to auto-fill a form. The form is currently blank. Respond with the information you'd like to fill it with.",
                 },
                 task,
                 userData,

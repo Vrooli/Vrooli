@@ -29,8 +29,9 @@ import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { PubSub } from "utils/pubsub";
 import { validateAndGetYupErrors } from "utils/shape/general";
-import { BotShape, shapeBot } from "utils/shape/models/bot";
+import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 import { BotFormProps, BotUpsertProps } from "../types";
 
 const botInitialValues = (
@@ -230,20 +231,42 @@ const BotForm = ({
 
     const [getAutoFill, { loading: isLoadingAutoFill }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
     const autoFill = useCallback(() => {
+        const defaultTranslation = { ...(values.translations?.length ? values.translations[0] : {}) } as Partial<BotTranslationShape> & { __typename?: string };
+        delete defaultTranslation.id;
+        delete defaultTranslation.language;
+        delete defaultTranslation.__typename;
+        const existingData = {
+            ...defaultTranslation,
+            name: values.name,
+        };
+        Object.entries(existingData).forEach(([key, value]) => {
+            if (typeof value === "string" && value.trim() === "") {
+                delete existingData[key];
+            }
+        });
         fetchLazyWrapper<AutoFillInput, AutoFillResult>({
             fetch: getAutoFill,
             inputs: {
                 task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
-                data: {
-                    ...transformBotValues(session, values, botInitialValues(session), isCreate),
-                    translations: values.translations,
-                },
+                data: existingData,
             },
-            onSuccess: (data) => {
-                //TODO 
+            onSuccess: ({ data }) => {
+                console.log("got autofill response", data);
+                const originalValues = { ...values };
+                const { name, ...rest } = data;
+                const updatedValues = {
+                    ...values,
+                    name: name ?? values.name,
+                    translations: values.translations?.length ? [{
+                        ...values.translations[0],
+                        ...rest,
+                    }, ...values.translations.slice(1)] : [],
+                };
+                handleUpdate(updatedValues);
+                PubSub.get().publish("snack", { message: "Form auto-filled", buttonKey: "Undo", buttonClicked: () => { handleUpdate(originalValues); }, severity: "Success", autoHideDuration: 15000 });
             },
         });
-    }, [getAutoFill, isCreate, session, values]);
+    }, [getAutoFill, handleUpdate, isCreate, values]);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isLoadingAutoFill || props.isSubmitting, [isCreateLoading, isLoadingAutoFill, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

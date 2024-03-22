@@ -1,4 +1,4 @@
-import { Chat, DUMMY_ID, RegenerateResponseInput, Success, endpointPostRegenerateResponse, uuid } from "@local/shared";
+import { Chat, DUMMY_ID, LlmTaskInfo, RegenerateResponseInput, Success, endpointPostRegenerateResponse, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
@@ -110,6 +110,7 @@ export const useMessageActions = ({
     }, [chat, handleChatUpdate, session]);
 
     const [regenerate] = useLazyFetch<RegenerateResponseInput, Success>(endpointPostRegenerateResponse);
+    /** Regenerate a bot response */
     const regenerateResponse = useCallback((message: ChatMessageShape) => {
         fetchLazyWrapper<RegenerateResponseInput, Success>({
             fetch: regenerate,
@@ -119,9 +120,27 @@ export const useMessageActions = ({
         });
     }, [regenerate]);
 
+    /** 
+     * Handle a suggested task, depending on its state
+     */
+    const respondToTask = useCallback((task: LlmTaskInfo) => {
+        console.log("in respondToTask", task);
+        // Ignore if status is "completed" or "failed"
+        if (["completed", "failed"].includes(task.status)) return;
+        // If status is "suggested", trigger the task
+        if (task.status === "suggested") {
+            //TODO
+        }
+        // If status is "running", attempt to pause/stop the task
+        else if (task.status === "running") {
+            //TODO
+        }
+    }, []);
+
     return {
         postMessage,
         putMessage,
         regenerateResponse,
+        respondToTask,
     };
 };

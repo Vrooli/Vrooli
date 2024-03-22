@@ -63,7 +63,7 @@ export const PremiumView = ({
                 display={display}
                 hideTitleOnDesktop
                 onClose={onClose}
-                title={t("ProGet")}
+                title={t("Pricing")}
             />
             <Box
                 sx={{

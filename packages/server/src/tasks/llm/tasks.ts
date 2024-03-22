@@ -453,8 +453,8 @@ export const findCharWithLimit = (
     return null; // Exceeded the maximum loop count
 };
 
-type WrappedCommands = {
-    commandIndices: number[],
+type WrappedTasks = {
+    taskIndices: number[],
     wrapperStart: number,
     wrapperEnd: number,
 }
@@ -475,8 +475,8 @@ export const detectWrappedTasks = ({
     delimiter?: string | null,
     commands: MaybeLlmTaskInfo[],
     messageString: string,
-}): WrappedCommands[] => {
-    const result: WrappedCommands[] = [];
+}): WrappedTasks[] => {
+    const result: WrappedTasks[] = [];
     const MAX_WHITESPACE_LENGTH = 5;
     const allowMultiple = typeof delimiter === "string" && delimiter.length;
     let startWrapperIndex = -1; // Index of the start substring for the current wrapper
@@ -541,8 +541,8 @@ export const detectWrappedTasks = ({
                 continue;
             }
             // Commit all commands between the start index and the closing bracket index
-            const commandIndices = commands.map((c, i) => c.start >= startWrapperIndex && c.end <= closingBracketIndex ? i : -1).filter(i => i >= 0) as number[];
-            result.push({ commandIndices, wrapperStart: startWrapperIndex, wrapperEnd: closingBracketIndex });
+            const taskIndices = commands.map((c, i) => c.start >= startWrapperIndex && c.end <= closingBracketIndex ? i : -1).filter(i => i >= 0) as number[];
+            result.push({ taskIndices, wrapperStart: startWrapperIndex, wrapperEnd: closingBracketIndex });
         }
     }
 
@@ -679,9 +679,11 @@ export const filterInvalidTasks = async (
         const modifiedCommand = { ...task };
         const requiresAction = taskConfig.actions && taskConfig.actions.length > 0;
 
+        console.log("before valid task check", task.task, taskMode);
         // If the task is not a valid task, skip it
         if (!task.task) modifiedCommand.task = taskMode;
         else if (!Object.keys(LlmTask).includes(task.task)) continue;
+        console.log("made it past valid task check");
 
         let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, task.command);
 
@@ -820,13 +822,13 @@ export const getValidTasksFromMessage = async (
         messageString: message,
     });
     // Only use one wrapper, as there should only be one suggested section
-    const { commandIndices: suggestedIndices, wrapperStart, wrapperEnd } = wrappedCommandList.length > 0
+    const { taskIndices: suggestedIndices, wrapperStart, wrapperEnd } = wrappedCommandList.length > 0
         ? wrappedCommandList[wrappedCommandList.length - 1]
-        : { commandIndices: [], wrapperStart: -1, wrapperEnd: -1 };
+        : { taskIndices: [], wrapperStart: -1, wrapperEnd: -1 };
     const tasksToSuggest = suggestedIndices
         .map(i => labelledTasks[i])
         // Cannot suggest the current task or the "Start" task
-        .filter((task) => task.task === taskMode || task.task === "Start");
+        .filter((task) => !(task.task === taskMode || task.task === "Start"));
 
     // find commands that should be run right away
     const tasksToRun = labelledTasks.filter((_, index) => !suggestedIndices.includes(index));

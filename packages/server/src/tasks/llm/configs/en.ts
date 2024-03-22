@@ -37,6 +37,7 @@ export const config: LlmTaskConfig = {
         "In general, a command can be used when the user wants to perform an action. For example, if a user asks 'What's the weather?', you can respond with `/routine find`.",
         "When not using a command, you can provide suggested commands at the end of the message. Never suggest more than 4 commands.",
         "When suggesting commands, do not start the suggestion with anything like 'Here are some commands you can use'. Just use the 'suggested_commands' format directly after the message and some whitespace.",
+        "Remember to properly escape single quotes in properties.",
     ],
     __finish_context_rules: [
         "Use the provided command(s) to complete the user's request. This is the only way you can perform real actions.",
@@ -166,6 +167,9 @@ export const config: LlmTaskConfig = {
         name: {
             example: "Elon Musk",
         },
+        bio: {
+            example: "Hi, I'm Elon Musk. I'm the CEO of SpaceX and Tesla, and the founder of The Boring Company and Neuralink. I'm also the former CEO of X (f.k.a. Twitter).",
+        },
         occupation: {
             example: "CEO, entrepreneur",
         },
@@ -203,6 +207,7 @@ export const config: LlmTaskConfig = {
         },
         properties: config.__pick_properties([
             ["name", true],
+            ["bio", false],
             ["occupation", false],
             ["persona", false],
             ["startingMessage", false],
@@ -261,6 +266,7 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             ["id", true],
             ["name", false],
+            ["bio", false],
             ["occupation", false],
             ["persona", false],
             ["startingMessage", false],
@@ -931,6 +937,11 @@ export const convert: LlmTaskConverters = {
         isBotDepictingPerson: false,
         isPrivate: true,
         name: noEmptyString(data.name) ?? "Bot",
+        translationsCreate: noEmptyString(data.bio) ? [{
+            id: uuid(),
+            language: "en",
+            bio: noEmptyString(data.bio),
+        }] : undefined,
         botSettings: JSON.stringify({
             creativity: validNumber(data.creativity, 0),
             verbosity: validNumber(data.verbosity, 0),
@@ -961,6 +972,12 @@ export const convert: LlmTaskConverters = {
         return {
             id: data.id + "",
             name: noEmptyString(data.name),
+            translationsUpdate: noEmptyString(data.bio) ? [{
+                id: uuid(),
+                language: "en",
+                ...existing.translations?.find(t => t.language === "en"),
+                bio: noEmptyString(data.bio),
+            }] : undefined,
             botSettings: JSON.stringify({
                 ...settings,
                 translations: Object.entries(settings.translations ?? {}).reduce((acc, [key, value]) => {

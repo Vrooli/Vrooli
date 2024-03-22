@@ -131,8 +131,24 @@ type MessageRenderData = {
     onActiveIndexChange: (newIndex: number) => unknown;
     onDeleted: (message: ChatMessageShape) => unknown;
     message: ChatMessageShape;
+    isLastMessage: boolean;
     isOwn: boolean;
 }
+
+type ChatBubbleTreeProps = {
+    branches: BranchMap,
+    dimensions: Dimensions,
+    dimRef: RefObject<HTMLElement>,
+    editMessage: (updatedMessage: ChatMessageShape) => unknown,
+    handleReply: (message: ChatMessageShape) => unknown,
+    handleRetry: (message: ChatMessageShape) => unknown,
+    handleTaskClick: (task: LlmTaskInfo) => unknown,
+    isBotOnlyChat: boolean,
+    messageTasks: Record<string, LlmTaskInfo[]>,
+    removeMessages: (messageIds: string[]) => unknown,
+    setBranches: Dispatch<SetStateAction<BranchMap>>,
+    tree: MessageTree<ChatMessageShape>,
+};
 
 export const ChatBubbleTree = ({
     branches,
@@ -141,24 +157,13 @@ export const ChatBubbleTree = ({
     editMessage,
     handleReply,
     handleRetry,
+    handleTaskClick,
     isBotOnlyChat,
     messageTasks,
     removeMessages,
     setBranches,
     tree,
-}: {
-    branches: BranchMap,
-    dimensions: Dimensions,
-    dimRef: RefObject<HTMLElement>,
-    editMessage: (updatedMessage: ChatMessageShape) => unknown,
-    handleReply: (message: ChatMessageShape) => unknown,
-    handleRetry: (message: ChatMessageShape) => unknown,
-    isBotOnlyChat: boolean,
-    messageTasks: Record<string, LlmTaskInfo[]>,
-    removeMessages: (messageIds: string[]) => unknown,
-    setBranches: Dispatch<SetStateAction<BranchMap>>,
-    tree: MessageTree<ChatMessageShape>,
-}) => {
+}: ChatBubbleTreeProps) => {
     const session = useContext(SessionContext);
 
     const messageData = useMemo<MessageRenderData[]>(() => {
@@ -175,6 +180,7 @@ export const ChatBubbleTree = ({
             // Fallback to first child if no branch data is found
             if (!childId) childId = sibling.children[0];
             const activeChildIndex = Math.max(sibling.children.findIndex(id => id === childId), 0);
+            const isLastMessage = sibling.children.length === 0;
 
             if (!sibling) return [];
             return [
@@ -195,6 +201,7 @@ export const ChatBubbleTree = ({
                     onDeleted: (message) => { removeMessages([message.id]); },
                     message: sibling.message,
                     isOwn,
+                    isLastMessage,
                 },
                 ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
             ];
@@ -216,11 +223,13 @@ export const ChatBubbleTree = ({
                     activeIndex={data.activeIndex}
                     chatWidth={dimensions.width}
                     isBotOnlyChat={isBotOnlyChat}
+                    isLastMessage={data.isLastMessage}
                     numSiblings={data.numSiblings}
                     onActiveIndexChange={data.onActiveIndexChange}
                     onDeleted={data.onDeleted}
                     onReply={handleReply}
                     onRetry={handleRetry}
+                    onTaskClick={handleTaskClick}
                     onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
                     message={data.message}
                     isOwn={data.isOwn}

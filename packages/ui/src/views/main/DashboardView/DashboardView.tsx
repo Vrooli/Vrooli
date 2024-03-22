@@ -522,6 +522,7 @@ export const DashboardView = ({
                     editMessage={messageActions.putMessage}
                     handleReply={messageTree.replyToMessage}
                     handleRetry={messageActions.regenerateResponse}
+                    handleTaskClick={messageActions.respondToTask}
                     isBotOnlyChat={isBotOnlyChat}
                     messageTasks={messageTree.messageTasks}
                     removeMessages={messageTree.removeMessages}
