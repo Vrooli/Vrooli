@@ -218,7 +218,7 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     <OrganizationView display="page" />
                 </NavRoute>
                 <NavRoute
-                    path={LINKS.Premium}
+                    path={LINKS.Pro}
                     excludePageContainer
                     sitemapIndex
                     priority={0.5}

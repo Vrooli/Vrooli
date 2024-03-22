@@ -3,7 +3,7 @@ import { CommonKey, LINKS, Session } from "@local/shared";
 import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
 import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "icons";
-import { openLink, SetLocation } from "route";
+import { SetLocation, openLink } from "route";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 
@@ -56,7 +56,7 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     // Display about, pricing, and login for logged out users 
     else {
         actions.push(["About", NAV_ACTION_TAGS.About, LINKS.About, HelpIcon, 0]);
-        actions.push(["Pricing", NAV_ACTION_TAGS.Pricing, LINKS.Premium, PremiumIcon, 0]);
+        actions.push(["Pricing", NAV_ACTION_TAGS.Pricing, LINKS.Pro, PremiumIcon, 0]);
         actions.push(["Log In", NAV_ACTION_TAGS.LogIn, LINKS.Login, CreateAccountIcon, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));

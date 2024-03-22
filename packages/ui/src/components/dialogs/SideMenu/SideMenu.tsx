@@ -337,7 +337,7 @@ export const SideMenu = () => {
                     <NavListItem label={t("View", { count: 2 })} Icon={HistoryIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Viewed}`)} palette={palette} />
                     <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
                     <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
-                    <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
+                    <NavListItem label={t("Pro")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Pro)} palette={palette} />
                     <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
                     <NavListItem label={t("Tutorial")} Icon={HelpIcon} onClick={(event) => handleAction(event, toActionOption(Actions.tutorial))} palette={palette} />
                 </List>

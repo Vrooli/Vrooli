@@ -51,7 +51,7 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.MyStuff]: GridIcon,
     [LINKS.Note]: NoteIcon,
     [LINKS.Organization]: OrganizationIcon,
-    [LINKS.Premium]: PremiumIcon,
+    [LINKS.Pro]: PremiumIcon,
     [LINKS.Profile]: UserIcon,
     [LINKS.Project]: ProjectIcon,
     [LINKS.Question]: HelpIcon,

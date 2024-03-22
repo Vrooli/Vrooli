@@ -3,6 +3,12 @@ import { API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 /**
+ * The max number of free credits to give to premium users.
+ * This is 6x the monthly free amount.
+ */
+const MAX_FREE_CREDITS = BigInt(6) * API_CREDITS_PREMIUM;
+
+/**
  * Provides free credits to premium users.
  */
 export const paymentsCreditsFreePremium = async (): Promise<void> => {
@@ -14,8 +20,19 @@ export const paymentsCreditsFreePremium = async (): Promise<void> => {
 
                 await prisma.premium.update({
                     where: { id: user.premium.id },
-                    // Make sure not to get rid of any existing credits over the free amount
-                    data: { credits: API_CREDITS_PREMIUM > user.premium.credits ? API_CREDITS_PREMIUM : user.premium.credits },
+                    // Only give free credits if the user has less than 6x the monthly free amount
+                    data: {
+                        // If user has less than the max free amount
+                        credits: user.premium.credits < MAX_FREE_CREDITS
+                            // If user has less than the max free amount - the monthly free amount
+                            ? user.premium.credits < (MAX_FREE_CREDITS - API_CREDITS_PREMIUM)
+                                // Give the monthly free amount
+                                ? user.premium.credits + API_CREDITS_PREMIUM
+                                // Give them the max free amount, since the refill would put them over the max free amount
+                                : MAX_FREE_CREDITS
+                            // Otherwise (the user has more than the max free amount) keep their current amount
+                            : user.premium.credits,
+                    },
                 });
                 // Notify user of free credits
                 if (API_CREDITS_PREMIUM > user.premium.credits) {
@@ -28,7 +45,7 @@ export const paymentsCreditsFreePremium = async (): Promise<void> => {
             id: true,
             languages: {
                 select: {
-                    language: true
+                    language: true,
                 },
             },
             premium: {

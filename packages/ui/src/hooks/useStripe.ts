@@ -3,7 +3,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { parseSearchParams, removeSearchParams, useLocation } from "route";
+import { openLink, parseSearchParams, removeSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { useFetch } from "./useFetch";
@@ -17,7 +17,7 @@ export const useStripe = () => {
     const [loading, setLoading] = useState(false);
 
     const { data: prices } = useFetch<undefined, { monthly: number, yearly: number }>({
-        endpoint: "/premium-prices",
+        endpoint: "/subscription-prices",
         method: "GET",
         omitRestBase: true,
     });
@@ -36,7 +36,7 @@ export const useStripe = () => {
                     const paymentType = window.localStorage.getItem("paymentType");
                     // Show alert and confetti
                     PubSub.get().publish("alertDialog", {
-                        messageKey: paymentType === PaymentType.Donation ? "DonationPaymentSuccess" : "PremiumPaymentSuccess",
+                        messageKey: paymentType === PaymentType.Donation ? "DonationPaymentSuccess" : "ProPaymentSuccess",
                         buttons: [{
                             labelKey: "Reload",
                             // Reload the page
@@ -62,6 +62,17 @@ export const useStripe = () => {
 
     /** Creates stripe checkout session and redirects to checkout page */
     const startCheckout = async (variant: PaymentType) => {
+        // If not logged in and trying to get premium, redirect to signup page
+        if (!currentUser.id && variant !== PaymentType.Donation) {
+            openLink(setLocation, LINKS.Signup, { redirect: window.location.pathname });
+            return;
+        }
+
+        const finish = () => {
+            setLoading(false);
+            PubSub.get().publish("loading", false);
+        };
+
         setLoading(true);
         PubSub.get().publish("loading", true);
         // Initialize Stripe
@@ -69,6 +80,7 @@ export const useStripe = () => {
         if (!stripe) {
             console.error("Stripe failed to load");
             PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
+            finish();
             return;
         }
         // Call server to create checkout session
@@ -92,8 +104,7 @@ export const useStripe = () => {
         }).catch((error) => {
             PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
         }).finally(() => {
-            setLoading(false);
-            PubSub.get().publish("loading", false);
+            finish();
         });
     };
 

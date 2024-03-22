@@ -29,7 +29,7 @@ export const FocusModeSelector = () => {
         if (canAdd) setLocation(LINKS.SettingsFocusModes);
         // If you can't add and don't have premium, open premium page
         else if (!hasPremium) {
-            setLocation(LINKS.Premium);
+            setLocation(LINKS.Pro);
             PubSub.get().publish("snack", { message: "Upgrade to increase limit", severity: "Info" });
         }
         // Otherwise, show error
