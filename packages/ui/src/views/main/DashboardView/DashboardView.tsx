@@ -368,6 +368,7 @@ export const DashboardView = ({
         chat,
         handleChatUpdate: onSubmit,
         language: languages[0],
+        updateTasksForMessage: messageTree.updateTasksForMessage,
     });
 
     const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;

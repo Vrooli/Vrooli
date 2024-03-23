@@ -36,6 +36,7 @@ export type RequestBotMessagePayload = {
      */
     userData: SessionUserToken;
 }
+// TODO can provide state management to bot message payload by adding a routineId field and some field that describes our spot in the routine. This plus passing in data (for autofilling forms, etc.) and passing data to the next step in the routine will allow us to automate routines. Then we can build all of the routines needed to build/improve routines, and we should be good to go!
 
 /**
  * Payload for generating a bot response for autofill of a form
@@ -58,7 +59,44 @@ export type RequestAutoFillPayload = {
     userData: SessionUserToken;
 }
 
-export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload;
+/**
+ * Payload for starting a suggested task
+ */
+export type StartTaskPayload = {
+    __process: "StartTask";
+    /**
+     * The ID of the bot the task will be performed by
+     */
+    botId: string;
+    /**
+     * Label for the task, to provide in notifications
+     */
+    label: string;
+    /**
+     * The ID of the message the task was suggested in. 
+     * Used to grab the relevant chat context
+     */
+    messageId: string;
+    /**
+     * Any properties provided with the task
+     */
+    properties: object;
+    /**
+     * The task to start
+     */
+    task: LlmTask | `${LlmTask}`;
+    /**
+     * The ID of the task, so we can update its status in the UI
+     */
+    taskId: string;
+    /**
+     * The user data of the user who triggered the task
+     */
+    userData: SessionUserToken;
+
+}
+
+export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload | StartTaskPayload;
 
 let logger: winston.Logger;
 let HOST: string;

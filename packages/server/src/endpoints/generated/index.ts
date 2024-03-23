@@ -48,6 +48,7 @@ export * from "./chatMessage_create";
 export * from "./chatMessage_update";
 export * from "./chatMessage_regenerateResponse";
 export * from "./chatMessage_autoFill";
+export * from "./chatMessage_startTask";
 export * from "./chatParticipant_findOne";
 export * from "./chatParticipant_findMany";
 export * from "./chatParticipant_update";

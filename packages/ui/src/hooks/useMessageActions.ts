@@ -1,8 +1,9 @@
-import { Chat, DUMMY_ID, LlmTaskInfo, RegenerateResponseInput, Success, endpointPostRegenerateResponse, uuid } from "@local/shared";
+import { Chat, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartTaskInput, Success, VALYXA_ID, endpointPostRegenerateResponse, endpointPostStartTask, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
 import { getCurrentUser } from "utils/authentication/session";
+import { setCookieTaskForMessage } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
@@ -12,6 +13,7 @@ type UseMessageActionsProps = {
     chat: ChatShape;
     handleChatUpdate: (updatedChat?: ChatShape) => Promise<Chat>;
     language: string;
+    updateTasksForMessage: (messageId: string, tasks: LlmTaskInfo[]) => unknown
 };
 
 /**
@@ -22,6 +24,7 @@ export const useMessageActions = ({
     chat,
     handleChatUpdate,
     language,
+    updateTasksForMessage,
 }: UseMessageActionsProps) => {
     const session = useContext(SessionContext);
 
@@ -120,6 +123,7 @@ export const useMessageActions = ({
         });
     }, [regenerate]);
 
+    const [startTask] = useLazyFetch<StartTaskInput, Success>(endpointPostStartTask);
     /** 
      * Handle a suggested task, depending on its state
      */
@@ -127,15 +131,39 @@ export const useMessageActions = ({
         console.log("in respondToTask", task);
         // Ignore if status is "completed" or "failed"
         if (["completed", "failed"].includes(task.status)) return;
+        // Ignore if this isn't a task type that can be started/stopped
+        if (["Start"].includes(task.task)) return;
+        // Only respond if we can find the message
+        if (!task.messageId) return;
+        const message = chat.messages?.find((message) => message.id === task.messageId);
+        if (!message) return;
         // If status is "suggested", trigger the task
         if (task.status === "suggested") {
-            //TODO
+            setCookieTaskForMessage(message.id, { ...task, status: "running" });
+            updateTasksForMessage(message.id, [{ ...task, status: "running" }]);
+            fetchLazyWrapper<StartTaskInput, Success>({
+                fetch: startTask,
+                inputs: {
+                    botId: message.user?.id ?? VALYXA_ID,
+                    label: task.label,
+                    messageId: message.id ?? "",
+                    properties: task.properties ?? {},
+                    task: task.task as LlmTask,
+                    taskId: task.id,
+                },
+                successCondition: (data) => data && data.success === true,
+                errorMessage: () => ({ messageKey: "ActionFailed" }),
+                onError: () => {
+                    setCookieTaskForMessage(message.id, { ...task, status: "suggested" });
+                    updateTasksForMessage(message.id, [{ ...task, status: "suggested" }]);
+                },
+            });
         }
         // If status is "running", attempt to pause/stop the task
         else if (task.status === "running") {
             //TODO
         }
-    }, []);
+    }, [chat, startTask, updateTasksForMessage]);
 
     return {
         postMessage,

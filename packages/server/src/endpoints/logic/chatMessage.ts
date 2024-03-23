@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, Success, uuidValidate } from "@local/shared";
+import { AutoFillInput, AutoFillResult, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, StartTaskInput, Success, uuidValidate } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -8,7 +8,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
 import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { ChatMessageModelLogic } from "../../models/base/types";
-import { llmProcessAutoFill } from "../../tasks/llm/process";
+import { llmProcessAutoFill, llmProcessStartTask } from "../../tasks/llm/process";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 import { bestTranslation } from "../../utils/bestTranslation";
@@ -25,6 +25,7 @@ export type EndpointsChatMessage = {
         chatMessageUpdate: GQLEndpoint<ChatMessageUpdateInput, UpdateOneResult<ChatMessage>>;
         regenerateResponse: GQLEndpoint<RegenerateResponseInput, Success>;
         autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
+        startTask: GQLEndpoint<StartTaskInput, Success>;
     }
 }
 
@@ -173,6 +174,12 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             await rateLimit({ maxUser: 1000, req });
 
             return llmProcessAutoFill({ ...input, userData, __process: "AutoFill" });
+        },
+        startTask: async (_, { input }, { prisma, req }) => {
+            const userData = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ maxUser: 1000, req });
+
+            return llmProcessStartTask({ ...input, userData, __process: "StartTask" });
         },
     },
 };

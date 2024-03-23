@@ -298,6 +298,12 @@ export const endpointGetAutoFill = {
     tag: "chatMessage",
 } as const;
 
+export const endpointPostStartTask = {
+    endpoint: "/startTask",
+    method: "POST",
+    tag: "chatMessage",
+} as const;
+
 export const endpointGetChatParticipant = {
     endpoint: "/chatParticipant/:id",
     method: "GET",

@@ -292,6 +292,7 @@ const ChatForm = ({
         chat: values,
         handleChatUpdate: onSubmit,
         language,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
     });
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);

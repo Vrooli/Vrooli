@@ -180,6 +180,15 @@ export const typeDef = gql`
         data: JSON!
     }
 
+    input StartTaskInput {
+        botId: String!
+        label: String!
+        messageId: ID!
+        properties: JSON!
+        task: LlmTask!
+        taskId: ID!
+    }
+
     extend type Query {
         chatMessage(input: FindByIdInput!): ChatMessage
         chatMessages(input: ChatMessageSearchInput!): ChatMessageSearchResult!
@@ -191,6 +200,7 @@ export const typeDef = gql`
         chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
         regenerateResponse(input: RegenerateResponseInput!): Success!
         autoFill(input: AutoFillInput!): AutoFillResult!
+        startTask(input: StartTaskInput!): Success!
     }
 `;
 
