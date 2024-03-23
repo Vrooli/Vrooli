@@ -190,9 +190,12 @@ const ChatForm = ({
     useEffect(() => {
         if (isOpen === false || values.id !== DUMMY_ID || chatCreateStatus.current !== "notStarted") return;
         chatCreateStatus.current = "inProgress";
+        // Search params are often used to set chat name, but might not include translation ID
+        const withSearchParams = { ...values, ...parseSearchParams() };
+        withSearchParams.translations = withSearchParams.translations?.map(t => ({ ...t, id: t.id ?? DUMMY_ID })) ?? [];
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages({ ...values, ...parseSearchParams() }, session), withoutOtherMessages(existing, session), true),
+            inputs: transformChatValues(withoutOtherMessages(withSearchParams, session), withoutOtherMessages(existing, session), true),
             onSuccess: (data) => {
                 handleUpdate({ ...data, messages: [] });
                 if (display === "page") setLocation(getObjectUrl(data), { replace: true });
