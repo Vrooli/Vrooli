@@ -5,6 +5,8 @@ import { SessionUserToken } from "../../types";
 import { CommandToTask, LlmTaskProperty, getUnstructuredTaskConfig, importConfig } from "./config";
 import { generateResponseWithFallback } from "./service";
 
+export type ExistingTaskData = Record<string, string | number | boolean | null>;
+
 export type PartialTaskInfo = Omit<LlmTaskInfo, "label" | "status"> & {
     start: number;
     end: number;
@@ -661,13 +663,17 @@ export const extractTasks = (
  * 
  * @param potentialTasks The array of potential tasks extracted from the input string.
  * @param taskMode The current task mode, which determines the tasks that can be triggered next.
+ * @param existingData Data we already have for the task (e.g. if doing autofill, fields already filled in), 
+ * which should be omitted when checking for required properties.
+ * @param language The language the potential tasks were generated in.
  * @returns An array of valid tasks after filtering out the invalid ones, and removing any invlaid 
  * actions and properties.
  */
 export const filterInvalidTasks = async (
     potentialTasks: MaybeLlmTaskInfo[],
     taskMode: LlmTask | `${LlmTask}`,
-    language?: string,
+    existingData: ExistingTaskData | null,
+    language: string,
 ): Promise<PartialTaskInfo[]> => {
     const result: PartialTaskInfo[] = [];
 
@@ -676,14 +682,14 @@ export const filterInvalidTasks = async (
 
     // Loop through each potential task
     for (const task of potentialTasks) {
-        const modifiedCommand = { ...task };
-        const requiresAction = taskConfig.actions && taskConfig.actions.length > 0;
+        // Store copy so we can modify it
+        const modifiedTask = { ...task };
+        const requiresAction = Boolean(taskConfig.actions?.length);
+        const existingKeys = existingData ? Object.keys(existingData) : [];
 
-        console.log("before valid task check", task.task, taskMode);
         // If the task is not a valid task, skip it
-        if (!task.task) modifiedCommand.task = taskMode;
+        if (!task.task) modifiedTask.task = taskMode;
         else if (!Object.keys(LlmTask).includes(task.task)) continue;
-        console.log("made it past valid task check");
 
         let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, task.command);
 
@@ -695,9 +701,9 @@ export const filterInvalidTasks = async (
             // E.g. "/action prop1='hello'" -> "/command action prop1='hello'"
             if (taskConfig.actions && taskConfig.actions.includes(task.command) && commandKeys.length === 1) {
                 // Set action to the command
-                modifiedCommand.action = task.command;
+                modifiedTask.action = task.command;
                 // Set command to the only command available in the task config
-                modifiedCommand.command = commandKeys[0];
+                modifiedTask.command = commandKeys[0];
                 commandIsValid = true; // Mark the command as valid now
             }
             // If the command is invalid but matches an action, and this task doesn't have any actions, then 
@@ -705,9 +711,9 @@ export const filterInvalidTasks = async (
             // E.g. "/invalid command prop1='hello'" -> "/command prop1='hello'"
             else if (task.action && commandKeys.includes(task.action) && !requiresAction) {
                 // Set action to null
-                modifiedCommand.action = null;
+                modifiedTask.action = null;
                 // Set command to the action
-                modifiedCommand.command = task.action;
+                modifiedTask.command = task.action;
                 commandIsValid = true; // Mark the command as valid now
             }
         }
@@ -716,25 +722,35 @@ export const filterInvalidTasks = async (
         if (!commandIsValid) continue;
 
         // If the command has an invalid action, then it is invalid
-        if (requiresAction && (!modifiedCommand.action || !taskConfig.actions?.includes(modifiedCommand.action))) {
+        if (requiresAction && (!modifiedTask.action || !taskConfig.actions?.includes(modifiedTask.action))) {
             continue;
+        }
+        // If the task config has no actions, make sure the action is null
+        else if (!requiresAction && modifiedTask.action) {
+            modifiedTask.action = null;
         }
 
         // If the command has properties, filter out the invalid ones and check for required properties
         if (task.properties) {
             // Remove the properties so that we can add the valid ones back
-            modifiedCommand.properties = {};
+            modifiedTask.properties = {};
 
             // Identify all required properties from the task configuration to ensure they are present
-            const requiredProperties = taskConfig.properties?.filter(prop => typeof prop === "object" && prop.is_required).map(prop => (prop as LlmTaskProperty).name) ?? [];
+            const requiredProperties = taskConfig.properties
+                ?.filter(prop => typeof prop === "object" && prop.is_required && !existingKeys.includes(prop.name))
+                .map(prop => (prop as LlmTaskProperty).name) ?? [];
 
-            // Check each property in the command
+            // Check each property in the command and not already filled in
             Object.entries(task.properties).forEach(([key, value]) => {
-                const propertyConfig = taskConfig.properties?.find(prop => (typeof prop === "object" ? prop.name : prop) === key);
+                const propertyConfig = taskConfig.properties
+                    ?.find(prop => {
+                        const propName = typeof prop === "object" ? prop.name : prop;
+                        return propName === key && !existingKeys.includes(propName);
+                    });
 
                 // If the property config exists, keep the property
                 if (propertyConfig) {
-                    modifiedCommand.properties![key] = value;
+                    modifiedTask.properties![key] = value;
                     // Remove the property from requiredProperties if it's present and valid, indicating it's not missing
                     const requiredIndex = requiredProperties.indexOf(key);
                     if (requiredIndex !== -1) requiredProperties.splice(requiredIndex, 1);
@@ -743,17 +759,20 @@ export const filterInvalidTasks = async (
 
             // After checking all properties, if any required properties are still missing, mark the command as having missing required properties
             if (requiredProperties.length > 0) {
-                logger.error(`Command "${modifiedCommand.command}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
+                logger.error(`Command "${modifiedTask.command}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
             }
             // Otherwise, the command is valid
             else {
-                result.push(modifiedCommand as PartialTaskInfo);
+                result.push(modifiedTask as PartialTaskInfo);
             }
         } else {
-            // If the command has no properties, it's still valid as long as it doesn't require any
-            const requiresProperties = taskConfig.properties?.some(prop => typeof prop === "object" && prop.is_required) ?? false;
+            // If the command has no properties, it's still valid as long as 
+            // it doesn't require any properties not already filled in
+            const requiresProperties = taskConfig.properties ?
+                taskConfig.properties.some(prop => typeof prop === "object" && prop.is_required && !existingKeys.includes(prop.name))
+                : false;
             if (!requiresProperties) {
-                result.push(modifiedCommand as PartialTaskInfo);
+                result.push(modifiedTask as PartialTaskInfo);
             }
         }
     }
@@ -782,21 +801,35 @@ export const removeTasks = (inputString: string, tasks: PartialTaskInfo[]): stri
     return resultString;
 };
 
+type GetValidTasksFromMessageParams = {
+    /** A function for converting a command and action to a valid task name */
+    commandToTask: CommandToTask,
+    /**
+     * Data we already have for the tasksToRun (e.g. if doing autofill, fields already filled in).
+     *  
+     * This data will be omitted when checking for required properties.
+     */
+    existingData: ExistingTaskData | null,
+    /** The language of the user */
+    language: string,
+    /** The message containing the tasks */
+    message: string,
+    /** The current task mode, which determines the tasks we're allowed to start next */
+    taskMode: LlmTask | `${LlmTask}`,
+}
+
 /**
  * Extracts valid tasks from a message and returns the message without the tasks.
- * @param message The message containing the tasks
- * @param taskMode The current task mode, which determines the tasks we're allowed to start next
- * @param language The language of the user
- * @param commandToTask A function for converting a command and action to a valid task name
  * @returns An object containing tasks that should be run right away, suggested tasks, 
  * and the message without the tasks
  */
-export const getValidTasksFromMessage = async (
-    message: string,
-    taskMode: LlmTask | `${LlmTask}`,
-    language: string,
-    commandToTask: CommandToTask,
-): Promise<{
+export const getValidTasksFromMessage = async ({
+    commandToTask,
+    existingData,
+    language,
+    message,
+    taskMode,
+}: GetValidTasksFromMessageParams): Promise<{
     tasksToRun: Omit<LlmTaskInfo, "status">[],
     tasksToSuggest: Omit<LlmTaskInfo, "status">[],
     messageWithoutTasks: string,
@@ -804,7 +837,7 @@ export const getValidTasksFromMessage = async (
     // Extract all possible commands from the message
     const maybeTasks = extractTasks(message, commandToTask);
     // Filter out commands that are not valid for the current task
-    const validTasks = await filterInvalidTasks(maybeTasks, taskMode, language);
+    const validTasks = await filterInvalidTasks(maybeTasks, taskMode, existingData, language);
 
     // Add labels to the valid commands
     const config = await importConfig(language);
@@ -850,6 +883,7 @@ export const getValidTasksFromMessage = async (
 export type ForceGetTaskParams = {
     chatId?: string | null,
     commandToTask: CommandToTask,
+    existingData?: ExistingTaskData | null,
     language: string,
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings,
@@ -869,6 +903,7 @@ export type ForceGetTaskParams = {
 export const forceGetTask = async ({
     chatId,
     commandToTask,
+    existingData,
     language,
     participantsData,
     respondingBotConfig,
@@ -900,7 +935,13 @@ export const forceGetTask = async ({
         totalCost += cost;
 
         // Check for tasks in the start response
-        const { tasksToRun, tasksToSuggest, messageWithoutTasks } = await getValidTasksFromMessage(message, task, language, commandToTask);
+        const { tasksToRun, tasksToSuggest, messageWithoutTasks } = await getValidTasksFromMessage({
+            commandToTask,
+            existingData: existingData ?? null,
+            language,
+            message,
+            taskMode: task,
+        });
 
         // If a valid task is found, return it
         if (tasksToRun.length > 0) {

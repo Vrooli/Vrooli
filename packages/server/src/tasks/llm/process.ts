@@ -16,7 +16,7 @@ import { importCommandToTask } from "./config";
 import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload } from "./queue";
 import { generateResponseWithFallback } from "./service";
-import { ForceGetTaskParams, forceGetTask, getValidTasksFromMessage } from "./tasks";
+import { ExistingTaskData, ForceGetTaskParams, forceGetTask, getValidTasksFromMessage } from "./tasks";
 
 const parseBotInformation = (
     participants: Record<string, PreMapUserData>,
@@ -68,7 +68,13 @@ export const llmProcessBotMessage = async ({
             let respondingToMessage: { id: string, text: string } | null = null;
             if (parent) {
                 // Check for commands in user's message
-                const { tasksToRun, messageWithoutTasks } = await getValidTasksFromMessage(parent.content, task, language, commandToTask);
+                const { tasksToRun, messageWithoutTasks } = await getValidTasksFromMessage({
+                    commandToTask,
+                    existingData: null,
+                    language,
+                    message: parent.content,
+                    taskMode: task,
+                });
                 for (const taskInfo of tasksToRun) {
                     processLlmTask({
                         taskInfo,
@@ -126,7 +132,13 @@ export const llmProcessBotMessage = async ({
                 totalCost += cost;
 
                 // Check for commands in bot's response
-                const { tasksToRun, tasksToSuggest, messageWithoutTasks: botResponseWithoutCommands } = await getValidTasksFromMessage(botResponse, task, language, commandToTask);
+                const { tasksToRun, tasksToSuggest, messageWithoutTasks: botResponseWithoutCommands } = await getValidTasksFromMessage({
+                    commandToTask,
+                    existingData: null,
+                    language,
+                    message: botResponse,
+                    taskMode: task,
+                });
                 botCommandsToRun = tasksToRun;
                 botTasksToSuggest = tasksToSuggest;
                 if (botResponseWithoutCommands.trim() !== "") {
@@ -275,6 +287,7 @@ export const llmProcessAutoFill = async ({
             const commandToTask = await importCommandToTask(language);
             const { taskToRun, cost } = await forceGetTask({
                 commandToTask,
+                existingData: data as ExistingTaskData,
                 language,
                 participantsData,
                 respondingBotConfig: botSettings,

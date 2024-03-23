@@ -1319,7 +1319,7 @@ const detectWrappedTasksTester = ({
     delimiter: string | null,
     input: string,
     expected: {
-        commandIndices: number[],
+        taskIndices: number[],
         wrapperStart: number,
         wrapperEnd: number,
     }[],
@@ -1417,7 +1417,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [0],
+                    taskIndices: [0],
                     wrapperStart: 0,
                     wrapperEnd: input.length - 1,
                 }],
@@ -1429,7 +1429,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [0],
+                    taskIndices: [0],
                     wrapperStart: 5,
                     wrapperEnd: input.length - 1,
                 }],
@@ -1441,7 +1441,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [1],
+                    taskIndices: [1],
                     wrapperStart: "/firstCommand hello ".length,
                     wrapperEnd: input.length - 1,
                 }],
@@ -1453,7 +1453,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [1],
+                    taskIndices: [1],
                     wrapperStart: "/firstCommand hello ".length,
                     wrapperEnd: input.length - 2,
                 }],
@@ -1465,7 +1465,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [1],
+                    taskIndices: [1],
                     wrapperStart: "/firstCommand hello ".length,
                     wrapperEnd: input.length - 1,
                 }],
@@ -1477,7 +1477,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [1],
+                    taskIndices: [1],
                     wrapperStart: "/firstCommand hello name=\"hi\" ".length,
                     wrapperEnd: input.length - 1,
                 }],
@@ -1489,7 +1489,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [0],
+                    taskIndices: [0],
                     wrapperStart: `${start}: `.length, // First ${start} is ignored
                     wrapperEnd: input.length - 1,
                 }],
@@ -1501,7 +1501,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: [{
-                    commandIndices: [1],
+                    taskIndices: [1],
                     wrapperStart: "/hi there ".length,
                     wrapperEnd: input.length - 1,
                 }],
@@ -1513,7 +1513,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: delimiter ? [{
-                    commandIndices: [0, 1],
+                    taskIndices: [0, 1],
                     wrapperStart: 0,
                     wrapperEnd: input.length - 1,
                 }] : [],
@@ -1525,7 +1525,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: delimiter ? [{
-                    commandIndices: [0, 1],
+                    taskIndices: [0, 1],
                     wrapperStart: 0,
                     wrapperEnd: input.length - 1,
                 }] : [],
@@ -1537,7 +1537,7 @@ describe("detectWrappedTasks", () => {
             detectWrappedTasksTester({
                 input,
                 expected: delimiter ? [{
-                    commandIndices: [0, 1],
+                    taskIndices: [0, 1],
                     wrapperStart: 0,
                     wrapperEnd: input.length - 1,
                 }] : [],
@@ -2373,9 +2373,88 @@ describe("extractTasks", () => {
 });
 
 describe("filterInvalidTasks", () => {
-    test("filters out commands where the task is invalid", async () => {
+    test("Filters: all valid except for task", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "asjflkdjslafkjslaf" as LlmTask,
+            command: "routine",
+            action: "add",
+            properties: null,
+            start: 0,
+            end: 10,
+        }];
+
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en");
+        expect(result).toEqual([]);
+    });
+
+    test("Filters: command not in task mode - test 1", async () => {
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
+            task: "RoutineAdd",
+            command: "poutine", // Not a valid command, though everything else is correct
+            action: "add",
+            properties: null,
+            start: 0,
+            end: 10,
+        }];
+
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en");
+        expect(result).toEqual([]); // Command was invalid
+    });
+
+    test("Heals: invalid action - test 1", async () => {
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
+            task: "RoutineAdd",
+            command: "add",
+            action: "add", // RoutineAdd mode has no actions
+            properties: { name: "hello" },
+            start: 0,
+            end: 10,
+        }];
+
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
+        expect(result).toEqual([{
+            ...potentialCommands[0],
+            action: null,
+        }]);
+    });
+
+    test("Heals: invalid action - test 2", async () => {
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
+            task: "BotAdd",
+            command: "add",
+            action: "fkdjsalfsda", // BotAdd has no actions
+            properties: { name: "hello" },
+            start: 0,
+            end: 10,
+        }];
+
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en");
+        expect(result).toEqual([{
+            ...potentialCommands[0],
+            action: null,
+        }]);
+    });
+
+    test("Accepts: properties missing, but we're in the Start mode", async () => {
+        // The "Start" task allows us to trigger/suggest several commands, but we're 
+        // not given any properties. This should be allowed, even though they'd be 
+        // filtered out in other modes.
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
+            task: "BotAdd",
+            command: "bot",
+            action: "add",
+            properties: null,
+            start: 0,
+            end: 10,
+        }];
+
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en");
+        expect(result).toEqual(potentialCommands);
+    });
+
+    test("Filters: properties missing, and we're not the Start mode", async () => {
+        const potentialCommands: MaybeLlmTaskInfo[] = [{
+            task: "BotAdd",
             command: "add",
             action: null,
             properties: null,
@@ -2383,39 +2462,39 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
-        expect(result).toEqual([]);
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en");
+        expect(result).toEqual([]); // The "BotAdd" task requires a "name" property, but we're not given any properties.
     });
 
-    test("filters out commands not listed in taskConfig", async () => {
+    test("Accepts: properties missing, but they are provided in existingData", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "Start",
-            command: "poutine",
-            action: "add",
+            task: "BotAdd",
+            command: "add",
+            action: null,
             properties: null,
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start");
-        expect(result).toEqual([]);
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", { name: "hello" }, "en");
+        expect(result).toEqual(potentialCommands);
     });
 
-    test("filters out commands with invalid actions", async () => {
+    test("Accepts: valid potential command, no trickery", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "Start",
-            command: "routine",
-            action: "fkdjsalfsda",
-            properties: null,
+            task: "BotAdd",
+            command: "add",
+            action: null,
+            properties: { name: "hello" },
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start");
-        expect(result).toEqual([]);
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en");
+        expect(result).toEqual(potentialCommands);
     });
 
-    test("filters out invalid properties from commands", async () => {
+    test("omits invalid properties", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "add",
@@ -2425,13 +2504,13 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
         expect(result[0].command).toBe("add");
         expect(result[0].action).toBe(null);
         expect(result[0].properties).toEqual({ "name": "value" });
     });
 
-    test("identifies missing required properties", async () => {
+    test("Filters: missing required properties", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "add",
@@ -2441,60 +2520,22 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
         expect(result).toEqual([]); // Missing required property
     });
 
-    test("accepts valid commands with correct properties", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "RoutineAdd",
-            command: "add",
-            action: null,
-            properties: { "name": "value" },
-            start: 0,
-            end: 10,
-        }];
-
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
-        expect(result).toEqual(potentialCommands);
-    });
-
-    test("corrects null task", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: null,
-            command: "add",
-            action: null,
-            properties: { "name": "value" },
-            start: 0,
-            end: 10,
-        }];
-
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
-        expect(result).toEqual([{
-            ...potentialCommands[0],
-            task: "RoutineAdd",
-            command: "add",
-            action: null,
-            properties: { "name": "value" },
-        }]);
-    });
-
-    test("corrects itself when command was passed in as an action", async () => {
+    test("Filters: command invalid, everything else valid", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "RoutineAdd",
             command: "boop", // Not a valid command
-            action: "add", // A valid command
+            action: null,
             properties: { "name": "value" },
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd");
-        expect(result).toEqual([{
-            ...potentialCommands[0],
-            command: "add",
-            action: null,
-        }]);
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
+        expect(result).toEqual([]);
     });
 });
 
