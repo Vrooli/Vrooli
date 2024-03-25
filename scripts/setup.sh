@@ -8,7 +8,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Default values
 REINSTALL_MODULES=""
 ON_REMOTE=""
-ENVIRONMENT="dev"
+ENVIRONMENT=$NODE_ENV
 ENV_FILES_SET_UP=""
 USE_KUBERNETES=false
 
@@ -40,7 +40,7 @@ for arg in "$@"; do
         shift
         ;;
     -p | --prod)
-        ENVIRONMENT="prod"
+        ENVIRONMENT="production"
         shift
         ;;
     -r | --remote)
@@ -206,7 +206,7 @@ if $USE_KUBERNETES; then
     fi
 
     # If in a development environment, install Minikube for running Kubernetes locally
-    if [ "${ENVIRONMENT}" = "dev" ]; then
+    if [ "${ENVIRONMENT}" = "development" ]; then
         if ! [ -x "$(command -v minikube)" ]; then
             info "Minikube not found. Installing Minikube..."
 
@@ -295,7 +295,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Development-specific setup
-if [ "${ENVIRONMENT}" = "dev" ]; then
+if [ "${ENVIRONMENT}" = "development" ]; then
     header "Installing global dependencies"
     installedPackages=$(yarn global list)
     check_and_add_to_install_list() {
@@ -389,7 +389,7 @@ echo "deb [signed-by=$VAULT_KEYRING] https://apt.releases.hashicorp.com $DISTRO_
 sudo apt update && sudo apt install -y vault
 # Setup vault based on environment
 FLAGS=""
-if [ "${ENVIRONMENT}" = "prod" ]; then
+if [ "${ENVIRONMENT}" = "production" ]; then
     FLAGS="${FLAGS}-p "
 fi
 if $USE_KUBERNETES; then
@@ -406,7 +406,7 @@ if [ "${ENV_FILES_SET_UP}" = "" ]; then
     echo
 fi
 if [[ "$ENV_FILES_SET_UP" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    if [ "${ENVIRONMENT}" = "dev" ]; then
+    if [ "${ENVIRONMENT}" = "development" ]; then
         info "Setting up secrets for development environment..."
         "${HERE}/setSecrets.sh" -e development
     else

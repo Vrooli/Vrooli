@@ -11,9 +11,9 @@
     },
     "scripts": {
         "test": "jest --coverage --config jest.config.cjs",
-        "pre-develop": "yarn pre-prod && yarn type-check",
         "build": "swc src -d dist",
         "pre-prod": "echo 'no pre-prod steps required'",
+        "pre-develop": "yarn pre-prod && yarn type-check",
         "start-development": "NODE_OPTIONS=\"--max-old-space-size=4096\" nodemon dist/index.js",
         "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "type-check": "NODE_OPTIONS=\"--max-old-space-size=6144\" tsc --noEmit"

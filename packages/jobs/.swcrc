@@ -1,4 +1,8 @@
 {
+    "exclude": [
+        "/.*\\/types\\.ts$/",
+        "/.*\\/types\\.d\\.ts$/"
+    ],
     "jsc": {
         "minify": {
             "compress": true,
