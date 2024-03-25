@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Automatically generates an .swcrc file based on the environment
 
 # Check if an argument was provided
@@ -8,16 +8,21 @@ if [ "$#" -ne 1 ]; then
 fi
 
 # Start of the .swcrc configuration
-echo '{
-    "exclude": ['
+cat << 'EOF'
+{
+    "exclude": [
+EOF
 
 # Conditional exclude for non-tests
 if [ "$1" != "test" ]; then
-    echo '        "/.*__mocks__.*/",'
+cat << 'EOF'
+        "/.*__mocks__.*/",
+EOF
 fi
 
 # More of the .swcrc configuration
-echo '        "/.*\\/types\\.ts$/",
+cat << 'EOF'
+        "/.*\\/types\\.ts$/",
         "/.*\\/types\\.d\\.ts$/"
     ],
     "jsc": {
@@ -35,13 +40,20 @@ echo '        "/.*\\/types\\.ts$/",
     },
     "module": {
         "type": "es6"
-    },'
+    },
+EOF
 
 # Conditional sourceMaps configuration
 if [ "$1" = "development" ]; then
-    echo '    "sourceMaps": true'
+cat << 'EOF'
+        "sourceMaps": true
+EOF
 else
-    echo '    "sourceMaps": false'
+cat << 'EOF'
+        "sourceMaps": false
+EOF
 fi
 
-echo '}'
+cat << 'EOF'
+}
+EOF
