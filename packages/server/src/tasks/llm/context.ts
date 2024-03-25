@@ -1,9 +1,9 @@
-import { PrismaType } from "@local/server";
 import { RedisClientType } from "redis";
+import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events/logger";
 import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { withRedis } from "../../redisConn";
-import { withPrisma } from "../../utils/withPrisma";
+import { UI_URL } from "../../server";
 import { LanguageModelService } from "./service";
 import { OpenAIService } from "./services/openai";
 
@@ -261,6 +261,10 @@ export class ChatContextCollector {
                 // until context size is reached or no more messages are found
                 while (currentMessageId && currentTokenCount < contextSize) {
                     const messageDetails = await this.getMessageDetails(redisClient, currentMessageId);
+                    if (!messageDetails) {
+                        logger.warning("Failed to find message details", { trace: "0080", currentMessageId });
+                        break; // Break the loop if message details are not found
+                    }
                     const estimationMethod = this.languageModelService.getEstimationMethod(model);
                     const [estimatedTokens, language] = await this.getTokenCountForLanguages(redisClient, currentMessageId, estimationMethod, languages);
 
@@ -280,7 +284,7 @@ export class ChatContextCollector {
 
                         currentMessageId = messageDetails.parentId ?? null;
                     } else {
-                        logger.warning("Failed to estimate tokens for message", { trace: "0075", messageDetails });
+                        logger.warning("Failed to estimate tokens for message", { trace: "0083", messageDetails });
                         break; // Break the loop if token estimation fails
                     }
                 }
@@ -329,60 +333,55 @@ export class ChatContextCollector {
         return latestMessages.length > 0 ? latestMessages[0] : null;
     }
 
-    async getMessageDetails(redisClient: RedisClientType, messageId: string): Promise<CachedChatMessage> {
+    async getMessageDetails(redisClient: RedisClientType, messageId: string): Promise<CachedChatMessage | null> {
         let messageData: CachedChatMessage = await redisClient.hGetAll(`message:${messageId}`) as CachedChatMessage;
 
         if (!messageData || typeof messageData !== "object" || Object.keys(messageData).length === 0) {
             // Query from Prisma if not found in Redis
-            let success = false;
-            await withPrisma({
-                process: async (prisma) => {
-                    const message = await prisma.chat_message.findUnique({
-                        where: { id: messageId },
-                        select: {
-                            id: true,
-                            parent: {
-                                select: {
-                                    id: true,
-                                },
-                            },
-                            translations: {
-                                select: {
-                                    language: true,
-                                    text: true,
-                                },
-                            },
-                            user: {
-                                select: {
-                                    id: true,
-                                },
+            try {
+                const message = await prismaInstance.chat_message.findUnique({
+                    where: { id: messageId },
+                    select: {
+                        id: true,
+                        parent: {
+                            select: {
+                                id: true,
                             },
                         },
-                    });
+                        translations: {
+                            select: {
+                                language: true,
+                                text: true,
+                            },
+                        },
+                        user: {
+                            select: {
+                                id: true,
+                            },
+                        },
+                    },
+                });
 
-                    if (message) {
-                        messageData = {
-                            id: message.id,
-                            translatedTokenCounts: JSON.stringify((new ChatContextManager(this.languageModelService)).calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes())),
-                        };
-                        if (message.parent) {
-                            messageData.parentId = message.parent.id;
-                        }
-                        if (message.user) {
-                            messageData.userId = message.user.id;
-                        }
-
-                        // Store the fetched data in Redis for future use
-                        await redisClient.hSet(`message:${messageId}`, messageData);
-
-                        success = true;
+                if (message) {
+                    messageData = {
+                        id: message.id,
+                        translatedTokenCounts: JSON.stringify((new ChatContextManager(this.languageModelService)).calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes())),
+                    };
+                    if (message.parent) {
+                        messageData.parentId = message.parent.id;
                     }
-                },
-                trace: "0073",
-            });
+                    if (message.user) {
+                        messageData.userId = message.user.id;
+                    }
 
-            if (!success) {
-                throw new Error(`Failed to fetch message details for ID: ${messageId}`);
+                    // Store the fetched data in Redis for future use
+                    await redisClient.hSet(`message:${messageId}`, messageData);
+                } else {
+                    throw new Error(`Failed to fetch message details for ID: ${messageId}`);
+                }
+            } catch (error) {
+                logger.error("Caught error in getMessageDetails", { trace: "0073", error });
+                return null;
             }
         }
 
@@ -456,24 +455,19 @@ export class ChatContextCollector {
 
         // If token counts are not in cache, query database and update cache
         if (Object.keys(translatedTokenCounts).length === 0) {
-            let success = false;
-            await withPrisma({
-                process: async (prisma) => {
-                    const message = await prisma.chat_message.findUnique({
-                        where: { id: messageId },
-                        include: { translations: true },
-                    });
-                    if (message?.translations) {
-                        translatedTokenCounts = (new ChatContextManager(this.languageModelService)).calculateTokenCounts(message.translations, estimationMethod);
-                        await redisClient.hSet(`message:${messageId}`, "translatedTokenCounts", JSON.stringify(translatedTokenCounts));
-                        success = true;
-                    }
-                },
-                trace: "0074",
-            });
-
-            if (!success) {
-                return [-1, ""]; // Return -1 if no translations are found or on failure
+            try {
+                const message = await prismaInstance.chat_message.findUnique({
+                    where: { id: messageId },
+                    include: { translations: true },
+                });
+                if (message?.translations) {
+                    translatedTokenCounts = (new ChatContextManager(this.languageModelService)).calculateTokenCounts(message.translations, estimationMethod);
+                    await redisClient.hSet(`message:${messageId}`, "translatedTokenCounts", JSON.stringify(translatedTokenCounts));
+                } else {
+                    return [-1, ""]; // Return -1 if no translations are found or on failure
+                }
+            } catch (error) {
+                logger.error("Caught error in getTokenCountForLanguages", { trace: "0074", error });
             }
         }
 
@@ -485,7 +479,7 @@ export class ChatContextCollector {
  * Finds bot information for a given bot ID. 
  * First checks the redis cache, then falls back to the database.
  */
-export const getBotInfo = async (botId: string, prisma: PrismaType): Promise<PreMapUserData | null> => {
+export const getBotInfo = async (botId: string): Promise<PreMapUserData | null> => {
     let botInfo: PreMapUserData | null = null;
 
     // Check Redis cache first
@@ -505,7 +499,7 @@ export const getBotInfo = async (botId: string, prisma: PrismaType): Promise<Pre
 
     // If not found in cache, query the database
     if (!botInfo || Object.keys(botInfo).length < 4) { // There are 4 fields in PreMapUserData. Can add better check if needed
-        botInfo = await prisma.user.findUnique({
+        botInfo = await prismaInstance.user.findUnique({
             where: { id: botId },
             select: {
                 id: true,
@@ -531,3 +525,92 @@ export const getBotInfo = async (botId: string, prisma: PrismaType): Promise<Pre
 
     return botInfo;
 };
+
+/**
+ * @returns Valid mentions in a message
+ */
+export const processMentions = (
+    messageContent: string,
+    chat: { botParticipants?: string[] },
+    bots: Pick<PreMapUserData, "id" | "name">[],
+): string[] => {
+    // Find markdown links in the message
+    const linkStrings = messageContent.match(/\[([^\]]+)\]\(([^)]+)\)/g);
+    // Get the label and link for each link
+    let links: { label: string, link: string }[] = linkStrings?.map(s => {
+        const [label, link] = s.slice(1, -1).split("](");
+        return { label, link };
+    }) ?? [];
+
+    // Filter out links where the that aren't a mention. Rules:
+    // 1. Label must start with @
+    // 2. Link must be to this site
+    links = links.filter(l => {
+        console.log('in link filter', l, UI_URL)
+        if (!l.label.startsWith("@")) return false;
+        try {
+            const url = new URL(l.link);
+            console.log('url', url.origin, UI_URL)
+            return url.origin === UI_URL;
+        } catch (e) {
+            console.log('error', e)
+            return false;
+        }
+    });
+
+    let botsToRespond: string[] = [];
+    // If one of the links is "@Everyone", all bots should respond
+    if (links.some(l => l.label === "@Everyone")) {
+        botsToRespond = chat?.botParticipants ?? [];
+    }
+    // Otherwise, find the bots that were mentioned by name (e.g. "@BotName")
+    else {
+        botsToRespond = links.map(l => {
+            const botId = bots.find(b => b.name === l.label.slice(1))?.id;
+            if (!botId) return null;
+            return botId;
+        }).filter(id => id !== null) as string[];
+
+        botsToRespond = [...new Set(botsToRespond)];
+    }
+    return botsToRespond;
+}
+
+/**
+ * Determines which bots should respond based on the message content and chat context.
+ * 
+ * Conditions:
+ * 1. If the message content is blank (likely meaning the message was updated but not its actual content), then no bots should respond.
+ * 2. If the message is not associated with your user ID, no bots should respond.
+ * 3. If there are no bots in the chat, no bots should respond.
+ * 4. If there is one bot in the chat and two participants (i.e., just you and the bot), the bot should respond.
+ * 5. Otherwise, check the message to see if any bots were mentioned.
+ * 
+ * @param message - The message that might trigger bot responses.
+ * @param chat - Information about the chat where the message was sent.
+ * @param bots - Information about the bots in the chat.
+ * @param userId - The ID of the user sending the message.
+ * @returns An array of botIds that should respond to the message.
+ */
+export const determineRespondingBots = (
+    message: { userId: string, content: string },
+    chat: { botParticipants?: string[], participantsCount?: number },
+    bots: Pick<PreMapUserData, "id" | "name">[],
+    userId: string,
+): string[] => {
+    if (
+        !chat ||
+        !message.content ||
+        message.content.trim() === "" ||
+        message.userId !== userId ||
+        bots.length === 0
+    ) {
+        return [];
+    }
+
+    if (bots.length === 1 && chat.participantsCount === 2) {
+        return [bots[0].id];
+    } else {
+        return processMentions(message.content, chat, bots);
+    }
+}

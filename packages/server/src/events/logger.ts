@@ -27,11 +27,20 @@ const getTransports = () => {
         );
     }
 
-    // Add console transports for non-production environments
-    if (!(process.env.NODE_ENV || "").startsWith("prod")) {
+    // Add console transports for development
+    if (!(process.env.NODE_ENV || "").startsWith("prod") && !isTest) {
         transports.push(
             new winston.transports.Console({
                 format: winston.format.simple(),
+            })
+        );
+    }
+
+    // Add stub placeholder for testing, which will not log anything
+    if (isTest) {
+        transports.push(
+            new winston.transports.Console({
+                silent: true,
             })
         );
     }

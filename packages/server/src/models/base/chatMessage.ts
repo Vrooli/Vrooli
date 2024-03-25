@@ -14,9 +14,8 @@ import { chatMessage_findMany } from "../../endpoints/generated/chatMessage_find
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
-import { UI_URL } from "../../server";
 import { emitSocketEvent } from "../../sockets/events";
-import { ChatContextManager } from "../../tasks/llm/context";
+import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { bestTranslation, getAuthenticatedData, SortMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
@@ -45,8 +44,11 @@ export type PreMapMessageData = {
 
 /** Information for a message's corresponding chat, collected in mutate.shape.pre */
 export type PreMapChatData = {
+    /** User IDs for all bots in the chat */
     botParticipants?: string[],
+    /** User IDs of participants being invited, which may be bots */
     potentialBotIds?: string[],
+    /** User IDs of participants being deleted */
     participantsDelete?: string[],
     isNew: boolean,
     /** ID of the last message in the chat */
@@ -428,72 +430,10 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         message: chatMessage,
                     });
                     // Determine which bots should respond, if any.
-                    // Here are the conditions:
-                    // 1. If the message content is blank (likely meaning the message was updated but not its actual content), then no bots should respond.
-                    // 2. If the message is not associated with your user ID, no bots should respond.
-                    // 3. If there are no bots in the chat, no bots should respond.
-                    // 4. If there is one bot in the chat and two participants (i.e. just you and the bot), the bot should respond.
-                    // 5. Otherwise, we must check the message to see if any bots were mentioned
-                    // Get message and bot data
                     const chat: PreMapChatData | undefined = preMapChatData[chatId];
                     const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
-                    if (!chat) continue;
-                    // Check condition 1
-                    if (messageData.content.trim() === "") continue;
-                    // Check condition 2
-                    if (messageData.userId !== userData.id) continue;
-                    // Check condition 3
-                    if (bots.length === 0) continue;
-                    // Check condition 4
-                    if (bots.length === 1 && chat.participantsCount === 2) {
-                        const botId = bots[0].id;
-                        // Call LLM for bot response
-                        requestBotResponse({
-                            chatId,
-                            parent: messageData,
-                            respondingBotId: botId,
-                            task: "Start", //TODO need task queue for chats, so we can enter an exit tasks
-                            participantsData: preMapUserData,
-                            userData,
-                        });
-                    }
-                    // Check condition 5
-                    else {
-                        // TODO move mentio logic to a function, in same file as function for detecting commands
-                        // Find markdown links in the message
-                        const linkStrings = messageData.content.match(/\[([^\]]+)\]\(([^)]+)\)/g);
-                        // Get the label and link for each link
-                        let links: { label: string, link: string }[] = linkStrings?.map(s => {
-                            const [label, link] = s.slice(1, -1).split("](");
-                            return { label, link };
-                        }) ?? [];
-                        // Filter out links where the that aren't a mention. Rules:
-                        // 1. Label must start with @
-                        // 2. Link must be to this site
-                        links = links.filter(l => {
-                            if (!l.label.startsWith("@")) return false;
-                            try {
-                                const url = new URL(l.link);
-                                return url.origin === UI_URL;
-                            } catch (e) {
-                                return false;
-                            }
-                        });
-                        let botsToRespond: string[] = [];
-                        // If one of the links is "@Everyone", all bots should respond
-                        if (links.some(l => l.label === "@Everyone")) {
-                            botsToRespond = chat.botParticipants ?? [];
-                        }
-                        // Otherwise, find the bots that were mentioned by name (e.g. "@BotName")
-                        else {
-                            botsToRespond = links.map(l => {
-                                const botId = bots.find(b => b.name === l.label.slice(1))?.id;
-                                if (!botId) return null;
-                                return botId;
-                            }).filter(id => id !== null) as string[];
-                            // Remove duplicates
-                            botsToRespond = [...new Set(botsToRespond)];
-                        }
+                    const botsToRespond = determineRespondingBots(messageData, chat, bots, userData.id);
+                    if (botsToRespond.length) {
                         // Send typing indicator while bots are responding
                         emitSocketEvent("typing", chatId, { starting: botsToRespond });
                         // For each bot that should respond, request bot response
