@@ -7,7 +7,7 @@ import { SearchStringMap } from "../utils/searchStringMap";
 /**
  * @param queryParams Data required to replace keys
  * @param query The query object to convert
- * @returns Fully-converted Prisma query, ready to be passed into prisma.findMany()
+ * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
  */
 const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
     queryParams: SearchStringQueryParams,
@@ -52,7 +52,7 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
  * Converts a searchStringQuery object into a Prisma search query. 
  * This is accomplished by recursively converting any keys in the searchStringQuery object 
  * to their corresponding Prisma query (stored in SearchStringMap).
- * @returns Fully-converted Prisma query, ready to be passed into prisma.findMany()
+ * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
  */
 export function getSearchStringQuery<Where extends { [x: string]: any }>({
     languages,

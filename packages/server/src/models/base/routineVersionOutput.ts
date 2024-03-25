@@ -10,7 +10,7 @@ import { RoutineVersionModelInfo, RoutineVersionModelLogic, RoutineVersionOutput
 const __typename = "RoutineVersionOutput" as const;
 export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.routine_version_output,
+    delegate: (p) => p.routine_version_output,
     display: () => ({
         label: {
             select: () => ({

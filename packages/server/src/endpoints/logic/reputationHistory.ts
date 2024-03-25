@@ -13,13 +13,13 @@ export type EndpointsReputationHistory = {
 const objectType = "ReputationHistory";
 export const ReputationHistoryEndpoints: EndpointsReputationHistory = {
     Query: {
-        reputationHistory: async (_, { input }, { prisma, req }, info) => {
+        reputationHistory: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        reputationHistories: async (_, { input }, { prisma, req }, info) => {
+        reputationHistories: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

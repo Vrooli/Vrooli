@@ -11,7 +11,7 @@ import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLo
 const __typename = "QuizAttempt" as const;
 export const QuizAttemptModel: QuizAttemptModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.quiz_attempt,
+    delegate: (p) => p.quiz_attempt,
     display: () => ({
         label: {
             select: () => ({
@@ -63,10 +63,10 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
         searchStringQuery: () => ({}), // No strings to search
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

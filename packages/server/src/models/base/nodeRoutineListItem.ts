@@ -10,7 +10,7 @@ import { NodeRoutineListItemModelInfo, NodeRoutineListItemModelLogic, NodeRoutin
 const __typename = "NodeRoutineListItem" as const;
 export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_routine_list_item,
+    delegate: (p) => p.node_routine_list_item,
     display: () => ({
         label: {
             select: () => ({

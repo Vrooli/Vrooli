@@ -1,7 +1,8 @@
 import { GqlModelType } from "@local/shared";
+import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
 import { ModelMap } from "../../models/base";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.trigger.afterMutations of non-root and non-version objects. 
@@ -13,7 +14,6 @@ export const afterMutationsPlain = async ({
     objectType,
     ownerOrganizationField,
     ownerUserField,
-    prisma,
     updatedIds,
     userData,
 }: {
@@ -22,7 +22,6 @@ export const afterMutationsPlain = async ({
     objectType: GqlModelType | `${GqlModelType}`,
     ownerOrganizationField?: string,
     ownerUserField?: string,
-    prisma: PrismaType,
     updatedIds: string[]
     userData: SessionUserToken,
 }) => {
@@ -38,7 +37,7 @@ export const afterMutationsPlain = async ({
     if (ownerUserField) {
         select[ownerUserField] = { select: { id: true } };
     }
-    const ownersData = await delegate(prisma).findMany({
+    const ownersData = await delegate(prismaInstance).findMany({
         where: { id: { in: createAndUpdateIds } },
         select,
     });
@@ -58,7 +57,7 @@ export const afterMutationsPlain = async ({
     }
     // Loop through created items
     for (const objectId of createdIds) {
-        Trigger(prisma, userData.languages).objectCreated({
+        Trigger(userData.languages).objectCreated({
             createdById: userData.id,
             hasCompleteAndPublic: true, // N/A
             hasParent: false, // N/A
@@ -69,7 +68,7 @@ export const afterMutationsPlain = async ({
     }
     // Loop through updated items
     for (const objectId of updatedIds) {
-        Trigger(prisma, userData.languages).objectUpdated({
+        Trigger(userData.languages).objectUpdated({
             updatedById: userData.id,
             hasCompleteAndPublic: true, // Not applicable
             hasParent: false, // Not applicable
@@ -81,7 +80,7 @@ export const afterMutationsPlain = async ({
     }
     // Loop through deleted items
     for (const objectId of deletedIds) {
-        Trigger(prisma, userData.languages).objectDeleted({
+        Trigger(userData.languages).objectDeleted({
             deletedById: userData.id,
             wasCompleteAndPublic: true, // Not applicable
             hasBeenTransferred: true, // Not applicable

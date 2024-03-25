@@ -12,7 +12,7 @@ import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, Qui
 const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.quiz_question_response,
+    delegate: (p) => p.quiz_question_response,
     display: () => ({
         label: {
             select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.select() } }),
@@ -53,10 +53,10 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

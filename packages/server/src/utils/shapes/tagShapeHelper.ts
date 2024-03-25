@@ -35,7 +35,6 @@ export const tagShapeHelper = async <
 >({
     data,
     parentType,
-    prisma,
     relation = "tags",
     ...rest
 }: TagShapeHelperProps<Types>):
@@ -62,7 +61,6 @@ export const tagShapeHelper = async <
         },
         objectType: "Tag",
         parentRelationshipName: "",
-        prisma,
         relation,
         ...rest,
     });

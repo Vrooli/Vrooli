@@ -10,7 +10,7 @@ import { NodeLinkModelInfo, NodeLinkModelLogic, NodeLinkWhenModelInfo, NodeLinkW
 const __typename = "NodeLinkWhen" as const;
 export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_link,
+    delegate: (p) => p.node_link,
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {

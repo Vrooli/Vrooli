@@ -11,7 +11,7 @@ import { ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, Use
 const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.chat_invite,
+    delegate: (p) => p.chat_invite,
     display: () => ({
         // Label is the user label
         label: {
@@ -35,7 +35,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 //TODO Create invite notifications
             },
         },
@@ -61,10 +61,10 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

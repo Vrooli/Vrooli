@@ -12,9 +12,9 @@ export type EndpointsWallet = {
 const objectType = "Wallet";
 export const WalletEndpoints: EndpointsWallet = {
     Mutation: {
-        walletUpdate: async (_, { input }, { prisma, req }, info) => {
+        walletUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

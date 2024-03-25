@@ -20,7 +20,7 @@ const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create
 const __typename = "Schedule" as const;
 export const ScheduleModel: ScheduleModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.schedule,
+    delegate: (p) => p.schedule,
     display: () => ({
         label: {
             select: () => ({
@@ -68,7 +68,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: ({ createdIds, updatedIds, prisma, userData }) => {
+            afterMutations: ({ createdIds, updatedIds, userData }) => {
                 // TODO should check both creates and updates if schedule is starting soon (i.e. before cron job runs), and handle accordingly
             },
         },

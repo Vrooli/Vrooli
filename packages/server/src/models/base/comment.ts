@@ -9,8 +9,9 @@ import { selectHelper } from "../../builders/selectHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
 import { visibilityBuilder } from "../../builders/visibilityBuilder";
+import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
@@ -23,7 +24,7 @@ import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelL
 const __typename = "Comment" as const;
 export const CommentModel: CommentModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.comment,
+    delegate: ({ comment }) => comment,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -60,7 +61,6 @@ export const CommentModel: CommentModelLogic = ({
          * Custom search query for querying comment threads
          */
         async searchThreads(
-            prisma: PrismaType,
             userData: SessionUserToken | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
             info: GraphQLInfo | PartialGraphQLInfo,
@@ -77,7 +77,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined;
             const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
             // Find requested search array
-            const searchResults = await prisma.comment.findMany({
+            const searchResults = await prismaInstance.comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? 10,
@@ -90,14 +90,14 @@ export const CommentModel: CommentModelLogic = ({
             // For each result
             for (const result of searchResults) {
                 // Find total in thread
-                const totalInThread = await prisma.comment.count({
+                const totalInThread = await prismaInstance.comment.count({
                     where: {
                         ...where,
                         parentId: result.id,
                     },
                 });
                 // Query for nested threads
-                const nestedThreads = nestLimit > 0 ? await prisma.comment.findMany({
+                const nestedThreads = nestLimit > 0 ? await prismaInstance.comment.findMany({
                     where: {
                         ...where,
                         parentId: result.id,
@@ -108,7 +108,7 @@ export const CommentModel: CommentModelLogic = ({
                 // Find end cursor of nested threads
                 const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
                 // For nested threads, recursively call this function
-                const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, userData, {
+                const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                     ids: nestedThreads.map(n => n.id),
                     take: input.take ?? 10,
                     sortBy: input.sortBy,
@@ -132,7 +132,6 @@ export const CommentModel: CommentModelLogic = ({
          * parentId equal to one of the second-level comments).
          */
         async searchNested(
-            prisma: PrismaType,
             req: Request,
             input: CommentSearchInput,
             info: GraphQLInfo | PartialGraphQLInfo,
@@ -159,7 +158,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
             const orderBy = orderByField in SortMap ? SortMap[orderByField] : undefined;
             // Find requested search array
-            const searchResults = await prisma.comment.findMany({
+            const searchResults = await prismaInstance.comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? 10,
@@ -176,13 +175,13 @@ export const CommentModel: CommentModelLogic = ({
                 threads: [],
             };
             // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-            const totalInThread = input.after ? undefined : await prisma.comment.count({
+            const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
                 where: { ...where },
             });
             // Calculate end cursor
             const endCursor = searchResults[searchResults.length - 1].id;
             // If not as nestLimit, recurse with all result IDs
-            const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
+            const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req.session), {
                 ids: searchResults.map(r => r.id),
                 take: input.take ?? 10,
                 sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -199,7 +198,7 @@ export const CommentModel: CommentModelLogic = ({
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
             comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-            comments = await addSupplementalFields(prisma, getUser(req.session), comments, partialInfo);
+            comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
             const shapeThreads = (threads: CommentThread[]) => {
@@ -256,12 +255,12 @@ export const CommentModel: CommentModelLogic = ({
         searchStringQuery: () => ({ translations: "transText" }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },

@@ -3,10 +3,11 @@ import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
 import { fileURLToPath } from "url";
+import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events";
 import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 export const DEFAULT_LANGUAGE = "en";
 
@@ -229,7 +230,6 @@ type LlmTaskExec = (data: LlmTaskData) => (unknown | Promise<unknown>);
 export const generateTaskExec = async (
     task: LlmTask | `${LlmTask}`,
     language: string,
-    prisma: PrismaType,
     userData: SessionUserToken,
 ): Promise<LlmTaskExec> => {
     const converter = await importConverter(language);
@@ -237,7 +237,6 @@ export const generateTaskExec = async (
     // This is typically only used by middleware, so it should hopefully not be necessary for the LLM.
     // TODO: Realized this won't work for rate limiting. Need solution
     const context: Context = {
-        prisma,
         req: {
             session: {
                 fromSafeOrigin: true,
@@ -325,7 +324,7 @@ export const generateTaskExec = async (
             const info = await import("../../endpoints/generated/user_findOne") as unknown as GraphQLResolveInfo;
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
-                const existingUser = await prisma.user.findUnique({
+                const existingUser = await prismaInstance.user.findUnique({
                     where: { id: data.id as string },
                     select: {
                         name: true,

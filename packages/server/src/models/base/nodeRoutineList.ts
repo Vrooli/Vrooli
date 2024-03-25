@@ -9,7 +9,7 @@ import { NodeModelInfo, NodeModelLogic, NodeRoutineListModelInfo, NodeRoutineLis
 const __typename = "NodeRoutineList" as const;
 export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_routine_list,
+    delegate: (p) => p.node_routine_list,
     display: () => ({
         label: {
             select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),

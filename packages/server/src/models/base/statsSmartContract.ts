@@ -8,7 +8,7 @@ import { SmartContractModelInfo, SmartContractModelLogic, StatsSmartContractMode
 const __typename = "StatsSmartContract" as const;
 export const StatsSmartContractModel: StatsSmartContractModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.stats_smart_contract,
+    delegate: (p) => p.stats_smart_contract,
     display: () => ({
         label: {
             select: () => ({ id: true, smartContract: { select: ModelMap.get<SmartContractModelLogic>("SmartContract").display().label.select() } }),

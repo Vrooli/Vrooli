@@ -1,6 +1,6 @@
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 
 /** 
@@ -83,14 +83,12 @@ const RESERVED_HANDLES = [
 
 /**
  * Verifies that handles are available 
- * @param prisma Prisma client
  * @param forType The type of object to check handles for
  * @param Create Handle and id pairs for new objects
  * @param Update Handle and id pairs for updated objects
  * @param languages Preferred languages for error messages
  */
 export const handlesCheck = async (
-    prisma: PrismaType,
     forType: "User" | "Organization" | "Project",
     Create: { input: { id: string, handle?: string | null | undefined } }[],
     Update: { input: { id: string, handle?: string | null | undefined } }[],
@@ -103,7 +101,7 @@ export const handlesCheck = async (
     // Find all existing handles that match the handles in createList and updateList.
     // There should be none, unless some of the updates are changing the existing handles to something else.
     const { delegate } = ModelMap.getLogic(["delegate"], forType);
-    const existingHandles = await delegate(prisma).findMany({
+    const existingHandles = await delegate(prismaInstance).findMany({
         where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
         select: { id: true, handle: true },
     });

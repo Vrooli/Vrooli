@@ -1,5 +1,6 @@
 import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { prismaInstance } from "../../db/instance";
 import { bestTranslation, defaultPermissions } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
 import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
@@ -10,7 +11,7 @@ import { BookmarkModelLogic, TagModelLogic } from "./types";
 const __typename = "Tag" as const;
 export const TagModel: TagModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.tag,
+    delegate: (p) => p.tag,
     display: () => ({
         label: {
             select: () => ({ id: true, tag: true }),
@@ -35,9 +36,9 @@ export const TagModel: TagModelLogic = ({
                 const maps = preShapeEmbeddableTranslatable<"tag">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            findConnects: async ({ Create, prisma }) => {
+            findConnects: async ({ Create }) => {
                 const createIds = Create.map(({ node }) => node.id);
-                const existingTags = await prisma.tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
+                const existingTags = await prismaInstance.tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
                 return createIds.map(id => existingTags.find(x => x.tag === id) ? id : null);
             },
             create: async ({ data, ...rest }) => ({
@@ -69,9 +70,9 @@ export const TagModel: TagModelLogic = ({
         supplemental: {
             graphqlFields: SuppFields[__typename],
             dbFields: ["createdById", "id"],
-            toGraphQL: async ({ ids, objects, prisma, userData }) => ({
+            toGraphQL: async ({ ids, objects, userData }) => ({
                 you: {
-                    isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
+                    isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                     isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
                 },
             }),

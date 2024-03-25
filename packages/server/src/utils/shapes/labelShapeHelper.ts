@@ -1,5 +1,6 @@
 import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 
 // Types of objects which have labels
 type LabelledObjectType = "Api" | "Chat" | "FocusMode" | "Issue" | "Meeting" | "Note" | "Project" | "Routine" | "Schedule" | "SmartContract" | "Standard";
@@ -36,7 +37,6 @@ export const labelShapeHelper = async <
 >({
     data,
     parentType,
-    prisma,
     relation = "labels",
     ...rest
 }: LabelShapeHelperProps<Types>):
@@ -55,7 +55,7 @@ export const labelShapeHelper = async <
     const initialCombined = [...initialCreate, ...initialConnect];
     if (initialCombined.length > 0) {
         // Query for all of the labels, to determine which ones exist
-        const existing = await prisma.label.findMany({
+        const existing = await prismaInstance.label.findMany({
             where: { label: { in: initialCombined } },
             select: { id: true },
         });
@@ -83,7 +83,6 @@ export const labelShapeHelper = async <
         },
         objectType: "Label",
         parentRelationshipName: "",
-        prisma,
         relation,
         ...rest,
     });

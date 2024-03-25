@@ -1,10 +1,11 @@
 import { GqlModelType, uuidValidate } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { PrismaSelect } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 
 export type AuthDataById = { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } };
 
@@ -14,7 +15,6 @@ export type AuthDataById = { [id: string]: { __typename: `${GqlModelType}`, [x: 
  */
 export const getAuthenticatedData = async (
     idsByType: { [key in GqlModelType]?: string[] },
-    prisma: PrismaType,
     userData: SessionUserToken | null,
 ): Promise<AuthDataById> => {
     // Initialize the return object
@@ -44,7 +44,7 @@ export const getAuthenticatedData = async (
         let data: any[];
         try {
             select = permissionsSelectHelper(validate().permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
-            data = await delegate(prisma).findMany({ where, select });
+            data = await delegate(prismaInstance).findMany({ where, select });
         } catch (error) {
             logger.error("getAuthenticatedData: findMany failed", { trace: "0453", error, type, select, where });
             throw new CustomError("0453", "InternalError", userData?.languages ?? ["en"], { objectType: type });

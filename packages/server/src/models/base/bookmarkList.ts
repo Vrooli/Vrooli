@@ -8,7 +8,7 @@ import { BookmarkListModelLogic } from "./types";
 const __typename = "BookmarkList" as const;
 export const BookmarkListModel: BookmarkListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.bookmark_list,
+    delegate: (p) => p.bookmark_list,
     display: () => ({
         label: {
             select: () => ({ id: true, label: true }),

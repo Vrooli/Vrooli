@@ -13,7 +13,7 @@ import { MeetingModelLogic, OrganizationModelLogic } from "./types";
 const __typename = "Meeting" as const;
 export const MeetingModel: MeetingModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.meeting,
+    delegate: (p) => p.meeting,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -109,10 +109,10 @@ export const MeetingModel: MeetingModelLogic = ({
         supplemental: {
             dbFields: ["organizationId"],
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

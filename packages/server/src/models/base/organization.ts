@@ -4,8 +4,8 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { prismaInstance } from "../../db/instance";
 import { getLabels } from "../../getters";
-import { PrismaType } from "../../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
@@ -16,7 +16,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ViewModelLogic } from "./ty
 const __typename = "Organization" as const;
 export const OrganizationModel: OrganizationModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.organization,
+    delegate: (p) => p.organization,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -36,9 +36,9 @@ export const OrganizationModel: OrganizationModelLogic = ({
     format: OrganizationFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, prisma, userData }) => {
+            pre: async ({ Create, Update, userData }) => {
                 [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
-                await handlesCheck(prisma, __typename, Create, Update, userData.languages);
+                await handlesCheck(__typename, Create, Update, userData.languages);
                 // Find translations that need text embeddings
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
@@ -83,11 +83,11 @@ export const OrganizationModel: OrganizationModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 for (const organizationId of createdIds) {
                     // Upsert "Admin" role (in case they already included it in the request). 
                     // Trying to connect you as a member again shouldn't throw an error (hopefully)
-                    await prisma.role.upsert({
+                    await prismaInstance.role.upsert({
                         where: {
                             role_organizationId_name_unique: {
                                 name: "Admin",
@@ -121,7 +121,7 @@ export const OrganizationModel: OrganizationModelLogic = ({
                         },
                     });
                     // Handle trigger
-                    // Trigger(prisma, userData.languages).createOrganization(userData.id, organizationId);
+                    // Trigger(userData.languages).createOrganization(userData.id, organizationId);
                 }
             },
         },
@@ -156,14 +156,14 @@ export const OrganizationModel: OrganizationModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "organization.translatedName"),
+                    translatedName: await getLabels(ids, __typename, userData?.languages ?? ["en"], "organization.translatedName"),
                 };
             },
         },
@@ -191,13 +191,13 @@ export const OrganizationModel: OrganizationModelLogic = ({
          * @param name The name of the role
          * @returns Array in the same order as the ids, with either admin/owner role data or undefined
          */
-        async hasRole(prisma: PrismaType, userId: string | null | undefined, organizationIds: (string | null | undefined)[], name = "Admin"): Promise<Array<role | undefined>> {
+        async hasRole(userId: string | null | undefined, organizationIds: (string | null | undefined)[], name = "Admin"): Promise<Array<role | undefined>> {
             if (organizationIds.length === 0) return [];
             if (!exists(userId)) return organizationIds.map(() => undefined);
             // Take out nulls
             const idsToQuery = onlyValidIds(organizationIds);
             // Query roles data for each organization ID
-            const roles = await prisma.role.findMany({
+            const roles = await prismaInstance.role.findMany({
                 where: {
                     name,
                     organization: { id: { in: idsToQuery } },
@@ -209,13 +209,12 @@ export const OrganizationModel: OrganizationModelLogic = ({
         },
         /**
          * Finds every admin of an organization
-         * @param prisma The prisma client
          * @param organizationId The organization ID
          * @param excludedUsers IDs of users to exclude from results
          * @returns A list of admin ids and their preferred languages. Useful for sending notifications
          */
-        async findAdminInfo(prisma: PrismaType, organizationId: string, excludedUsers?: string[] | string): Promise<{ id: string, languages: string[] }[]> {
-            const admins = await prisma.member.findMany({
+        async findAdminInfo(organizationId: string, excludedUsers?: string[] | string): Promise<{ id: string, languages: string[] }[]> {
+            const admins = await prismaInstance.member.findMany({
                 where: {
                     AND: [
                         { organizationId },

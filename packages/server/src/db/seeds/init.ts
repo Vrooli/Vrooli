@@ -5,10 +5,10 @@
 import { InputType, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { hashPassword } from "../../auth/email";
+import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events/logger";
-import { PrismaType } from "../../types";
 
-export async function init(prisma: PrismaType) {
+export async function init() {
     //==============================================================
     /* #region Initialization */
     //==============================================================
@@ -38,7 +38,7 @@ export async function init(prisma: PrismaType) {
                 },
             };
         }
-        return prisma.tag.upsert({
+        return prismaInstance.tag.upsert({
             where: { tag: name },
             update: {},
             create: tagData,
@@ -321,7 +321,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     // Admin
     const adminId = "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2";
-    const admin = await prisma.user.upsert({
+    const admin = await prismaInstance.user.upsert({
         where: {
             id: adminId,
         },
@@ -396,7 +396,7 @@ export async function init(prisma: PrismaType) {
     });
     // AI assistant
     const valyxaId = VALYXA_ID;
-    const valyxa = await prisma.user.upsert({
+    const valyxa = await prismaInstance.user.upsert({
         where: {
             id: valyxaId,
         },
@@ -459,7 +459,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Organizations */
     //==============================================================
-    let vrooli = await prisma.organization.findFirst({
+    let vrooli = await prismaInstance.organization.findFirst({
         where: {
             AND: [
                 { translations: { some: { language: EN, name: "Vrooli" } } },
@@ -470,7 +470,7 @@ export async function init(prisma: PrismaType) {
     if (!vrooli) {
         logger.info("🏗 Creating Vrooli organization");
         const organizationId = uuid();
-        vrooli = await prisma.organization.create({
+        vrooli = await prismaInstance.organization.create({
             data: {
                 id: organizationId,
                 handle: "vrooli",
@@ -545,7 +545,7 @@ export async function init(prisma: PrismaType) {
         });
     }
     else {
-        await prisma.organization.update({
+        await prismaInstance.organization.update({
             where: { id: vrooli.id },
             data: {
                 handle: "vrooli",
@@ -559,7 +559,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Projects */
     //==============================================================
-    let projectEntrepreneur = await prisma.project_version.findFirst({
+    let projectEntrepreneur = await prismaInstance.project_version.findFirst({
         where: {
             AND: [
                 { root: { ownedByOrganizationId: vrooli.id } },
@@ -569,7 +569,7 @@ export async function init(prisma: PrismaType) {
     });
     if (!projectEntrepreneur) {
         logger.info("📚 Creating Project Catalyst Guide project");
-        projectEntrepreneur = await prisma.project_version.create({
+        projectEntrepreneur = await prismaInstance.project_version.create({
             data: {
                 translations: {
                     create: [
@@ -594,7 +594,7 @@ export async function init(prisma: PrismaType) {
     // TODO temporary
     // Add 100 dummy projects
     if (process.env.NODE_ENV === "development") {
-        const dummy1 = await prisma.project.findFirst({
+        const dummy1 = await prismaInstance.project.findFirst({
             where: {
                 AND: [
                     { ownedByOrganizationId: vrooli.id },
@@ -605,7 +605,7 @@ export async function init(prisma: PrismaType) {
         if (!dummy1) {
             for (let i = 0; i < 100; i++) {
                 logger.info("📚 Creating DUMMY project" + i);
-                await prisma.project.create({
+                await prismaInstance.project.create({
                     data: {
                         permissions: JSON.stringify({}),
                         createdBy: { connect: { id: admin.id } },
@@ -654,14 +654,14 @@ export async function init(prisma: PrismaType) {
     /* #region Create Standards */
     //==============================================================
     const standardCip0025Id = "3a038a3b-f8a9-4fab-8fab-c8a4baaab8d2";
-    let standardCip0025 = await prisma.standard_version.findFirst({
+    let standardCip0025 = await prismaInstance.standard_version.findFirst({
         where: {
             id: standardCip0025Id,
         },
     });
     if (!standardCip0025) {
         logger.info("📚 Creating CIP-0025 standard");
-        standardCip0025 = await prisma.standard_version.create({
+        standardCip0025 = await prismaInstance.standard_version.create({
             data: {
                 id: standardCip0025Id,
                 root: {
@@ -701,12 +701,12 @@ export async function init(prisma: PrismaType) {
     /* #region Create Routines */
     //==============================================================
     const mintTokenId = "3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9";
-    let mintToken: any = await prisma.routine.findFirst({
+    let mintToken: any = await prismaInstance.routine.findFirst({
         where: { id: mintTokenId },
     });
     if (!mintToken) {
         logger.info("📚 Creating Native Token Minting routine");
-        mintToken = await prisma.routine_version.create({
+        mintToken = await prismaInstance.routine_version.create({
             data: {
                 root: {
                     create: {
@@ -759,12 +759,12 @@ export async function init(prisma: PrismaType) {
     }
 
     const mintNftId = "4e038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9"; // <- DO NOT CHANGE. This is used as a reference routine
-    let mintNft: any = await prisma.routine.findFirst({
+    let mintNft: any = await prismaInstance.routine.findFirst({
         where: { id: mintNftId },
     });
     if (!mintNft) {
         logger.info("📚 Creating NFT Minting routine");
-        mintNft = await prisma.routine_version.create({
+        mintNft = await prismaInstance.routine_version.create({
             data: {
                 root: {
                     create: {

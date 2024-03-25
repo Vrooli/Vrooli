@@ -12,9 +12,9 @@ export type EndpointsStatsUser = {
 const objectType = "StatsUser";
 export const StatsUserEndpoints: EndpointsStatsUser = {
     Query: {
-        statsUser: async (_, { input }, { prisma, req }, info) => {
+        statsUser: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

@@ -57,7 +57,7 @@ const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]
 
 export const UserModel: UserModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.user,
+    delegate: (p) => p.user,
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -78,8 +78,8 @@ export const UserModel: UserModelLogic = ({
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ Update, prisma, userData }) => {
-                await handlesCheck(prisma, __typename, [], Update, userData.languages);
+            pre: async ({ Update, userData }) => {
+                await handlesCheck(__typename, [], Update, userData.languages);
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create: [], Update, objectType: __typename });
                 return { ...maps };
             },
@@ -147,12 +147,12 @@ export const UserModel: UserModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
                 };
             },

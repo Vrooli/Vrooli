@@ -1,17 +1,15 @@
 import { API_CREDITS_FREE, API_CREDITS_PREMIUM, HttpStatus, LINKS, PaymentStatus, PaymentType } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
+import { prismaInstance } from "../db/instance";
 import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
 import { UI_URL } from "../server";
 import { emitSocketEvent } from "../sockets/events";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks/email/queue";
-import { PrismaType } from "../types";
-import { withPrisma } from "../utils/withPrisma";
 
 type EventHandlerArgs = {
     event: Stripe.Event,
-    prisma: PrismaType,
     stripe: Stripe,
     res: Response,
 }
@@ -102,12 +100,12 @@ const handlerResult = (
 };
 
 /** Checkout completed for donation or subscription */
-const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const session = event.data.object as Stripe.Checkout.Session;
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
     // Find payment in database
-    const payments = await prisma.payment.findMany({
+    const payments = await prismaInstance.payment.findMany({
         where: {
             checkoutId,
             paymentMethod: "Stripe",
@@ -119,7 +117,7 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
         return handlerResult(HttpStatus.InternalServerError, res, "Payment not found.", "0439", { checkoutId, customerId });
     }
     // Update payment in database to indicate it was paid
-    const payment = await prisma.payment.update({
+    const payment = await prismaInstance.payment.update({
         where: { id: payments[0].id },
         data: {
             status: "Paid",
@@ -152,11 +150,11 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
         const enabledAt = new Date().toISOString();
         const expiresAt = new Date(subscription.current_period_end * 1000).toISOString();
         // Upsert premium status
-        const premiums = await prisma.premium.findMany({
+        const premiums = await prismaInstance.premium.findMany({
             where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
         });
         if (premiums.length === 0) {
-            await prisma.premium.create({
+            await prismaInstance.premium.create({
                 data: {
                     enabledAt,
                     expiresAt,
@@ -166,7 +164,7 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
                 },
             });
         } else {
-            await prisma.premium.update({
+            await prismaInstance.premium.update({
                 where: { id: premiums[0].id },
                 data: {
                     enabledAt: premiums[0].enabledAt ?? enabledAt,
@@ -186,12 +184,12 @@ const handleCheckoutSessionCompleted = async ({ event, prisma, stripe, res }: Ev
 };
 
 /** Checkout expired before payment */
-const handleCheckoutSessionExpired = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const session = event.data.object as Stripe.Checkout.Session;
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
     // Find payment in database
-    const payments = await prisma.payment.findMany({
+    const payments = await prismaInstance.payment.findMany({
         where: {
             checkoutId,
             paymentMethod: "Stripe",
@@ -203,18 +201,18 @@ const handleCheckoutSessionExpired = async ({ event, prisma, res }: EventHandler
         return handlerResult(HttpStatus.InternalServerError, res, "Payment not found.", "0425", { checkoutId, customerId });
     }
     // Delete payment in database
-    await prisma.payment.delete({
+    await prismaInstance.payment.delete({
         where: { id: payments[0].id },
     });
     return handlerResult(HttpStatus.Ok, res);
 };
 
 /** Customer was deleted */
-const handleCustomerDeleted = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleCustomerDeleted = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Remove customer ID from user in database
-    await prisma.user.update({
+    await prismaInstance.user.update({
         where: { stripeCustomerId: customerId },
         data: { stripeCustomerId: null },
     });
@@ -222,11 +220,11 @@ const handleCustomerDeleted = async ({ event, prisma, res }: EventHandlerArgs): 
 };
 
 /** Customer's credit card is about to expire */
-const handleCustomerSourceExpiring = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleCustomerSourceExpiring = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Find user with the given Stripe customer ID
-    const user = await prisma.user.findFirst({
+    const user = await prismaInstance.user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
             emails: { select: { emailAddress: true } },
@@ -246,11 +244,11 @@ const handleCustomerSourceExpiring = async ({ event, prisma, res }: EventHandler
  * User canceled subscription. They still have paid for their current 
  * billing period, so don't set as inactive
  */
-const handleCustomerSubscriptionDeleted = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleCustomerSubscriptionDeleted = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Find user 
-    const user = await prisma.user.findFirst({
+    const user = await prismaInstance.user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
             emails: { select: { emailAddress: true } },
@@ -272,7 +270,7 @@ const handleCustomerSubscriptionTrialWillEnd = async ({ res }: EventHandlerArgs)
 };
 
 /** User updated subscription (i.e. switched from monthly to yearly, canceled, or renewed) */
-const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleCustomerSubscriptionUpdated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Check that subscription contains exactly one item
@@ -285,7 +283,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
     const newExpiresAt = new Date(nextBillingCycleTimestamp * 1000);
     const isActive = subscription.status === "active";
     // Fetch user with stripeCustomerId
-    const user = await prisma.user.findFirst({
+    const user = await prismaInstance.user.findFirst({
         where: { stripeCustomerId: customerId },
     });
     // If no user is found, return with error
@@ -293,7 +291,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
         return handlerResult(HttpStatus.InternalServerError, res, "User not found on customer.subscription.updated", "0457", { customerId });
     }
     // Find or create premium record
-    let premiumRecord = await prisma.premium.findFirst({
+    let premiumRecord = await prismaInstance.premium.findFirst({
         where: { user: { id: user.id } },
         select: {
             id: true,
@@ -302,7 +300,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
     });
     if (premiumRecord) {
         // Update the record
-        await prisma.premium.update({
+        await prismaInstance.premium.update({
             where: { id: premiumRecord.id },
             data: {
                 expiresAt: newExpiresAt.toISOString(),
@@ -311,7 +309,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
         });
     } else {
         // Create a new record
-        premiumRecord = await prisma.premium.create({
+        premiumRecord = await prismaInstance.premium.create({
             data: {
                 user: { connect: { id: user.id } },
                 expiresAt: newExpiresAt.toISOString(),
@@ -325,7 +323,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
     }
     // If subscription was activated, update credits and send notification
     if (isActive && premiumRecord?.user) {
-        await prisma.user.update({
+        await prismaInstance.user.update({
             where: { id: user.id },
             data: {
                 premium: {
@@ -342,7 +340,7 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
     }
     // If subscription was canceled, remove credits and send notification
     else if (!isActive && premiumRecord?.user) {
-        await prisma.user.update({
+        await prismaInstance.user.update({
             where: { id: user.id },
             data: {
                 premium: {
@@ -361,11 +359,11 @@ const handleCustomerSubscriptionUpdated = async ({ event, prisma, res }: EventHa
 };
 
 /** Payment created, but not finalized */
-const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleInvoicePaymentCreated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find user with the given Stripe customer ID
-    const user = await prisma.user.findFirst({
+    const user = await prismaInstance.user.findFirst({
         where: { stripeCustomerId: customerId },
     });
     // Check if user is found
@@ -378,7 +376,7 @@ const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerA
         return handlerResult(HttpStatus.InternalServerError, res, "Price not found", "0225", { customerId, invoice: invoice.id });
     }
     // Create new payment in the database
-    const newPayment = await prisma.payment.create({
+    const newPayment = await prismaInstance.payment.create({
         data: {
             checkoutId: invoice.id,
             amount: invoice.amount_due,
@@ -398,11 +396,11 @@ const handleInvoicePaymentCreated = async ({ event, prisma, res }: EventHandlerA
 };
 
 /** Payment failed */
-const handleInvoicePaymentFailed = async ({ event, prisma, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleInvoicePaymentFailed = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find corresponding payment in the database
-    const payment = await prisma.payment.findFirst({
+    const payment = await prismaInstance.payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
@@ -421,7 +419,7 @@ const handleInvoicePaymentFailed = async ({ event, prisma, res }: EventHandlerAr
         return handlerResult(HttpStatus.InternalServerError, res, "Invoice payment not found.", "0444", { customerId, invoice: invoice.id });
     }
     // Update the payment status to Failed
-    await prisma.payment.update({
+    await prismaInstance.payment.update({
         where: { id: payment.id },
         data: { status: PaymentStatus.Failed },
     });
@@ -434,18 +432,18 @@ const handleInvoicePaymentFailed = async ({ event, prisma, res }: EventHandlerAr
 
 
 /** Payment succeeded (e.g. subscription renewed) */
-const handleInvoicePaymentSucceeded = async ({ event, prisma, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find the user associated with the invoice
-    const user = await prisma.user.findFirst({
+    const user = await prismaInstance.user.findFirst({
         where: { stripeCustomerId: customerId },
     });
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0461", { customerId, invoice: invoice.id });
     }
     // Find the corresponding payment in the database
-    const payment = await prisma.payment.findFirst({
+    const payment = await prismaInstance.payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
@@ -464,7 +462,7 @@ const handleInvoicePaymentSucceeded = async ({ event, prisma, stripe, res }: Eve
         return handlerResult(HttpStatus.InternalServerError, res, "Invoice payment not found", "0462", { customerId, invoice: invoice.id });
     }
     // Update the payment status to indicate it was successfully paid
-    await prisma.payment.update({
+    await prismaInstance.payment.update({
         where: { id: payment.id },
         data: { status: "Paid" },
     });
@@ -476,11 +474,11 @@ const handleInvoicePaymentSucceeded = async ({ event, prisma, stripe, res }: Eve
         // Fetch subscription from Stripe
         const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
         const expiresAt = new Date(stripeSubscription.current_period_end * 1000).toISOString();
-        const premiums = await prisma.premium.findMany({
+        const premiums = await prismaInstance.premium.findMany({
             where: { user: { id: payment.user.id } },
         });
         if (premiums.length === 0) {
-            await prisma.premium.create({
+            await prismaInstance.premium.create({
                 data: {
                     enabledAt: new Date().toISOString(),
                     expiresAt,
@@ -489,7 +487,7 @@ const handleInvoicePaymentSucceeded = async ({ event, prisma, stripe, res }: Eve
                 },
             });
         } else {
-            await prisma.premium.update({
+            await prismaInstance.premium.update({
                 where: { id: premiums[0].id },
                 data: {
                     expiresAt,
@@ -633,100 +631,89 @@ export const setupStripe = (app: Express): void => {
             res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
             return;
         }
-        await withPrisma({
-            process: async (prisma) => {
-                // Get user from database
-                const user = userId ? await prisma.user.findUnique({
-                    where: { id: userId },
-                    select: {
-                        emails: { select: { emailAddress: true } },
-                        stripeCustomerId: true,
-                    },
-                }) : undefined;
-                // We need user to exist, unless this is for a donation
-                if (!user && paymentType !== PaymentType.Donation) {
-                    logger.error("User not found.", { trace: "0519", userId });
-                    res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
-                    return;
-                }
-                // Create or retrieve a Stripe customer
-                let stripeCustomerId = user?.stripeCustomerId;
-                // If customer exists, make sure it's valid
-                if (stripeCustomerId) {
-                    try {
-                        // Check if the customer exists in Stripe
-                        await stripe.customers.retrieve(stripeCustomerId);
-                    } catch (error) {
-                        // The customer does not exist in Stripe. Set stripeCustomerId to null so we can create a new customer
-                        stripeCustomerId = null;
-                        // Also log an error because this shouldn't happen
-                        logger.error("Invalid Stripe customer ID", { trace: "0521", userId, stripeCustomerId, error });
-                    }
-                }
-                // If customer doesn't exist (or the existing ID was invalid), create a new customer
-                if (!stripeCustomerId) {
-                    const stripeCustomer = await stripe.customers.create({
-                        email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
-                    });
-                    stripeCustomerId = stripeCustomer.id;
-                    // Store Stripe customer ID in your database
-                    if (userId) {
-                        await prisma.user.update({
-                            where: { id: userId },
-                            data: {
-                                stripeCustomerId,
-                            },
-                        });
-                    }
-                }
+        try {
+            // Get user from database
+            const user = userId ? await prismaInstance.user.findUnique({
+                where: { id: userId },
+                select: {
+                    emails: { select: { emailAddress: true } },
+                    stripeCustomerId: true,
+                },
+            }) : undefined;
+            // We need user to exist, unless this is for a donation
+            if (!user && paymentType !== PaymentType.Donation) {
+                logger.error("User not found.", { trace: "0519", userId });
+                res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
+                return;
+            }
+            // Create or retrieve a Stripe customer
+            let stripeCustomerId = user?.stripeCustomerId;
+            // If customer exists, make sure it's valid
+            if (stripeCustomerId) {
                 try {
-                    // Create checkout session 
-                    // NOTE: I previously tried also passing in the customer email 
-                    // to save the customer some typing, but Stripe doesn't allow 
-                    // this to be sent along with the customer ID.
-                    const session = await stripe.checkout.sessions.create({
-                        success_url: `${UI_URL}${LINKS.Pro}?status=success`,
-                        cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled`,
-                        payment_method_types: ["card"],
-                        line_items: [
-                            {
-                                price: priceId,
-                                quantity: 1,
-                            },
-                        ],
-                        mode: variant === PaymentType.Donation ? "payment" : "subscription",
-                        customer: stripeCustomerId,
-                        metadata: { userId },
-                    });
-                    // Create open payment in database, so we can track it
-                    await prisma.payment.create({
+                    // Check if the customer exists in Stripe
+                    await stripe.customers.retrieve(stripeCustomerId);
+                } catch (error) {
+                    // The customer does not exist in Stripe. Set stripeCustomerId to null so we can create a new customer
+                    stripeCustomerId = null;
+                    // Also log an error because this shouldn't happen
+                    logger.error("Invalid Stripe customer ID", { trace: "0521", userId, stripeCustomerId, error });
+                }
+            }
+            // If customer doesn't exist (or the existing ID was invalid), create a new customer
+            if (!stripeCustomerId) {
+                const stripeCustomer = await stripe.customers.create({
+                    email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
+                });
+                stripeCustomerId = stripeCustomer.id;
+                // Store Stripe customer ID in your database
+                if (userId) {
+                    await prismaInstance.user.update({
+                        where: { id: userId },
                         data: {
-                            amount: (variant === PaymentType.Donation ? session.amount_total : session.amount_subtotal) ?? 0,
-                            checkoutId: session.id,
-                            currency: session.currency ?? "usd",
-                            description: variant === PaymentType.Donation ? "Donation" : "Premium subscription - " + variant,
-                            paymentMethod: "Stripe",
-                            paymentType,
-                            status: "Pending",
-                            user: userId ? { connect: { id: userId } } : undefined,
+                            stripeCustomerId,
                         },
                     });
-                    // Send session ID as response
-                    res.json(session);
-                    return;
-                } catch (error) {
-                    logger.error("Error creating checkout session", { trace: "0437", userId, variant, error });
-                    res.status(HttpStatus.InternalServerError).json({ error });
-                    return;
                 }
-            },
-            trace: "0437",
-            traceObject: { userId, variant },
-        });
-        // If response hasn't been sent yet, send an error
-        if (!res.headersSent) {
-            logger.error("Unknown error occurred.", { trace: "0321", userId, variant });
-            res.status(HttpStatus.InternalServerError).json({ error: "Unknown error occurred." });
+            }
+            // Create checkout session 
+            // NOTE: I previously tried also passing in the customer email 
+            // to save the customer some typing, but Stripe doesn't allow 
+            // this to be sent along with the customer ID.
+            const session = await stripe.checkout.sessions.create({
+                success_url: `${UI_URL}${LINKS.Pro}?status=success`,
+                cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled`,
+                payment_method_types: ["card"],
+                line_items: [
+                    {
+                        price: priceId,
+                        quantity: 1,
+                    },
+                ],
+                mode: variant === PaymentType.Donation ? "payment" : "subscription",
+                customer: stripeCustomerId,
+                metadata: { userId },
+            });
+            // Create open payment in database, so we can track it
+            await prismaInstance.payment.create({
+                data: {
+                    amount: (variant === PaymentType.Donation ? session.amount_total : session.amount_subtotal) ?? 0,
+                    checkoutId: session.id,
+                    currency: session.currency ?? "usd",
+                    description: variant === PaymentType.Donation ? "Donation" : "Premium subscription - " + variant,
+                    paymentMethod: "Stripe",
+                    paymentType,
+                    status: "Pending",
+                    user: userId ? { connect: { id: userId } } : undefined,
+                },
+            });
+            // Send session ID as response
+            res.json(session);
+            return;
+        } catch (error) {
+            logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
+            res.status(HttpStatus.InternalServerError).json({ error });
+            return;
         }
     });
     // Create endpoint for updating payment method and switching/canceling subscription
@@ -736,44 +723,37 @@ export const setupStripe = (app: Express): void => {
         const returnUrl: string | undefined = req.body.returnUrl;
 
         let stripeCustomerId: string | undefined;
-        await withPrisma({
-            process: async (prisma) => {
-                // Get user from database
-                const user = await prisma.user.findUnique({
+        try {
+            // Get user from database
+            const user = await prismaInstance.user.findUnique({
+                where: { id: userId },
+                select: {
+                    emails: { select: { emailAddress: true } },
+                    stripeCustomerId: true,
+                },
+            });
+            if (!user) {
+                logger.error("User not found.", { trace: "0520", userId });
+                res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
+                return;
+            }
+            stripeCustomerId = user.stripeCustomerId ?? undefined;
+            // If no customer ID, create one. This shouldn't happen unless the 
+            // user is the admin (which is initialized with premium already, so hasn't 
+            // gone through checkout before)
+            if (!stripeCustomerId) {
+                const stripeCustomer = await stripe.customers.create({
+                    email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
+                });
+                stripeCustomerId = stripeCustomer.id;
+                await prismaInstance.user.update({
                     where: { id: userId },
-                    select: {
-                        emails: { select: { emailAddress: true } },
-                        stripeCustomerId: true,
+                    data: {
+                        stripeCustomerId,
                     },
                 });
-                if (!user) {
-                    logger.error("User not found.", { trace: "0520", userId });
-                    res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
-                    return;
-                }
-                stripeCustomerId = user.stripeCustomerId ?? undefined;
-                // If no customer ID, create one. This shouldn't happen unless the 
-                // user is the admin (which is initialized with premium already, so hasn't 
-                // gone through checkout before)
-                if (!stripeCustomerId) {
-                    const stripeCustomer = await stripe.customers.create({
-                        email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
-                    });
-                    stripeCustomerId = stripeCustomer.id;
-                    await prisma.user.update({
-                        where: { id: userId },
-                        data: {
-                            stripeCustomerId,
-                        },
-                    });
-                }
-            },
-            trace: "0520",
-            traceObject: { userId },
-        });
-
-        // Create a portal session
-        try {
+            }
+            // Create portal session
             const session = await stripe.billingPortal.sessions.create({
                 customer: stripeCustomerId as string, // Should be defined now, since we created a customer if it didn't exist
                 return_url: returnUrl ?? UI_URL,
@@ -782,7 +762,7 @@ export const setupStripe = (app: Express): void => {
             res.json(session);
             return;
         } catch (error) {
-            logger.error("Error creating portal session", { trace: "0516", userId, error });
+            logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
             res.status(HttpStatus.InternalServerError).json({ error });
             return;
         }
@@ -791,33 +771,32 @@ export const setupStripe = (app: Express): void => {
     app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
         const sig: string | string[] = req.headers["stripe-signature"] || "";
         let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
-        await withPrisma({
-            process: async (prisma) => {
-                // Parse event
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
-                // Call appropriate handler
-                const eventHandlers: { [key: string]: Handler } = {
-                    "checkout.session.completed": handleCheckoutSessionCompleted,
-                    "checkout.session.expired": handleCheckoutSessionExpired,
-                    "customer.deleted": handleCustomerDeleted,
-                    "customer.source.expiring": handleCustomerSourceExpiring,
-                    "customer.subscription.deleted": handleCustomerSubscriptionDeleted,
-                    "customer.subscription.trial_will_end": handleCustomerSubscriptionTrialWillEnd,
-                    "customer.subscription.updated": handleCustomerSubscriptionUpdated,
-                    "invoice.created": handleInvoicePaymentCreated,
-                    "invoice.payment_failed": handleInvoicePaymentFailed,
-                    "invoice.payment_succeeded": handleInvoicePaymentSucceeded,
-                    "price.updated": handlePriceUpdated,
-                };
-                if (event.type in eventHandlers) {
-                    result = await eventHandlers[event.type]({ event, prisma, stripe, res });
-                } else {
-                    logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
-                }
-            },
-            trace: "0454",
-        });
+        try {
+            // Parse event
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+            // Call appropriate handler
+            const eventHandlers: { [key: string]: Handler } = {
+                "checkout.session.completed": handleCheckoutSessionCompleted,
+                "checkout.session.expired": handleCheckoutSessionExpired,
+                "customer.deleted": handleCustomerDeleted,
+                "customer.source.expiring": handleCustomerSourceExpiring,
+                "customer.subscription.deleted": handleCustomerSubscriptionDeleted,
+                "customer.subscription.trial_will_end": handleCustomerSubscriptionTrialWillEnd,
+                "customer.subscription.updated": handleCustomerSubscriptionUpdated,
+                "invoice.created": handleInvoicePaymentCreated,
+                "invoice.payment_failed": handleInvoicePaymentFailed,
+                "invoice.payment_succeeded": handleInvoicePaymentSucceeded,
+                "price.updated": handlePriceUpdated,
+            };
+            if (event.type in eventHandlers) {
+                result = await eventHandlers[event.type]({ event, stripe, res });
+            } else {
+                logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
+            }
+        } catch (error) {
+            logger.error("Caught error in /webhooks/stripe", { trace: "0454", error });
+        }
         res.status(result.status);
         if (result.message) {
             res.send(result.message);

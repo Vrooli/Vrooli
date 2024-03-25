@@ -3,10 +3,11 @@ import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getLabels } from "../../getters/getLabels";
 import { withRedis } from "../../redisConn";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils/defaultPermissions";
 import { ViewFormat } from "../formats";
 import { OrganizationModelLogic, ViewModelLogic } from "./types";
@@ -124,8 +125,8 @@ interface ViewInput {
 /**
  * Deletes views from user's view list, but does not affect view count or logs.
  */
-const deleteViews = async (prisma: PrismaType, userId: string, ids: string[]): Promise<Count> => {
-    return await prisma.view.deleteMany({
+const deleteViews = async (userId: string, ids: string[]): Promise<Count> => {
+    return await prismaInstance.view.deleteMany({
         where: {
             AND: [
                 { id: { in: ids } },
@@ -138,8 +139,8 @@ const deleteViews = async (prisma: PrismaType, userId: string, ids: string[]): P
 /**
  * Removes all of user's views, but does not affect view count or logs.
  */
-const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> => {
-    return await prisma.view.deleteMany({
+const clearViews = async (userId: string): Promise<Count> => {
+    return await prismaInstance.view.deleteMany({
         where: { byId: userId },
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
 };
@@ -160,7 +161,7 @@ const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] 
 const __typename = "View" as const;
 export const ViewModel: ViewModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.view,
+    delegate: (p) => p.view,
     display: () => ({
         label: {
             select: () => ({
@@ -192,7 +193,6 @@ export const ViewModel: ViewModelLogic = ({
     },
     query: {
         async getIsVieweds(
-            prisma: PrismaType,
             userId: string | null | undefined,
             ids: string[],
             viewFor: keyof typeof ViewFor,
@@ -204,7 +204,7 @@ export const ViewModel: ViewModelLogic = ({
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(viewFor)}Id`;
-            const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+            const isViewedArray = await prismaInstance.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true if viewed
             for (let i = 0; i < ids.length; i++) {
                 // Try to find this id in the isViewed array
@@ -242,18 +242,18 @@ export const ViewModel: ViewModelLogic = ({
      * A user may view their own objects, but it does not count towards its view count.
      * @returns True if view updated correctly
      */
-    view: async (prisma: PrismaType, userData: SessionUserToken, input: ViewInput): Promise<boolean> => {
+    view: async (userData: SessionUserToken, input: ViewInput): Promise<boolean> => {
         // Get Prisma delegate for viewed object
         const { delegate } = ModelMap.getLogic(["delegate"], input.viewFor, true, "view 1");
         // Check if object being viewed on exists
-        const objectToView: { [x: string]: any } | null = await delegate(prisma).findUnique({
+        const objectToView: { [x: string]: any } | null = await delegate(prismaInstance).findUnique({
             where: { id: input.forId },
             select: selectMapper[input.viewFor],
         });
         if (!objectToView)
             throw new CustomError("0173", "NotFound", userData.languages);
         // Check if view exists
-        let view = await prisma.view.findFirst({
+        let view = await prismaInstance.view.findFirst({
             where: {
                 by: { id: userData.id },
                 ...whereMapper[input.viewFor](input.forId),
@@ -261,7 +261,7 @@ export const ViewModel: ViewModelLogic = ({
         });
         // If view already existed, update view time
         if (view) {
-            await prisma.view.update({
+            await prismaInstance.view.update({
                 where: { id: view.id },
                 data: {
                     lastViewedAt: new Date(),
@@ -270,8 +270,8 @@ export const ViewModel: ViewModelLogic = ({
         }
         // If view did not exist, create it
         else {
-            const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, prisma, userData.languages, "view");
-            view = await prisma.view.create({
+            const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, userData.languages, "view");
+            view = await prismaInstance.view.create({
                 data: {
                     by: { connect: { id: userData.id } },
                     name: labels[0],
@@ -284,7 +284,7 @@ export const ViewModel: ViewModelLogic = ({
         switch (input.viewFor) {
             case ViewFor.Organization: {
                 // Check if user is an admin or owner of the organization
-                const roles = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(prisma, userData.id, [input.forId]);
+                const roles = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(userData.id, [input.forId]);
                 isOwn = Boolean(roles[0]);
                 break;
             }
@@ -302,7 +302,7 @@ export const ViewModel: ViewModelLogic = ({
             case ViewFor.StandardVersion: {
                 // Check if ROOT object is owned by this user or by an organization they are a member of
                 const { delegate: rootObjectDelegate } = ModelMap.getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 2");
-                const rootObject = await rootObjectDelegate(prisma).findFirst({
+                const rootObject = await rootObjectDelegate(prismaInstance).findFirst({
                     where: {
                         AND: [
                             { id: dataMapper[input.viewFor](objectToView).id },
@@ -320,7 +320,7 @@ export const ViewModel: ViewModelLogic = ({
             }
             case ViewFor.Question: {
                 // Check if question was created by this user
-                const question = await prisma.question.findFirst({ where: { id: input.forId, createdBy: { id: userData.id } } });
+                const question = await prismaInstance.question.findFirst({ where: { id: input.forId, createdBy: { id: userData.id } } });
                 if (question) isOwn = true;
                 break;
             }
@@ -340,7 +340,7 @@ export const ViewModel: ViewModelLogic = ({
                 if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
                     // View counts don't exist on versioned objects, so we must make sure we are updating the root object
                     const { delegate: rootObjectDelegate } = ModelMap.getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 3");
-                    await rootObjectDelegate(prisma).update({
+                    await rootObjectDelegate(prismaInstance).update({
                         where: { id: input.forId },
                         data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
                     });

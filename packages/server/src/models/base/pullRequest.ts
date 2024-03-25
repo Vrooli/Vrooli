@@ -30,7 +30,7 @@ const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUps
 const __typename = "PullRequest" as const;
 export const PullRequestModel: PullRequestModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.pull_request,
+    delegate: (p) => p.pull_request,
     display: () => ({
         label: {
             select: () => ({
@@ -99,10 +99,10 @@ export const PullRequestModel: PullRequestModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

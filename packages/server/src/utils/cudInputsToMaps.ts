@@ -1,10 +1,10 @@
 import { GqlModelType, pascalCase, uuidValidate } from "@local/shared";
 import { isRelationshipObject } from "../builders/isOfType";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ModelMap } from "../models/base";
 import { Formatter, ModelLogicType } from "../models/types";
-import { PrismaType } from "../types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
 import { InputNode } from "./inputNode";
 import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction } from "./types";
@@ -35,19 +35,17 @@ type MinimumFormatter<
  *                      "objectType|rootId.relationType1|relation1.relationType2|relation2...relationTypeN|relationN".
  * @param placeholderToIdMap - A map object (IdsByPlaceholder) that stores previously resolved placeholders
  *                             and their corresponding IDs to optimize performance.
- * @param prisma - The Prisma client instance used for database queries.
  * @returns {Promise<string | null>} - The resolved unique identifier (ID) of the object represented by
  *                                     the placeholder, or null if the object is not found.
  *
  * @example
  * // Assuming 'User|123.Email|emails' is a placeholder where 'User' is the object type, '123' is the rootId,
  * // 'Email' is the relation type for 'email'.
- * const userId = await fetchAndMapPlaceholder('User|123.Email|emails', placeholderToIdMap, prisma);
+ * const userId = await fetchAndMapPlaceholder('User|123.Email|emails', placeholderToIdMap);
  */
 export const fetchAndMapPlaceholder = async (
     placeholder: string,
     placeholderToIdMap: IdsByPlaceholder,
-    prisma: PrismaType,
 ): Promise<void> => {
     if (placeholder in placeholderToIdMap) {
         return;  // Already processed this placeholder
@@ -81,7 +79,7 @@ export const fetchAndMapPlaceholder = async (
         }
     });
 
-    const queryResult = await delegate(prisma).findUnique({
+    const queryResult = await delegate(prismaInstance).findUnique({
         where: { id: rootId },
         select,
     });
@@ -107,7 +105,6 @@ export const fetchAndMapPlaceholder = async (
 export const replacePlaceholdersInMap = async (
     idsMap: Record<string, (string | null)[]>,
     placeholderToIdMap: IdsByPlaceholder,
-    prisma: PrismaType,
 ): Promise<void> => {
     for (const [key, ids] of Object.entries(idsMap)) {
         const updatedIds: (string | null)[] = [];
@@ -116,7 +113,7 @@ export const replacePlaceholdersInMap = async (
                 if (placeholderToIdMap[id]) {
                     updatedIds.push(placeholderToIdMap[id]);
                 } else {
-                    await fetchAndMapPlaceholder(id, placeholderToIdMap, prisma);
+                    await fetchAndMapPlaceholder(id, placeholderToIdMap);
                     updatedIds.push(placeholderToIdMap[id]);
                 }
             } else {
@@ -136,7 +133,6 @@ export const replacePlaceholdersInMap = async (
 export const replacePlaceholdersInInputsById = async (
     inputsById: InputsById,
     placeholderToIdMap: IdsByPlaceholder,
-    prisma: PrismaType,
 ): Promise<void> => {
     for (const [maybePlaceholder, value] of Object.entries(inputsById)) {
         if (!maybePlaceholder.includes("|")) continue;
@@ -144,7 +140,7 @@ export const replacePlaceholdersInInputsById = async (
         if (placeholderToIdMap[maybePlaceholder]) {
             id = placeholderToIdMap[maybePlaceholder];
         } else {
-            await fetchAndMapPlaceholder(maybePlaceholder, placeholderToIdMap, prisma);
+            await fetchAndMapPlaceholder(maybePlaceholder, placeholderToIdMap);
             id = placeholderToIdMap[maybePlaceholder];
         }
         if (id === null) {
@@ -176,7 +172,6 @@ export const replacePlaceholdersInInputsById = async (
 export const replacePlaceholdersInInputsByType = async (
     inputsByType: InputsByType,
     placeholderToIdMap: IdsByPlaceholder,
-    prisma: PrismaType,
 ): Promise<void> => {
     for (const objectType in inputsByType) {
         for (const action in inputsByType[objectType]) {
@@ -187,7 +182,7 @@ export const replacePlaceholdersInInputsByType = async (
 
                 let id = placeholderToIdMap[maybePlaceholder];
                 if (!id) {
-                    await fetchAndMapPlaceholder(maybePlaceholder, placeholderToIdMap, prisma);
+                    await fetchAndMapPlaceholder(maybePlaceholder, placeholderToIdMap);
                     id = placeholderToIdMap[maybePlaceholder];
                 }
                 if (id === null) {
@@ -214,20 +209,18 @@ export const convertPlaceholders = async ({
     idsByType,
     inputsById,
     inputsByType,
-    prisma,
 }: {
     idsByAction: IdsByAction,
     idsByType: IdsByType,
     inputsById: InputsById,
     inputsByType: InputsByType,
-    prisma: PrismaType,
 }): Promise<void> => {
     const placeholderToIdMap: IdsByPlaceholder = {};
 
-    await replacePlaceholdersInMap(idsByAction, placeholderToIdMap, prisma);
-    await replacePlaceholdersInMap(idsByType, placeholderToIdMap, prisma);
-    await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap, prisma);
-    await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap, prisma);
+    await replacePlaceholdersInMap(idsByAction, placeholderToIdMap);
+    await replacePlaceholdersInMap(idsByType, placeholderToIdMap);
+    await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
+    await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 };
 
 /**
@@ -655,10 +648,8 @@ export const inputToMaps = <
 // TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
 export const cudInputsToMaps = async ({
     inputData,
-    prisma,
 }: {
     inputData: CudInputData[],
-    prisma: PrismaType,
 }): Promise<{
     idsByAction: IdsByAction,
     idsByType: IdsByType,
@@ -687,7 +678,7 @@ export const cudInputsToMaps = async ({
         );
     }
 
-    await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType, prisma });
+    await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
     // Check if any objects being created should be replaced with connects
     // NOTE: This only updates the maps, not inputs themselves. You'll still have to 
@@ -700,7 +691,7 @@ export const cudInputsToMaps = async ({
         const createIds = inputsByType[type].Create.map(({ node }) => node.id);
         if (!createIds?.length) continue;
         // Find all objects of this type that already exist
-        const connectIds = await mutate.shape.findConnects({ Create: inputsByType[type].Create, prisma });
+        const connectIds = await mutate.shape.findConnects({ Create: inputsByType[type].Create });
         for (let i = 0; i < createIds.length; i++) {
             const createId = createIds[i];
             const connectId = connectIds[i];

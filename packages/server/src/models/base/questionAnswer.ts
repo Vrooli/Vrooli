@@ -8,7 +8,7 @@ import { QuestionAnswerModelLogic } from "./types";
 const __typename = "QuestionAnswer" as const;
 export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.question_answer,
+    delegate: (p) => p.question_answer,
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),

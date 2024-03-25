@@ -4,6 +4,7 @@ import { combineQueries } from "../builders/combineQueries";
 import { timeFrameToPrisma } from "../builders/timeFrameToPrisma";
 import { CountInputBase } from "../builders/types";
 import { visibilityBuilder } from "../builders/visibilityBuilder";
+import { prismaInstance } from "../db/instance";
 import { ModelMap } from "../models/base";
 import { CountHelperProps } from "./types";
 
@@ -14,7 +15,6 @@ import { CountHelperProps } from "./types";
 export async function countHelper<CountInput extends CountInputBase>({
     input,
     objectType,
-    prisma,
     req,
     where,
     visibility = VisibilityType.Public,
@@ -28,7 +28,7 @@ export async function countHelper<CountInput extends CountInputBase>({
     const visibilityQuery = visibilityBuilder({ objectType, userData, visibility });
     // Count objects that match queries
     const delegate = ModelMap.get(objectType).delegate;
-    return await delegate(prisma).count({
+    return await delegate(prismaInstance).count({
         where: combineQueries([where, createdQuery, updatedQuery, visibilityQuery]),
     });
 }

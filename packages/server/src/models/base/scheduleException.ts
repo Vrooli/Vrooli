@@ -9,7 +9,7 @@ import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelI
 const __typename = "ScheduleException" as const;
 export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.schedule_exception,
+    delegate: (p) => p.schedule_exception,
     display: () => ({
         label: {
             select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display().label.select() } }),

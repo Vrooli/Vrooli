@@ -10,7 +10,7 @@ import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, Resou
 const __typename = "Resource" as const;
 export const ResourceModel: ResourceModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.resource,
+    delegate: (p) => p.resource,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

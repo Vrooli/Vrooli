@@ -8,7 +8,7 @@ import { FocusModeFilterModelLogic, FocusModeModelInfo, FocusModeModelLogic, Tag
 const __typename = "FocusModeFilter" as const;
 export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.focus_mode_filter,
+    delegate: (p) => p.focus_mode_filter,
     display: () => ({
         label: {
             select: () => ({ id: true, tag: { select: ModelMap.get<TagModelLogic>("Tag").display().label.select() } }),

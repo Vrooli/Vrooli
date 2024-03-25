@@ -4,6 +4,7 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom, updateSessionCurrentUser } from "../../auth/request";
 import { focusModeSelect } from "../../auth/session";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
@@ -23,25 +24,25 @@ export type EndpointsFocusMode = {
 const objectType = "FocusMode";
 export const FocusModeEndpoints: EndpointsFocusMode = {
     Query: {
-        focusMode: async (_, { input }, { prisma, req }, info) => {
+        focusMode: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        focusModes: async (_, { input }, { prisma, req }, info) => {
+        focusModes: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
+            return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
-        focusModeCreate: async (_, { input }, { prisma, req }, info) => {
+        focusModeCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        focusModeUpdate: async (_, { input }, { prisma, req }, info) => {
+        focusModeUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
-        setActiveFocusMode: async (_, { input }, { prisma, req, res }) => {
+        setActiveFocusMode: async (_, { input }, { req, res }) => {
             // Unlink other objects, active focus mode is only stored in the user's session. 
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 500, req });
@@ -50,7 +51,7 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
             const startDate = now;
             const endDate = new Date(now.setDate(now.getDate() + 7));
             // Find focus mode data & verify that it belongs to the user
-            const focusMode = await prisma.focus_mode.findFirst({
+            const focusMode = await prismaInstance.focus_mode.findFirst({
                 where: {
                     id: input.id,
                     user: { id: userData.id },

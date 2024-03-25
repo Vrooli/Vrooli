@@ -2,6 +2,7 @@ import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, ReportStatus, report
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
@@ -27,7 +28,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
 const __typename = "Report" as const;
 export const ReportModel: ReportModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.report,
+    delegate: (p) => p.report,
     display: () => ({
         label: {
             select: () => ({
@@ -46,10 +47,10 @@ export const ReportModel: ReportModelLogic = ({
     format: ReportFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, prisma, userData }) => {
+            pre: async ({ Create, userData }) => {
                 // Make sure user does not have any open reports on these objects
                 if (Create.length) {
-                    const existing = await prisma.report.findMany({
+                    const existing = await prismaInstance.report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },
@@ -81,9 +82,9 @@ export const ReportModel: ReportModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 for (const objectId of createdIds) {
-                    // await Trigger(prisma, userData.languages).reportActivity({
+                    // await Trigger(userData.languages).reportActivity({
                     //     objectId,
                     // });
                 }
@@ -121,10 +122,10 @@ export const ReportModel: ReportModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

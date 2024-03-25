@@ -1,6 +1,7 @@
 import { ChatInviteStatus, ChatSortBy, chatValidation, MaxObjects, User, uuidValidate } from "@local/shared";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { prismaInstance } from "../../db/instance";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
@@ -11,7 +12,7 @@ import { ChatModelLogic } from "./types";
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.chat,
+    delegate: (p) => p.chat,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -31,7 +32,7 @@ export const ChatModel: ChatModelLogic = ({
     format: ChatFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, prisma, userData, inputsById }) => {
+            pre: async ({ Create, Update, userData, inputsById }) => {
                 // Find invited users. Any that are bots are automatically accepted.
                 const invitedUsers = Create.reduce((acc, createObject) => {
                     const invites = createObject.input.invitesCreate ?? [];
@@ -50,7 +51,7 @@ export const ChatModel: ChatModelLogic = ({
                     return acc;
                 }, [] as string[]);
                 // Find all bots
-                const bots = await prisma.user.findMany({
+                const bots = await prismaInstance.user.findMany({
                     where: {
                         id: { in: invitedUsers },
                         isBot: true,
@@ -185,7 +186,7 @@ export const ChatModel: ChatModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
                 // UI for speed), allow the bot to send a message to the chat
             },
@@ -213,11 +214,11 @@ export const ChatModel: ChatModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        // hasUnread: await ModelMap.get<ChatModelLogic>("Chat").query.getHasUnread(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        // hasUnread: await ModelMap.get<ChatModelLogic>("Chat").query.getHasUnread(userData?.id, ids, __typename),
                     },
                 };
             },

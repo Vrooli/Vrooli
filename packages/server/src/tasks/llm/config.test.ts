@@ -2,12 +2,10 @@
 import { LlmTask } from "@local/shared";
 import fs from "fs";
 import pkg from "../../__mocks__/@prisma/client";
-import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { DEFAULT_LANGUAGE, LLM_CONFIG_LOCATION, generateTaskExec, getStructuredTaskConfig, getUnstructuredTaskConfig, importCommandToTask, importConfig, importConverter } from "./config";
 
 const { PrismaClient } = pkg;
 
-jest.mock("@prisma/client");
 jest.mock("../../events/logger");
 
 describe("importConfig", () => {
@@ -180,18 +178,15 @@ describe("getStructuredTaskConfig", () => {
 });
 
 describe("generateTaskExec", () => {
-    let prismaMock;
     const mockUserData = { languages: ["en"] };
 
     beforeEach(async () => {
         jest.clearAllMocks();
-        prismaMock = mockPrisma({});
-        PrismaClient.injectMocks(prismaMock);
+        PrismaClient.injectData({});
     });
 
     afterEach(() => {
-        PrismaClient.resetMocks();
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     Object.keys(LlmTask).forEach((task) => {
@@ -200,13 +195,13 @@ describe("generateTaskExec", () => {
 
         it(`should create a task exec function for ${task}`, async () => {
             // @ts-ignore: Testing runtime scenario 
-            const execFunc = await generateTaskExec(task, "en", prismaMock, mockUserData);
+            const execFunc = await generateTaskExec(task, "en", mockUserData);
             expect(typeof execFunc).toBe("function");
         });
     });
 
     it("should throw an error for invalid tasks", async () => {
         // @ts-ignore: Testing runtime scenario
-        await expect(generateTaskExec("InvalidTask", "en", prismaMock, mockUserData)).rejects.toThrow();
+        await expect(generateTaskExec("InvalidTask", "en", mockUserData)).rejects.toThrow();
     });
 });

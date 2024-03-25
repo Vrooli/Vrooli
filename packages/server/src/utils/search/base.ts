@@ -1,4 +1,3 @@
-import { PrismaType } from "../../types";
 
 export enum SearchSortOption {
     New = "New",
@@ -16,7 +15,6 @@ export enum SearchTimePeriod {
 export interface QueryEmbeddingsProps {
     limit?: number;
     offset?: number;
-    prisma: PrismaType;
     searchString: string;
     sortOption: SearchSortOption;
     thresholdBookmarks?: number;

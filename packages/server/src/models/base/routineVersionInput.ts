@@ -10,7 +10,7 @@ import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVer
 const __typename = "RoutineVersionInput" as const;
 export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.routine_version_input,
+    delegate: (p) => p.routine_version_input,
     display: () => ({
         label: {
             select: () => ({

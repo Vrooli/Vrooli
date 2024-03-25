@@ -5,8 +5,8 @@
 
 import { AwardCategory, awardNames, awardVariants, GqlModelType } from "@local/shared";
 import i18next from "i18next";
+import { prismaInstance } from "../db/instance";
 import { Notify } from "../notify";
-import { PrismaType } from "../types";
 
 /**
  * Given an ordered list of numbers, returns the closest lower number in the list
@@ -56,7 +56,7 @@ export const objectAwardCategory = <T extends keyof typeof GqlModelType>(objectT
  * Handles tracking awards for a user. If a new award is earned, a notification
  * can be sent to the user (push or email)
  */
-export const Award = (prisma: PrismaType, userId: string, languages: string[]) => ({
+export const Award = (userId: string, languages: string[]) => ({
     /**
      * Upserts an award into the database. If the award progress reaches a new goal,
      * the user is notified
@@ -68,7 +68,7 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
     update: async (category: `${AwardCategory}`, newProgress: number) => {
         // Upsert the award into the database, with progress incremented
         // by the new progress
-        const award = await prisma.award.upsert({
+        const award = await prismaInstance.award.upsert({
             where: { userId_category: { userId, category } },
             update: { progress: { increment: newProgress } },
             create: { userId, category, progress: newProgress },
@@ -84,10 +84,10 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
             const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
             // Send a notification to the user
             if (transTitle && transBody) {
-                await Notify(prisma, languages).pushAward(transTitle, transBody).toUser(userId);
+                await Notify(languages).pushAward(transTitle, transBody).toUser(userId);
             }
             // Set "timeCurrentTierCompleted" to the current time
-            await prisma.award.update({
+            await prismaInstance.award.update({
                 where: { userId_category: { userId, category } },
                 data: { timeCurrentTierCompleted: new Date() },
             });

@@ -19,23 +19,23 @@ export type EndpointsResourceList = {
 const objectType = "ResourceList";
 export const ResourceListEndpoints: EndpointsResourceList = {
     Query: {
-        resourceList: async (_, { input }, { prisma, req }, info) => {
+        resourceList: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        resourceLists: async (_, { input }, { prisma, req }, info) => {
+        resourceLists: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        resourceListCreate: async (_, { input }, { prisma, req }, info) => {
+        resourceListCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        resourceListUpdate: async (_, { input }, { prisma, req }, info) => {
+        resourceListUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

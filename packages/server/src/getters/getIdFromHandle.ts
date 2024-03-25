@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { PrismaType } from "../types";
+import { prismaInstance } from "../db/instance";
 
 /**
  * Finds the id of an object from its handle
@@ -8,17 +8,15 @@ import { PrismaType } from "../types";
 export async function getIdFromHandle({
     handle,
     objectType,
-    prisma,
 }: {
     handle: string;
     objectType: `${GqlModelType}`,
-    prisma: PrismaType,
 }): Promise<string | undefined> {
     const where = { handle };
     const select = { id: true };
     const query = { where, select };
-    const id = objectType === "Organization" ? await prisma.organization.findFirst(query) :
-        objectType === "Project" ? await prisma.project.findFirst(query) :
-            await prisma.user.findFirst(query);
+    const id = objectType === "Organization" ? await prismaInstance.organization.findFirst(query) :
+        objectType === "Project" ? await prismaInstance.project.findFirst(query) :
+            await prismaInstance.user.findFirst(query);
     return id?.id;
 }

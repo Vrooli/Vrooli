@@ -15,14 +15,14 @@ import { BookmarkModelLogic, OrganizationModelLogic, ProjectModelInfo, ProjectMo
 const __typename = "Project" as const;
 export const ProjectModel: ProjectModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.project,
+    delegate: (p) => p.project,
     display: () => rootObjectDisplay(ModelMap.get<ProjectVersionModelLogic>("ProjectVersion")),
     format: ProjectFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, Delete, prisma, userData }) => {
-                await handlesCheck(prisma, __typename, Create, Update, userData.languages);
-                const maps = await preShapeRoot({ Create, Update, Delete, prisma, userData, objectType: __typename });
+            pre: async ({ Create, Update, Delete, userData }) => {
+                await handlesCheck(__typename, Create, Update, userData.languages);
+                const maps = await preShapeRoot({ Create, Update, Delete, userData, objectType: __typename });
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => ({
@@ -90,15 +90,15 @@ export const ProjectModel: ProjectModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                    translatedName: await getLabels(ids, __typename, userData?.languages ?? ["en"], "project.translatedName"),
                 };
             },
         },

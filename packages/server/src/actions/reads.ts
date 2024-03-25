@@ -7,6 +7,7 @@ import { selectHelper } from "../builders/selectHelper";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { visibilityBuilder } from "../builders/visibilityBuilder";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { getIdFromHandle } from "../getters/getIdFromHandle";
@@ -44,7 +45,6 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     info,
     input,
     objectType,
-    prisma,
     req,
 }: ReadOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = getUser(req.session);
@@ -59,11 +59,11 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // To query the version, we must find the latest completed version associated with the root object.
     let id: string | null | undefined;
     if (input.idRoot || input.handleRoot) {
-        id = await getLatestVersion({ objectType: objectType as any, prisma, idRoot: input.idRoot, handleRoot: input.handleRoot });
+        id = await getLatestVersion({ objectType: objectType as any, idRoot: input.idRoot, handleRoot: input.handleRoot });
     }
     // If using handle, find the id of the object with that handle
     else if (input.handle) {
-        id = await getIdFromHandle({ handle: input.handle, objectType, prisma });
+        id = await getIdFromHandle({ handle: input.handle, objectType });
     }
     // Otherwise, use the id provided
     else {
@@ -72,7 +72,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     if (!id)
         throw new CustomError("0434", "NotFound", userData?.languages ?? req.session.languages, { objectType });
     // Query for all authentication data
-    const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
+    const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, userData ?? null);
     if (Object.keys(authDataById).length === 0) {
         throw new CustomError("0021", "NotFound", userData?.languages ?? req.session.languages, { id, objectType });
     }
@@ -81,7 +81,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // Get the Prisma object
     let object: any;
     try {
-        object = await model.delegate(prisma).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+        object = await model.delegate(prismaInstance).findUnique({ where: { id }, ...selectHelper(partialInfo) });
         if (!object)
             throw new CustomError("0022", "NotFound", userData?.languages ?? req.session.languages, { objectType });
     } catch (error) {
@@ -91,9 +91,9 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
-        ModelMap.get<ViewModelLogic>("View").view(prisma, userData, { forId: object.id, viewFor: objectType as ViewFor });
+        ModelMap.get<ViewModelLogic>("View").view(userData, { forId: object.id, viewFor: objectType as ViewFor });
     }
-    const result = (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    const result = (await addSupplementalFields(userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
     return result;
 }
 
@@ -110,7 +110,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     info,
     input,
     objectType,
-    prisma,
     req,
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
@@ -149,7 +148,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Search results have at least an id
     let searchResults: Record<string, any>[] = [];
     try {
-        searchResults = await (model.delegate(prisma)).findMany({
+        searchResults = await model.delegate(prismaInstance).findMany({
             where,
             orderBy,
             take: desiredTake + 1, // Take one extra so we can determine if there is a next page
@@ -177,7 +176,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Add supplemental fields, if requested
     if (addSupplemental) {
         searchResults = searchResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
-        searchResults = await addSupplementalFields(prisma, userData, searchResults, partialInfo);
+        searchResults = await addSupplementalFields(userData, searchResults, partialInfo);
     }
     // Return formatted for GraphQL
     return {
@@ -209,7 +208,6 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     info,
     input,
     objectType,
-    prisma,
     req,
 }: Omit<ReadManyHelperProps<Input>, "addSupplemental">): Promise<ReadManyAsFeedResult> {
     const readManyResult = await readManyHelper({
@@ -218,7 +216,6 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
         info,
         input,
         objectType,
-        prisma,
         req,
     });
     const format = ModelMap.get(objectType).format;
@@ -242,7 +239,6 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     info,
     input,
     objectType,
-    prisma,
     req,
     visibility = VisibilityType.Public,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
@@ -252,7 +248,6 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     const embedResults = await findTags({ //TODO support more than just tags
         limit: desiredTake,
         offset: 0, //TODO support offset
-        prisma,
         searchString: input.searchString ?? "",
         sortOption: input.sortBy ?? model.search?.defaultSort,
         thresholdBookmarks: 0,
@@ -260,14 +255,14 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     });
     const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     const select = selectHelper(partialInfo);
-    const searchResults = await prisma.tag.findMany({
+    const searchResults = await prismaInstance.tag.findMany({
         where: { id: { in: embedResults.map(t => t.id) } },
         ...select,
     });
     //TODO validate that the user has permission to read all of the results, including relationships
     // Return formatted for GraphQL
     let formattedNodes = searchResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
+    formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);
     // Reorder nodes to match the order of the embedResults
     const formattedNodesMap = new Map(formattedNodes.map(n => [n.id, n]));
     return {

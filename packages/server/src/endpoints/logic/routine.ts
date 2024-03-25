@@ -19,23 +19,23 @@ export type EndpointsRoutine = {
 const objectType = "Routine";
 export const RoutineEndpoints: EndpointsRoutine = {
     Query: {
-        routine: async (_, { input }, { prisma, req }, info) => {
+        routine: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        routines: async (_, { input }, { prisma, req }, info) => {
+        routines: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        routineCreate: async (_, { input }, { prisma, req }, info) => {
+        routineCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        routineUpdate: async (_, { input }, { prisma, req }, info) => {
+        routineUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

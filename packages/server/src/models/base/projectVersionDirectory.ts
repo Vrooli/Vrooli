@@ -10,7 +10,7 @@ import { ProjectVersionDirectoryModelInfo, ProjectVersionDirectoryModelLogic, Pr
 const __typename = "ProjectVersionDirectory" as const;
 export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.project_version_directory,
+    delegate: (p) => p.project_version_directory,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

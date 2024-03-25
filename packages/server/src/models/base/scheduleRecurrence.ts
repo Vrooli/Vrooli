@@ -9,7 +9,7 @@ import { ScheduleModelInfo, ScheduleModelLogic, ScheduleRecurrenceModelInfo, Sch
 const __typename = "ScheduleRecurrence" as const;
 export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.schedule_recurrence,
+    delegate: (p) => p.schedule_recurrence,
     display: () => ({
         label: {
             select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display().label.select() } }),

@@ -1,3 +1,4 @@
+import { prismaInstance } from "../../../db/instance";
 import { getEmbeddings } from "../getEmbeddings";
 import { getDateLimit, QueryEmbeddingsHelperProps, QueryEmbeddingsProps, SearchTimePeriod } from "./base";
 
@@ -6,11 +7,10 @@ export const findTopTagsWithEmbedding = async ({
     embedding,
     limit = 5,
     offset = 0,
-    prisma,
     thresholdBookmarks = 0,
     thresholdDistance = 1,
 }: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
-    const test = await prisma.$queryRaw`
+    const test = await prismaInstance.$queryRaw`
         SELECT 
             t."id", 
             ((1 / (1 + (tt."embedding" <-> ${embedding}::vector))) * 2) + t."bookmarks" as points
@@ -31,10 +31,9 @@ export const findTopTagsWithoutEmbedding = async ({
     dateLimit,
     limit = 5,
     offset = 0,
-    prisma,
     thresholdBookmarks = 0,
 }: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
-    const test = await prisma.$queryRaw`
+    const test = await prismaInstance.$queryRaw`
         SELECT 
             t."id", 
             t."bookmarks" as points
@@ -54,11 +53,10 @@ export const findNewTagsWithEmbedding = async ({
     embedding,
     limit = 5,
     offset = 0,
-    prisma,
     thresholdBookmarks = 0,
     thresholdDistance = 1,
 }: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
-    const test = await prisma.$queryRaw`
+    const test = await prismaInstance.$queryRaw`
         SELECT 
             t."id", 
             ((1 / (1 + (tt."embedding" <-> ${embedding}::vector))) * 2) + t."bookmarks" as points
@@ -79,10 +77,9 @@ export const findNewTagsWithoutEmbedding = async ({
     dateLimit,
     limit = 5,
     offset = 0,
-    prisma,
     thresholdBookmarks = 0,
 }: QueryEmbeddingsHelperProps): Promise<{ id: string }[]> => {
-    const test = await prisma.$queryRaw`
+    const test = await prismaInstance.$queryRaw`
         SELECT 
             t."id", 
             t."bookmarks" as points
@@ -98,7 +95,6 @@ export const findNewTagsWithoutEmbedding = async ({
 
 
 export const findTags = async ({
-    prisma,
     searchString,
     sortOption,
     thresholdBookmarks = 0,
@@ -115,7 +111,7 @@ export const findTags = async ({
     }
     // Common props for all helper functions
     const dateLimit = getDateLimit(timePeriod);
-    const props = { prisma, dateLimit, embedding, thresholdBookmarks, limit, offset };
+    const props = { dateLimit, embedding, thresholdBookmarks, limit, offset };
 
     switch (sortOption) {
         case "Top":

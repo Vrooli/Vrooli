@@ -1,8 +1,9 @@
 import { exists, GqlModelType } from "@local/shared";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { ModelMap } from "../../models/base";
 import { transfer } from "../../models/base/transfer";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
@@ -48,7 +49,6 @@ export const preShapeRoot = async ({
     Update,
     Delete,
     objectType,
-    prisma,
     userData,
 }: {
     Create: {
@@ -89,7 +89,6 @@ export const preShapeRoot = async ({
         input: string;
     }[],
     objectType: GqlModelType | `${GqlModelType}`,
-    prisma: PrismaType,
     userData: SessionUserToken,
 }): Promise<{
     versionMap: Record<string, HasCompleteVersionData>,
@@ -123,7 +122,7 @@ export const preShapeRoot = async ({
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
-        const originalData = await delegate(prisma).findMany({
+        const originalData = await delegate(prismaInstance).findMany({
             where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
@@ -170,7 +169,7 @@ export const preShapeRoot = async ({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
-        const originalData = await delegate(prisma).findMany({
+        const originalData = await delegate(prismaInstance).findMany({
             where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });
@@ -199,7 +198,7 @@ export const preShapeRoot = async ({
         .filter(([id]) => !Delete.some(d => d.input === id))
         .map(([id, data]) => [id, data.owner]);
     const ownersMap = Object.fromEntries(ownersEntries);
-    const requireTransfers = await transfer(prisma).checkTransferRequests(Object.values(ownersMap), userData);
+    const requireTransfers = await transfer().checkTransferRequests(Object.values(ownersMap), userData);
     for (let i = 0; i < requireTransfers.length; i++) {
         const id = Object.keys(ownersMap)[i];
         transferMap[id] = requireTransfers[i];

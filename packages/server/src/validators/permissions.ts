@@ -1,8 +1,9 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { InputsById, QueryAction } from "../utils/types";
@@ -256,7 +257,6 @@ export async function getMultiTypePermissions(
  * Using object type and ids, calculate permissions for one object type
  * @param type Object type
  * @param ids IDs of objects to calculate permissions for
- * @param prisma Prisma client
  * @param userData Data about the user performing the action
  * @returns Permissions object, where each field is a permission and each value is an array
  * of that permission's value for each object (in the same order as the IDs)
@@ -264,13 +264,12 @@ export async function getMultiTypePermissions(
 export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
     type: `${GqlModelType}`,
     ids: string[],
-    prisma: PrismaType,
     userData: SessionUserToken | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
-    const delegator = ModelMap.get(type).delegate(prisma);
+    const delegator = ModelMap.get(type).delegate(prismaInstance);
     const validator = ModelMap.get(type).validate();
     // Get auth data for all objects
     let select: any;

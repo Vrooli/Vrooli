@@ -11,7 +11,7 @@ import { MeetingInviteModelInfo, MeetingInviteModelLogic, MeetingModelInfo, Meet
 const __typename = "MeetingInvite" as const;
 export const MeetingInviteModel: MeetingInviteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.meeting_invite,
+    delegate: (p) => p.meeting_invite,
     display: () => ({
         // Label is the meeting label
         label: {
@@ -54,10 +54,10 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

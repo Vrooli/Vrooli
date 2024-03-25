@@ -9,7 +9,7 @@ import { NotificationSubscriptionModelLogic } from "./types";
 const __typename = "NotificationSubscription" as const;
 export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.notification_subscription,
+    delegate: (p) => p.notification_subscription,
     display: () => ({
         label: {
             select: () => ({

@@ -9,7 +9,6 @@ import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types";
  */
 export async function deleteOneHelper({
     input,
-    prisma,
     req,
 }: DeleteOneHelperProps): Promise<Success> {
     const userData = assertRequestFrom(req, { isUser: true });
@@ -21,7 +20,6 @@ export async function deleteOneHelper({
             objectType: input.objectType,
         }],
         partialInfo: {},
-        prisma,
         userData,
     }))[0];
     return { __typename: "Success" as const, success: deleted === true };
@@ -34,7 +32,6 @@ export async function deleteOneHelper({
  */
 export async function deleteManyHelper({
     input,
-    prisma,
     req,
 }: DeleteManyHelperProps): Promise<Count> {
     const userData = assertRequestFrom(req, { isUser: true });
@@ -47,7 +44,6 @@ export async function deleteManyHelper({
             objectType,
         })),
         partialInfo: {},
-        prisma,
         userData,
     });
     return { __typename: "Count" as const, count: deleted.filter(d => d === true).length };

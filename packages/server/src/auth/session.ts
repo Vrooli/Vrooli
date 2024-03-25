@@ -1,8 +1,9 @@
 import { ActiveFocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events/schedule";
-import { PrismaType, SessionData, SessionUserToken } from "../types";
+import { SessionData, SessionUserToken } from "../types";
 import { getUser } from "./request";
 
 export const focusModeSelect = (startDate: Date, endDate: Date) => ({
@@ -133,10 +134,9 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
 /**
  * Creates SessionUser object from user.
  * @param user User object
- * @param prisma Prisma type
  * @param req Express request object
  */
-export const toSessionUser = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<SessionUser> => {
+export const toSessionUser = async (user: { id: string }, req: Partial<Request>): Promise<SessionUser> => {
     if (!user.id)
         throw new CustomError("0064", "NotFound", req.session?.languages ?? ["en"]);
     // Create time frame to find schedule data for. 
@@ -144,7 +144,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     const startDate = now;
     const endDate = new Date(now.setDate(now.getDate() + 7));
     // Query for user data
-    const userData = await prisma.user.findUnique({
+    const userData = await prismaInstance.user.findUnique({
         where: { id: user.id },
         select: {
             id: true,
@@ -286,12 +286,11 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
 /**
  * Creates session object from user and existing session data
  * @param user User object
- * @param prisma 
  * @param req Express request object (with current session data)
  * @returns Updated session object, with user data added to the START of the users array
  */
-export const toSession = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<Session> => {
-    const sessionUser = await toSessionUser(user, prisma, req);
+export const toSession = async (user: { id: string }, req: Partial<Request>): Promise<Session> => {
+    const sessionUser = await toSessionUser(user, req);
     return {
         __typename: "Session" as const,
         isLoggedIn: true,

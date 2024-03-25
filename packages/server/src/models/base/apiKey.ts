@@ -9,7 +9,7 @@ import { ApiKeyModelLogic, OrganizationModelLogic } from "./types";
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.api_key,
+    delegate: (p) => p.api_key,
     display: () => ({
         label: {
             select: () => ({ id: true, key: true }),

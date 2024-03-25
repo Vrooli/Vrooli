@@ -1,6 +1,7 @@
 import { MaxObjects, walletValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { WalletFormat } from "../formats";
@@ -9,7 +10,7 @@ import { OrganizationModelLogic, WalletModelLogic } from "./types";
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.wallet,
+    delegate: (p) => p.wallet,
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -19,18 +20,18 @@ export const WalletModel: WalletModelLogic = ({
     format: WalletFormat,
     mutate: {
         shape: {
-            pre: async ({ Delete, prisma, userData }) => {
+            pre: async ({ Delete, userData }) => {
                 // Prevent deleting wallets if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allWallets = await prisma.wallet.findMany({
+                    const allWallets = await prismaInstance.wallet.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedPhonesCount = await prisma.phone.count({
+                    const verifiedPhonesCount = await prismaInstance.phone.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    const verifiedEmailsCount = await prisma.email.count({
+                    const verifiedEmailsCount = await prismaInstance.email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)

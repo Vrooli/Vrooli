@@ -12,7 +12,7 @@ import { NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLo
 const __typename = "NoteVersion" as const;
 export const NoteVersionModel: NoteVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.note_version,
+    delegate: (p) => p.note_version,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -38,12 +38,11 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -141,10 +140,10 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

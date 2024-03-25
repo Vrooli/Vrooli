@@ -1,9 +1,9 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus, SubscribableObject } from "@local/shared";
 import { setupEmailVerificationCode } from "../auth/email";
+import { prismaInstance } from "../db/instance";
 import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base/chatMessage";
 import { Notify, isObjectSubscribable } from "../notify";
 import { emitSocketEvent } from "../sockets/events";
-import { PrismaType } from "../types";
 import { Award, objectAwardCategory } from "./awards";
 import { logger } from "./logger";
 import { Reputation, objectReputationEvent } from "./reputation";
@@ -37,12 +37,12 @@ type Owner = { __typename: "User" | "Organization", id: string };
  * Some actions may also do nothing right now, but it's good to send them through this function
  * in case we want to add functionality later.
  */
-export const Trigger = (prisma: PrismaType, languages: string[]) => ({
+export const Trigger = (languages: string[]) => ({
     acountNew: async (userId: string, emailAddress?: string) => {
         // Send a welcome/verification email (if not created with wallet)
-        if (emailAddress) await setupEmailVerificationCode(emailAddress, userId, prisma, languages);
+        if (emailAddress) await setupEmailVerificationCode(emailAddress, userId, languages);
         // Give the user an award
-        Award(prisma, userId, languages).update("AccountNew", 1);
+        Award(userId, languages).update("AccountNew", 1);
     },
     chatMessageCreated: async ({
         excludeUserId,
@@ -58,7 +58,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         senderId: string,
         message: ChatMessage,
     }) => {
-        Notify(prisma, languages).pushMessageReceived(messageId, senderId).toChatParticipants(chatId, [senderId, excludeUserId]);
+        Notify(languages).pushMessageReceived(messageId, senderId).toChatParticipants(chatId, [senderId, excludeUserId]);
         emitSocketEvent("messages", chatId, { added: [message] });
     },
     chatMessageUpdated: async ({
@@ -110,21 +110,21 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         if (!issueHasBeenClosedOrRejected) {
             // If creating, track award progress of issue creator. 
             if (issueStatus === "Open") {
-                await Award(prisma, issueCreatedById, languages).update("IssueCreate", 1);
+                await Award(issueCreatedById, languages).update("IssueCreate", 1);
             }
             // If issue marked as resolved, increase reputation of issue creator
             else if (issueStatus === "ClosedResolved") {
-                await Reputation().update("IssueCreatedWasAccepted", prisma, issueCreatedById);
+                await Reputation().update("IssueCreatedWasAccepted", issueCreatedById);
             }
             // If issue marked as rejected, decrease reputation of issue creator
             else if (issueStatus === "Rejected") {
-                await Reputation().update("IssueCreatedWasRejected", prisma, issueCreatedById);
+                await Reputation().update("IssueCreatedWasRejected", issueCreatedById);
             }
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the issue
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
-            const notification = Notify(prisma, languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
+            const notification = Notify(languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
             if (objectOwner.__typename === "Organization") {
                 notification.toOrganization(objectOwner.id, userUpdatingIssueId);
                 notification.toSubscribers("Organization", objectOwner.id, userUpdatingIssueId);
@@ -168,20 +168,20 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Step 1
         const awardCategory = objectAwardCategory(objectType);
         if (!hasParent && awardCategory) {
-            await Award(prisma, createdById, languages).update(awardCategory as AwardCategory, 1);
+            await Award(createdById, languages).update(awardCategory as AwardCategory, 1);
         }
         // Step 2
         // If the object is public and complete, increase reputation score
         const reputationEvent = objectReputationEvent(objectType);
         if (!hasParent && reputationEvent && hasCompleteAndPublic) {
-            await Reputation().update(reputationEvent as any, prisma, createdById, objectId);
+            await Reputation().update(reputationEvent as any, createdById, objectId);
         }
         // Step 3
         // Determine if the object is subscribable
         const isSubscribable = isObjectSubscribable(objectType);
         // If the object was added to an organization, send notification to organization members
         if (isSubscribable && owner.__typename === "Organization") {
-            const notification = Notify(prisma, languages).pushNewObjectInOrganization(objectType, objectId, owner.id);
+            const notification = Notify(languages).pushNewObjectInOrganization(objectType, objectId, owner.id);
             // Send notification to admins, except the user who added it
             notification.toOrganization(owner.id, createdById);
             // Send notification to subscribers of the organization
@@ -190,7 +190,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Step 4
         // If the object was added to a project, send notification to project members
         if (isSubscribable && projectId) {
-            const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
+            const notification = Notify(languages).pushNewObjectInProject(objectType, objectId, projectId);
             // Send notification to object owner
             notification.toOwner(owner, createdById);
             // Send notification to subscribers of the project
@@ -200,7 +200,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If object is an email, phone, or wallet
         if (["Email", "Phone", "Wallet"].includes(objectType)) {
             // Send notification to user warning them that a new sign in method was added
-            Notify(prisma, languages).pushNewDeviceSignIn().toUser(createdById);
+            Notify(languages).pushNewDeviceSignIn().toUser(createdById);
         }
     },
     /**
@@ -242,7 +242,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is trackable for reputation, increase reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {
-                await Reputation().update(reputationEvent as any, prisma, updatedById, objectId);
+                await Reputation().update(reputationEvent as any, updatedById, objectId);
             }
         }
         // Step 2
@@ -251,7 +251,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is subscribable, send notification to project members
             const isSubscribable = isObjectSubscribable(objectType);
             if (isSubscribable) {
-                const notification = Notify(prisma, languages).pushNewObjectInProject(objectType, objectId, projectId);
+                const notification = Notify(languages).pushNewObjectInProject(objectType, objectId, projectId);
                 // Send notification to object owner
                 notification.toOwner(owner, updatedById);
                 // Send notification to subscribers of the project
@@ -290,25 +290,25 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             // If the object is trackable for reputation, decrease reputation score
             const reputationEvent = objectReputationEvent(objectType);
             if (reputationEvent) {
-                await Reputation().unCreateObject(prisma, objectId, deletedById);
+                await Reputation().unCreateObject(objectId, deletedById);
             }
         }
     },
     objectCopy: async (owner: Owner, forkedByUserId: string, objectType: CopyType, parentId: string) => {
-        // const notification = Notify(prisma, languages).pushObjectFork();
+        // const notification = Notify(languages).pushObjectFork();
         // // Send notification to owner(s), depending on how many forks the object already has
         // fdfdafdsaf
         // notification.toOwner(owner, forkedByUserId);
     },
     objectBookmark: async (isBookmarked: boolean, objectType: BookmarkFor, objectId: string, userId: string) => {
-        // const notification = Notify(prisma, languages).pushObjectStar();
+        // const notification = Notify(languages).pushObjectStar();
         // // Send notification to owner(s), depending on how many bookmarks the object already has
         // fasdf
         // // Increase reputation score of object owner(s)
         // asdfasdf
     },
     objectReact: async (previousReaction: string | null | undefined, currentReaction: string | null | undefined, objectType: ReactionFor, objectId: string, userId: string) => {
-        // const notification = Notify(prisma, languages).pushObjectReact();
+        // const notification = Notify(languages).pushObjectReact();
         // // If previousReaction is null, Send notification to owner(s), depending on how many votes the object already has
         // asdf
         // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
@@ -316,7 +316,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         //TODO if reacted on chat message, send io addReaction event. Also make sure ChatCrud handles it
     },
     organizationJoin: async (organizationId: string, userId: string) => {
-        // const notification = Notify(prisma, languages).pushOrganizationJoin();
+        // const notification = Notify(languages).pushOrganizationJoin();
         // // Send notification to admins of organization
         // asdf
     },
@@ -346,26 +346,26 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         if (!pullRequestHasBeenClosedOrRejected) {
             // If creating, track award progress of pullRequest creator. 
             if (pullRequestStatus === "Open") {
-                await Award(prisma, pullRequestCreatedById, languages).update("PullRequestCreate", 1);
+                await Award(pullRequestCreatedById, languages).update("PullRequestCreate", 1);
             }
             // If canceling (by creator of pull request), undo award progress of pullRequest creator
             else if (pullRequestStatus === "Canceled") {
-                await Award(prisma, pullRequestCreatedById, languages).update("PullRequestCreate", -1);
+                await Award(pullRequestCreatedById, languages).update("PullRequestCreate", -1);
             }
             // If pullRequest marked as merged, track award and increase reputation of pullRequest creator
             else if (pullRequestStatus === "Merged") {
-                await Award(prisma, pullRequestCreatedById, languages).update("PullRequestComplete", 1);
-                await Reputation().update("PullRequestWasAccepted", prisma, pullRequestCreatedById);
+                await Award(pullRequestCreatedById, languages).update("PullRequestComplete", 1);
+                await Reputation().update("PullRequestWasAccepted", pullRequestCreatedById);
             }
             // If pullRequest marked as rejected, decrease reputation of pullRequest creator
             else if (pullRequestStatus === "Rejected") {
-                await Reputation().update("PullRequestWasRejected", prisma, pullRequestCreatedById);
+                await Reputation().update("PullRequestWasRejected", pullRequestCreatedById);
             }
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the pullRequest
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
-            const notification = Notify(prisma, languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
+            const notification = Notify(languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
             if (objectOwner.__typename === "Organization") {
                 notification.toOrganization(objectOwner.id, userUpdatingPullRequestId);
                 notification.toSubscribers("Organization", objectOwner.id, userUpdatingPullRequestId);
@@ -376,20 +376,20 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     questionAccepted: async (questionId: string, answerId: string, userId: string) => {
         // // Increase award progress and reputation of answer creator
         // asdf
-        // const notification = Notify(prisma, languages).pushQuestionAccepted();
+        // const notification = Notify(languages).pushQuestionAccepted();
         // // Send notification to answer creator
         // asdf
         // // Send notification to subscribers
         // asdf
     },
     questionAnswer: async (questionId: string, userId: string) => {
-        // const notification = Notify(prisma, languages).pushQuestionAnswer();
+        // const notification = Notify(languages).pushQuestionAnswer();
         // // Send notification to question owner
         // asdf
         // // Send notification to anyone subscribed to the question
         // asdf
         // // Track award progress
-        // Award(prisma, userId, languages).update('QuestionAnswer', 1);
+        // Award(userId, languages).update('QuestionAnswer', 1);
         // // Increase reputation of answer creator
         // fdsafsafdsa
     },
@@ -428,27 +428,27 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
             const contributors = [...new Set(reportContributors)];
             for (const contributorId of contributors) {
                 // Track award progress
-                const award = await Award(prisma, contributorId, languages).update("ReportContribute", 1);
+                const award = await Award(contributorId, languages).update("ReportContribute", 1);
                 // Increase reputation
-                await Reputation().updateReportContribute(award.progress, prisma, contributorId);
+                await Reputation().updateReportContribute(award.progress, contributorId);
             }
             // Increase reputation of report creator
         }
         // If report was successfull, track award progress and reputation of report creator
         if (reportCreatedById && ["ClosedDeleted", "ClosedResolved", "ClosedSuspended"].includes(reportStatus)) {
-            await Award(prisma, reportCreatedById, languages).update("ReportEnd", 1);
-            await Reputation().update("ReportWasAccepted", prisma, reportCreatedById);
+            await Award(reportCreatedById, languages).update("ReportEnd", 1);
+            await Reputation().update("ReportWasAccepted", reportCreatedById);
         }
         // If report was not successfull, track award progress and reputation of report creator
         if (reportCreatedById && ["ClosedFalseReport", "ClosedNonIssue"].includes(reportStatus)) {
-            await Award(prisma, reportCreatedById, languages).update("ReportEnd", 1);
-            await Reputation().update("ReportWasRejected", prisma, reportCreatedById);
+            await Award(reportCreatedById, languages).update("ReportEnd", 1);
+            await Reputation().update("ReportWasRejected", reportCreatedById);
         }
         // If object was deleted, decrease reputation of object owner(s)
         if (reportStatus === "ClosedDeleted") {
             // If owners are an organization, decrease reputation of all admins
             if (objectOwner.__typename === "Organization") {
-                const admins = await prisma.organization.findUnique({
+                const admins = await prismaInstance.organization.findUnique({
                     where: { id: objectOwner.id },
                     select: {
                         members: {
@@ -461,19 +461,19 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
                 });
                 const adminIds = admins?.members.filter(member => member.isAdmin).map(member => member.id) ?? [];
                 for (const adminId of adminIds) {
-                    await Reputation().update("ObjectDeletedFromReport", prisma, adminId);
+                    await Reputation().update("ObjectDeletedFromReport", adminId);
                 }
             }
             // Otherwise, decrease reputation of object owner
             else {
-                await Reputation().update("ObjectDeletedFromReport", prisma, objectOwner.id);
+                await Reputation().update("ObjectDeletedFromReport", objectOwner.id);
             }
         }
         // Send notification to object owner(s) and subscribers of both the organization and the object with the report
         const isSubscribable = isObjectSubscribable(objectType);
         const excludeUserIds = userUpdatingReportId ? [userUpdatingReportId] : [];
         if (isSubscribable) {
-            const notification = Notify(prisma, languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
+            const notification = Notify(languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
             if (objectOwner.__typename === "Organization") {
                 notification.toOrganization(objectOwner.id, excludeUserIds);
                 notification.toSubscribers("Organization", objectOwner.id, excludeUserIds);
@@ -483,30 +483,30 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     },
     runProjectComplete: async (runTitle: string, runId: string, userId: string) => {
         // Track award progress
-        Award(prisma, userId, languages).update("RunProject", 1);
+        Award(userId, languages).update("RunProject", 1);
         // If run data is public, send notification to owner of routine (depending on how many public runs the project already has)
-        //Notify(prisma, languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
+        //Notify(languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
     },
     runRoutineComplete: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, languages).pushRunCompletedAutomatically(runId).toUser(userId);
+        if (wasAutomatic) Notify(languages).pushRunCompletedAutomatically(runId).toUser(userId);
         // Track award progress
-        Award(prisma, userId, languages).update("RunRoutine", 1);
+        Award(userId, languages).update("RunRoutine", 1);
         // If run data is public, send notification to owner of routine (depending on how many public runs the routine already has)
-        //Notify(prisma, languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
+        //Notify(languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
     },
     runRoutineFail: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, languages).pushRunFailedAutomatically(runId).toUser(userId);
+        if (wasAutomatic) Notify(languages).pushRunFailedAutomatically(runId).toUser(userId);
     },
     runRoutineStart: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If started automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, languages).pushRunStartedAutomatically(runId).toUser(userId);
+        if (wasAutomatic) Notify(languages).pushRunStartedAutomatically(runId).toUser(userId);
     },
     userInvite: async (referrerId: string, joinedUsername: string) => {
         // Send notification to referrer
-        Notify(prisma, languages).pushUserInvite(joinedUsername).toUser(referrerId);
+        Notify(languages).pushUserInvite(joinedUsername).toUser(referrerId);
         // Track award progress
-        Award(prisma, referrerId, languages).update("UserInvite", 1);
+        Award(referrerId, languages).update("UserInvite", 1);
     },
 });

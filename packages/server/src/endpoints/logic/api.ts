@@ -19,23 +19,23 @@ export type EndpointsApi = {
 const objectType = "Api";
 export const ApiEndpoints: EndpointsApi = {
     Query: {
-        api: async (_, { input }, { prisma, req }, info) => {
+        api: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        apis: async (_, { input }, { prisma, req }, info) => {
+        apis: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        apiCreate: async (_, { input }, { prisma, req }, info) => {
+        apiCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        apiUpdate: async (_, { input }, { prisma, req }, info) => {
+        apiUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

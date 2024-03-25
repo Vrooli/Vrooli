@@ -12,7 +12,7 @@ import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic 
 const __typename = "ApiVersion" as const;
 export const ApiVersionModel: ApiVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.api_version,
+    delegate: (p) => p.api_version,
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -46,12 +46,11 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -121,10 +120,10 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

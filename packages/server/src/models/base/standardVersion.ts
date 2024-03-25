@@ -3,7 +3,7 @@ import { ModelMap } from ".";
 import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
@@ -15,7 +15,7 @@ import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, Standa
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
 //     // TODO when deleting, anonymize standards which are being used by inputs/outputs
-//     // const standard = await prisma.standard_version.findUnique({
+//     // const standard = await prismaInstance.standard_version.findUnique({
 //     //     where: { id },
 //     //     select: {
 //     //                 _count: {
@@ -31,7 +31,6 @@ import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, Standa
 const querier = () => ({
     /**
      * Checks for existing standards with the same shape. Useful to avoid duplicates
-     * @param prisma Prisma client
      * @param data StandardCreateData to check
      * @param userData The ID of the user creating the standard
      * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
@@ -39,7 +38,6 @@ const querier = () => ({
      * @returns data of matching standard, or null if no match
      */
     async findMatchingStandardVersion(
-        prisma: PrismaType,
         data: StandardCreateInput,
         userData: SessionUserToken,
         uniqueToCreator: boolean,
@@ -50,7 +48,7 @@ const querier = () => ({
         // const props = sortify(data.props, userData.languages);
         // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
         // // Find all standards that match the given standard
-        // const standards = await prisma.standard_version.findMany({
+        // const standards = await prismaInstance.standard_version.findMany({
         //     where: {
         //         root: {
         //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
@@ -73,13 +71,12 @@ const querier = () => ({
     },
     /**
      * Generates a name for a standard.
-     * @param prisma Prisma client
      * @param userId The user's ID
      * @param languages The user's preferred languages
      * @param data The standard create data
      * @returns A valid name for the standard
      */
-    async generateName(prisma: PrismaType, userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
+    async generateName(userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
         // First, check if name was already provided
         const translatedName = "";//bestTranslation(data.translationsCreate ?? [], 'name', languages)?.name ?? "";
         if (translatedName.length > 0) return translatedName;
@@ -92,7 +89,7 @@ const querier = () => ({
 const __typename = "StandardVersion" as const;
 export const StandardVersionModel: StandardVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.standard_version,
+    delegate: (p) => p.standard_version,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -118,12 +115,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -237,10 +233,10 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         customQueryData: () => ({ root: { isInternal: true } }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

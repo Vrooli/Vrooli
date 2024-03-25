@@ -12,9 +12,10 @@
  * the organization's governance structure.
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
@@ -129,7 +130,6 @@ export async function maxObjectsCheck(
     inputsById: InputsById,
     authDataById: AuthDataById,
     idsByAction: { [key in QueryAction]?: string[] },
-    prisma: PrismaType,
     userData: SessionUserToken,
 ) {
     // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
@@ -182,7 +182,7 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const delegator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").delegate(prisma);
+        const delegator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").delegate(prismaInstance);
         const validator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 4").validate();
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {

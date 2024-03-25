@@ -9,7 +9,7 @@ import { NodeLinkModelInfo, NodeLinkModelLogic, NodeModelInfo, NodeModelLogic, R
 const __typename = "NodeLink" as const;
 export const NodeLinkModel: NodeLinkModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_link,
+    delegate: (p) => p.node_link,
     display: () => ({
         label: {
             select: () => ({

@@ -2,6 +2,7 @@ import { exists, getReactionScore, GqlModelType, lowercaseFirstLetter, ReactInpu
 import { reaction_summary } from "@prisma/client";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { PrismaType, SessionUserToken } from "../../types";
@@ -27,7 +28,7 @@ const forMapper: { [key in ReactionFor]: string } = {
 const __typename = "Reaction" as const;
 export const ReactionModel: ReactionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.reaction,
+    delegate: (p) => p.reaction,
     display: () => ({
         label: {
             select: () => ({
@@ -49,7 +50,6 @@ export const ReactionModel: ReactionModelLogic = ({
          * Finds your reactions on a list of items, or null if you haven't reacted to that item
          */
         async getReactions(
-            prisma: PrismaType,
             userId: string | null | undefined,
             ids: string[],
             reactionFor: keyof typeof ReactionFor,
@@ -61,7 +61,7 @@ export const ReactionModel: ReactionModelLogic = ({
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(reactionFor)}Id`;
-            const reactionsArray = await prisma.reaction.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+            const reactionsArray = await prismaInstance.reaction.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // Try to find this id in the reactions array
@@ -78,13 +78,13 @@ export const ReactionModel: ReactionModelLogic = ({
      * A user may react on their own project/routine/etc.
      * @returns True if cast correctly (even if skipped because of duplicate)
      */
-    react: async (prisma: PrismaType, userData: SessionUserToken, input: ReactInput): Promise<boolean> => {
+    react: async (userData: SessionUserToken, input: ReactInput): Promise<boolean> => {
         // Define prisma type for reacted-on object (e.g. chatMessage)
         const reactionForCamel = forMapper[input.reactionFor];
         // Convert to snake case (e.g. chat_message)
         const reactionForSnake = reactionForCamel.replace(/([A-Z])/g, "_$1").toLowerCase();
-        // Get prisma type for reacted-on object (e.g. prisma.chat_message)
-        const prismaFor = (prisma[reactionForSnake as keyof PrismaType] as any);
+        // Get prisma type for reacted-on object (e.g. prismaInstance.chat_message)
+        const prismaFor = (prismaInstance[reactionForSnake as keyof PrismaType] as any);
         // Check if object being reacted on exists
         const reactingFor: null | { id: string, score: number, reactionSummaries: reaction_summary[] } = await prismaFor.findUnique({
             where: { id: input.forConnect },
@@ -106,7 +106,7 @@ export const ReactionModel: ReactionModelLogic = ({
         const isRemove = !exists(input.emoji);
         const feelingNew = getReactionScore(input.emoji!);
         // Check if reaction exists
-        const reaction = await prisma.reaction.findFirst({
+        const reaction = await prismaInstance.reaction.findFirst({
             where: {
                 byId: userData.id,
                 [`${forMapper[input.reactionFor]}Id`]: input.forConnect,
@@ -120,11 +120,11 @@ export const ReactionModel: ReactionModelLogic = ({
             if (isSame) return true;
             // If removing reaction, delete it
             if (isRemove) {
-                await prisma.reaction.delete({ where: { id: reaction.id } });
+                await prismaInstance.reaction.delete({ where: { id: reaction.id } });
                 // Update the corresponding reaction summary table
                 const summaryTable = reactingFor.reactionSummaries.find((summary: any) => summary.emoji === reaction.emoji);
                 if (summaryTable) {
-                    await prisma.reaction_summary.update({
+                    await prismaInstance.reaction_summary.update({
                         where: { id: summaryTable.id },
                         data: { count: Math.max(0, summaryTable.count - 1) },
                     });
@@ -132,20 +132,20 @@ export const ReactionModel: ReactionModelLogic = ({
             }
             // Otherwise, update the reaction
             else {
-                await prisma.reaction.update({
+                await prismaInstance.reaction.update({
                     where: { id: reaction.id },
                     data: { emoji: input.emoji! },
                 });
                 // Upsert the corresponding reaction summary table
                 const summaryTable = reactingFor.reactionSummaries.find((summary: any) => summary.emoji === input.emoji);
                 if (summaryTable) {
-                    await prisma.reaction_summary.update({
+                    await prismaInstance.reaction_summary.update({
                         where: { id: summaryTable.id },
                         data: { count: summaryTable.count + 1 },
                     });
                 }
                 else {
-                    await prisma.reaction_summary.create({
+                    await prismaInstance.reaction_summary.create({
                         data: {
                             emoji: input.emoji!,
                             count: 1,
@@ -155,7 +155,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 }
             }
             // Handle trigger
-            await Trigger(prisma, userData.languages).objectReact(reaction.emoji, input.emoji, input.reactionFor, input.forConnect, userData.id);
+            await Trigger(userData.languages).objectReact(reaction.emoji, input.emoji, input.reactionFor, input.forConnect, userData.id);
             // Update the score
             const deltaVoteCount = feelingNew - feelingExisting;
             await prismaFor.update({
@@ -169,7 +169,7 @@ export const ReactionModel: ReactionModelLogic = ({
             // If removing reaction, skip. There's nothing to remove
             if (isRemove) return true;
             // Create the reaction
-            await prisma.reaction.create({
+            await prismaInstance.reaction.create({
                 data: {
                     byId: userData.id,
                     emoji: input.emoji!,
@@ -179,13 +179,13 @@ export const ReactionModel: ReactionModelLogic = ({
             // Upsert the corresponding reaction summary table
             const summaryTable = reactingFor.reactionSummaries.find((summary: any) => summary.emoji === input.emoji);
             if (summaryTable) {
-                await prisma.reaction_summary.update({
+                await prismaInstance.reaction_summary.update({
                     where: { id: summaryTable.id },
                     data: { count: summaryTable.count + 1 },
                 });
             }
             else {
-                await prisma.reaction_summary.create({
+                await prismaInstance.reaction_summary.create({
                     data: {
                         emoji: input.emoji!,
                         count: 1,
@@ -194,7 +194,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 });
             }
             // Handle trigger
-            await Trigger(prisma, userData.languages).objectReact(null, input.emoji, input.reactionFor, input.forConnect, userData.id);
+            await Trigger(userData.languages).objectReact(null, input.emoji, input.reactionFor, input.forConnect, userData.id);
             // Update the score
             await prismaFor.update({
                 where: { id: input.forConnect },

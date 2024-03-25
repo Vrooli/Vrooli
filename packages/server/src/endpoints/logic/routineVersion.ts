@@ -19,23 +19,23 @@ export type EndpointsRoutineVersion = {
 const objectType = "RoutineVersion";
 export const RoutineVersionEndpoints: EndpointsRoutineVersion = {
     Query: {
-        routineVersion: async (_, { input }, { prisma, req }, info) => {
+        routineVersion: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        routineVersions: async (_, { input }, { prisma, req }, info) => {
+        routineVersions: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        routineVersionCreate: async (_, { input }, { prisma, req }, info) => {
+        routineVersionCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        routineVersionUpdate: async (_, { input }, { prisma, req }, info) => {
+        routineVersionUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

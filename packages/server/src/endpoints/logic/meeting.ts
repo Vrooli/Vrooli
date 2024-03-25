@@ -19,23 +19,23 @@ export type EndpointsMeeting = {
 const objectType = "Meeting";
 export const MeetingEndpoints: EndpointsMeeting = {
     Query: {
-        meeting: async (_, { input }, { prisma, req }, info) => {
+        meeting: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        meetings: async (_, { input }, { prisma, req }, info) => {
+        meetings: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        meetingCreate: async (_, { input }, { prisma, req }, info) => {
+        meetingCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        meetingUpdate: async (_, { input }, { prisma, req }, info) => {
+        meetingUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

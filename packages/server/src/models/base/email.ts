@@ -1,4 +1,5 @@
 import { emailValidation, MaxObjects } from "@local/shared";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
@@ -8,7 +9,7 @@ import { EmailModelLogic } from "./types";
 const __typename = "Email" as const;
 export const EmailModel: EmailModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.email,
+    delegate: (p) => p.email,
     display: () => ({
         label: {
             select: () => ({ id: true, emailAddress: true }),
@@ -18,26 +19,26 @@ export const EmailModel: EmailModelLogic = ({
     format: EmailFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Delete, prisma, userData }) => {
+            pre: async ({ Create, Delete, userData }) => {
                 // Prevent creating emails if at least one is already in use
                 if (Create.length) {
                     const emailAddresses = Create.map(x => x.input.emailAddress);
-                    const existingEmails = await prisma.email.findMany({
+                    const existingEmails = await prismaInstance.email.findMany({
                         where: { emailAddress: { in: emailAddresses } },
                     });
                     if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages, { emailAddresses });
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allEmails = await prisma.email.findMany({
+                    const allEmails = await prismaInstance.email.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedPhonesCount = await prisma.phone.count({
+                    const verifiedPhonesCount = await prismaInstance.phone.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    const verifiedWalletsCount = await prisma.wallet.count({
+                    const verifiedWalletsCount = await prismaInstance.wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedEmailsCount + verifiedPhonesCount + verifiedWalletsCount < 1)
@@ -51,9 +52,9 @@ export const EmailModel: EmailModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 for (const objectId of createdIds) {
-                    await Trigger(prisma, userData.languages).objectCreated({
+                    await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A

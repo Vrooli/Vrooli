@@ -12,7 +12,7 @@ import { SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionMo
 const __typename = "SmartContractVersion" as const;
 export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.smart_contract_version,
+    delegate: (p) => p.smart_contract_version,
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -38,12 +38,11 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -119,10 +118,10 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

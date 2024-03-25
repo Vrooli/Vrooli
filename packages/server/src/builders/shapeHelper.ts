@@ -2,7 +2,7 @@ import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared"
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { IdsCreateToConnect } from "../utils/types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType } from "./types";
@@ -63,8 +63,6 @@ export type ShapeHelperProps<
      * A map of pre-shape data for all objects in the mutation, keyed by object type. 
      */
     preMap: PreMap,
-    /** The Prisma client */
-    prisma: PrismaType,
     /** The allowed operations on the relations (e.g. create, connect) */
     relTypes: Types,
     /** Name of relation */
@@ -97,7 +95,6 @@ export const shapeHelper = async<
     objectType,
     parentRelationshipName,
     preMap,
-    prisma,
     relation,
     relTypes,
     softDelete = false as SoftDelete,
@@ -170,7 +167,7 @@ export const shapeHelper = async<
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await mutate.shape.create({ data: create, idsCreateToConnect, preMap, prisma, userData });
+            const created = await mutate.shape.create({ data: create, idsCreateToConnect, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = created;
             shaped.push(rest);
@@ -180,7 +177,7 @@ export const shapeHelper = async<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await mutate.shape.update({ data: update.data, idsCreateToConnect, preMap, prisma, userData });
+            const updated = await mutate.shape.update({ data: update.data, idsCreateToConnect, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = updated;
             shaped.push({ where: update.where, data: rest });

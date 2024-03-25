@@ -11,9 +11,9 @@ export type EndpointsCopy = {
 
 export const CopyEndpoints: EndpointsCopy = {
     Mutation: {
-        copy: async (_, { input }, { prisma, req }, info) => {
+        copy: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            const result = await copyHelper({ info, input, objectType: input.objectType, prisma, req });
+            const result = await copyHelper({ info, input, objectType: input.objectType, req });
             return { __typename: "CopyResult" as const, [lowercaseFirstLetter(input.objectType)]: result };
         },
     },

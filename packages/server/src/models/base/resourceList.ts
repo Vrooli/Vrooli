@@ -22,7 +22,7 @@ const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArg
 const __typename = "ResourceList" as const;
 export const ResourceListModel: ResourceListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.resource_list,
+    delegate: (p) => p.resource_list,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

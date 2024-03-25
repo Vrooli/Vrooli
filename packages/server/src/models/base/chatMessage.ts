@@ -9,6 +9,7 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { chatMessage_findMany } from "../../endpoints/generated/chatMessage_findMany";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -17,7 +18,6 @@ import { UI_URL } from "../../server";
 import { emitSocketEvent } from "../../sockets/events";
 import { ChatContextManager } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
-import { PrismaType } from "../../types";
 import { bestTranslation, getAuthenticatedData, SortMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck, permissionsCheck } from "../../validators";
@@ -88,7 +88,7 @@ export type ChatMessageBeforeDeletedData = {
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.chat_message,
+    delegate: (p) => p.chat_message,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -108,7 +108,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
              * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message 
              * with versionIndex set to the previous version's index + 1.
              */
-            pre: async ({ Create, Update, Delete, prisma, userData, inputsById }) => {
+            pre: async ({ Create, Update, Delete, userData, inputsById }) => {
                 // Initialize objects to store bot, message, and chat information
                 const preMapUserData: Record<string, PreMapUserData> = {};
                 const preMapChatData: Record<string, PreMapChatData> = {};
@@ -179,7 +179,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     ],
                 } : { id: { in: knownExistingChatIds } };
                 // Query existing chat information
-                const existingChatInfo = await prisma.chat.findMany({
+                const existingChatInfo = await prismaInstance.chat.findMany({
                     where: chatSelect,
                     select: {
                         id: true,
@@ -273,7 +273,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Query potential bot IDs. Any found to be bots will automatically be accepted, 
                 // and can potentially be used for AI responses.
                 if (potentialBotIds.length) {
-                    const potentialBots = await prisma.user.findMany({
+                    const potentialBots = await prismaInstance.user.findMany({
                         where: {
                             id: { in: potentialBotIds },
                             isBot: true,
@@ -311,7 +311,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 }
                 // Query participants being deleted and remove them from botData and chatData.botParticipants
                 if (participantsBeingRemovedIds.length) {
-                    const participantsBeingRemoved = await prisma.chat_participants.findMany({
+                    const participantsBeingRemoved = await prismaInstance.chat_participants.findMany({
                         where: {
                             id: { in: participantsBeingRemovedIds },
                         },
@@ -360,9 +360,9 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             }),
         },
         trigger: {
-            beforeDeleted: async ({ beforeDeletedData, deletingIds, prisma }) => {
+            beforeDeleted: async ({ beforeDeletedData, deletingIds }) => {
                 // Find the chat user, parent, and children for each message being deleted
-                const deleting = await prisma.chat_message.findMany({
+                const deleting = await prismaInstance.chat_message.findMany({
                     where: { id: { in: deletingIds } },
                     select: {
                         id: true,
@@ -386,7 +386,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...messageData };
                 else beforeDeletedData[__typename] = messageData;
             },
-            afterMutations: async ({ beforeDeletedData, createdIds, deletedIds, updatedIds, preMap, prisma, userData }) => {
+            afterMutations: async ({ beforeDeletedData, createdIds, deletedIds, updatedIds, preMap, userData }) => {
                 const preMapUserData: Record<string, PreMapUserData> = preMap[__typename]?.userData ?? {};
                 const preMapChatData: Record<string, PreMapChatData> = preMap[__typename]?.chatData ?? {};
                 const preMapMessageData: Record<string, PreMapMessageData> = preMap[__typename]?.messageData ?? {};
@@ -396,7 +396,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         info: chatMessage_findMany,
                         input: { ids: [...createdIds, ...updatedIds], take: createdIds.length + updatedIds.length },
                         objectType: __typename,
-                        prisma,
                         req: { session: { languages: userData.languages, users: [userData] } },
                     });
                     messages = paginatedMessages.edges.map(e => e.node);
@@ -413,7 +412,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     // Add message to cache
                     await (new ChatContextManager()).addMessage(chatId, messageData);
                     // Common trigger logic
-                    await Trigger(prisma, userData.languages).objectCreated({
+                    await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
@@ -421,7 +420,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectId,
                         objectType: __typename,
                     });
-                    await Trigger(prisma, userData.languages).chatMessageCreated({
+                    await Trigger(userData.languages).chatMessageCreated({
                         excludeUserId: userData.id,
                         chatId,
                         messageId: objectId,
@@ -512,7 +511,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     }
                 }
                 for (const objectId of updatedIds) {
-                    await Trigger(prisma, userData.languages).objectUpdated({
+                    await Trigger(userData.languages).objectUpdated({
                         updatedById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A
@@ -521,13 +520,13 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
                     });
-                    await Trigger(prisma, userData.languages).chatMessageUpdated({
+                    await Trigger(userData.languages).chatMessageUpdated({
                         data: preMapMessageData[objectId],
                         message: messages.find(m => m.id === objectId) as ChatMessage,
                     });
                 }
                 for (const objectId of deletedIds) {
-                    await Trigger(prisma, userData.languages).objectDeleted({
+                    await Trigger(userData.languages).objectDeleted({
                         deletedById: userData.id,
                         hasBeenTransferred: false, // N/A
                         hasParent: true, // N/A
@@ -541,12 +540,12 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         // to point to the parent of the message being deleted. You can think of this as a 
                         // linked list, where each message has a pointer to the next message.
                         if (messageData.parentId) {
-                            await prisma.chat_message.updateMany({
+                            await prismaInstance.chat_message.updateMany({
                                 where: { id: { in: messageData.childIds ?? [] } },
                                 data: { parentId: messageData.parentId },
                             });
                         }
-                        await Trigger(prisma, userData.languages).chatMessageDeleted({
+                        await Trigger(userData.languages).chatMessageDeleted({
                             data: messageData,
                             messageId: objectId,
                         });
@@ -565,7 +564,6 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
          * surrounding messages.
          */
         async searchTree(
-            prisma: PrismaType,
             req: Request,
             input: ChatMessageSearchTreeInput,
             info: GraphQLInfo | PartialGraphQLInfo,
@@ -573,7 +571,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             if (!input.chatId) throw new CustomError("0531", "InvalidArgs", getUser(req.session)?.languages ?? ["en"], { input });
             // Query for all authentication data
             const userData = getUser(req.session);
-            const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, prisma, userData ?? null);
+            const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, userData ?? null);
             if (Object.keys(authDataById).length === 0) {
                 throw new CustomError("0016", "NotFound", userData?.languages ?? req.session.languages, { input, userId: userData?.id });
             }
@@ -588,20 +586,20 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             const orderByField = input.sortBy ?? ModelMap.get<ChatMessageModelLogic>("ChatMessage").search.defaultSort;
             const orderBy = !input.startId && orderByField in SortMap ? SortMap[orderByField] : undefined;
             // First, find the total number of messages in the chat
-            const totalInThread = await prisma.chat_message.count({
+            const totalInThread = await prismaInstance.chat_message.count({
                 where: { chatId: input.chatId },
             });
             // If it's less than or equal to the take amount, we can just return all messages. 
             const take = input.take ?? 50;
             if (totalInThread <= take) {
-                let messages: any[] = await prisma.chat_message.findMany({
+                let messages: any[] = await prismaInstance.chat_message.findMany({
                     where: { chatId: input.chatId },
                     orderBy,
                     take,
                     ...selectHelper(partial.messages as PartialGraphQLInfo),
                 });
                 messages = messages.map((c: any) => modelToGql(c, partial.messages as PartialGraphQLInfo));
-                messages = await addSupplementalFields(prisma, getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
+                messages = await addSupplementalFields(getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,
@@ -633,11 +631,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },

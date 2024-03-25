@@ -1,34 +1,149 @@
+import { snakeCase, uuid } from "@local/shared";
+
+type PrismaSelect = Record<string, any>;
+
+let globalDataStore = {};
+
+function mockFindUnique<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> {
+    const records = globalDataStore[model] || [];
+    const whereKeys = Object.keys(args.where);
+    const item = records.find(record =>
+        whereKeys.every(key => (record as any)[key] === args.where[key]),
+    );
+
+    if (!item) return Promise.resolve(null);
+
+    // Return only the fields that are requested in the select clause
+    const result = constructSelectResponse(item, args.select);
+    return Promise.resolve(result) as any;
+}
+
+function mockFindMany<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T[]> {
+    const records = globalDataStore[model] || [];
+    const whereKeys = Object.keys(args.where);
+    const filteredItems = records.filter(record =>
+        whereKeys.every(key => {
+            const condition = args.where[key];
+            if (typeof condition === "object" && condition !== null) {
+                // Handle "in" condition
+                if ("in" in condition) {
+                    return condition.in.includes((record as any)[key]);
+                }
+                // Handle case-insensitive equality
+                if ("equals" in condition) {
+                    const valueToCompare = (record as any)[key];
+                    if ("mode" in condition && condition.mode === "insensitive") {
+                        return valueToCompare.toLowerCase() === condition.equals.toLowerCase();
+                    } else {
+                        return valueToCompare === condition.equals;
+                    }
+                }
+                // Add more conditions here as needed
+            } else {
+                // Direct equality
+                return (record as any)[key] === condition;
+            }
+        }),
+    );
+
+    const results = filteredItems.map(item => constructSelectResponse(item, args.select));
+    return Promise.resolve(results) as unknown as Promise<T[]>;
+}
+
+function mockCreate<T>(model: string, args: { data: T }): Promise<T> {
+    const records = globalDataStore[model] || [];
+    const newItem = { id: uuid(), ...args.data };
+    records.push(newItem);
+    return Promise.resolve(newItem);
+}
+
+function constructSelectResponse<T>(item: T, select?: Record<string, boolean>): Partial<T> {
+    if (!select) return item; // If no select clause, return the whole item
+
+    function constructNestedResponse(nestedItem: any, nestedSelect: Record<string, any>) {
+        return Object.keys(nestedSelect).reduce((acc, key) => {
+            if (nestedSelect[key] === true) {
+                if (nestedItem[key] !== undefined) {
+                    acc[key] = nestedItem[key];
+                }
+            } else if (typeof nestedSelect[key] === "object" && nestedItem[key] !== undefined) {
+                // Check for Prisma pattern where relations are wrapped in "select"
+                if (nestedSelect[key].select) {
+                    if (Array.isArray(nestedItem[key])) {
+                        // Handle array of relations
+                        acc[key] = nestedItem[key].map(item => constructNestedResponse(item, nestedSelect[key].select));
+                    } else {
+                        // Handle single relation object
+                        acc[key] = constructNestedResponse(nestedItem[key], nestedSelect[key].select);
+                    }
+                } else {
+                    acc[key] = constructNestedResponse(nestedItem[key], nestedSelect[key]);
+                }
+            }
+            return acc;
+        }, {});
+    }
+
+    const result = constructNestedResponse(item, select);
+    return result as Partial<T>;
+}
+
+function mockUpdate<T>(model: string, args: { where: Record<string, any>, data: T }): Promise<T> {
+    const records = globalDataStore[model] || [];
+    const whereKeys = Object.keys(args.where);
+    const index = records.findIndex(record =>
+        whereKeys.every(key => (record as any)[key] === args.where[key]),
+    );
+
+    if (index === -1) throw new Error("Record not found");
+
+    records[index] = { ...records[index], ...args.data };
+    return Promise.resolve(records[index]);
+}
+
+function mockUpsert<T>(model: string, args: { where: Record<string, any>, create: T, update: T }): Promise<T> {
+    const records = globalDataStore[model] || [];
+    const existingItem = mockFindUnique(records, { where: args.where });
+    return existingItem.then(item => {
+        if (item) {
+            return mockUpdate(records, { where: args.where, data: args.update });
+        } else {
+            return mockCreate(records, { data: args.create });
+        }
+    });
+}
+
 class PrismaClientMock {
-    static instance: PrismaClientMock | null = null;
-    static customMocks: any = {};
+    static instance = new PrismaClientMock();
 
     constructor() {
-        if (!PrismaClientMock.instance) {
-            PrismaClientMock.instance = this;
-            this.$connect = jest.fn().mockResolvedValue(undefined);
-            this.$disconnect = jest.fn().mockResolvedValue(undefined);
-            // Mock other PrismaClient methods as necessary
-        }
-
-        // Initialize all models with basic mocks or custom mocks if provided
-        Object.assign(this, PrismaClientMock.customMocks);
-
         return PrismaClientMock.instance;
     }
 
-    static injectMocks(customMocks: any) {
-        PrismaClientMock.customMocks = customMocks;
-        PrismaClientMock.instance = new PrismaClientMock(); // Reinitialize the instance with new mocks
+    static injectData(data: { [key in string]: any[] }) {
+        globalDataStore = data;
+
+        Object.keys(data).forEach((modelType) => {
+            const modelName = snakeCase(modelType);
+
+            PrismaClientMock.instance[modelName] = {
+                findUnique: jest.fn((args) => mockFindUnique(modelType, args)),
+                findMany: jest.fn((args) => mockFindMany(modelType, args)),
+                create: jest.fn((args) => mockCreate(modelType, args)),
+                update: jest.fn((args) => mockUpdate(modelType, args)),
+                upsert: jest.fn((args) => mockUpsert(modelType, args)),
+                // Add other methods here as needed
+            };
+        });
     }
 
-    static resetMocks() {
-        PrismaClientMock.customMocks = {};
-        PrismaClientMock.instance = null; // Allow creating a new instance in the next test
+    static clearData() {
+        globalDataStore = {};
     }
 
     // Define $connect, $disconnect, and other methods as class properties
-    $connect: jest.Mock;
-    $disconnect: jest.Mock;
+    $connect = jest.fn().mockResolvedValue(undefined);
+    $disconnect = jest.fn().mockResolvedValue(undefined);
 }
 
 export default {

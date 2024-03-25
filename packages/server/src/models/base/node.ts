@@ -2,6 +2,7 @@ import { MaxObjects, nodeValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
@@ -12,7 +13,7 @@ const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
 export const NodeModel: NodeModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node,
+    delegate: (p) => p.node,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -22,12 +23,12 @@ export const NodeModel: NodeModelLogic = ({
     format: NodeFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Delete, prisma, userData }) => {
+            pre: async ({ Create, Delete, userData }) => {
                 // Don't allow more than 100 nodes in a routine
                 if (Create.length) {
                     const deltaAdding = Create.length - Delete.length;
                     if (deltaAdding < 0) return;
-                    const existingCount = await prisma.routine_version.findUnique({
+                    const existingCount = await prismaInstance.routine_version.findUnique({
                         where: { id: Create[0].input.routineVersionConnect },
                         include: { _count: { select: { nodes: true } } },
                     });

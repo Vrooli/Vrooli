@@ -1,5 +1,6 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
@@ -9,7 +10,7 @@ import { OrganizationModelLogic, PhoneModelLogic } from "./types";
 const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.phone,
+    delegate: (p) => p.phone,
     display: () => ({
         label: {
             select: () => ({ id: true, phoneNumber: true }),
@@ -24,11 +25,11 @@ export const PhoneModel: PhoneModelLogic = ({
     format: PhoneFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Delete, prisma, userData }) => {
+            pre: async ({ Create, Delete, userData }) => {
                 // Prevent creating phones if at least one is already in use
                 if (Create.length) {
                     const phoneNumbers = Create.map(x => x.input.phoneNumber);
-                    const existingPhones = await prisma.phone.findMany({
+                    const existingPhones = await prismaInstance.phone.findMany({
                         where: { phoneNumber: { in: phoneNumbers } },
                     });
                     if (existingPhones.length > 0) {
@@ -37,15 +38,15 @@ export const PhoneModel: PhoneModelLogic = ({
                 }
                 // Prevent deleting phones if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allPhones = await prisma.phone.findMany({
+                    const allPhones = await prismaInstance.phone.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedPhonesCount = allPhones.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedEmailsCount = await prisma.email.count({
+                    const verifiedEmailsCount = await prismaInstance.email.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    const verifiedWalletsCount = await prisma.wallet.count({
+                    const verifiedWalletsCount = await prismaInstance.wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedPhonesCount + verifiedEmailsCount + verifiedWalletsCount < 1)
@@ -59,9 +60,9 @@ export const PhoneModel: PhoneModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 for (const objectId of createdIds) {
-                    await Trigger(prisma, userData.languages).objectCreated({
+                    await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
                         hasParent: true, // N/A

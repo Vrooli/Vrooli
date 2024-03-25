@@ -12,9 +12,9 @@ export type EndpointsStatsSmartContract = {
 const objectType = "StatsSmartContract";
 export const StatsSmartContractEndpoints: EndpointsStatsSmartContract = {
     Query: {
-        statsSmartContract: async (_, { input }, { prisma, req }, info) => {
+        statsSmartContract: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

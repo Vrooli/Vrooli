@@ -15,7 +15,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, SmartCo
 const __typename = "SmartContract" as const;
 export const SmartContractModel: SmartContractModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.smart_contract,
+    delegate: (p) => p.smart_contract,
     display: () => rootObjectDisplay(ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion")),
     format: SmartContractFormat,
     mutate: {
@@ -87,15 +87,15 @@ export const SmartContractModel: SmartContractModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "smartContract.translatedName"),
+                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? ["en"], "smartContract.translatedName"),
                 };
             },
         },

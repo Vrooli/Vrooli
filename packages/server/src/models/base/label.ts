@@ -12,7 +12,7 @@ import { LabelModelInfo, LabelModelLogic, OrganizationModelLogic } from "./types
 const __typename = "Label" as const;
 export const LabelModel: LabelModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.label,
+    delegate: (p) => p.label,
     display: () => ({
         label: {
             select: () => ({ id: true, label: true }),
@@ -62,10 +62,10 @@ export const LabelModel: LabelModelLogic = ({
         searchStringQuery: () => ({ OR: ["labelWrapped", "transDescriptionWrapped"] }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

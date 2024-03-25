@@ -19,7 +19,7 @@ export type EndpointsFeed = {
 
 export const FeedEndpoints: EndpointsFeed = {
     Query: {
-        home: async (_, { input }, { prisma, req, res }, info) => {
+        home: async (_, { input }, { req, res }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 5000, req });
             // Find focus mode to use
@@ -28,7 +28,7 @@ export const FeedEndpoints: EndpointsFeed = {
             if (input.activeFocusModeId) {
                 FocusModeEndpoints.Mutation.setActiveFocusMode(_,
                     { input: { id: input.activeFocusModeId, stopCondition: FocusModeStopCondition.NextBegins } },
-                    { prisma, req, res },
+                    { req, res },
                     {} as unknown as GraphQLResolveInfo,
                 );
             }
@@ -40,7 +40,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 schedules: "Schedule",
             }, req.session.languages, true);
             const take = 10;
-            const commonReadParams = { prisma, req };
+            const commonReadParams = { req };
             // Query recommended TODO
             const recommended: object[] = [];
             // Query reminders
@@ -91,14 +91,14 @@ export const FeedEndpoints: EndpointsFeed = {
                 reminders,
                 resources,
                 schedules,
-            }, partial as any, prisma, getUser(req.session));
+            }, partial as any, getUser(req.session));
             // Return results
             return {
                 __typename: "HomeResult" as const,
                 ...withSupplemental,
             };
         },
-        popular: async (_, { input }, { prisma, req }, info) => {
+        popular: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 5000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "PopularResult",
@@ -126,7 +126,7 @@ export const FeedEndpoints: EndpointsFeed = {
             // If neither of the above are true, take is split evenly between each object type
             const totalTake = 25;
             const take = input.objectType ? totalTake : anyAfters ? Math.ceil(totalTake / aftersCount) : Math.ceil(totalTake / 9);
-            const commonReadParams = { prisma, req };
+            const commonReadParams = { req };
             const commonInputParams = {
                 createdTimeFrame: input.createdTimeFrame,
                 take,
@@ -266,7 +266,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 smartContracts: { type: "SmartContract", ...(partial.SmartContract as PartialGraphQLInfo) },
                 standards: { type: "Standard", ...(partial.Standard as PartialGraphQLInfo) },
                 users: { type: "User", ...(partial.User as PartialGraphQLInfo) },
-            }, prisma, getUser(req.session));
+            }, getUser(req.session));
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));

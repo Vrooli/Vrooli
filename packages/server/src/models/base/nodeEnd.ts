@@ -10,7 +10,7 @@ import { NodeEndModelInfo, NodeEndModelLogic, NodeModelInfo, NodeModelLogic } fr
 const __typename = "NodeEnd" as const;
 export const NodeEndModel: NodeEndModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_end,
+    delegate: (p) => p.node_end,
     display: () => ({
         label: {
             select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),

@@ -1,17 +1,17 @@
 import { calculateVersionsFromString, GqlModelType } from "@local/shared";
+import { prismaInstance } from "../../db/instance";
 import { ModelMap } from "../../models/base";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.shape.post of version objects. Updates  
  * versionIndex and isLatest flags. Cannot be done in pre 
  * because we might need to update additional versions not specified in the mutation
  */
-export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType, prisma, updatedIds, userData }: {
+export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType, updatedIds, userData }: {
     createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
-    prisma: PrismaType,
     updatedIds: string[]
     userData: SessionUserToken,
 }) => {
@@ -20,7 +20,7 @@ export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType
     // Get ids from created, updated, and deletedIds
     const versionIds = [...createdIds, ...updatedIds, ...deletedIds];
     // Use version ids to query root objects
-    const rootData = await delegate(prisma).findMany({
+    const rootData = await delegate(prismaInstance).findMany({
         where: { versions: { some: { id: { in: versionIds } } } },
         select: {
             id: true,
@@ -68,7 +68,7 @@ export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType
     }
     // Update root objects
     if (updatedRoots.length) {
-        await (delegate as any)(prisma).updateMany({
+        await (delegate as any)(prismaInstance).updateMany({
             where: { id: { in: updatedRoots.map(({ id }) => id) } },
             data: updatedRoots,
         });

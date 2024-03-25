@@ -3,7 +3,7 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
@@ -16,7 +16,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, Standar
 const __typename = "Standard" as const;
 export const StandardModel: StandardModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.standard,
+    delegate: (p) => p.standard,
     display: () => rootObjectDisplay(ModelMap.get<StandardVersionModelLogic>("StandardVersion")),
     format: StandardFormat,
     mutate: {
@@ -87,7 +87,7 @@ export const StandardModel: StandardModelLogic = ({
         //         // Find shapes of all initial standards
         //         for (const standard of initialCombined) {
         //             const initialShape = await this.shapeCreate(userId, standard);
-        //             const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
+        //             const exists = await querier().findMatchingStandardVersion(standard, userId, true, false)
         //             if (exists) existingIds.push(exists.id);
         //         }
         //         // All existing shapes are the new connects
@@ -106,7 +106,6 @@ export const StandardModel: StandardModelLogic = ({
     query: {
         /**
          * Checks for existing standards with the same shape. Useful to avoid duplicates
-         * @param prisma Prisma client
          * @param data StandardCreateData to check
          * @param userData The ID of the user creating the standard
          * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
@@ -114,7 +113,6 @@ export const StandardModel: StandardModelLogic = ({
          * @returns data of matching standard, or null if no match
          */
         async findMatchingStandardVersion(
-            prisma: PrismaType,
             data: StandardCreateInput,
             userData: SessionUserToken,
             uniqueToCreator: boolean,
@@ -125,7 +123,7 @@ export const StandardModel: StandardModelLogic = ({
             // const props = sortify(data.props, userData.languages);
             // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
             // // Find all standards that match the given standard
-            // const standards = await prisma.standard_version.findMany({
+            // const standards = await prismaInstance.standard_version.findMany({
             //     where: {
             //         root: {
             //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
@@ -187,15 +185,15 @@ export const StandardModel: StandardModelLogic = ({
         customQueryData: () => ({ isInternal: true }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? ["en"], "project.translatedName"),
                 };
             },
         },

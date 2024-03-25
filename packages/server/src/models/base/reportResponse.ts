@@ -14,7 +14,7 @@ import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportRespo
 const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.report_response,
+    delegate: (p) => p.report_response,
     display: () => ({
         label: {
             select: () => ({
@@ -62,10 +62,10 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
         supplemental: {
             graphqlFields: SuppFields[__typename],
             dbFields: ["createdById"],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

@@ -7,7 +7,7 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { PrismaType } from "../../types";
+import { prismaInstance } from "../../db/instance";
 import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -19,7 +19,6 @@ import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVe
  * Validates node positions
  */
 const validateNodePositions = async (
-    prisma: PrismaType,
     input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
     languages: string[],
 ): Promise<void> => {
@@ -38,7 +37,7 @@ const validateNodePositions = async (
 const __typename = "RoutineVersion" as const;
 export const RoutineVersionModel: RoutineVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.routine_version,
+    delegate: (p) => p.routine_version,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -64,24 +63,22 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
                 combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(prisma, input, userData.languages); }));
+                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(input, userData.languages); }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once. 
                 // We exclude deleting versions to ensure that they don't affect the calculations. 
                 // If a deleting version appears in the calculations, an error will be thrown.
                 const { dataWeights } = await calculateWeightData(
-                    prisma,
                     userData.languages,
                     combinedInputs,
                     Delete.map(d => d.input),
@@ -195,7 +192,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
+            toGraphQL: async ({ ids, objects, partial, userData }) => {
                 const runs = async () => {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
@@ -205,7 +202,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                         routineVersionId: true,
                     };
                     // Query runs made by user
-                    let runs: any[] = await prisma.run_routine.findMany({
+                    let runs: any[] = await prismaInstance.run_routine.findMany({
                         where: {
                             AND: [
                                 { routineVersion: { root: { id: { in: ids } } } },
@@ -217,14 +214,14 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     // Format runs to GraphQL
                     runs = runs.map(r => modelToGql(r, runPartial));
                     // Add supplemental fields
-                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
+                    runs = await addSupplementalFields(userData, runs, runPartial);
                     // Split runs by id
                     const routineRuns = ids.map((id) => runs.filter(r => r.routineVersionId === id));
                     return routineRuns;
                 };
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                         runs: await runs(),
                     },
                 };

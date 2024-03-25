@@ -11,7 +11,7 @@ import { MemberInviteModelInfo, MemberInviteModelLogic, OrganizationModelLogic, 
 const __typename = "MemberInvite" as const;
 export const MemberInviteModel: MemberInviteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.member_invite,
+    delegate: (p) => p.member_invite,
     display: () => ({
         // Label is the member label
         label: {
@@ -58,10 +58,10 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

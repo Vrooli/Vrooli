@@ -3,6 +3,7 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
@@ -32,42 +33,42 @@ export type EndpointsChatMessage = {
 const objectType = "ChatMessage";
 export const ChatMessageEndpoints: EndpointsChatMessage = {
     Query: {
-        chatMessage: async (_, { input }, { prisma, req }, info) => {
+        chatMessage: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        chatMessages: async (_, { input }, { prisma, req }, info) => {
+        chatMessages: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
-        chatMessageTree: async (_, { input }, { prisma, req }, info) => {
+        chatMessageTree: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return ModelMap.get<ChatMessageModelLogic>("ChatMessage").query.searchTree(prisma, req, input, info);
+            return ModelMap.get<ChatMessageModelLogic>("ChatMessage").query.searchTree(req, input, info);
         },
     },
     Mutation: {
-        chatMessageCreate: async (_, { input }, { prisma, req }, info) => {
+        chatMessageCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        chatMessageUpdate: async (_, { input }, { prisma, req }, info) => {
+        chatMessageUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
-        regenerateResponse: async (_, { input }, { prisma, req }) => {
+        regenerateResponse: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 
             if (!uuidValidate(input.messageId)) {
                 throw new CustomError("0423", "InvalidArgs", userData.languages, { input });
             }
-            const { canDelete } = await getSingleTypePermissions("ChatMessage", [input.messageId], prisma, userData);
+            const { canDelete } = await getSingleTypePermissions("ChatMessage", [input.messageId], userData);
             // Use delete permissions to determine if we can regenerate a response, 
             // even though we keep the old message
             if (!canDelete) {
                 throw new CustomError("0424", "Unauthorized", userData.languages, { input });
             }
-            const existingMessageInfo = await prisma.chat_message.findUnique({
+            const existingMessageInfo = await prismaInstance.chat_message.findUnique({
                 where: { id: input.messageId },
                 select: {
                     chat: {
@@ -169,13 +170,13 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             });
             return { __typename: "Success", success: true };
         },
-        autoFill: async (_, { input }, { prisma, req }, info) => {
+        autoFill: async (_, { input }, { req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 
             return llmProcessAutoFill({ ...input, userData, __process: "AutoFill" });
         },
-        startTask: async (_, { input }, { prisma, req }) => {
+        startTask: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 

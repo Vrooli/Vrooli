@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { uuid } from "@local/shared";
-import { mockPrisma, resetPrismaMockData } from "../__mocks__/prismaUtils";
+import pkg from "../__mocks__/@prisma/client";
 import { ModelMap } from "../models";
 import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, inputToMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps";
 import { InputNode } from "./inputNode";
 import { IdsByAction, IdsByType, InputsByType } from "./types";
 
+const { PrismaClient } = pkg;
+
 describe("fetchAndMapPlaceholder", () => {
-    let prismaMock;
     let placeholderToIdMap;
 
     beforeEach(async () => {
@@ -17,7 +18,7 @@ describe("fetchAndMapPlaceholder", () => {
         // Reset the mock for each test
         jest.clearAllMocks();
 
-        prismaMock = mockPrisma({
+        PrismaClient.injectData({
             User: [
                 { id: "123-321", profile: { id: "456", address: { id: "789" } } },
             ],
@@ -27,12 +28,12 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     afterEach(() => {
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     it("should fetch and return the correct ID for a new placeholder", async () => {
         const placeholder = "user|123-321.prof|profile";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
         expect(placeholderToIdMap[placeholder]).toBe("456"); // The profile's ID
     });
 
@@ -40,22 +41,23 @@ describe("fetchAndMapPlaceholder", () => {
         placeholderToIdMap["user|123-321.prof|profile"] = "420"; // Cache an ID
 
         const placeholder = "user|123-321.prof|profile";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBe("420"); // The cached ID
-        expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+        // @ts-ignore Testing runtime scenario
+        expect(PrismaClient.instance.user.findUnique).not.toHaveBeenCalled();
     });
 
     it("should return null if object is not found", async () => {
         const placeholder = "user|999.prof|profile";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBeNull();
     });
 
     it("should handle nested relations correctly", async () => {
         const placeholder = "user|123-321.prof|profile.addr|address";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBe("789"); // The address's ID
     });
@@ -63,34 +65,34 @@ describe("fetchAndMapPlaceholder", () => {
     it("should handle placeholder with invalid format", async () => {
         const placeholder = "invalidFormatPlaceholder"; // No delimiters or parts
         await expect(async () => {
-            await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+            await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
         }).rejects.toThrow("InternalError");
     });
 
     it("should handle non-existent objectType in placeholder", async () => {
         const placeholder = "nonExistentType|123.relation|value";
         await expect(async () => {
-            await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+            await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
         }).rejects.toThrow("InternalError");
     });
 
     it("should handle valid objectType but invalid rootId", async () => {
         const placeholder = "user|invalidId.relation|value";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBeNull(); // Valid objectType, but rootId does not exist
     });
 
     it("should handle non-existing relation type in placeholder", async () => {
         const placeholder = "user|123-321.nonExistingRelation|value";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBeNull(); // Non-existing relation type
     });
 
     it("should handle valid relation type but invalid relation in placeholder", async () => {
         const placeholder = "user|123-321.prof|invalidRelation";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBeNull(); // Valid relation type but invalid relation
     });
@@ -98,14 +100,13 @@ describe("fetchAndMapPlaceholder", () => {
     it("should handle unnecessary placeholders (placeholders which contain the ID already)", async () => {
         const idInPlaceholder = uuid();
         const placeholder = `Note|${idInPlaceholder}`; // This check only works with valid IDs
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap, prismaMock);
+        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
         expect(placeholderToIdMap[placeholder]).toBe(idInPlaceholder);
     });
 });
 
 describe("replacePlaceholdersInMap", () => {
-    let prismaMock;
     let placeholderToIdMap;
 
     beforeEach(async () => {
@@ -114,7 +115,7 @@ describe("replacePlaceholdersInMap", () => {
 
         jest.clearAllMocks();
 
-        prismaMock = mockPrisma({
+        PrismaClient.injectData({
             User: [
                 { id: "123", profile: { id: "456", address: { id: "789" } } },
             ],
@@ -127,7 +128,7 @@ describe("replacePlaceholdersInMap", () => {
     });
 
     afterEach(() => {
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     it("should replace placeholders with actual IDs", async () => {
@@ -136,7 +137,7 @@ describe("replacePlaceholdersInMap", () => {
             "Update": ["user|123"],
         };
 
-        await replacePlaceholdersInMap(idsMap, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
         expect(idsMap["User"][0]).toEqual("456");
         expect(idsMap["Update"][0]).toEqual("123");
@@ -151,7 +152,7 @@ describe("replacePlaceholdersInMap", () => {
             "Update": ["User|123", "Note|333.Owner|owner"],
         };
 
-        await replacePlaceholdersInMap(idsMap, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
         expect(idsMap["User"]).toEqual(["456", "789"]); // Profile and Address IDs
         expect(idsMap["Update"]).toEqual(["123", "420"]); // User and Owner IDs
@@ -168,7 +169,7 @@ describe("replacePlaceholdersInMap", () => {
             "Update": ["456"],
         };
 
-        await replacePlaceholdersInMap(idsMap, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
         expect(idsMap["User"]).toEqual(["123", "456"]);
         expect(idsMap["Update"]).toEqual(["456"]);
@@ -183,7 +184,7 @@ describe("replacePlaceholdersInMap", () => {
 
         placeholderToIdMap["user|123.prof|profile"] = "420"; // Cache an ID
 
-        await replacePlaceholdersInMap(idsMap, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
         expect(idsMap["User"][0]).toEqual("420"); // Cached ID
         expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
@@ -192,7 +193,7 @@ describe("replacePlaceholdersInMap", () => {
 });
 
 describe("replacePlaceholdersInInputsById", () => {
-    let prismaMock, placeholderToIdMap;
+    let placeholderToIdMap;
     const placeholder1 = "user|123.prof|profile";
 
     beforeEach(async () => {
@@ -201,7 +202,7 @@ describe("replacePlaceholdersInInputsById", () => {
 
         jest.clearAllMocks();
 
-        prismaMock = mockPrisma({
+        PrismaClient.injectData({
             User: [
                 { id: "123", profile: { id: "456", address: { id: "789" } } },
             ],
@@ -211,13 +212,13 @@ describe("replacePlaceholdersInInputsById", () => {
     });
 
     afterEach(() => {
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     it("should replace placeholders with string inputs", async () => {
         const inputsById = { [placeholder1]: { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 } };
 
-        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
         expect(Object.keys(inputsById)).toHaveLength(1);
         expect(inputsById["456"].node.id).toEqual("456");
@@ -236,7 +237,7 @@ describe("replacePlaceholdersInInputsById", () => {
             },
         };
 
-        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
         expect(Object.keys(inputsById)).toHaveLength(1);
         expect(inputsById["456"].node.id).toEqual("456");
@@ -251,7 +252,7 @@ describe("replacePlaceholdersInInputsById", () => {
             "999": { node: new InputNode("User", "999", "Delete"), input: "999" },
         };
 
-        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
         expect(Object.keys(inputsById)).toHaveLength(2);
         expect(inputsById["456"].node.id).toEqual("456");
@@ -267,7 +268,7 @@ describe("replacePlaceholdersInInputsById", () => {
 
         placeholderToIdMap[placeholder1] = "420"; // Cache an ID
 
-        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
         expect(Object.keys(inputsById)).toHaveLength(1);
         expect(inputsById["420"].node.id).toEqual("420");
@@ -278,7 +279,7 @@ describe("replacePlaceholdersInInputsById", () => {
 });
 
 describe("replacePlaceholdersInInputsByType", () => {
-    let prismaMock, placeholderToIdMap;
+    let placeholderToIdMap;
     const placeholder1 = "user|123.prof|profile";
 
     beforeEach(async () => {
@@ -287,7 +288,7 @@ describe("replacePlaceholdersInInputsByType", () => {
 
         jest.clearAllMocks();
 
-        prismaMock = mockPrisma({
+        PrismaClient.injectData({
             User: [
                 { id: "123", profile: { id: "456", address: { id: "789" } } },
             ],
@@ -297,7 +298,7 @@ describe("replacePlaceholdersInInputsByType", () => {
     });
 
     afterEach(() => {
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     it("should replace placeholders with string inputs", async () => {
@@ -312,7 +313,7 @@ describe("replacePlaceholdersInInputsByType", () => {
             },
         };
 
-        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
         expect(inputsByType.User.Delete).toHaveLength(1);
         expect(inputsByType.User.Delete[0].node.id).toEqual("456");
@@ -333,7 +334,7 @@ describe("replacePlaceholdersInInputsByType", () => {
             },
         };
 
-        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
         expect(inputsByType.User.Update).toHaveLength(1);
         expect(inputsByType.User.Update[0].node.id).toEqual("456");
@@ -359,7 +360,7 @@ describe("replacePlaceholdersInInputsByType", () => {
             },
         };
 
-        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
         expect(inputsByType.User.Delete).toHaveLength(2);
         expect(inputsByType.User.Delete[0].node.id).toEqual("456");
@@ -385,7 +386,7 @@ describe("replacePlaceholdersInInputsByType", () => {
             },
         };
 
-        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap, prismaMock);
+        await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
         expect(inputsByType.User.Delete).toHaveLength(1);
         expect(inputsByType.User.Delete[0].node.id).toEqual("420");
@@ -396,7 +397,7 @@ describe("replacePlaceholdersInInputsByType", () => {
 });
 
 describe("convertPlaceholders", () => {
-    let prismaMock, idsByAction, idsByType, inputsById, inputsByType;
+    let idsByAction, idsByType, inputsById, inputsByType;
     const initialIdsByAction = { Create: [], Update: [], Connect: [], Disconnect: [] };
     const initialIdsByType = {};
     const initialInputsById = {};
@@ -404,7 +405,7 @@ describe("convertPlaceholders", () => {
     const placeholder1 = "user|123.prof|profile";
 
     beforeEach(() => {
-        prismaMock = mockPrisma({
+        PrismaClient.injectData({
             User: [
                 { id: "123", profile: { id: "456", address: { id: "789" } } },
             ],
@@ -416,7 +417,7 @@ describe("convertPlaceholders", () => {
     });
 
     afterEach(() => {
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     it("should replace placeholders with actual IDs", async () => {
@@ -425,7 +426,7 @@ describe("convertPlaceholders", () => {
         inputsById = { [placeholder1]: { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 } };
         inputsByType = { "User": { "Delete": [{ node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 }] } };
 
-        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType, prisma: prismaMock });
+        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
         expect(idsByType["User"]).toEqual(["456"]);
         expect(idsByAction["Update"]).toEqual(["456"]);
@@ -444,7 +445,7 @@ describe("convertPlaceholders", () => {
         inputsById = { "user|999.prof|profile": { node: new InputNode("User", "user|999.prof|profile", "Create"), input: "user|999.prof|profile" } };
         inputsByType = { "User": { "Create": [{ node: new InputNode("User", "user|999.prof|profile", "Create"), input: "user|999.prof|profile" }] } };
 
-        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType, prisma: prismaMock });
+        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
         expect(idsByType["User"]).toEqual([null]);
         expect(idsByAction["Create"]).toEqual([null]);
@@ -461,7 +462,7 @@ describe("convertPlaceholders", () => {
         inputsById = { "123": { node: new InputNode("User", "123", "Create"), input: "123" } };
         inputsByType = { "User": { "Create": [{ node: new InputNode("User", "123", "Create"), input: "123" }] } };
 
-        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType, prisma: prismaMock });
+        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
         expect(idsByType["User"]).toEqual(["123"]);
         expect(idsByAction["Create"]).toEqual(["123"]);
@@ -487,7 +488,7 @@ describe("convertPlaceholders", () => {
             },
         };
 
-        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType, prisma: prismaMock });
+        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
         expect(idsByType["User"]).toEqual(["456", "789"]);
         expect(idsByAction["Create"]).toEqual(["789"]);
@@ -521,7 +522,7 @@ describe("convertPlaceholders", () => {
             },
         };
 
-        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType, prisma: prismaMock });
+        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
         expect(idsByType["User"]).toEqual(["456"]);
         expect(idsByType["Note"]).toEqual(["789"]);

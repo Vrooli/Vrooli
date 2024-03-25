@@ -21,7 +21,7 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } =
 const __typename = "Issue" as const;
 export const IssueModel: IssueModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.issue,
+    delegate: (p) => p.issue,
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -84,12 +84,12 @@ export const IssueModel: IssueModelLogic = ({
         searchStringQuery: () => ({ OR: ["transDescriptionWrapped", "transNameWrapped"] }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },

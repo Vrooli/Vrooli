@@ -10,7 +10,7 @@ import { OrganizationModelInfo, OrganizationModelLogic, RoleModelInfo, RoleModel
 const __typename = "Role" as const;
 export const RoleModel: RoleModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.role,
+    delegate: (p) => p.role,
     display: () => ({
         label: {
             select: () => ({

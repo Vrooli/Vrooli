@@ -19,23 +19,23 @@ export type EndpointsOrganization = {
 const objectType = "Organization";
 export const OrganizationEndpoints: EndpointsOrganization = {
     Query: {
-        organization: async (_, { input }, { prisma, req }, info) => {
+        organization: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        organizations: async (_, { input }, { prisma, req }, info) => {
+        organizations: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        organizationCreate: async (_, { input }, { prisma, req }, info) => {
+        organizationCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        organizationUpdate: async (_, { input }, { prisma, req }, info) => {
+        organizationUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

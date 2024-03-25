@@ -11,7 +11,7 @@ import { FocusModeModelLogic } from "./types";
 const __typename = "FocusMode" as const;
 export const FocusModeModel: FocusModeModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.focus_mode,
+    delegate: (p) => p.focus_mode,
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -59,10 +59,10 @@ export const FocusModeModel: FocusModeModelLogic = ({
         searchStringQuery: () => ({ OR: ["descriptionWrapped", "nameWrapped"] }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

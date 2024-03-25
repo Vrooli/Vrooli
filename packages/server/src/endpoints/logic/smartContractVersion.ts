@@ -19,23 +19,23 @@ export type EndpointsSmartContractVersion = {
 const objectType = "SmartContractVersion";
 export const SmartContractVersionEndpoints: EndpointsSmartContractVersion = {
     Query: {
-        smartContractVersion: async (_, { input }, { prisma, req }, info) => {
+        smartContractVersion: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        smartContractVersions: async (_, { input }, { prisma, req }, info) => {
+        smartContractVersions: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        smartContractVersionCreate: async (_, { input }, { prisma, req }, info) => {
+        smartContractVersionCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        smartContractVersionUpdate: async (_, { input }, { prisma, req }, info) => {
+        smartContractVersionUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

@@ -17,20 +17,20 @@ export type EndpointsPhone = {
 const objectType = "Phone";
 export const PhoneEndpoints: EndpointsPhone = {
     Mutation: {
-        phoneCreate: async (_, { input }, { prisma, req }, info) => {
+        phoneCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 10, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        sendVerificationText: async (_, { input }, { prisma, req }) => {
+        sendVerificationText: async (_, { input }, { req }) => {
             const { id: userId } = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 25, req });
-            await setupPhoneVerificationCode(input.phoneNumber, userId, prisma, req.session.languages);
+            await setupPhoneVerificationCode(input.phoneNumber, userId, req.session.languages);
             return { __typename: "Success" as const, success: true };
         },
-        validateVerificationText: async (_, { input }, { prisma, req }) => {
+        validateVerificationText: async (_, { input }, { req }) => {
             const { id: userId } = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 25, req });
-            const verified = await validatePhoneVerificationCode(input.phoneNumber, userId, input.verificationCode, prisma, req.session.languages);
+            const verified = await validatePhoneVerificationCode(input.phoneNumber, userId, input.verificationCode, req.session.languages);
             if (!verified)
                 throw new CustomError("0139", "CannotVerifyPhoneCode", req.session.languages);
             return { __typename: "Success" as const, success: true };

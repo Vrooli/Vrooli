@@ -9,7 +9,7 @@ import { ReminderItemModelInfo, ReminderItemModelLogic, ReminderModelInfo, Remin
 const __typename = "ReminderItem" as const;
 export const ReminderItemModel: ReminderItemModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.reminder_item,
+    delegate: (p) => p.reminder_item,
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

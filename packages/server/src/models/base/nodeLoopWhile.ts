@@ -10,7 +10,7 @@ import { NodeLoopModelInfo, NodeLoopModelLogic, NodeLoopWhileModelInfo, NodeLoop
 const __typename = "NodeLoopWhile" as const;
 export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_loop_while,
+    delegate: (p) => p.node_loop_while,
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {

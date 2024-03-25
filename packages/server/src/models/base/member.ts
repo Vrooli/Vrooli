@@ -9,7 +9,7 @@ import { MemberModelInfo, MemberModelLogic, OrganizationModelInfo, OrganizationM
 const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.member,
+    delegate: (p) => p.member,
     display: () => ({
         label: {
             select: () => ({
@@ -38,10 +38,10 @@ export const MemberModel: MemberModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

@@ -1,7 +1,8 @@
 import { GqlModelType } from "@local/shared";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 
 const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
 
@@ -15,14 +16,12 @@ const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, G
  * This helps ensure that public data is immutable, while owners have full control over private data
  */
 export const versionsCheck = async ({
-    prisma,
     objectType,
     Create,
     Update,
     Delete,
     userData,
 }: {
-    prisma: PrismaType,
     objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
     Create: {
         input: {
@@ -94,7 +93,7 @@ export const versionsCheck = async ({
                 },
             },
         };
-        existingRoots = await delegate(prisma).findMany({
+        existingRoots = await delegate(prismaInstance).findMany({
             where,
             select,
         });

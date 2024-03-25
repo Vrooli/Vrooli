@@ -7,6 +7,7 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -17,7 +18,7 @@ import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVe
 const __typename = "ProjectVersion" as const;
 export const ProjectVersionModel: ProjectVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.project_version,
+    delegate: (p) => p.project_version,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -43,12 +44,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -89,7 +89,6 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //      * Custom search query for querying items in a project version
     //      */
     //     async searchContents(
-    //         prisma: PrismaType,
     //         req: Request,
     //         input: ProjectVersionContentsSearchInput,
     //         info: GraphQLInfo | PartialGraphQLInfo,
@@ -125,7 +124,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined
     //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
     //         // Find requested search array
-    //         const searchResults = await prisma.comment.findMany({
+    //         const searchResults = await prismaInstance.comment.findMany({
     //             where,
     //             orderBy,
     //             take: input.take ?? 10,
@@ -142,13 +141,13 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             threads: [],
     //         }
     //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-    //         const totalInThread = input.after ? undefined : await prisma.comment.count({
+    //         const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
     //             where: { ...where }
     //         });
     //         // Calculate end cursor
     //         const endCursor = searchResults[searchResults.length - 1].id;
     //         // If not as nestLimit, recurse with all result IDs
-    //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req.session), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
     //             sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -165,7 +164,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
     //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-    //         comments = await addSupplementalFields(prisma, getUser(req.session), comments, partialInfo);
+    //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
     //         const shapeThreads = (threads: CommentThread[]) => {
@@ -235,7 +234,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
+            toGraphQL: async ({ ids, objects, partial, userData }) => {
                 const runs = async () => {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 
@@ -245,7 +244,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                         projectVersionId: true,
                     };
                     // Query runs made by user
-                    let runs: any[] = await prisma.run_project.findMany({
+                    let runs: any[] = await prismaInstance.run_project.findMany({
                         where: {
                             AND: [
                                 { projectVersion: { root: { id: { in: ids } } } },
@@ -257,14 +256,14 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     // Format runs to GraphQL
                     runs = runs.map(r => modelToGql(r, runPartial));
                     // Add supplemental fields
-                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
+                    runs = await addSupplementalFields(userData, runs, runPartial);
                     // Split runs by id
                     const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
                     return projectRuns;
                 };
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                         runs: await runs(),
                     },
                 };

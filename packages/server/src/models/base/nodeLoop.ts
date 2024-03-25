@@ -9,7 +9,7 @@ import { NodeLoopModelInfo, NodeLoopModelLogic, NodeModelInfo, NodeModelLogic } 
 const __typename = "NodeLoop" as const;
 export const NodeLoopModel: NodeLoopModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_loop,
+    delegate: (p) => p.node_loop,
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {

@@ -1,7 +1,8 @@
 import { SubscribableObject } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { prismaInstance } from "../db/instance";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { CustomError } from "./error";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
@@ -33,7 +34,7 @@ export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.not
  * - A new question is created
  * - A new answer is created
  */
-export const Subscriber = (prisma: PrismaType) => ({
+export const Subscriber = () => ({
     /**
      * Creates a subscription for a user to an object
      * @param object The object to subscribe to
@@ -47,7 +48,7 @@ export const Subscriber = (prisma: PrismaType) => ({
     ) => {
         // Find the object and its owner
         const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], object.__typename);
-        const permissionData = await delegate(prisma).findUnique({
+        const permissionData = await delegate(prismaInstance).findUnique({
             where: { id: object.id },
             select: validate().permissionsSelect,
         });
@@ -57,7 +58,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         if (!isPublic || isDeleted)
             throw new CustomError("0332", "Unauthorized", userData.languages);
         // Create subscription
-        await prisma.notification_subscription.create({
+        await prismaInstance.notification_subscription.create({
             data: {
                 subscriber: { connect: { id: userData.id } },
                 [subscribableMapper[object.__typename]]: { connect: { id: object.id } },
@@ -75,7 +76,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         userData: SessionUserToken,
     ) => {
         // Find the subscription
-        const subscription = await prisma.notification_subscription.findUnique({
+        const subscription = await prismaInstance.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
                 subscriberId: true,
@@ -87,7 +88,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         if (subscription.subscriberId !== userData.id)
             throw new CustomError("0334", "Unauthorized", userData.languages);
         // Delete subscription
-        await prisma.notification_subscription.delete({
+        await prismaInstance.notification_subscription.delete({
             where: { id: subscriptionId },
         });
     },
@@ -103,7 +104,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         silent: boolean,
     ) => {
         // Find the subscription
-        const subscription = await prisma.notification_subscription.findUnique({
+        const subscription = await prismaInstance.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
                 subscriberId: true,
@@ -117,7 +118,7 @@ export const Subscriber = (prisma: PrismaType) => ({
             throw new CustomError("0336", "Unauthorized", userData.languages);
         // Update subscription if silent status has changed
         if (subscription.silent !== silent) {
-            await prisma.notification_subscription.update({
+            await prismaInstance.notification_subscription.update({
                 where: { id: subscriptionId },
                 data: { silent },
             });

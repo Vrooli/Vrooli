@@ -5,7 +5,7 @@ import { ReactionSummaryModelLogic } from "./types";
 const __typename = "ReactionSummary" as const;
 export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.stats_api,
+    delegate: (p) => p.stats_api,
     display: () => ({
         label: {
             select: () => ({ id: true, emoji: true, count: true }),

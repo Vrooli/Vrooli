@@ -7,7 +7,7 @@ import { PushDeviceModelLogic } from "./types";
 const __typename = "PushDevice" as const;
 export const PushDeviceModel: PushDeviceModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.push_device,
+    delegate: (p) => p.push_device,
     display: () => ({
         label: {
             select: () => ({ id: true, name: true, p256dh: true }),

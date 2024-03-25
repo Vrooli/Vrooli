@@ -11,7 +11,7 @@ import { OrganizationModelLogic, PostModelLogic } from "./types";
 const __typename = "Post" as const;
 export const PostModel: PostModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.post,
+    delegate: (p) => p.post,
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

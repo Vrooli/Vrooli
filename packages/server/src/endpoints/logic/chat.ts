@@ -19,23 +19,23 @@ export type EndpointsChat = {
 const objectType = "Chat";
 export const ChatEndpoints: EndpointsChat = {
     Query: {
-        chat: async (_, { input }, { prisma, req }, info) => {
+        chat: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        chats: async (_, { input }, { prisma, req }, info) => {
+        chats: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        chatCreate: async (_, { input }, { prisma, req }, info) => {
+        chatCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        chatUpdate: async (_, { input }, { prisma, req }, info) => {
+        chatUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

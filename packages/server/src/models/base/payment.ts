@@ -7,7 +7,7 @@ import { OrganizationModelLogic, PaymentModelLogic } from "./types";
 const __typename = "Payment" as const;
 export const PaymentModel: PaymentModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.payment,
+    delegate: (p) => p.payment,
     display: () => ({
         label: {
             select: () => ({ id: true, description: true }),

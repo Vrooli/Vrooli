@@ -3,9 +3,9 @@
  */
 
 import { GqlModelType } from "@local/shared";
+import { prismaInstance } from "../db/instance";
 import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
-import { PrismaType } from "../types";
 
 export enum ReputationEvent {
     ObjectDeletedFromReport = "ObjectDeletedFromReport",
@@ -173,7 +173,6 @@ export async function getReputationGainedToday(userId: string, delta: number): P
 /**
  * Helper function to update the reputation of a user. Not to be used directly.
  * @param delta The amount of reputation to add to the user's reputation
- * @param prisma The prisma client
  * @param userId The id of the user
  * @param event The event which caused the reputation change
  * @param objectId1 The id of the first object involved in the event, if applicable
@@ -181,7 +180,6 @@ export async function getReputationGainedToday(userId: string, delta: number): P
  */
 const updateReputationHelper = async (
     delta: number,
-    prisma: PrismaType,
     userId: string,
     event: ReputationEvent | `${ReputationEvent}`,
     objectId1?: string,
@@ -203,14 +201,14 @@ const updateReputationHelper = async (
         return;
     }
     // Update the user's reputation
-    await prisma.award.update({
+    await prismaInstance.award.update({
         where: { userId_category: { userId, category: "Reputation" } },
         data: { progress: updatedReputation },
     });
     // Also add to user's reputation history, so they can see why their reputation changed
     const amount = totalReputationToday > MaxReputationGainPerDay || totalReputationToday < -MaxReputationGainPerDay ?
         totalReputationToday - delta : delta;
-    await prisma.reputation_history.create({
+    await prismaInstance.reputation_history.create({
         data: {
             userId,
             amount,
@@ -229,13 +227,12 @@ const updateReputationHelper = async (
 export const Reputation = () => ({
     /**
      * Deletes a reputation history entry for an object creation, and updates the user's reputation accordingly
-     * @param prisma The prisma client
      * @param objectId The id of the object that was deleted
      * @param userId The id of the user who created the object
      */
-    unCreateObject: async (prisma: PrismaType, objectId: string, userId: string) => {
+    unCreateObject: async (objectId: string, userId: string) => {
         // Find the reputation history entry for the object creation
-        const historyEntry = await prisma.reputation_history.findFirst({
+        const historyEntry = await prismaInstance.reputation_history.findFirst({
             where: {
                 objectId1: objectId,
                 userId,
@@ -252,10 +249,10 @@ export const Reputation = () => ({
         });
         // If the entry exists, delete it and decrease the user's reputation
         if (historyEntry) {
-            await prisma.reputation_history.delete({
+            await prismaInstance.reputation_history.delete({
                 where: { id: historyEntry.id },
             });
-            await prisma.user.update({
+            await prismaInstance.user.update({
                 where: { id: userId },
                 data: { reputation: { decrement: historyEntry.amount } },
             });
@@ -264,13 +261,11 @@ export const Reputation = () => ({
     /**
      * Updates a user's reputation based on an event
      * @param event The event that occurred
-     * @param prisma The prisma client
      * @param userId Typically the user who performed the event, 
      * but can also be the user who owns the object that was affected
      */
     update: async (
         event: Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport"> | `${Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport">}`,
-        prisma: PrismaType,
         userId: string,
         object1Id?: string,
         object2Id?: string,
@@ -278,40 +273,37 @@ export const Reputation = () => ({
         // Determine reputation delta
         const delta = reputationMap[event] || 0;
         // Update reputation
-        await updateReputationHelper(delta, prisma, userId, event, object1Id, object2Id);
+        await updateReputationHelper(delta, userId, event, object1Id, object2Id);
     },
     /**
      * Custom reputation update function for votes
      * @param v0 The original vote count
      * @param v1 The new vote count
-     * @param prisma The prisma client
      * @param userId The user who received the vote
      */
-    updateVote: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
+    updateVote: async (v0: number, v1: number, userId: string) => {
         const delta = reputationDeltaVote(v0, v1);
         if (!isFinite(delta)) return;
-        await updateReputationHelper(delta, prisma, userId, "ReceivedVote");
+        await updateReputationHelper(delta, userId, "ReceivedVote");
     },
     /**
      * Custom reputation update function for bookmarks
      * @param v0 The original star count
      * @param v1 The new star count
-     * @param prisma The prisma client
      * @param userId The user who received the star
      */
-    updateStar: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
+    updateStar: async (v0: number, v1: number, userId: string) => {
         const delta = reputationDeltaStar(v0, v1);
         if (!isFinite(delta)) return;
-        await updateReputationHelper(delta, prisma, userId, "ReceivedStar");
+        await updateReputationHelper(delta, userId, "ReceivedStar");
     },
     /**
      * Custom reputation update function for report contributions
      * @param totalContributions The total number of contributions you've made to all reports
-     * @param prisma The prisma client
      * @param userId The user who contributed to the report
      */
-    updateReportContribute: async (totalContributions: number, prisma: PrismaType, userId: string) => {
+    updateReportContribute: async (totalContributions: number, userId: string) => {
         const delta = reputationDeltaReportContribute(totalContributions);
-        await updateReputationHelper(delta, prisma, userId, "ContributedToReport");
+        await updateReputationHelper(delta, userId, "ContributedToReport");
     },
 });

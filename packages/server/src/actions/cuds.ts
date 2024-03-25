@@ -3,10 +3,11 @@ import { PrismaPromise } from "@prisma/client";
 import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
 import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { cudInputsToMaps } from "../utils/cudInputsToMaps";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData";
@@ -35,12 +36,10 @@ import { profanityCheck } from "../validators/profanityCheck";
 export async function cudHelper({
     inputData,
     partialInfo,
-    prisma,
     userData,
 }: {
     inputData: CudInputData[],
     partialInfo: PartialGraphQLInfo,
-    prisma: PrismaType,
     userData: SessionUserToken,
 }): Promise<Array<boolean | Record<string, any>>> {
     // Initialize results
@@ -60,10 +59,13 @@ export async function cudHelper({
     }
     // Group all data, including relations, relations' relations, etc. into various maps. 
     // These are useful for validation and pre-shaping data
-    const { idsByAction, idsByType, idsCreateToConnect, inputsById, inputsByType } = await cudInputsToMaps({
-        inputData,
-        prisma,
-    });
+    const {
+        idsByAction,
+        idsByType,
+        idsCreateToConnect,
+        inputsById,
+        inputsByType,
+    } = await cudInputsToMaps({ inputData });
     const preMap: PreMap = {};
     // For each type, calculate pre-shape data (if applicable). 
     // This often also doubles as a way to perform custom input validation
@@ -72,18 +74,18 @@ export async function cudHelper({
         preMap[type] = {};
         const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper preshape type");
         if (mutate.shape.pre) {
-            const preResult = await mutate.shape.pre({ ...inputs, prisma, userData, inputsById });
+            const preResult = await mutate.shape.pre({ ...inputs, userData, inputsById });
             preMap[type] = preResult;
         }
     }
     // Query for all authentication data
-    const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
+    const authDataById = await getAuthenticatedData(idsByType, userData);
     // Validate permissions
     await permissionsCheck(authDataById, idsByAction, inputsById, userData);
     // Perform profanity checks
     profanityCheck(inputData, inputsById, authDataById, userData.languages);
     // Max objects check
-    await maxObjectsCheck(inputsById, authDataById, idsByAction, prisma, userData);
+    await maxObjectsCheck(inputsById, authDataById, idsByAction, userData);
     // Group top-level (i.e. can't use inputsByType, idsByAction, etc. because those include relations) data by type
     const topInputsByType: { [key in GqlModelType]?: {
         Create: { index: number, input: PrismaCreate }[],
@@ -115,10 +117,10 @@ export async function cudHelper({
                 if (input?.id === DUMMY_ID) {
                     throw new CustomError("0501", "InternalError", userData.languages, { input, objectType });
                 }
-                const data = mutate.shape.create ? await mutate.shape.create({ data: input, idsCreateToConnect, preMap, prisma, userData }) : input;
+                const data = mutate.shape.create ? await mutate.shape.create({ data: input, idsCreateToConnect, preMap, userData }) : input;
                 const select = selectHelper(partialInfo)?.select;
                 // Add to operations
-                const createOperation = delegate(prisma).create({
+                const createOperation = delegate(prismaInstance).create({
                     data,
                     select,
                 });
@@ -129,10 +131,10 @@ export async function cudHelper({
         if (Update.length > 0) {
             for (const { index } of Update) {
                 const { input } = inputData[index] as { input: PrismaUpdate, objectType: GqlModelType | `${GqlModelType}` };
-                const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect, preMap, prisma, userData }) : input;
+                const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect, preMap, userData }) : input;
                 const select = selectHelper(partialInfo)?.select;
                 // Add to operations
-                const updateOperation = delegate(prisma).update({
+                const updateOperation = delegate(prismaInstance).update({
                     where: { [idField]: input[idField] },
                     data,
                     select,
@@ -144,19 +146,19 @@ export async function cudHelper({
         if (Delete.length > 0) {
             // Call beforeDeleted
             if (mutate.trigger?.beforeDeleted) {
-                await mutate.trigger.beforeDeleted({ beforeDeletedData, deletingIds, prisma, userData });
+                await mutate.trigger.beforeDeleted({ beforeDeletedData, deletingIds, userData });
             }
             // Delete
             try {
                 // Before deleting, check which ids exist
-                const existingIds: string[] = await delegate(prisma).findMany({
+                const existingIds: string[] = await delegate(prismaInstance).findMany({
                     where: { [idField]: { in: deletingIds } },
                     select: { id: true },
                 }).then(x => x.map(({ id }) => id));
                 // Update deletedIdsByType
                 deletedIdsByType[objectType] = existingIds;
                 // Add to operations
-                const deleteOperation = delegate(prisma).deleteMany({
+                const deleteOperation = delegate(prismaInstance).deleteMany({
                     where: { [idField]: { in: existingIds } },
                 });
                 operations.push(deleteOperation as any);
@@ -166,7 +168,7 @@ export async function cudHelper({
         }
     }
     // Perform all operations in transaction
-    const transactionResult = await prisma.$transaction(operations);
+    const transactionResult = await prismaInstance.$transaction(operations);
     // Loop again through each type to process results
     let transactionIndex = 0;
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
@@ -209,7 +211,6 @@ export async function cudHelper({
             createInputs,
             deletedIds,
             preMap,
-            prisma,
             updatedIds,
             updateInputs,
             userData,

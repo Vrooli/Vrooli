@@ -18,7 +18,7 @@ export type EndpointsUnions = {
 
 export const UnionsEndpoints: EndpointsUnions = {
     Query: {
-        projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
+        projectOrRoutines: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "ProjectOrRoutineSearchResult",
@@ -26,7 +26,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 Routine: "Routine",
             }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, req };
+            const commonReadParams = { req };
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
             // Checks if object type should be included in results
@@ -107,7 +107,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, routines }, {
                 projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
                 routines: { type: "Routine", ...(partial.Routine as PartialGraphQLInfo) },
-            }, prisma, getUser(req.session));
+            }, getUser(req.session));
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));
@@ -127,7 +127,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             };
             return combined;
         },
-        projectOrOrganizations: async (_, { input }, { prisma, req }, info) => {
+        projectOrOrganizations: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "ProjectOrOrganizationSearchResult",
@@ -135,7 +135,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 Organization: "Organization",
             }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, req };
+            const commonReadParams = { req };
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
             // Checks if object type should be included in results
@@ -208,7 +208,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, organizations }, {
                 projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
                 organizations: { type: "Organization", ...(partial.Organization as PartialGraphQLInfo) },
-            }, prisma, getUser(req.session));
+            }, getUser(req.session));
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));
@@ -228,7 +228,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             };
             return combined;
         },
-        runProjectOrRunRoutines: async (_, { input }, { prisma, req }, info) => {
+        runProjectOrRunRoutines: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "RunProjectOrRunRoutineSearchResult",
@@ -236,7 +236,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 RunRoutine: "RunRoutine",
             }, req.session.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, req };
+            const commonReadParams = { req };
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
             // Checks if object type should be included in results
@@ -294,7 +294,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             const withSupplemental = await addSupplementalFieldsMultiTypes({ runProjects, runRoutines }, {
                 runProjects: { type: "RunProject", ...(partial.RunProject as PartialGraphQLInfo) },
                 runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as PartialGraphQLInfo) },
-            }, prisma, getUser(req.session));
+            }, getUser(req.session));
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));

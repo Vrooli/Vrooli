@@ -138,12 +138,11 @@ export interface SupplementalConverter<
     /**
      * Calculates supplemental fields from the main query results
      */
-    toGraphQL: ({ ids, objects, partial, prisma, userData }: {
+    toGraphQL: ({ ids, objects, partial, userData }: {
         ids: string[],
         languages: string[],
         objects: ({ id: string } & DbObject)[],
         partial: PartialGraphQLInfo,
-        prisma: PrismaType,
         userData: SessionUserToken | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
 }
@@ -443,11 +442,10 @@ export type Mutater<Model extends {
          * data that can change depending on what else is being mutated. This is useful for 
          * things like routine complexity, where the calculation depends on the complexity of subroutines.
          */
-        pre?: ({ Create, Update, Delete, prisma, userData }: {
+        pre?: ({ Create, Update, Delete, userData }: {
             Create: { node: InputNode, input: Model["GqlCreate"] }[],
             Update: { node: InputNode, input: (Model["GqlUpdate"] & { id: string }) }[],
             Delete: { node: InputNode, input: string }[],
-            prisma: PrismaType,
             userData: SessionUserToken,
             inputsById: InputsById,
         }) => PromiseOrValue<object>,
@@ -462,26 +460,23 @@ export type Mutater<Model extends {
          * NOTE: We don't have to worry about it for tags, but you should keep in mind 
          * object permissions when using this function
          */
-        findConnects?: ({ Create, prisma }: {
+        findConnects?: ({ Create }: {
             Create: { node: InputNode, input: Model["GqlCreate"] }[],
-            prisma: PrismaType,
         }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
         create?: Model["GqlCreate"] extends GqlObject ?
-        Model["PrismaCreate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
+        Model["PrismaCreate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
             data: Model["GqlCreate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
-            prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["GqlUpdate"] extends GqlObject ?
-        Model["PrismaUpdate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, prisma, userData }: {
+        Model["PrismaUpdate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
             data: Model["GqlUpdate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,
-            prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<Model["PrismaUpdate"]> : never : never
     }
@@ -496,11 +491,10 @@ export type Mutater<Model extends {
          * 
          * NOTE: This is only called for top-level objects, not relationships. Handle accordingly.
          */
-        beforeDeleted?: ({ beforeDeletedData, deletingIds, prisma, userData }: {
+        beforeDeleted?: ({ beforeDeletedData, deletingIds, userData }: {
             /** Result is added to this object */
             beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             deletingIds: string[],
-            prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,
         /**
@@ -509,7 +503,7 @@ export type Mutater<Model extends {
          * unless you have to (e.g. adding a new version inbetween others will trigger index updates 
          * on versions not specified in the mutation)
          */
-        afterMutations?: ({ createdIds, deletedIds, prisma, updatedIds, updateInputs, userData }: {
+        afterMutations?: ({ createdIds, deletedIds, updatedIds, updateInputs, userData }: {
             beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             createdIds: string[],
             createInputs: Model["GqlCreate"][],
@@ -517,7 +511,6 @@ export type Mutater<Model extends {
             updatedIds: string[],
             updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
-            prisma: PrismaType,
             userData: SessionUserToken,
         }) => PromiseOrValue<void>,
     }

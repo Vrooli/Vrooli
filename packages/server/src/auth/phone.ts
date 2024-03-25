@@ -1,7 +1,7 @@
 import { API_CREDITS_FREE } from "@local/shared";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { sendSmsVerification } from "../tasks/sms/queue";
-import { PrismaType } from "../types";
 import { randomString, validateCode } from "./codes";
 
 export const PHONE_VERIFICATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes
@@ -34,17 +34,16 @@ const phoneSelect = {
 export const setupPhoneVerificationCode = async (
     phoneNumber: string,
     userId: string,
-    prisma: PrismaType,
     languages: string[],
 ): Promise<void> => {
     // Find the phone
-    let phone = await prisma.phone.findUnique({
+    let phone = await prismaInstance.phone.findUnique({
         where: { phoneNumber },
         select: phoneSelect,
     });
     // Create if not found
     if (!phone) {
-        phone = await prisma.phone.create({
+        phone = await prismaInstance.phone.create({
             data: {
                 phoneNumber,
                 user: {
@@ -69,7 +68,7 @@ export const setupPhoneVerificationCode = async (
     // Generate new code
     const verificationCode = generatePhoneVerificationCode();
     // Store code and request time
-    await prisma.phone.update({
+    await prismaInstance.phone.update({
         where: { id: phone.id },
         data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
     });
@@ -83,7 +82,6 @@ export const setupPhoneVerificationCode = async (
  * @param phoneNumber Phone number string
  * @param userId ID of user who owns phone number
  * @param code Verification code
- * @param prisma The Prisma client
  * @param languages Preferred languages to display error messages in
  * @returns True if phone was is verified
  */
@@ -91,11 +89,10 @@ export const validatePhoneVerificationCode = async (
     phoneNumber: string,
     userId: string,
     code: string,
-    prisma: PrismaType,
     languages: string[],
 ): Promise<boolean> => {
     // Find data
-    const phone = await prisma.phone.findUnique({
+    const phone = await prismaInstance.phone.findUnique({
         where: { phoneNumber },
         select: {
             id: true,
@@ -115,7 +112,7 @@ export const validatePhoneVerificationCode = async (
         throw new CustomError("0351", "PhoneNotYours", languages);
     // If phone already verified, remove old verification code
     if (phone.verified) {
-        await prisma.phone.update({
+        await prismaInstance.phone.update({
             where: { id: phone.id },
             data: { verificationCode: null, lastVerificationCodeRequestAttempt: null },
         });
@@ -128,7 +125,7 @@ export const validatePhoneVerificationCode = async (
         return false;
     }
     // If we're here, the code is valid
-    await prisma.phone.update({
+    await prismaInstance.phone.update({
         where: { id: phone.id },
         data: {
             verified: true,
@@ -138,7 +135,7 @@ export const validatePhoneVerificationCode = async (
         },
     });
     // If this is the first time verifying (both for the user and the phone), give free credits
-    const userData = await prisma.user.findUnique({
+    const userData = await prismaInstance.user.findUnique({
         where: { id: userId },
         select: {
             premium: {
@@ -153,7 +150,7 @@ export const validatePhoneVerificationCode = async (
     if (userData) {
         const hasReceivedFreeTrial = userData.premium?.hasReceivedFreeTrial === true;
         if (!hasReceivedFreeTrial && !hasPhoneBeenVerifiedBefore) {
-            await prisma.user.update({
+            await prismaInstance.user.update({
                 where: { id: userId },
                 data: {
                     premium: {

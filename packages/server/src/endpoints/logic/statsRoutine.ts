@@ -12,9 +12,9 @@ export type EndpointsStatsRoutine = {
 const objectType = "StatsRoutine";
 export const StatsRoutineEndpoints: EndpointsStatsRoutine = {
     Query: {
-        statsRoutine: async (_, { input }, { prisma, req }, info) => {
+        statsRoutine: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };
