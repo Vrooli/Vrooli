@@ -31,8 +31,9 @@
 //     }
 
 //     async generateResponse({
-//         chatId,
+//         contextInfo,
 //         force,
+//         model,
 //         participantsData,
 //         respondingBotConfig,
 //         respondingBotId,
@@ -41,12 +42,6 @@
 //         userData,
 //     }: GenerateResponseParams) {
 // // Check if service is active
-// if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
-//     throw new CustomError("0244", "InternalError", userData.languages);
-// }
-
-//         const model = this.getModel(respondingBotConfig?.model);
-//         const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
 //         const { messages, systemMessage } = await this.generateContext({
 //             contextInfo,
 //             force,

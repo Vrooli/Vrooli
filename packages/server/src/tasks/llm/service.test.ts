@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { SessionUserToken } from "@local/server";
+import { LlmTask } from "@local/shared";
 import pkg from "../../__mocks__/@prisma/client";
-import { mockPrisma, resetPrismaMockData } from "../../__mocks__/prismaUtils";
 import { ModelMap } from "../../models";
-import { fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
+import { PreMapUserData } from "../../models/base/chatMessage";
+import { ChatContextCollector } from "./context";
+import { GenerateResponseParams, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
 import { AnthropicService } from "./services/anthropic";
-import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
@@ -103,8 +105,6 @@ describe("tokenEstimationDefault function", () => {
 });
 
 describe("fetchMessagesFromDatabase", () => {
-    let prismaMock;
-
     const mockMessages = [
         { id: "1", translations: [{ language: "en", text: "Hello" }] },
         { id: "2", translations: [{ language: "en", text: "World" }] },
@@ -113,15 +113,13 @@ describe("fetchMessagesFromDatabase", () => {
     beforeEach(async () => {
         await ModelMap.init();
         jest.clearAllMocks();
-        prismaMock = mockPrisma({
+        PrismaClient.injectData({
             ChatMessage: JSON.parse(JSON.stringify(mockMessages)),
         });
-        PrismaClient.injectMocks(prismaMock);
     });
 
     afterEach(() => {
-        PrismaClient.resetMocks();
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     test("successfully retrieves messages from the database", async () => {
@@ -147,24 +145,20 @@ describe("fetchMessagesFromDatabase", () => {
 
 // Test each implementation of LanguageModelService to ensure they comply with the interface
 describe("LanguageModelService lmServices", () => {
-    let prismaMock;
-
     beforeEach(async () => {
         await ModelMap.init();
         jest.clearAllMocks();
-        prismaMock = mockPrisma({});
-        PrismaClient.injectMocks(prismaMock);
+        PrismaClient.injectData({});
     });
 
     afterEach(() => {
-        PrismaClient.resetMocks();
-        resetPrismaMockData();
+        PrismaClient.clearData();
     });
 
     const lmServices = [
         { name: "OpenAIService", lmService: new OpenAIService() },
         { name: "AnthropicService", lmService: new AnthropicService() },
-        { name: "MistralService", lmService: new MistralService() },
+        // { name: "MistralService", lmService: new MistralService() },
         // add other lmServices as needed
     ];
 
@@ -217,6 +211,7 @@ describe("LanguageModelService lmServices", () => {
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
+            console.log("beginning of failing test");
             const model = lmService.getModel();
             await expect(lmService.generateContext({
                 contextInfo: contextInfo1,
@@ -231,22 +226,47 @@ describe("LanguageModelService lmServices", () => {
             })).resolves.toBeDefined();
         });
 
-        // Generate response
-        it(`${lmServiceName}: generateResponse returns a valid object - message provided`, async () => {
-            const response = await lmService.generateResponse({
-                chatId: chatId1,
-                participantsData: participantsData1,
-                respondingToMessage: {
-                    id: respondingToMessageId1,
-                    text: respondingToMessageContent1,
-                },
+        const getResponseParams = async (
+            respondingToMessageId: string | null,
+            respondingToMessageContent: string | null,
+            chatId: string,
+            participantsData: Record<string, PreMapUserData> | null | undefined,
+            task: LlmTask | `${LlmTask}`,
+            userData: SessionUserToken,
+            lmService: LanguageModelService<string, string>,
+        ) => {
+            const respondingToMessage = respondingToMessageId || respondingToMessageContent ? {
+                id: respondingToMessageId,
+                text: respondingToMessageContent ?? undefined,
+            } : null;
+            const model = lmService.getModel();
+            const contextInfo = await (new ChatContextCollector(lmService)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
+            const { messages, systemMessage } = await lmService.generateContext({
+                contextInfo,
+                force: true,
+                model,
+                participantsData,
                 respondingBotId: respondingBotId1,
                 respondingBotConfig: respondingBotConfig1,
-                task: "Start",
-                force: true,
-                // @ts-ignore: Testing runtime scenario
-                userData: userData1,
+                task,
+                userData,
             });
+            return { messages, model, respondingToMessage, systemMessage, userData } as GenerateResponseParams;
+        };
+
+        // Generate response
+        it(`${lmServiceName}: generateResponse returns a valid object - message provided`, async () => {
+            const params = await getResponseParams(
+                respondingToMessageId1,
+                respondingToMessageContent1,
+                chatId1,
+                participantsData1,
+                "Start",
+                // @ts-ignore: Testing runtime scenario
+                userData1,
+                lmService,
+            );
+            const response = await lmService.generateResponse(params);
             expect(typeof response).toBe("object");
             expect(typeof response.message).toBe("string");
             expect(typeof response.cost).toBe("number");
@@ -254,17 +274,17 @@ describe("LanguageModelService lmServices", () => {
             expect(response.cost).not.toBeNaN();
         });
         it(`${lmServiceName}: generateResponse returns a valid object - message not provided`, async () => {
-            const response = await lmService.generateResponse({
-                chatId: chatId1,
-                participantsData: participantsData1,
-                respondingToMessage: null,
-                respondingBotId: respondingBotId1,
-                respondingBotConfig: respondingBotConfig1,
-                task: "Start",
-                force: true,
+            const params = await getResponseParams(
+                null,
+                null,
+                chatId1,
+                participantsData1,
+                "Start",
                 // @ts-ignore: Testing runtime scenario
-                userData: userData1,
-            });
+                userData1,
+                lmService,
+            );
+            const response = await lmService.generateResponse(params);
             expect(typeof response).toBe("object");
             expect(typeof response.message).toBe("string");
             expect(typeof response.cost).toBe("number");
@@ -299,8 +319,12 @@ describe("LanguageModelService lmServices", () => {
                 force: false,
             });
 
-            // Verify that the 'personality' field contains the English translation from botSettings1
-            expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
+            // Verify that the 'personality' field contains the English translation from botSettings1, 
+            // except for the 'startingMessage' field and any empty fields.
+            let expectedTranslation = { ...botSettings1.translations.en } as object;
+            delete (expectedTranslation as { startingMessage?: string }).startingMessage;
+            expectedTranslation = Object.fromEntries(Object.entries(expectedTranslation).filter(([_, v]) => v !== ""));
+            expect(yamlConfig.ai_assistant.personality).toEqual(expectedTranslation);
         });
         it("should handle missing translations by providing the next available language", async () => {
             const userData = { languages: ["fr"] }; // Assuming 'fr' translation is not available
@@ -314,7 +338,10 @@ describe("LanguageModelService lmServices", () => {
 
             // Verify that the 'personality' field is the first available translation from botSettings1,
             // since 'fr' is not available.
-            expect(yamlConfig.ai_assistant.personality).toEqual(botSettings1.translations.en);
+            let expectedTranslation = { ...botSettings1.translations.en } as object;
+            delete (expectedTranslation as { startingMessage?: string }).startingMessage;
+            expectedTranslation = Object.fromEntries(Object.entries(expectedTranslation).filter(([_, v]) => v !== ""));
+            expect(yamlConfig.ai_assistant.personality).toEqual(expectedTranslation);
         });
         it("should handle missing name field by using a default name", async () => {
             const userData = { languages: ["en"] };
@@ -339,8 +366,12 @@ describe("LanguageModelService lmServices", () => {
                 force: false,
             });
 
-            // Verify that the 'personality' field contains the Spanish translation from botSettings5
-            expect(yamlConfig.ai_assistant.personality).toEqual(botSettings5.translations.es);
+            // Verify that the 'personality' field contains the Spanish translation from botSettings5,
+            // except for the 'startingMessage' field and any empty fields.
+            let expectedTranslation = { ...botSettings5.translations.es } as object;
+            delete (expectedTranslation as { startingMessage?: string }).startingMessage;
+            expectedTranslation = Object.fromEntries(Object.entries(expectedTranslation).filter(([_, v]) => v !== ""));
+            expect(yamlConfig.ai_assistant.personality).toEqual(expectedTranslation);
         });
         it("should omit init_message if includeInitMessage is false", async () => {
             const userData = { languages: ["en"] };

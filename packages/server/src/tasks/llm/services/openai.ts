@@ -1,8 +1,7 @@
 import OpenAI from "openai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
-import { ChatContextCollector } from "../context";
-import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState, OpenAIModel } from "../registry";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, OpenAIModel } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type OpenAITokenModel = "default";
@@ -43,33 +42,12 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     }
 
     async generateResponse({
-        chatId,
-        force,
-        participantsData,
-        respondingBotConfig,
-        respondingBotId,
+        messages,
+        model,
         respondingToMessage,
-        task,
+        systemMessage,
         userData,
     }: GenerateResponseParams) {
-        // Check if service is active
-        if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
-            throw new CustomError("0242", "InternalError", userData.languages);
-        }
-
-        const model = this.getModel(respondingBotConfig?.model);
-        const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
-        const { messages, systemMessage } = await this.generateContext({
-            contextInfo,
-            force,
-            model,
-            participantsData,
-            respondingBotConfig,
-            respondingBotId,
-            task,
-            userData,
-        });
-
         // Generate response
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
             messages: [

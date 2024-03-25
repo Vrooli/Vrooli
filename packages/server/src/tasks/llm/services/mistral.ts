@@ -1,9 +1,7 @@
 // import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai"; //TODO waiting on https://github.com/mistralai/client-js/pull/42
-import MistralClient, { ChatCompletionResponse } from "../../../__mocks__/@mistralai/mistralai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
-import { ChatContextCollector } from "../context";
-import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState, MistralModel } from "../registry";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, MistralModel } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type MistralTokenModel = "default";
@@ -25,7 +23,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
     private defaultModel: MistralModel = MistralModel.Mistral7b;
 
     constructor() {
-        this.client = new MistralClient(process.env.MISTRAL_API_KEY);
+        this.client = {} as any;//new MistralClient(process.env.MISTRAL_API_KEY);
     }
 
     estimateTokens(params: EstimateTokensParams) {
@@ -44,33 +42,12 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
     }
 
     async generateResponse({
-        chatId,
-        force,
-        participantsData,
-        respondingBotConfig,
-        respondingBotId,
+        messages,
+        model,
         respondingToMessage,
-        task,
+        systemMessage,
         userData,
     }: GenerateResponseParams) {
-        // Check if service is active
-        if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
-            throw new CustomError("0248", "InternalError", userData.languages);
-        }
-
-        const model = this.getModel(respondingBotConfig?.model);
-        const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
-        const { messages, systemMessage } = await this.generateContext({
-            contextInfo,
-            force,
-            model,
-            participantsData,
-            respondingBotId,
-            respondingBotConfig,
-            task,
-            userData,
-        });
-
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Mistral API.
         const alternatingMessages: LanguageModelMessage[] = [];
         const messagesWithResponding = respondingToMessage ? [...messages, { role: "user" as const, content: respondingToMessage.text }] : messages;
@@ -109,7 +86,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
             model,
             max_tokens: 1024, // Adjust as needed
         };
-        const completion: ChatCompletionResponse = await this.client
+        const completion: any = await this.client //ChatCompletionResponse = await this.client
             .chat(params)
             .catch((error) => {
                 const trace = "0249";

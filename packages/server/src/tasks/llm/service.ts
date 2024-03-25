@@ -1,13 +1,13 @@
 import { BotSettings, BotSettingsTranslation, LlmTask, toBotSettings } from "@local/shared";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
 import { SessionUserToken } from "../../types";
 import { objectToYaml } from "../../utils";
 import { bestTranslation } from "../../utils/bestTranslation";
-import { withPrisma } from "../../utils/withPrisma";
 import { getStructuredTaskConfig } from "./config";
-import { ContextInfo, MessageContextInfo } from "./context";
+import { ChatContextCollector, ContextInfo, MessageContextInfo } from "./context";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry";
 
 type SimpleChatMessageData = {
@@ -57,19 +57,13 @@ export type GenerateContextParams = {
     userData: SessionUserToken;
 }
 export type GenerateResponseParams = {
-    chatId?: string | null;
-    /** 
-    * Determines if context should be written to force the response to be a command 
-    */
-    force: boolean;
-    participantsData?: Record<string, PreMapUserData> | null;
-    respondingBotConfig: BotSettings;
-    respondingBotId: string;
+    messages: LanguageModelMessage[];
+    model: string;
     respondingToMessage: {
         id?: string | null;
         text: string;
     } | null;
-    task: LlmTask | `${LlmTask}`;
+    systemMessage: string;
     userData: SessionUserToken;
 }
 export type GenerateResponseResult = {
@@ -145,7 +139,7 @@ export const getDefaultConfigObject = async ({
     force,
 }: GetConfigObjectParams) => {
     const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
-    const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation & { language?: string };
+    let translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation & { language?: string };
 
     const name: string | undefined = botSettings.name;
     const initMessage = translation.startingMessage?.length
@@ -153,7 +147,10 @@ export const getDefaultConfigObject = async ({
         : name
             ? `Hello👋, I'm ${name}. How can I help you today?`
             : "Hello👋, how can I help you today?";
+    delete translation.startingMessage;
     delete translation.language;
+    // Remove empty values from the translation object
+    translation = Object.fromEntries(Object.entries(translation).filter(([_, value]) => value !== ""));
 
     const taskConfig = await getStructuredTaskConfig(task, force, userData.languages[0] ?? "en");
     const configObject = {
@@ -162,7 +159,7 @@ export const getDefaultConfigObject = async ({
                 name: botSettings.name ?? "Bot",
             },
             ...(includeInitMessage ? { init_message: initMessage } : {}),
-            personality: { ...translation },
+            personality: Object.keys(translation).length ? { ...translation } : undefined,
             ...taskConfig,
         },
     };
@@ -295,40 +292,55 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
  * @returns An array of message objects
  */
 export const fetchMessagesFromDatabase = async (messageIds: string[]): Promise<SimpleChatMessageData[]> => {
-    let messages: SimpleChatMessageData[] = [];
-
-    await withPrisma({
-        process: async (prisma) => {
-            messages = await prisma.chat_message.findMany({
-                where: {
-                    id: { in: messageIds },
-                },
-                select: {
-                    id: true,
-                    translations: {
-                        select: {
-                            language: true,
-                            text: true,
-                        },
-                    },
-                },
-            });
+    const messages = await prismaInstance.chat_message.findMany({
+        where: {
+            id: { in: messageIds },
         },
-        trace: "0080",
-    });
+        select: {
+            id: true,
+            translations: {
+                select: {
+                    language: true,
+                    text: true,
+                },
+            },
+        },
+    }) ?? [];
 
     return messages;
 };
+
+type GenerateResponseWithFallbackParams = {
+    chatId?: string | null;
+    /** 
+    * Determines if context should be written to force the response to be a command 
+    */
+    force: boolean;
+    participantsData?: Record<string, PreMapUserData> | null;
+    respondingBotConfig: BotSettings;
+    respondingBotId: string;
+    respondingToMessage: {
+        id?: string | null;
+        text: string;
+    } | null;
+    task: LlmTask | `${LlmTask}`;
+    userData: SessionUserToken;
+}
 
 /**
  * Attempts to generate a response using a preferred LLM service, falling back to 
  * other services if the preferred one is unavailable.
  */
 export const generateResponseWithFallback = async ({
+    chatId,
+    force,
+    participantsData,
     respondingBotConfig,
+    respondingBotId,
+    respondingToMessage,
+    task,
     userData,
-    ...rest
-}: GenerateResponseParams): Promise<GenerateResponseResult> => {
+}: GenerateResponseWithFallbackParams): Promise<GenerateResponseResult> => {
     const retryLimit = 3; // Set a limit to prevent infinite loops
     let attempts = 0;
 
@@ -340,11 +352,25 @@ export const generateResponseWithFallback = async ({
 
         try {
             // Try using the service to generate a response
-            const serviceInstance = LlmServiceRegistry.get().getService(serviceId);
-            return await serviceInstance.generateResponse({
+            const serviceInstance = LlmServiceRegistry.get().getService(serviceId) as LanguageModelService<string, string>;
+            const model = serviceInstance.getModel(respondingBotConfig?.model);
+            const contextInfo = await (new ChatContextCollector(serviceInstance)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
+            const { messages, systemMessage } = await serviceInstance.generateContext({
+                contextInfo,
+                force,
+                model,
+                participantsData,
+                respondingBotId,
                 respondingBotConfig,
+                task,
                 userData,
-                ...rest,
+            });
+            return await serviceInstance.generateResponse({
+                messages,
+                model,
+                respondingToMessage,
+                systemMessage,
+                userData,
             });
         } catch (error) {
             const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);

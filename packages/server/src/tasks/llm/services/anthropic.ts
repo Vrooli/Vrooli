@@ -1,8 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
-import { ChatContextCollector } from "../context";
-import { AnthropicModel, LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "../registry";
+import { AnthropicModel, LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type AnthropicTokenModel = "default";
@@ -43,33 +42,12 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
     }
 
     async generateResponse({
-        chatId,
-        force,
-        participantsData,
-        respondingBotConfig,
-        respondingBotId,
+        messages,
+        model,
         respondingToMessage,
-        task,
+        systemMessage,
         userData,
     }: GenerateResponseParams) {
-        // Check if service is active
-        if (LlmServiceRegistry.get().getServiceState(this.__id) !== LlmServiceState.Active) {
-            throw new CustomError("0243", "InternalError", userData.languages);
-        }
-
-        const model = this.getModel(respondingBotConfig?.model);
-        const contextInfo = await (new ChatContextCollector(this)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
-        const { messages, systemMessage } = await this.generateContext({
-            contextInfo,
-            force,
-            model,
-            participantsData,
-            respondingBotId,
-            respondingBotConfig,
-            task,
-            userData,
-        });
-
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Anthropic API.
         const alternatingMessages: LanguageModelMessage[] = [];
         const messagesWithResponding = respondingToMessage ? [...messages, { role: "user" as const, content: respondingToMessage.text }] : messages;
