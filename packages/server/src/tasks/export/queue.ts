@@ -39,6 +39,6 @@ export async function setupExportQueue() {
     }
 }
 
-export function exportData(data: ExportProcessPayload) {
+export const exportData = (data: ExportProcessPayload) => {
     exportQueue.add(data); //TODO
-}
+};

@@ -32,7 +32,7 @@ export interface QueryEmbeddingsHelperProps extends Omit<QueryEmbeddingsProps, "
 /**
  * Converts a SearchTimePeriod to the number of seconds since the epoch.
  */
-export function getDateLimit(period?: SearchTimePeriod): number {
+export const getDateLimit = (period?: SearchTimePeriod): number => {
     let dateLimit: Date = new Date();
     switch (period) {
         case SearchTimePeriod.Day:
@@ -53,4 +53,4 @@ export function getDateLimit(period?: SearchTimePeriod): number {
             break;
     }
     return Math.floor(dateLimit.getTime() / 1000); // Convert to seconds
-}
+};

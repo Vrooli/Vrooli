@@ -27,7 +27,7 @@ export const PRICE_IDS_DEV: Record<PaymentType, string> = {
     Donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
     PremiumMonthly: "price_1NYaGQJq1sLW02CVFAO6bPu4",
     PremiumYearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",
-}
+};
 
 // Make sure these are the price IDs when you view the Stripe dashboard in live mode
 export const PRICE_IDS_PROD: Record<PaymentType, string> = {
@@ -35,7 +35,7 @@ export const PRICE_IDS_PROD: Record<PaymentType, string> = {
     Donation: "price_1Oyg5rJq1sLW02CVtmlSyjtX",
     PremiumMonthly: "price_1OygGCJq1sLW02CVyRVlw7xg",
     PremiumYearly: "price_1OygGCJq1sLW02CVDVmTfWDA",
-}
+};
 
 /** 
  * Finds all available price IDs for the current environment (development or production)
@@ -140,9 +140,27 @@ export const isInCorrectEnvironment = (object: { livemode: boolean }): boolean =
     return object.livemode;
 };
 
-/** Checkout completed for donation or subscription */
-const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
-    const session = event.data.object as Stripe.Checkout.Session;
+/** @returns True if the Stripe session should be counted as rewarding a subscription */
+export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, userId: string): boolean => {
+    const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
+    return [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(paymentType) // Is a payment type we recognize
+        && sessionUserId === userId // Was initiated by this user
+        && session.status === "complete" // Was completed
+        && isInCorrectEnvironment(session);
+};
+
+/** 
+ * Processes a completed payment.
+ * @param stripe The Stripe object for interacting with the Stripe API
+ * @param session The Stripe checkout session object
+ * @param subscription The Stripe subscription object linked to the session, if known
+ * @throws Error if something goes wrong, such as if the user is not found
+ */
+export const processPayment = async (
+    stripe: Stripe,
+    session: Stripe.Checkout.Session,
+    subscription?: Stripe.Subscription,
+): Promise<void> => {
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
     const { paymentType, userId } = session.metadata as CheckoutSessionMetadata;
@@ -155,7 +173,7 @@ const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandl
         },
     });
     if (payments.length > 0 && !payments.some(payment => payment.status === "Pending")) {
-        return handlerResult(HttpStatus.Ok, res);
+        return;
     }
     // Upsert paid payment
     const data = {
@@ -167,44 +185,52 @@ const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandl
         paymentType,
         status: "Paid",
     } as const;
-    const payment = await prismaInstance.payment.upsert({
-        where: {
-            id: payments.length > 0 ? payments[0].id : undefined,
+    const paymentId = payments.length > 0 ? payments[0].id : undefined;
+    const paymentSelect = {
+        paymentType: true,
+        user: {
+            select: {
+                id: true,
+                emails: { select: { emailAddress: true } },
+            },
         },
-        create: {
+    } as const;
+    const payment = paymentId ? await prismaInstance.payment.update({
+        where: { id: paymentId },
+        data,
+        select: paymentSelect,
+    }) : await prismaInstance.payment.create({
+        data: {
             ...data,
             user: userId ? { connect: { id: userId } } : undefined,
         },
-        update: {
-            ...data,
-        },
-        select: {
-            paymentType: true,
-            user: {
-                select: {
-                    id: true,
-                    emails: { select: { emailAddress: true } },
-                },
-            },
-        },
+        select: paymentSelect,
     });
-    // If there is not a user associated with this payment, log an error and return
+    // If there is not a user associated with this payment, throw an error
     if (!payment.user) {
-        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0440", { checkoutId, customerId });
+        throw new Error("User not found.");
+    }
+    // If credits, award user the relevant number of credits
+    if (payment.paymentType === PaymentType.Credits) {
+        //TODO
     }
     // If subscription, upsert premium status
-    if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
+    else if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
         // Get subscription
-        if (!session.subscription) {
-            return handlerResult(HttpStatus.InternalServerError, res, "Subscription not found.", "0224", { checkoutId, customerId });
+        if (!isValidSubscriptionSession(session, payment.user.id)) {
+            throw new Error("Invalid subscription session");
         }
-        // If subscription is a string (i.e. the ID), fetch the full subscription object from Stripe
-        const subscription = typeof session.subscription === "string" ?
-            await stripe.subscriptions.retrieve(session.subscription) :
-            session.subscription;
+        const knownSubscription = subscription
+            ? subscription
+            : typeof session.subscription === "string"
+                ? await stripe.subscriptions.retrieve(session.subscription as string)
+                : session.subscription;
+        if (!knownSubscription) {
+            throw new Error("Subscription not found.");
+        }
         // Find enabledAt and expiresAt
         const enabledAt = new Date().toISOString();
-        const expiresAt = new Date(subscription.current_period_end * 1000).toISOString();
+        const expiresAt = new Date(knownSubscription.current_period_end * 1000).toISOString();
         // Upsert premium status
         const premiums = await prismaInstance.premium.findMany({
             where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
@@ -236,7 +262,16 @@ const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandl
     for (const email of payment.user.emails) {
         sendPaymentThankYou(email.emailAddress, payment.paymentType as PaymentType);
     }
-    return handlerResult(HttpStatus.Ok, res);
+};
+
+/** Checkout completed for donation or subscription */
+const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+    try {
+        await processPayment(stripe, event.data.object as Stripe.Checkout.Session);
+        return handlerResult(HttpStatus.Ok, res);
+    } catch (error) {
+        return handlerResult(HttpStatus.InternalServerError, res, "Caught error in handleCheckoutSessionCompleted", "0440", error);
+    }
 };
 
 /** Checkout expired before payment */
@@ -645,7 +680,7 @@ export const setupStripe = (app: Express): void => {
             }
             // Create or retrieve a Stripe customer
             let stripeCustomerId = user?.stripeCustomerId;
-            let language = "en"; //TODO
+            const language = "en"; //TODO
             // If customer exists, make sure it's valid
             if (stripeCustomerId) {
                 try {
@@ -795,11 +830,11 @@ export const setupStripe = (app: Express): void => {
                 // Retrieve subscriptions for the customer, and filter out inactive subscriptions
                 const subscriptions = (await stripe.subscriptions.list({
                     customer: customerId,
-                    status: 'all',
-                })).data.filter(sub => ['active', 'trialing'].includes(sub.status) && isInCorrectEnvironment(sub));
+                    status: "all",
+                })).data.filter(sub => ["active", "trialing"].includes(sub.status) && isInCorrectEnvironment(sub));
                 if (!subscriptions.length) continue;
 
-                console.log('got subscriptions', JSON.stringify(subscriptions, null, 2));
+                console.log("got subscriptions", JSON.stringify(subscriptions, null, 2));
 
                 // We could stop here and award the user the subscription, but we want to make sure
                 // that the subscription was initiated by this user (and they didn't switch emails 
@@ -812,26 +847,21 @@ export const setupStripe = (app: Express): void => {
                         subscription: subscription.id,
                         limit: 5,
                     });
-                    console.log('sessions', JSON.stringify(sessions, null, 2));
+                    console.log("sessions", JSON.stringify(sessions, null, 2));
 
                     // If one of the sessions has metadata that matches the user ID and a 
                     // subscription tier we recognize, we can consider this the verified subscription
-                    const verifiedSession = sessions.data.find(session => {
-                        const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
-                        return [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(paymentType) // Is a payment type we recognize
-                            && sessionUserId === userId // Was initiated by this user
-                            && session.status === "complete" // Was completed
-                            && isInCorrectEnvironment(session);
-                    });
-                    console.log('verifiedSession', JSON.stringify(verifiedSession, null, 2));
+                    const verifiedSession = sessions.data.find(session => isValidSubscriptionSession(session, userId));
+                    console.log("verifiedSession", JSON.stringify(verifiedSession, null, 2));
                     if (verifiedSession) {
                         data = {
                             status: "now_subscribed",
                             paymentType: (verifiedSession.metadata as CheckoutSessionMetadata).paymentType as PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
                         };
+                        // Process payment so the user gets their subscription
+                        await processPayment(stripe, verifiedSession, subscription);
                         res.status(HttpStatus.Ok).json({ data });
                         return;
-                        //TODO actually update the user's premium status. Need to break out the logic in handleCheckoutSessionCompleted
                     }
                 }
             }

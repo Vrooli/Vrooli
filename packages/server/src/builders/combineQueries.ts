@@ -4,7 +4,7 @@
  * @param queries Array of query objects to combine
  * @returns Combined query object, with all fields combined
  */
-export function combineQueries(queries: ({ [x: string]: any } | null | undefined)[]): { [x: string]: any } {
+export const combineQueries = (queries: ({ [x: string]: any } | null | undefined)[]): { [x: string]: any } => {
     const combined: { [x: string]: any } = {};
     for (const query of queries) {
         if (!query) continue;
@@ -50,4 +50,4 @@ export function combineQueries(queries: ({ [x: string]: any } | null | undefined
         }
     }
     return combined;
-}
+};

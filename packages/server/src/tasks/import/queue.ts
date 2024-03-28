@@ -26,7 +26,7 @@ export async function setupImportQueue() {
 
         // Initialize the Bull queue
         importQueue = new Bull<ImportProcessPayload>("import", {
-            redis: { port: PORT, host: HOST }
+            redis: { port: PORT, host: HOST },
         });
         importQueue.process(importProcess);
     } catch (error) {
@@ -39,6 +39,6 @@ export async function setupImportQueue() {
     }
 }
 
-export function importData(data: ImportProcessPayload) {
+export const importData = (data: ImportProcessPayload) => {
     importQueue.add(data); //TODO
-}
+};

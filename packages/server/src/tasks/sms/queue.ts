@@ -41,9 +41,9 @@ export async function setupSmsQueue() {
     }
 }
 
-export function sendSms(to = [], body: string) {
+export const sendSms = (to = [], body: string) => {
     smsQueue.add({ to, body });
-}
+};
 
 /** Adds a verification code text to a task queue */
 export const sendSmsVerification = (phoneNumber: string, code: string) => {

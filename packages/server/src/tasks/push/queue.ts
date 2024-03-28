@@ -50,9 +50,9 @@ export async function setupPushQueue() {
     }
 }
 
-export function sendPush(subscription: PushSubscription, payload: PushPayload, delay = 0) {
+export const sendPush = (subscription: PushSubscription, payload: PushPayload, delay = 0) => {
     pushQueue.add({
         ...payload,
         ...subscription,
     }, { delay });
-}
+};

@@ -54,7 +54,7 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
  * to their corresponding Prisma query (stored in SearchStringMap).
  * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
  */
-export function getSearchStringQuery<Where extends { [x: string]: any }>({
+export const getSearchStringQuery = <Where extends { [x: string]: any }>({
     languages,
     objectType,
     searchString,
@@ -62,10 +62,10 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
     languages?: string[] | undefined;
     objectType: `${GqlModelType}`;
     searchString: string;
-}): Where {
+}): Where => {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
     const { search } = ModelMap.getLogic(["search"], objectType);
     const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
-}
+};

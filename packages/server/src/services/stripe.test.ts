@@ -1,9 +1,9 @@
 import { HttpStatus, PaymentType } from "@local/shared";
 import Stripe from "stripe";
 import { RedisClientMock } from "../__mocks__/redis";
-import { fetchPriceFromRedis, getPaymentType, getPriceIds, handlerResult, storePrice } from "./stripe";
+import { fetchPriceFromRedis, getPaymentType, getPriceIds, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, storePrice } from "./stripe";
 
-describe('getPaymentType', () => {
+describe("getPaymentType", () => {
     const originalEnv = process.env.NODE_ENV;
 
     beforeEach(() => {
@@ -21,7 +21,7 @@ describe('getPaymentType', () => {
                 process.env.NODE_ENV = env;
             });
 
-            it('correctly identifies each PaymentType', () => {
+            it("correctly identifies each PaymentType", () => {
                 const priceIds = getPriceIds();
                 Object.entries(priceIds).forEach(([paymentType, priceId]) => {
                     const result = getPaymentType(priceId);
@@ -29,12 +29,12 @@ describe('getPaymentType', () => {
                 });
             });
 
-            it('throws an error for an invalid price ID', () => {
-                const invalidPriceId = 'price_invalid';
-                expect(() => getPaymentType(invalidPriceId)).toThrow('Invalid price ID');
+            it("throws an error for an invalid price ID", () => {
+                const invalidPriceId = "price_invalid";
+                expect(() => getPaymentType(invalidPriceId)).toThrow("Invalid price ID");
             });
 
-            it('works with Stripe.Price input', () => {
+            it("works with Stripe.Price input", () => {
                 const priceIds = getPriceIds();
                 Object.entries(priceIds).forEach(([paymentType, priceId]) => {
                     const stripePrice = { id: priceId } as Stripe.Price;
@@ -43,7 +43,7 @@ describe('getPaymentType', () => {
                 });
             });
 
-            it('works with Stripe.DeletedPrice input', () => {
+            it("works with Stripe.DeletedPrice input", () => {
                 const priceIds = getPriceIds();
                 Object.entries(priceIds).forEach(([paymentType, priceId]) => {
                     const stripeDeletedPrice = { id: priceId } as Stripe.DeletedPrice;
@@ -52,13 +52,71 @@ describe('getPaymentType', () => {
                 });
             });
         });
-    }
+    };
 
     // Run tests for both development and production environments
-    ['development', 'production'].forEach(runTestsForEnvironment);
+    ["development", "production"].forEach(runTestsForEnvironment);
 });
 
-describe('Redis Price Operations', () => {
+describe("handlerResult", () => {
+    let mockRes: any;
+
+    beforeEach(() => {
+        // Reset mocks
+        jest.resetAllMocks();
+
+        // Setup a mock Express response object
+        mockRes = {
+            status: jest.fn().mockReturnThis(),
+            send: jest.fn().mockReturnThis(),
+        };
+    });
+
+    it("sets the correct response status and message", () => {
+        const status = HttpStatus.Ok;
+        const message = "Success";
+
+        handlerResult(status, mockRes, message);
+
+        expect(mockRes.status).toHaveBeenCalledWith(status);
+        expect(mockRes.send).toHaveBeenCalledWith(message);
+    });
+
+    it("logs an error message when status is not OK", () => {
+        const status = HttpStatus.InternalServerError;
+        const message = "Error occurred";
+        const trace = "1234";
+
+        handlerResult(status, mockRes, message, trace);
+
+        expect(mockRes.status).toHaveBeenCalledWith(status);
+        expect(mockRes.send).toHaveBeenCalledWith(message);
+    });
+
+    it("does not log an error for HttpStatus.OK", () => {
+        const status = HttpStatus.Ok;
+        const message = "All good";
+
+        handlerResult(status, mockRes, message);
+    });
+
+    it("handles undefined message and trace", () => {
+        const status = HttpStatus.BadRequest;
+
+        handlerResult(status, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(status);
+    });
+
+    it("logs additional arguments when provided", () => {
+        const status = HttpStatus.Unauthorized;
+        const additionalArgs = { user: "user123", action: "attempted access" };
+
+        handlerResult(status, mockRes, undefined, undefined, additionalArgs);
+    });
+});
+
+describe("Redis Price Operations", () => {
     const originalEnv = process.env.NODE_ENV;
 
     beforeEach(() => {
@@ -77,7 +135,7 @@ describe('Redis Price Operations', () => {
                 process.env.NODE_ENV = env;
             });
 
-            it('correctly stores and fetches the price for a given payment type', async () => {
+            it("correctly stores and fetches the price for a given payment type", async () => {
                 const paymentType = PaymentType.PremiumMonthly;
                 const price = 999;
 
@@ -91,7 +149,7 @@ describe('Redis Price Operations', () => {
                 expect(fetchedPrice).toBe(price);
             });
 
-            it('returns null for a price that was not stored', async () => {
+            it("returns null for a price that was not stored", async () => {
                 const paymentType = "NonExistentType" as unknown as PaymentType;
 
                 // Attempt to fetch a price for a payment type that hasn't been stored
@@ -101,7 +159,7 @@ describe('Redis Price Operations', () => {
                 expect(fetchedPrice).toBeNull();
             });
 
-            it('returns null when the stored price is not a number', async () => {
+            it("returns null when the stored price is not a number", async () => {
                 const paymentType = PaymentType.PremiumMonthly;
                 const price = "invalid" as unknown as number;
 
@@ -115,7 +173,7 @@ describe('Redis Price Operations', () => {
                 expect(fetchedPrice).toBeNull();
             });
 
-            it('returns null when the price is less than 0', async () => {
+            it("returns null when the price is less than 0", async () => {
                 const paymentType = PaymentType.PremiumMonthly;
                 const price = -1;
 
@@ -129,7 +187,7 @@ describe('Redis Price Operations', () => {
                 expect(fetchedPrice).toBeNull();
             });
 
-            it('returns null when the price is NaN', async () => {
+            it("returns null when the price is NaN", async () => {
                 const paymentType = PaymentType.PremiumMonthly;
                 const price = NaN;
 
@@ -146,63 +204,103 @@ describe('Redis Price Operations', () => {
     };
 
     // Run tests for both development and production environments
-    ['development', 'production'].forEach(runTestsForEnvironment);
+    ["development", "production"].forEach(runTestsForEnvironment);
 });
 
-describe('handlerResult', () => {
-    let mockRes: any;
+describe("isInCorrectEnvironment Tests", () => {
+    const environments = ["development", "production"];
 
-    beforeEach(() => {
-        // Reset mocks
-        jest.resetAllMocks();
+    // Store the original NODE_ENV to restore after tests
+    const originalEnv = process.env.NODE_ENV;
 
-        // Setup a mock Express response object
-        mockRes = {
-            status: jest.fn().mockReturnThis(),
-            send: jest.fn().mockReturnThis(),
-        };
-    });
+    // Helper function to run tests in both environments
+    const runTestsForEnvironment = (env) => {
+        describe(`when NODE_ENV is ${env}`, () => {
+            beforeAll(() => {
+                process.env.NODE_ENV = env;
+            });
 
-    it('sets the correct response status and message', () => {
-        const status = HttpStatus.Ok;
-        const message = "Success";
+            afterAll(() => {
+                // Restore the original NODE_ENV after each suite
+                process.env.NODE_ENV = originalEnv;
+            });
 
-        handlerResult(status, mockRes, message);
+            it("returns true for object matching the current environment", () => {
+                const stripeObject = { livemode: env === "production" };
+                expect(isInCorrectEnvironment(stripeObject)).toBe(true);
+            });
 
-        expect(mockRes.status).toHaveBeenCalledWith(status);
-        expect(mockRes.send).toHaveBeenCalledWith(message);
-    });
+            it("returns false for object not matching the current environment", () => {
+                const stripeObject = { livemode: env !== "production" };
+                expect(isInCorrectEnvironment(stripeObject)).toBe(false);
+            });
+        });
+    };
 
-    it('logs an error message when status is not OK', () => {
-        const status = HttpStatus.InternalServerError;
-        const message = "Error occurred";
-        const trace = "1234";
+    // Iterate over each environment and run the tests
+    environments.forEach(runTestsForEnvironment);
+});
 
-        handlerResult(status, mockRes, message, trace);
+describe("isValidSubscriptionSession", () => {
+    const environments = ["development", "production"];
 
-        expect(mockRes.status).toHaveBeenCalledWith(status);
-        expect(mockRes.send).toHaveBeenCalledWith(message);
-    });
+    // Store the original NODE_ENV to restore after tests
+    const originalEnv = process.env.NODE_ENV;
+    const userId = "testUserId";
 
-    it('does not log an error for HttpStatus.OK', () => {
-        const status = HttpStatus.Ok;
-        const message = "All good";
+    // Helper function to run tests in both environments
+    const runTestsForEnvironment = (env) => {
+        describe(`when NODE_ENV is ${env}`, () => {
+            beforeAll(() => {
+                process.env.NODE_ENV = env;
+            });
 
-        handlerResult(status, mockRes, message);
-    });
+            afterAll(() => {
+                // Restore the original NODE_ENV after each suite
+                process.env.NODE_ENV = originalEnv;
+            });
 
-    it('handles undefined message and trace', () => {
-        const status = HttpStatus.BadRequest;
+            const createMockSession = (overrides) => ({
+                livemode: process.env.NODE_ENV === "production",
+                metadata: {
+                    paymentType: PaymentType.PremiumMonthly,
+                    userId,
+                },
+                status: "complete",
+                ...overrides,
+            });
 
-        handlerResult(status, mockRes);
+            it("returns true for a valid session", () => {
+                const session = createMockSession({});
+                expect(isValidSubscriptionSession(session, userId)).toBe(true);
+            });
 
-        expect(mockRes.status).toHaveBeenCalledWith(status);
-    });
+            it("returns false for a session with an unrecognized payment type", () => {
+                const session = createMockSession({
+                    metadata: { paymentType: "Unrecognized", userId },
+                });
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
+            });
 
-    it('logs additional arguments when provided', () => {
-        const status = HttpStatus.Unauthorized;
-        const additionalArgs = { user: "user123", action: "attempted access" };
+            it("returns false for a session initiated by a different user", () => {
+                const session = createMockSession({
+                    metadata: { paymentType: PaymentType.PremiumMonthly, userId: "anotherUserId" },
+                });
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
+            });
 
-        handlerResult(status, mockRes, undefined, undefined, additionalArgs);
-    });
+            it("returns false for an incomplete session", () => {
+                const session = createMockSession({ status: "incomplete" });
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
+            });
+
+            it("returns false for a session in the wrong environment", () => {
+                const session = createMockSession({
+                    // Switch livemode
+                    liveMode: process.env.NODE_ENV === "production" ? false : true,
+                });
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
+            });
+        });
+    };
 });
