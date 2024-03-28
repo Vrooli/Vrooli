@@ -1,4 +1,4 @@
-import { API_CREDITS_FREE, API_CREDITS_PREMIUM, HttpStatus, LINKS, PaymentStatus, PaymentType } from "@local/shared";
+import { API_CREDITS_FREE, API_CREDITS_PREMIUM, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, HttpStatus, LINKS, PaymentStatus, PaymentType, SubscriptionPricesResponse } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { prismaInstance } from "../db/instance";
@@ -21,49 +21,47 @@ type HandlerResult = {
 
 type Handler = (args: EventHandlerArgs) => Promise<HandlerResult>;
 
+// Make sure these are the price IDs when you view the Stripe dashboard in test mode
+export const PRICE_IDS_DEV: Record<PaymentType, string> = {
+    Credits: "price_1OyietJq1sLW02CVCUlV78AN",
+    Donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
+    PremiumMonthly: "price_1NYaGQJq1sLW02CVFAO6bPu4",
+    PremiumYearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",
+}
+
+// Make sure these are the price IDs when you view the Stripe dashboard in live mode
+export const PRICE_IDS_PROD: Record<PaymentType, string> = {
+    Credits: "price_1OygWtJq1sLW02CVK43shmp2",
+    Donation: "price_1Oyg5rJq1sLW02CVtmlSyjtX",
+    PremiumMonthly: "price_1OygGCJq1sLW02CVyRVlw7xg",
+    PremiumYearly: "price_1OygGCJq1sLW02CVDVmTfWDA",
+}
+
 /** 
  * Finds all available price IDs for the current environment (development or production)
  * NOTE: Make sure these are PRICE IDs, not PRODUCT IDs
  **/
-const getPriceIds = () => {
-    if (process.env.NODE_ENV === "development") {
-        return {
-            donation: "price_1NG6LnJq1sLW02CV1bhcCYZG",
-            pro: {
-                monthly: "price_1NYaGQJq1sLW02CVFAO6bPu4",
-                yearly: "price_1MrUzeJq1sLW02CVEFdKKQNu",
-            },
-        };
-    }
-    return {
-        donation: "TODO",
-        pro: {
-            monthly: "TODO",
-            yearly: "TODO",
-        },
-    };
+export const getPriceIds = (): Record<PaymentType, string> => {
+    return process.env.NODE_ENV === "development" ? PRICE_IDS_DEV : PRICE_IDS_PROD;
 };
 
 /** Finds the payment type of a Stripe price */
-const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPrice): PaymentType => {
+export const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPrice): PaymentType => {
     const priceId = typeof price === "string" ? price : price.id;
-    if (priceId === getPriceIds().donation) {
-        return PaymentType.Donation;
-    } else if (priceId === getPriceIds().pro.monthly) {
-        return PaymentType.PremiumMonthly;
-    } else if (priceId === getPriceIds().pro.yearly) {
-        return PaymentType.PremiumYearly;
-    } else {
+    const prices = getPriceIds();
+    const matchingPrice = Object.entries(prices).find(([_key, value]) => value === priceId);
+    if (!matchingPrice) {
         throw new Error("Invalid price ID");
     }
+    return matchingPrice[0] as PaymentType;
 };
 
 /**
  * Returns the customer ID from the Stripe API response.
- * @param {string | Stripe.Customer | Stripe.DeletedCustomer | null} customer The customer field in a Stripe event.
+ * @param customer The customer field in a Stripe event.
  * This could be a string (representing the customer ID), a Stripe.Customer object, a Stripe.DeletedCustomer object, or null.
- * @returns {string} The customer ID as a string if it exists
- * @throws {Error} Throws an error if the customer ID doesn't exist or couldn't be found.
+ * @returns The customer ID as a string if it exists
+ * @throws hrows an error if the customer ID doesn't exist or couldn't be found.
  */
 const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined): string => {
     if (typeof customer === "string") {
@@ -85,7 +83,7 @@ const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustom
  * @param ...args Additional arguments to log
  * @returns Object with status and message
  */
-const handlerResult = (
+export const handlerResult = (
     status: HttpStatus,
     res: Response,
     message?: string,
@@ -99,12 +97,56 @@ const handlerResult = (
     return { status, message };
 };
 
+/**
+ * Stores a price in redis for a given payment type
+ */
+export const storePrice = async (paymentType: PaymentType, price: number): Promise<void> => {
+    await withRedis({
+        process: async (redisClient) => {
+            const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
+            await redisClient.set(key, price);
+            await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
+        },
+        trace: "0517",
+    });
+};
+
+/**
+ * Fetches a price from redis for a given payment type, 
+ * or null if the price is not found
+ */
+export const fetchPriceFromRedis = async (paymentType: PaymentType): Promise<number | null> => {
+    let result: number | null = null;
+    await withRedis({
+        process: async (redisClient) => {
+            const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
+            const price = await redisClient.get(key);
+            if (Number.isInteger(price) && Number(price) >= 0) {
+                result = Number(price);
+            }
+        },
+        trace: "0185",
+    });
+    return result;
+};
+
+/**
+ * @returns True if the Stripe object was created in the environment matching the current environment
+ */
+export const isInCorrectEnvironment = (object: { livemode: boolean }): boolean => {
+    if (process.env.NODE_ENV === "development") {
+        return !object.livemode;
+    }
+    return object.livemode;
+};
+
 /** Checkout completed for donation or subscription */
 const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const session = event.data.object as Stripe.Checkout.Session;
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
-    // Find payment in database
+    const { paymentType, userId } = session.metadata as CheckoutSessionMetadata;
+    // Skip if payment already processed
     const payments = await prismaInstance.payment.findMany({
         where: {
             checkoutId,
@@ -112,15 +154,29 @@ const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandl
             user: { stripeCustomerId: customerId },
         },
     });
-    // If not found, log error. This is BAD
-    if (payments.length === 0) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Payment not found.", "0439", { checkoutId, customerId });
+    if (payments.length > 0 && !payments.some(payment => payment.status === "Pending")) {
+        return handlerResult(HttpStatus.Ok, res);
     }
-    // Update payment in database to indicate it was paid
-    const payment = await prismaInstance.payment.update({
-        where: { id: payments[0].id },
-        data: {
-            status: "Paid",
+    // Upsert paid payment
+    const data = {
+        amount: session.amount_subtotal ?? session.amount_total ?? 0,
+        checkoutId,
+        currency: session.currency ?? "usd",
+        description: "Checkout: " + paymentType,
+        paymentMethod: "Stripe",
+        paymentType,
+        status: "Paid",
+    } as const;
+    const payment = await prismaInstance.payment.upsert({
+        where: {
+            id: payments.length > 0 ? payments[0].id : undefined,
+        },
+        create: {
+            ...data,
+            user: userId ? { connect: { id: userId } } : undefined,
+        },
+        update: {
+            ...data,
         },
         select: {
             paymentType: true,
@@ -137,7 +193,7 @@ const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandl
         return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0440", { checkoutId, customerId });
     }
     // If subscription, upsert premium status
-    if (payments[0].paymentType === PaymentType.PremiumMonthly || payments[0].paymentType === PaymentType.PremiumYearly) {
+    if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
         // Get subscription
         if (!session.subscription) {
             return handlerResult(HttpStatus.InternalServerError, res, "Subscription not found.", "0224", { checkoutId, customerId });
@@ -198,12 +254,16 @@ const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): P
         },
     });
     if (payments.length === 0) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Payment not found.", "0425", { checkoutId, customerId });
+        // If we never created a payment for this, do nothing
+        return handlerResult(HttpStatus.Ok, res);
     }
-    // Delete payment in database
-    await prismaInstance.payment.delete({
-        where: { id: payments[0].id },
-    });
+    // Mark payments as failed
+    for (const payment of payments) {
+        await prismaInstance.payment.update({
+            where: { id: payment.id },
+            data: { status: PaymentStatus.Failed },
+        });
+    }
     return handlerResult(HttpStatus.Ok, res);
 };
 
@@ -385,7 +445,7 @@ const handleInvoicePaymentCreated = async ({ event, res }: EventHandlerArgs): Pr
             paymentType: getPaymentType(price),
             status: PaymentStatus.Pending,
             userId: user.id,
-            description: "Pending payment for Invoice ID: " + invoice.id,
+            description: "Payment for Invoice ID: " + invoice.id,
         },
     });
     // Check if payment creation was successful
@@ -508,31 +568,9 @@ const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandle
  */
 const handlePriceUpdated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const price = event.data.object as Stripe.Price;
-    // Find the price ID and updated price
-    const updatedPriceId = price.id;
+    const paymentType = getPaymentType(price);
     const updatedAmount = price.unit_amount;
-    // Update cached price
-    await withRedis({
-        process: async (redisClient) => {
-            let key: string | null = null;
-            // Check if the updated price ID matches any of our IDs
-            if (updatedPriceId === getPriceIds().pro.monthly) {
-                key = "pro-price-monthly";
-            } else if (updatedPriceId === getPriceIds().pro.yearly) {
-                key = "pro-price-yearly";
-            }
-            // If a matching key was found, update the value in Redis
-            if (key) {
-                if (updatedAmount === null) {
-                    await redisClient.del(key);
-                } else {
-                    await redisClient.set(key, updatedAmount);
-                    await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
-                }
-            }
-        },
-        trace: "0518",
-    });
+    storePrice(paymentType, updatedAmount ?? 0);
     return handlerResult(HttpStatus.Ok, res);
 };
 
@@ -558,75 +596,34 @@ export const setupStripe = (app: Express): void => {
         },
     });
     // Create endpoint for checking subscription prices
-    app.get("/api/subscription-prices", async (req: Request, res: Response) => {
+    app.get("/api/subscription-prices", async (_req: Request, res: Response) => {
         // Initialize result
-        const data: { monthly: number, yearly: number } = {
-            monthly: NaN,
-            yearly: NaN,
+        const data: SubscriptionPricesResponse = {
+            monthly: await fetchPriceFromRedis(PaymentType.PremiumMonthly) ?? NaN,
+            yearly: await fetchPriceFromRedis(PaymentType.PremiumYearly) ?? NaN,
         };
-        let wasMonthlyCached = false;
-        let wasYearlyCached = false;
-        // Try to find cached price
-        await withRedis({
-            process: async (redisClient) => {
-                const cachedMonthlyPrice = await redisClient.get("pro-price-monthly");
-                if (cachedMonthlyPrice) {
-                    data.monthly = Number(cachedMonthlyPrice);
-                    wasMonthlyCached = true;
-                }
-                const cachedYearlyPrice = await redisClient.get("pro-price-yearly");
-                if (cachedYearlyPrice) {
-                    data.yearly = Number(cachedYearlyPrice);
-                    wasYearlyCached = true;
-                }
-            },
-            trace: "0516",
-        });
         // Fetch prices from Stripe
         if (!data.monthly) {
-            const monthlyPrice = await stripe.prices.retrieve(getPriceIds().pro.monthly);
-            data.monthly = monthlyPrice.unit_amount ?? 0;
+            const monthlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumMonthly);
+            data.monthly = monthlyPrice.unit_amount ?? NaN;
+            storePrice(PaymentType.PremiumMonthly, data.monthly);
         }
         if (!data.yearly) {
-            const yearlyPrice = await stripe.prices.retrieve(getPriceIds().pro.yearly);
-            data.yearly = yearlyPrice.unit_amount ?? 0;
+            const yearlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumYearly);
+            data.yearly = yearlyPrice.unit_amount ?? NaN;
+            storePrice(PaymentType.PremiumYearly, data.yearly);
         }
-        // Cache prices
-        await withRedis({
-            process: async (redisClient) => {
-                if (!wasMonthlyCached) {
-                    await redisClient.set("pro-price-monthly", data.monthly);
-                    await redisClient.expire("pro-price-monthly", 60 * 60 * 24);
-                }
-                if (!wasYearlyCached) {
-                    await redisClient.set("pro-price-yearly", data.yearly);
-                    await redisClient.expire("pro-price-yearly", 60 * 60 * 24);
-                }
-            },
-            trace: "0517",
-        });
         // Send result
         res.json({ data });
     });
     // Create endpoint for subscribing or donating
     app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
-        // Get userId and variant from request body
-        const userId: string = req.body.userId;
-        const variant: PaymentType = req.body.variant;
+        const { userId, variant } = req.body as CreateCheckoutSessionParams;
         // Determine price API ID based on variant. Select a product in the Stripe dashboard 
         // to find this information
-        let priceId: string;
-        let paymentType: PaymentType;
-        if (variant === PaymentType.PremiumYearly) {
-            priceId = getPriceIds().pro.yearly;
-            paymentType = PaymentType.PremiumYearly;
-        } else if (variant === PaymentType.PremiumMonthly) {
-            priceId = getPriceIds().pro.monthly;
-            paymentType = PaymentType.PremiumMonthly;
-        } else if (variant === PaymentType.Donation) {
-            priceId = getPriceIds().donation;
-            paymentType = PaymentType.Donation;
-        } else {
+        const priceId = getPriceIds()[variant];
+        const paymentType = variant as PaymentType;
+        if (!priceId) {
             logger.error("Invalid variant", { trace: "0436", userId, variant });
             res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
             return;
@@ -648,6 +645,7 @@ export const setupStripe = (app: Express): void => {
             }
             // Create or retrieve a Stripe customer
             let stripeCustomerId = user?.stripeCustomerId;
+            let language = "en"; //TODO
             // If customer exists, make sure it's valid
             if (stripeCustomerId) {
                 try {
@@ -677,12 +675,9 @@ export const setupStripe = (app: Express): void => {
                 }
             }
             // Create checkout session 
-            // NOTE: I previously tried also passing in the customer email 
-            // to save the customer some typing, but Stripe doesn't allow 
-            // this to be sent along with the customer ID.
             const session = await stripe.checkout.sessions.create({
-                success_url: `${UI_URL}${LINKS.Pro}?status=success`,
-                cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled`,
+                success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
+                cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
                 payment_method_types: ["card"],
                 line_items: [
                     {
@@ -690,25 +685,20 @@ export const setupStripe = (app: Express): void => {
                         quantity: 1,
                     },
                 ],
-                mode: variant === PaymentType.Donation ? "payment" : "subscription",
+                mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
                 customer: stripeCustomerId,
-                metadata: { userId },
-            });
-            // Create open payment in database, so we can track it
-            await prismaInstance.payment.create({
-                data: {
-                    amount: (variant === PaymentType.Donation ? session.amount_total : session.amount_subtotal) ?? 0,
-                    checkoutId: session.id,
-                    currency: session.currency ?? "usd",
-                    description: variant === PaymentType.Donation ? "Donation" : "Premium subscription - " + variant,
-                    paymentMethod: "Stripe",
+                metadata: {
                     paymentType,
-                    status: "Pending",
-                    user: userId ? { connect: { id: userId } } : undefined,
-                },
+                    userId: userId ?? null,
+                } as CheckoutSessionMetadata,
             });
-            // Send session ID as response
-            res.json(session);
+            // Redirect to checkout page
+            if (session.url) {
+                const data: CreateCheckoutSessionResponse = { url: session.url };
+                res.status(HttpStatus.Ok).json({ data });
+            } else {
+                throw new Error("No session URL returned from Stripe");
+            }
             return;
         } catch (error) {
             logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
@@ -766,6 +756,91 @@ export const setupStripe = (app: Express): void => {
             res.status(HttpStatus.InternalServerError).json({ error });
             return;
         }
+    });
+    // Create endpoint for fixing subscription status
+    app.post("/api/check-subscription", async (req: Request, res: Response) => {
+        let data: CheckSubscriptionResponse = { status: "not_subscribed" };
+        const { userId } = req.body;
+        try {
+            // Find user information
+            const user = await prismaInstance.user.findUnique({
+                where: { id: userId },
+                select: {
+                    emails: { select: { emailAddress: true } },
+                    premium: { select: { isActive: true } },
+                },
+            });
+            if (!user) {
+                throw new Error("User not found");
+            }
+
+            // If already active, return
+            if (user.premium?.isActive) {
+                data = { status: "already_subscribed" };
+                res.status(HttpStatus.Ok).json({ data });
+                return;
+            }
+
+            for (const email of user.emails) {
+                // Find stripe customers associated with the email
+                const customers = await stripe.customers.list({
+                    // NOTE: This is case-sensitive. If no subscriptions are found, we should 
+                    // alert the user that they need to check their email casing
+                    email: email.emailAddress,
+                    limit: 1,
+                });
+                if (!customers.data.length) continue;
+                const customerId = customers.data[0].id;
+
+                // Retrieve subscriptions for the customer, and filter out inactive subscriptions
+                const subscriptions = (await stripe.subscriptions.list({
+                    customer: customerId,
+                    status: 'all',
+                })).data.filter(sub => ['active', 'trialing'].includes(sub.status) && isInCorrectEnvironment(sub));
+                if (!subscriptions.length) continue;
+
+                console.log('got subscriptions', JSON.stringify(subscriptions, null, 2));
+
+                // We could stop here and award the user the subscription, but we want to make sure
+                // that the subscription was initiated by this user (and they didn't switch emails 
+                // to duplicate their subscription).
+                // To do this, we'll check the session metadata associated with the subscription
+                for (const subscription of subscriptions) {
+                    // Find sessions associated with the subscription. 
+                    // There should only be 1, but you never know
+                    const sessions = await stripe.checkout.sessions.list({
+                        subscription: subscription.id,
+                        limit: 5,
+                    });
+                    console.log('sessions', JSON.stringify(sessions, null, 2));
+
+                    // If one of the sessions has metadata that matches the user ID and a 
+                    // subscription tier we recognize, we can consider this the verified subscription
+                    const verifiedSession = sessions.data.find(session => {
+                        const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
+                        return [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(paymentType) // Is a payment type we recognize
+                            && sessionUserId === userId // Was initiated by this user
+                            && session.status === "complete" // Was completed
+                            && isInCorrectEnvironment(session);
+                    });
+                    console.log('verifiedSession', JSON.stringify(verifiedSession, null, 2));
+                    if (verifiedSession) {
+                        data = {
+                            status: "now_subscribed",
+                            paymentType: (verifiedSession.metadata as CheckoutSessionMetadata).paymentType as PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
+                        };
+                        res.status(HttpStatus.Ok).json({ data });
+                        return;
+                        //TODO actually update the user's premium status. Need to break out the logic in handleCheckoutSessionCompleted
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error("Caught error checking subscription status", { trace: "0430", error, userId });
+            res.status(HttpStatus.InternalServerError).json({ error });
+            return;
+        }
+        return res.status(HttpStatus.Ok).json({ data });
     });
     // Create webhook endpoint for messages from Stripe (e.g. payment completed, subscription renewed/canceled)
     app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
