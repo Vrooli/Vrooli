@@ -35,22 +35,14 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
     }
 
     async generateContext(params: GenerateContextParams): Promise<LanguageModelContext> {
-        return generateDefaultContext({
+        const { messages, systemMessage } = await generateDefaultContext({
             ...params,
             service: this,
         });
-    }
 
-    async generateResponse({
-        messages,
-        model,
-        respondingToMessage,
-        systemMessage,
-        userData,
-    }: GenerateResponseParams) {
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Mistral API.
         const alternatingMessages: LanguageModelMessage[] = [];
-        const messagesWithResponding = respondingToMessage ? [...messages, { role: "user" as const, content: respondingToMessage.text }] : messages;
+        const messagesWithResponding = params.respondingToMessage ? [...messages, { role: "user" as const, content: params.respondingToMessage.text }] : messages;
         let lastRole: LanguageModelMessage["role"] = "assistant";
         for (const { role, content } of messagesWithResponding) {
             // Skip empty messages. This is another requirement of the Mistral API.
@@ -75,14 +67,24 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
             alternatingMessages.shift();
         }
 
+        const messagesWithContext = [
+            // Add system message first
+            { role: "system" as const, content: systemMessage },
+            // Add other messages
+            ...alternatingMessages.map(({ role, content }) => ({ role, content })),
+        ] as LanguageModelMessage[];
+
+        return { messages: messagesWithContext, systemMessage };
+    }
+
+    async generateResponse({
+        messages,
+        model,
+        userData,
+    }: GenerateResponseParams) {
         // Generate response
         const params = {
-            messages: [
-                // Add system message first
-                { role: "system" as const, content: systemMessage },
-                // Add other messages
-                ...alternatingMessages.map(({ role, content }) => ({ role, content })),
-            ],
+            messages,
             model,
             max_tokens: 1024, // Adjust as needed
         };
@@ -104,6 +106,66 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
             },
         });
         return { message, cost };
+    }
+
+    async *generateResponseStreaming({
+        messages,
+        model,
+        systemMessage,
+        userData,
+    }: GenerateResponseParams) {
+        const params = {
+            messages,
+            model,
+            max_tokens: 1024, // Adjust as needed
+        };
+
+        let accumulatedMessage = "";
+        // NOTE: None of this is tested. Probably works the same as OpenAI's streaming, but not sure
+        const inputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
+        let accumulatedOutputTokens = 0;
+
+        try {
+            // Create the stream
+            const stream = await this.client.chat.create({ ...params, stream: true });
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                accumulatedMessage += content;
+                const outputTokens = this.estimateTokens({ model, text: content }).tokens;
+                accumulatedOutputTokens += outputTokens;
+                const cost = this.getResponseCost({
+                    model,
+                    usage: {
+                        input: inputTokens,
+                        output: accumulatedOutputTokens, // Update this as you go
+                    },
+                });
+                yield { __type: "stream" as const, message: content, cost };
+            }
+            // Return the final message
+            const cost = this.getResponseCost({
+                model,
+                usage: {
+                    input: inputTokens,
+                    output: this.estimateTokens({ model, text: accumulatedMessage }).tokens,
+                },
+            });
+            yield { __type: "end" as const, message: accumulatedMessage, cost };
+        } catch (error) {
+            const trace = "0324";
+            const errorType = this.getErrorType(error);
+            LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+            logger.error("Failed to stream from Mistral", { trace, error, errorType });
+
+            const cost = this.getResponseCost({
+                model,
+                usage: {
+                    input: inputTokens,
+                    output: this.estimateTokens({ model, text: accumulatedMessage }).tokens,
+                },
+            });
+            yield { __type: "error" as const, message: accumulatedMessage, cost };
+        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

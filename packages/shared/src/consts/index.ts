@@ -7,5 +7,6 @@ export * from "./commonTypes";
 export * from "./maxObjects";
 export * from "./model";
 export * from "./socketEvents";
+export * from "./stripe";
 export * from "./ui";
 

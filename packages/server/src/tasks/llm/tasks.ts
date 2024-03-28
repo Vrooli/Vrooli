@@ -929,6 +929,7 @@ export const forceGetTask = async ({
             respondingBotConfig,
             respondingBotId,
             respondingToMessage,
+            stream: false,
             task,
             userData,
         });

@@ -461,7 +461,7 @@ export const ChatBubble = ({
     const [editingText, setEditingText] = useState<string | undefined>(undefined);
     const isEditing = Boolean(editingText);
     const startEditing = useCallback(() => {
-        if (message.status !== "sent") return;
+        if (message.status && message.status !== "sent") return;
         setEditingText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
     }, [message, session]);
     const finishEditing = () => {
@@ -650,7 +650,7 @@ export const ChatBubble = ({
                             <Grid container spacing={1} mt={2}>
                                 <BottomActionsButtons
                                     disabledCancel={message.status !== "sent"}
-                                    disabledSubmit={!["unsent", "editing"].includes(message.status)}
+                                    disabledSubmit={!["unsent", "editing"].includes(message.status ?? "sent")}
                                     display="page"
                                     errors={{}}
                                     isCreate={false}
@@ -678,7 +678,7 @@ export const ChatBubble = ({
                                     //TODO
                                 }}
                                 showButtons={bubblePressed}
-                                status={message.status}
+                                status={message.status ?? "sent"}
                             />
                         </Box>
                     )}
@@ -697,7 +697,7 @@ export const ChatBubble = ({
                     numSiblings={numSiblings}
                     messageId={message.id}
                     reactions={message.reactionSummaries}
-                    status={message.status}
+                    status={message.status ?? "sent"}
                 />
                 {/* Tasks associated with message */}
                 {tasks && tasks.length > 0 && (

@@ -35,22 +35,16 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
     }
 
     async generateContext(params: GenerateContextParams): Promise<LanguageModelContext> {
-        return generateDefaultContext({
+        const { messages, systemMessage } = await generateDefaultContext({
             ...params,
             service: this,
         });
-    }
 
-    async generateResponse({
-        messages,
-        model,
-        respondingToMessage,
-        systemMessage,
-        userData,
-    }: GenerateResponseParams) {
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Anthropic API.
         const alternatingMessages: LanguageModelMessage[] = [];
-        const messagesWithResponding = respondingToMessage ? [...messages, { role: "user" as const, content: respondingToMessage.text }] : messages;
+        const messagesWithResponding = params.respondingToMessage
+            ? [...messages, { role: "user" as const, content: params.respondingToMessage.text }]
+            : messages;
         let lastRole: LanguageModelMessage["role"] = "assistant";
         for (const { role, content } of messagesWithResponding) {
             // Skip empty messages. This is another requirement of the Anthropic API.
@@ -75,8 +69,17 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
             alternatingMessages.shift();
         }
 
+        return { messages: alternatingMessages, systemMessage };
+    }
+
+    async generateResponse({
+        messages,
+        model,
+        systemMessage,
+        userData,
+    }: GenerateResponseParams) {
         const params: Anthropic.MessageCreateParams = {
-            messages: alternatingMessages.map(({ role, content }) => ({ role, content })),
+            messages: messages.map(({ role, content }) => ({ role, content })),
             model,
             max_tokens: 1024, // Adjust as needed
             system: systemMessage,
@@ -101,6 +104,79 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
             },
         });
         return { message, cost };
+    }
+
+    async *generateResponseStreaming({
+        messages,
+        model,
+        systemMessage,
+        userData,
+    }: GenerateResponseParams) {
+        const params: Anthropic.MessageCreateParams = {
+            messages: messages.map(({ role, content }) => ({ role, content })),
+            model,
+            max_tokens: 1024, // Adjust as needed
+            system: systemMessage,
+        };
+
+        let accumulatedText: [string, number][] = [];
+        let totalInputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
+        let totalOutputTokens = 0;
+
+        try {
+            // Setup the stream
+            const stream = this.client.messages.stream(params);
+            for await (const chunk of stream) {
+                switch (chunk.type) {
+                    case "message_start": {
+                        totalInputTokens = chunk.message.usage.input_tokens;
+                        totalOutputTokens = chunk.message.usage.output_tokens;
+                        break;
+                    }
+                    case "content_block_delta": {
+                        accumulatedText.push([chunk.delta.text, chunk.index]);
+                        const cost = this.getResponseCost({
+                            model,
+                            usage: {
+                                input: totalInputTokens,
+                                output: totalOutputTokens,
+                            },
+                        });
+                        yield { __type: "stream" as const, message: chunk.delta.text, cost };
+                        break;
+                    }
+                    case "message_delta": {
+                        totalOutputTokens = chunk.usage.output_tokens;
+                        break;
+                    }
+                }
+            }
+            const message = accumulatedText.sort((a, b) => a[1] - b[1]).map(([text]) => text).join("");
+            const cost = this.getResponseCost({
+                model,
+                usage: {
+                    input: totalInputTokens,
+                    output: totalOutputTokens,
+                },
+            });
+            yield { __type: "end" as const, message, cost };
+        } catch (error) {
+            const trace = "0421";
+            const errorType = this.getErrorType(error);
+            LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+            logger.error("Failed to stream from OpenAI", { trace, error, errorType });
+
+            const message = accumulatedText.sort((a, b) => a[1] - b[1]).map(([text]) => text).join("");
+            const cost = this.getResponseCost({
+                model,
+                usage: {
+                    input: totalInputTokens,
+                    // We don't get the token usage until the end, so our best bet it to estimate the output tokens
+                    output: this.estimateTokens({ model, text: message }).tokens,
+                },
+            });
+            yield { __type: "error" as const, message, cost };
+        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

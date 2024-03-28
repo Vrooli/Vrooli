@@ -1,5 +1,5 @@
 import { Session } from "@local/shared";
-import { emitSocketEvent, onSocketEvent, socket } from "api";
+import { emitSocketEvent, onSocketEvent } from "api";
 import { useEffect } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 
@@ -29,10 +29,10 @@ export const useSocketUser = (
 
     // Handle incoming data
     useEffect(() => {
-        onSocketEvent("notification", (data) => {
+        const cleanupNotification = onSocketEvent("notification", (data) => {
             console.log("got notification", data); //TODO
         });
-        onSocketEvent("apiCredits", ({ credits }) => {
+        const cleanupApiCredits = onSocketEvent("apiCredits", ({ credits }) => {
             const { id } = getCurrentUser(session);
             if (!id) return;
             setSession({
@@ -43,9 +43,8 @@ export const useSocketUser = (
             } as Session);
         });
         return () => {
-            // Remove event handlers
-            socket.off("notification");
-            socket.off("apiCredits");
+            cleanupNotification();
+            cleanupApiCredits();
         };
     }, [session, setSession]);
 };

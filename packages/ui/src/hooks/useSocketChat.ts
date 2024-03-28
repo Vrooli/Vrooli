@@ -1,7 +1,7 @@
 import { ChatParticipant, DUMMY_ID, LlmTask, LlmTaskInfo } from "@local/shared";
-import { emitSocketEvent, onSocketEvent, socket } from "api";
+import { emitSocketEvent, onSocketEvent } from "api";
 import { SessionContext } from "contexts/SessionContext";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieTasksForMessage, removeCookieMatchingChat, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
@@ -61,9 +61,11 @@ export const useSocketChat = ({
         };
     }, [chat?.id]);
 
+    const messageStream = useRef("");
+
     // Handle incoming data
     useEffect(() => {
-        onSocketEvent("messages", ({ added, deleted, edited }) => {
+        const cleanupMessages = onSocketEvent("messages", ({ added, deleted, edited }) => {
             if (added) {
                 addMessages(added.map(m => ({ ...m, status: "sent" })));
             }
@@ -76,7 +78,7 @@ export const useSocketChat = ({
                 }
             }
         });
-        onSocketEvent("typing", ({ starting, stopping }) => {
+        const cleanupTyping = onSocketEvent("typing", ({ starting, stopping }) => {
             // Add every user that's typing
             const newTyping = [...usersTyping];
             for (const id of starting ?? []) {
@@ -95,7 +97,7 @@ export const useSocketChat = ({
             }
             setUsersTyping(newTyping);
         });
-        onSocketEvent("llmTasks", ({ tasks }) => {
+        const cleanupLlmTasks = onSocketEvent("llmTasks", ({ tasks }) => {
             const tasksByMessageId: Record<string, LlmTaskInfo[]> = tasks.reduce((acc, task) => {
                 if (!task.messageId) return acc;
                 if (!acc[task.messageId]) acc[task.messageId] = [];
@@ -115,7 +117,7 @@ export const useSocketChat = ({
                 }
             });
         });
-        onSocketEvent("participants", ({ joining, leaving }) => {
+        const cleanupParticipants = onSocketEvent("participants", ({ joining, leaving }) => {
             // Remove cache data for old participants group
             const existingUserIds = participants.map(p => p.user.id);
             removeCookieMatchingChat(existingUserIds, task);
@@ -135,10 +137,26 @@ export const useSocketChat = ({
             const updatedUserIds = updatedParticipants.map(p => p.user.id);
             setCookieMatchingChat(chat.id, updatedUserIds, task);
         });
+        const cleanupResponseStream = onSocketEvent("responseStream", ({ __type, message }) => {
+            if (__type === "stream") {
+                messageStream.current += message;
+            } else if (__type === "end") {
+                messageStream.current = message;
+                // TODO
+                messageStream.current = "";
+            } else if (__type === "error") {
+                messageStream.current = message;
+                // TODO
+                messageStream.current = "";
+            }
+            console.log('received message stream', messageStream.current)
+        });
         return () => {
-            // Remove event handlers
-            socket.off("messages");
-            socket.off("typing");
+            cleanupMessages();
+            cleanupTyping();
+            cleanupLlmTasks();
+            cleanupParticipants();
+            cleanupResponseStream();
         };
     }, [addMessages, editMessage, chat.id, participants, removeMessages, session, usersTyping, setUsersTyping, task, updateTasksForMessage, setParticipants]);
 };

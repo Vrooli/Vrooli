@@ -3,6 +3,7 @@ import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { PreMapUserData } from "../../models/base/chatMessage";
+import { emitSocketEvent } from "../../sockets/events";
 import { SessionUserToken } from "../../types";
 import { objectToYaml } from "../../utils";
 import { bestTranslation } from "../../utils/bestTranslation";
@@ -53,21 +54,35 @@ export type GenerateContextParams = {
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
+    respondingToMessage: {
+        id?: string | null;
+        text: string;
+    } | null;
     task: LlmTask | `${LlmTask}`;
     userData: SessionUserToken;
 }
 export type GenerateResponseParams = {
     messages: LanguageModelMessage[];
     model: string;
-    respondingToMessage: {
-        id?: string | null;
-        text: string;
-    } | null;
     systemMessage: string;
-    userData: SessionUserToken;
+    userData: Pick<SessionUserToken, "languages" | "name">;
 }
 export type GenerateResponseResult = {
     message: string;
+    cost: number;
+}
+export type GenerateResponseStreamingResult = {
+    __type: "stream" | "end" | "error";
+    /**
+     * The current stream of the message if __type is "stream" 
+     * (so we can minimize the amount of data sent to the UI), 
+     * or the full message if __type is "end"
+     */
+    message: string;
+    /**
+     * The accumulated cost of the response so far, or the total 
+     * cost if __type is "end"
+     */
     cost: number;
 }
 
@@ -85,8 +100,10 @@ export interface LanguageModelService<GenerateNameType extends string, TokenName
     getConfigObject(params: GetConfigObjectParams): Promise<Record<string, unknown>>;
     /** Generates context prompt from messages */
     generateContext(params: GenerateContextParams): Promise<LanguageModelContext>;
-    /** Generate a message response */
+    /** Generate a message response, non-streaming */
     generateResponse(params: GenerateResponseParams): Promise<GenerateResponseResult>;
+    /**  Generate a message repsonse, streaming */
+    generateResponseStreaming(params: GenerateResponseParams): AsyncIterable<GenerateResponseStreamingResult>;
     /** @returns the context size of the model */
     getContextSize(requestedModel?: string | null): number;
     /** 
@@ -323,6 +340,8 @@ type GenerateResponseWithFallbackParams = {
         id?: string | null;
         text: string;
     } | null;
+    /** If we should use a stream to show the response as its being generated */
+    stream: boolean;
     task: LlmTask | `${LlmTask}`;
     userData: SessionUserToken;
 }
@@ -338,6 +357,7 @@ export const generateResponseWithFallback = async ({
     respondingBotConfig,
     respondingBotId,
     respondingToMessage,
+    stream,
     task,
     userData,
 }: GenerateResponseWithFallbackParams): Promise<GenerateResponseResult> => {
@@ -362,16 +382,43 @@ export const generateResponseWithFallback = async ({
                 participantsData,
                 respondingBotId,
                 respondingBotConfig,
+                respondingToMessage,
                 task,
                 userData,
             });
-            return await serviceInstance.generateResponse({
-                messages,
-                model,
-                respondingToMessage,
-                systemMessage,
-                userData,
-            });
+            let responseMessage: string = "";
+            let finalCost: number = 0;
+            // Stream the response if requested and we're in a chat
+            if (chatId && stream) {
+                const response = serviceInstance.generateResponseStreaming({
+                    messages,
+                    model,
+                    systemMessage,
+                    userData,
+                });
+                for await (const { __type, message, cost } of response) {
+                    if (__type === "stream") {
+                        console.log('sending stream to UI', message)
+                    } else if (__type === "end") {
+                        responseMessage = message;
+                        finalCost = cost;
+                    } else if (__type === "error") {
+                        responseMessage = message;
+                        finalCost = cost;
+                    }
+                    emitSocketEvent("responseStream", chatId, { __type, message });
+                }
+            } else {
+                const response = await serviceInstance.generateResponse({
+                    messages,
+                    model,
+                    systemMessage,
+                    userData,
+                });
+                responseMessage = response.message;
+                finalCost = response.cost;
+            }
+            return { message: responseMessage, cost: finalCost };
         } catch (error) {
             const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);
             // If the service is still active, then the error was likely due 

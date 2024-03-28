@@ -310,6 +310,7 @@ export const useMessageTree = (chatId: string) => {
     }, [branches, chatId]);
 
     const addMessages = useCallback((newMessages: ChatMessageShape[]) => {
+        if (!newMessages || newMessages.length === 0) return;
         setMessageTasks(prevTasks => {
             setTree(({ map: prevMessageMap, roots: prevRoots }) => {
                 const map = new Map(prevMessageMap);

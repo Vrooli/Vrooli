@@ -125,6 +125,7 @@ export const llmProcessBotMessage = async ({
                 respondingBotConfig: botSettings,
                 respondingBotId,
                 respondingToMessage,
+                stream: true,
                 task,
                 userData,
             });

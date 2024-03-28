@@ -40,7 +40,7 @@ export const PremiumView = ({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const { currentUser, prices, startCheckout, redirectToCustomerPortal } = useStripe();
+    const { currentUser, prices, startCheckout, redirectToCustomerPortal, checkSubscription } = useStripe();
 
     const scrollToElement = (elementId: string) => {
         const element = document.getElementById(elementId);
@@ -172,15 +172,14 @@ export const PremiumView = ({
                         Upgrade to Vrooli Pro for AI-powered integrations, advanced analytics tools, and more. Maximize your potential — become a Vrooli Pro user today!
                     </Typography>
                     <Box sx={{
-                        background: palette.background.paper + "44",
-                        color: palette.background.textPrimary,
+                        background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
+                        color: "white",
                         borderRadius: 2,
                         padding: 1,
                     }}>
-                        <Stack direction="column" spacing={2} m={2} sx={{ maxWidth: "100%" }}>
+                        <Stack direction="column" spacing={2} m={2} mb={1} sx={{ maxWidth: "100%" }}>
                             {!currentUser.hasPremium && <>
                                 <Button
-                                    disabled={currentUser.hasPremium}
                                     fullWidth
                                     onClick={() => { startCheckout(PaymentType.PremiumYearly); }}
                                     variant="contained"
@@ -193,11 +192,20 @@ export const PremiumView = ({
                                     </Box>
                                 </Button>
                                 <Button
-                                    disabled={currentUser.hasPremium}
                                     fullWidth
                                     onClick={() => { startCheckout(PaymentType.PremiumMonthly); }}
                                     variant="outlined"
                                 >${(prices?.monthly ?? 0) / 100}/{t("Month")}</Button>
+                                <Button
+                                    fullWidth
+                                    onClick={() => { checkSubscription(); }}
+                                    variant="text"
+                                    sx={{
+                                        textDecoration: "underline",
+                                        textTransform: "none",
+                                        color: "lightgray",
+                                    }}
+                                >Didn't receive Pro? Check status</Button>
                             </>}
                             {currentUser.hasPremium && <>
                                 <Typography variant="body1" sx={{ textAlign: "center" }}>
@@ -217,14 +225,14 @@ export const PremiumView = ({
                         Buy credits to perform AI-related tasks, such as running routines, messaging bots, and auto-filling forms.
                     </Typography>
                     <Box sx={{
-                        background: palette.background.paper + "44",
+                        background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
                         color: palette.background.textPrimary,
                         borderRadius: 2,
                         padding: 1,
                     }}>
                         <Button
                             fullWidth
-                            // onClick={() => { startCheckout(PaymentType.Credits); }} TODO
+                            onClick={() => { startCheckout(PaymentType.Credits); }}
                             variant="outlined"
                         >{t("CreditsButton")}</Button>
                     </Box>
@@ -234,7 +242,7 @@ export const PremiumView = ({
                         Support Vrooli directly by making a donation. Your contribution helps us maintain and improve our services💙
                     </Typography>
                     <Box sx={{
-                        background: palette.background.paper + "44",
+                        background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
                         color: palette.background.textPrimary,
                         borderRadius: 2,
                         padding: 1,
@@ -249,48 +257,51 @@ export const PremiumView = ({
                 <Typography variant="h5">Made-Up Testimonials</Typography>
                 <Testimonials />
                 {/* FAQ Section at the bottom */}
-                <Box mt={4} px={4} py={3} borderRadius={4} boxShadow={3} sx={{ background: palette.background.paper, color: palette.background.textPrimary }}>
+                <Box mt={4} px={4} py={3} borderRadius={4} boxShadow={3} sx={{
+                    background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
+                    color: "white",
+                }}>
                     <Typography variant="h5" style={{ textAlign: "center", marginBottom: "1.5rem", color: "primary.main" }}>Frequently Asked Questions</Typography>
 
-                    <Typography variant="h6" color="textSecondary">1. How is credit usage calculated?</Typography>
+                    <Typography variant="h6" color="lightgray">1. How is credit usage calculated?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>We base the cost of performing AI-related tasks by the model used, the size of the text passed into each request, and the size of the text returned. We try our best to charge almost exactly what it costs us to run the AI models, and we're always looking for ways to make it cheaper for you.</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Over time, as models become cheaper and more efficient routines are created, the cost of performing tasks should decrase.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">2. Can I buy more credits?</Typography>
+                    <Typography variant="h6" color="lightgray">2. Can I buy more credits?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Yes! You can buy more credits at any time. If you have a <i>Pro</i> subscription, you can also wait until the first of the month to receive your monthly credits.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">3. What happens to leftover credits at the beginning of the month?</Typography>
+                    <Typography variant="h6" color="lightgray">3. What happens to leftover credits at the beginning of the month?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>If you still have credits left over from the previous month, they will be added to your new monthly credits — up to a maximum of 6 months' worth of credits. If you have more than 6 months' worth of credits, your credit balance won't change.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">4. What happens if my credit balance goes negative?</Typography>
+                    <Typography variant="h6" color="lightgray">4. What happens if my credit balance goes negative?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>If your credit balance goes negative, you won't be able to perform AI-related tasks until your balance is positive again. This is our mistake, so you won't be charged any extra fees.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">5. What are the differences between the <i>Free</i> and <i>Pro</i> plans?</Typography>
+                    <Typography variant="h6" color="lightgray">5. What are the differences between the <i>Free</i> and <i>Pro</i> plans?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>The <i>Free</i>  plan offers basic functionalities like taking notes, creating reminders, viewing routines, participating in chat groups with other users, and more. The <i>Pro</i> plan enhances your experience with advanced features like AI-powered integrations, enhanced analytics, and more.</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Note that you can still use AI-related features in the <i>Free</i> plan, but you'll need to buy credits.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">6. Are there any long-term commitments or contracts?</Typography>
+                    <Typography variant="h6" color="lightgray">6. Are there any long-term commitments or contracts?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>No, there are no long-term commitments or contracts. You can choose to subscribe on a monthly or yearly basis and can cancel anytime.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">7. What happens if I decide to cancel my subscription?</Typography>
+                    <Typography variant="h6" color="lightgray">7. What happens if I decide to cancel my subscription?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>If you decide to cancel, you will be downgraded to the <i>Free</i>  plan at the end of your billing cycle and won't be charged thereafter. You'll still have access to all your data and can upgrade again anytime.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">8. How secure is my payment information?</Typography>
+                    <Typography variant="h6" color="lightgray">8. How secure is my payment information?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Payments are handled securely using <Link href="https://stripe.com/" target="_blank" rel="noopener noreferrer">Stripe</Link>, which is a leading third-party payment processor. We don't store any payment information on our servers.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">9. Do you offer refunds?</Typography>
+                    <Typography variant="h6" color="lightgray">9. Do you offer refunds?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>We do not offer refunds for credits or subscriptions at this time. If you cancel your subscription, you will still have access to the pro features until the end of your billing cycle.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">10. Can I change from a monthly to a yearly subscription, or vice versa?</Typography>
+                    <Typography variant="h6" color="lightgray">10. Can I change from a monthly to a yearly subscription, or vice versa?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Absolutely! You can switch between plans from the customer portal or contact our support for assistance.</Typography>
 
-                    <Typography variant="h6" color="textSecondary">11. What does "Early access to updates and improvements" mean?</Typography>
+                    <Typography variant="h6" color="lightgray">11. What does "Early access to updates and improvements" mean?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Pro users get access to new features, improvements, and updates before they are rolled out to all users. It's our way of saying thank you for supporting us! (and also testing new features before wide release, but that doesn't sound as nice)</Typography>
 
-                    <Typography variant="h6" color="textSecondary">12. How does the mobile app differ from the web version?</Typography>
+                    <Typography variant="h6" color="lightgray">12. How does the mobile app differ from the web version?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>The mobile app is the same or almost the same as the web version. It's a Progressive Web App (PWA), which means it's a website that can be installed on your phone and used like a native app. It's a great way to stay productive on the go!</Typography>
 
-                    <Typography variant="h6" color="textSecondary">13. I have more questions. How can I reach out?</Typography>
+                    <Typography variant="h6" color="lightgray">13. I have more questions. How can I reach out?</Typography>
                     <Typography variant="body1">We're here to help! You can contact our support team at <Link href="mailto:official@vrooli.com" target="_blank" rel="noopener noreferrer">official@vrooli.com</Link> or message us on <Link href="https://x.com/vrooliofficial" target="_blank" rel="noopener noreferrer">X</Link>.</Typography>
                 </Box>
             </Box >

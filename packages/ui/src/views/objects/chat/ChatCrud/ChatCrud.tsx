@@ -29,7 +29,7 @@ import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
 import { TFunction } from "i18next";
-import { CopyIcon, ListIcon, SendIcon } from "icons";
+import { AddIcon, CopyIcon, ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parseSearchParams, useLocation } from "route";
@@ -224,6 +224,34 @@ const ChatForm = ({
 
     const messageTree = useMessageTree(existing.id);
     const { dimensions, ref: dimRef } = useDimensions();
+
+    const newChat = useCallback(() => {
+        if (isLoading || existing.id === DUMMY_ID) return;
+        // Create a new chat with the same participants
+        fetchLazyWrapper<ChatCreateInput, Chat>({
+            fetch: fetchCreate,
+            inputs: {
+                id: uuid(),
+                invitesCreate: existing.participants.map(p => ({
+                    id: uuid(),
+                    chatConnect: existing.id,
+                    userConnect: p.user.id,
+                })),
+                translationsCreate: existing.translations?.map(t => ({
+                    ...t,
+                    id: uuid(),
+                })) ?? [],
+            },
+            onSuccess: (data) => {
+                handleUpdate({ ...data, messages: [] });
+                if (display === "page") setLocation(getObjectUrl(data), { replace: true });
+                setUsersTyping([]);
+                //TODO simple update would be ideal, but there is a bug where it switches back to the original chat and messes up message retrieval
+                window.location.reload();
+            },
+            onCompleted: () => { props.setSubmitting(false); },
+        });
+    }, []);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -469,6 +497,24 @@ const ChatForm = ({
                                 </>
                             )}
                         />}
+                        below={existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
+                            display="flex"
+                            flexDirection="row"
+                            justifyContent="space-around"
+                            alignItems="center"
+                            maxWidth="min(100vw, 1000px)"
+                            margin="auto"
+                        >
+                            <Button
+                                color="primary"
+                                onClick={() => { newChat(); }}
+                                variant="contained"
+                                sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
+                                startIcon={<AddIcon />}
+                            >
+                                {t("NewChat")}
+                            </Button>
+                        </Box>}
                     />
                     <Box sx={{
                         position: "relative",

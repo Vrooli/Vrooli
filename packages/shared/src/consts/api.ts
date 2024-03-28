@@ -11,6 +11,7 @@ export enum HttpStatus {
     Created = 201,
     Accepted = 202,
     NoContent = 204,
+    SeeOther = 303,
     BadRequest = 400,
     Unauthorized = 401,
     PaymentRequired = 402,

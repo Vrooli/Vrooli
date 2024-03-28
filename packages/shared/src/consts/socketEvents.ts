@@ -27,6 +27,12 @@ export type ChatSocketEventPayloads = {
         deleted?: string[];
         edited?: ChatMessage[];
     }
+    responseStream: {
+        /** The state of the stream */
+        __type: "stream" | "end" | "error";
+        /** The current text stream (not the accumulated text) */
+        message: string;
+    }
     typing: {
         /** IDs of users who started typing */
         starting?: string[];

@@ -38,4 +38,8 @@ export const onSocketEvent = <T extends OnSocketEvent>(
     handler: (payload: SocketEventPayloads[T]) => unknown,
 ) => {
     socket.on(event, handler as never);
+
+    return () => {
+        socket.off(event, handler as never);
+    }
 };

@@ -2790,9 +2790,10 @@ enum PaymentStatus {
 }
 
 enum PaymentType {
+    Credits
+    Donation
     PremiumMonthly
     PremiumYearly
-    Donation
 }
 
 enum PeriodType {

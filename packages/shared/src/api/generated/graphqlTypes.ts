@@ -4089,6 +4089,7 @@ export enum PaymentStatus {
 }
 
 export enum PaymentType {
+  Credits = 'Credits',
   Donation = 'Donation',
   PremiumMonthly = 'PremiumMonthly',
   PremiumYearly = 'PremiumYearly'

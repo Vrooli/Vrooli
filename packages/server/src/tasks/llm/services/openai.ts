@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, OpenAIModel } from "../registry";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type OpenAITokenModel = "default";
 
@@ -35,29 +35,31 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     }
 
     async generateContext(params: GenerateContextParams): Promise<LanguageModelContext> {
-        return generateDefaultContext({
+        const { messages, systemMessage } = await generateDefaultContext({
             ...params,
             service: this,
         });
+
+        const messagesWithContext = [
+            // Add system message first
+            { role: "system" as const, content: systemMessage },
+            // Add previous messages
+            ...messages.map(({ role, content }) => ({ role, content })),
+            // Add message we're responding to
+            ...(params.respondingToMessage ? [{ role: "user" as const, content: params.respondingToMessage.text }] : []),
+        ] as LanguageModelMessage[];
+
+        return { messages: messagesWithContext, systemMessage };
     }
 
     async generateResponse({
         messages,
         model,
-        respondingToMessage,
-        systemMessage,
         userData,
     }: GenerateResponseParams) {
         // Generate response
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
-            messages: [
-                // Add system message first
-                { role: "system", content: systemMessage },
-                // Add previous messages
-                ...messages.map(({ role, content }) => ({ role, content })),
-                // Add message we're responding to
-                ...(respondingToMessage ? [{ role: "user" as const, content: respondingToMessage.text }] : []),
-            ],
+            messages,
             model,
             user: userData.name ?? undefined,
         };
@@ -79,6 +81,65 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
             },
         });
         return { message, cost };
+    }
+
+    async *generateResponseStreaming({
+        messages,
+        model,
+        userData,
+    }: GenerateResponseParams) {
+        const params: OpenAI.Chat.ChatCompletionCreateParams = {
+            messages,
+            model,
+            user: userData.name ?? undefined,
+        };
+
+        let accumulatedMessage = "";
+        // NOTE: OpenAI currently does not provide token usage when streaming. We'll have to estimate it ourselves.
+        const inputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
+        let accumulatedOutputTokens = 0;
+
+        try {
+            // Create the stream
+            const stream = await this.client.chat.completions.create({ ...params, stream: true });
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                accumulatedMessage += content;
+                const outputTokens = this.estimateTokens({ model, text: content }).tokens;
+                accumulatedOutputTokens += outputTokens;
+                const cost = this.getResponseCost({
+                    model,
+                    usage: {
+                        input: inputTokens,
+                        output: accumulatedOutputTokens, // Update this as you go
+                    },
+                });
+                yield { __type: "stream" as const, message: content, cost };
+            }
+            // Return the final message
+            const cost = this.getResponseCost({
+                model,
+                usage: {
+                    input: inputTokens,
+                    output: this.estimateTokens({ model, text: accumulatedMessage }).tokens,
+                },
+            });
+            yield { __type: "end" as const, message: accumulatedMessage, cost };
+        } catch (error) {
+            const trace = "0420";
+            const errorType = this.getErrorType(error);
+            LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+            logger.error("Failed to stream from OpenAI", { trace, error, errorType });
+
+            const cost = this.getResponseCost({
+                model,
+                usage: {
+                    input: inputTokens,
+                    output: this.estimateTokens({ model, text: accumulatedMessage }).tokens,
+                },
+            });
+            yield { __type: "error" as const, message: accumulatedMessage, cost };
+        }
     }
 
     getContextSize(requestedModel?: string | null) {

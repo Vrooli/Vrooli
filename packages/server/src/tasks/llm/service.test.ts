@@ -235,7 +235,7 @@ describe("LanguageModelService lmServices", () => {
             userData: SessionUserToken,
             lmService: LanguageModelService<string, string>,
         ) => {
-            const respondingToMessage = respondingToMessageId || respondingToMessageContent ? {
+            const respondingToMessage = respondingToMessageContent ? {
                 id: respondingToMessageId,
                 text: respondingToMessageContent ?? undefined,
             } : null;
@@ -248,10 +248,11 @@ describe("LanguageModelService lmServices", () => {
                 participantsData,
                 respondingBotId: respondingBotId1,
                 respondingBotConfig: respondingBotConfig1,
+                respondingToMessage,
                 task,
                 userData,
             });
-            return { messages, model, respondingToMessage, systemMessage, userData } as GenerateResponseParams;
+            return { messages, model, systemMessage, userData } as GenerateResponseParams;
         };
 
         // Generate response

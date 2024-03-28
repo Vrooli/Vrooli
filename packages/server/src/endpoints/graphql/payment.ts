@@ -19,9 +19,10 @@ export const typeDef = gql`
     }
 
     enum PaymentType {
+        Credits
+        Donation
         PremiumMonthly
         PremiumYearly
-        Donation
     }
 
 
