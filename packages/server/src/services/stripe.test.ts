@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
-import { fetchPriceFromRedis, getPaymentType, getPriceIds, getVerifiedCustomerInfo, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, storePrice } from "./stripe";
+import { createStripeCustomerId, fetchPriceFromRedis, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
@@ -311,6 +311,136 @@ describe("isValidSubscriptionSession", () => {
     environments.forEach(runTestsForEnvironment);
 });
 
+describe("getVerifiedSubscriptionInfo", () => {
+    let stripe: Stripe;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        stripe = new StripeMock() as unknown as Stripe;
+        StripeMock.injectData({
+            checkoutSessions: [
+                // Valid session
+                {
+                    id: "session_valid",
+                    customer: "cus_user1",
+                    metadata: {
+                        userId: "user1",
+                        paymentType: "PremiumMonthly",
+                    },
+                    subscription: "sub_active1",
+                    status: "complete",
+                },
+                // Session linked to inactive subscription
+                {
+                    id: "session_inactive",
+                    customer: "cus_user2",
+                    metadata: {
+                        userId: "user2",
+                        paymentType: "PremiumMonthly",
+                    },
+                    subscription: "sub_inactive",
+                    status: "complete",
+                },
+                // Invalid paymentType
+                {
+                    id: "session_invalid",
+                    customer: "cus_user3",
+                    metadata: {
+                        userId: "user3",
+                        paymentType: "UnknownPaymentType",
+                    },
+                    subscription: "sub_active2",
+                    status: "complete",
+                },
+                // Subscription #1 (inactive) for user4
+                {
+                    id: "session_user4",
+                    customer: "cus_user4",
+                    metadata: {
+                        userId: "user4",
+                        paymentType: "PremiumMonthly",
+                    },
+                    subscription: "sub_inactive2",
+                    status: "complete",
+                },
+                // Subscription #2 (active) for user4
+                {
+                    id: "session_user4_2",
+                    customer: "cus_user4",
+                    metadata: {
+                        userId: "user4",
+                        paymentType: "PremiumYearly",
+                    },
+                    subscription: "sub_active3",
+                    status: "complete",
+                },
+            ],
+            subscriptions: [{
+                id: "sub_active1",
+                status: "active",
+                customer: "cus_user1",
+            }, {
+                id: "sub_inactive",
+                status: "past_due",
+                customer: "cus_user2",
+            }, {
+                id: "sub_active2",
+                status: "active",
+                customer: "cus_user3",
+            }, {
+                id: "sub_inactive2",
+                status: "unpaid",
+                customer: "cus_user4",
+            }, {
+                id: "sub_active3",
+                status: "active",
+                customer: "cus_user4",
+            }],
+        });
+    });
+
+    afterEach(() => {
+        StripeMock.clearData();
+        PrismaClient.clearData();
+    });
+
+    test("returns verified subscription info for an active subscription with valid session", async () => {
+        const result = await getVerifiedSubscriptionInfo(stripe, "cus_user1", "user1");
+        expect(result).not.toBeNull();
+        expect(result).toHaveProperty("session");
+        expect(result).toHaveProperty("subscription");
+        expect(result?.paymentType).toBe("PremiumMonthly");
+    });
+
+    test("returns null if user in metadata does not match what we expect", async () => {
+        const result = await getVerifiedSubscriptionInfo(stripe, "cus_user1", "beep");
+        expect(result).toBeNull();
+    });
+
+    test("returns null if no subscriptions exist for the customer", async () => {
+        const result = await getVerifiedSubscriptionInfo(stripe, "cus_randomDude", "user1");
+        expect(result).toBeNull();
+    });
+
+    test("returns null if subscriptions exist but none are active or trialing", async () => {
+        const result = await getVerifiedSubscriptionInfo(stripe, "cus_user2", "user2");
+        expect(result).toBeNull();
+    });
+
+    test("returns null if the session metadata's payment type is not recognized", async () => {
+        const result = await getVerifiedSubscriptionInfo(stripe, "cus_user3", "user3");
+        expect(result).toBeNull();
+    });
+
+    test("returns verified subscription info if first one was invalid but second one is valid", async () => {
+        const result = await getVerifiedSubscriptionInfo(stripe, "cus_user4", "user4");
+        expect(result).not.toBeNull();
+        expect(result).toHaveProperty("session");
+        expect(result).toHaveProperty("subscription");
+        expect(result?.paymentType).toBe("PremiumYearly");
+    });
+});
+
 describe("getVerifiedCustomerInfo", () => {
     let stripe: Stripe;
 
@@ -327,6 +457,7 @@ describe("getVerifiedCustomerInfo", () => {
                 id: "cus_deleted",
                 // @ts-ignore Property is on Stripe.DeletedCustomer, which can be returned by the API
                 deleted: true,
+                email: "emailForDeletedCustomer@example.com",
             }],
         });
         PrismaClient.injectData({
@@ -348,6 +479,10 @@ describe("getVerifiedCustomerInfo", () => {
             }, {
                 id: "user5",
                 stripeCustomerId: "cus_deleted",
+            }, {
+                id: "user6",
+                stripeCustomerId: null,
+                emails: [{ emailAddress: "emailForDeletedCustomer@example.com" }],
             }],
         });
     });
@@ -416,5 +551,81 @@ describe("getVerifiedCustomerInfo", () => {
         expect(result.userId).toBe("user5");
         expect(result.emails).toEqual([]);
         expect(result.hasPremium).toBe(false);
+    });
+
+    test("should return null if the user's email is associated with a deleted customer", async () => {
+        const result = await getVerifiedCustomerInfo(stripe, "user6");
+        expect(result.stripeCustomerId).toBeNull();
+        expect(result.userId).toBe("user6");
+        expect(result.emails).toEqual([{ emailAddress: "emailForDeletedCustomer@example.com" }]);
+        expect(result.hasPremium).toBe(false);
+    });
+});
+
+describe("createStripeCustomerId", () => {
+    let stripe: Stripe;
+
+    beforeEach(async () => {
+        jest.clearAllMocks();
+        stripe = new StripeMock() as unknown as Stripe;
+        PrismaClient.injectData({
+            User: [{
+                id: "user1",
+                stripeCustomerId: null,
+            }],
+        });
+    });
+
+    afterEach(() => {
+        StripeMock.clearData();
+        PrismaClient.clearData();
+    });
+
+
+    test("creates a new Stripe customer and updates the user with the customer ID", async () => {
+        const customerInfo = {
+            userId: "user1",
+            emails: [{ emailAddress: "user@example.com" }],
+            hasPremium: false,
+            stripeCustomerId: null,
+        };
+        const result = await createStripeCustomerId({
+            customerInfo,
+            requireUserToExist: true,
+            stripe,
+        });
+        expect(result).toEqual(expect.any(String));
+        // @ts-ignore Testing runtime scenario
+        const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
+        expect(updatedUser.stripeCustomerId).toEqual(expect.any(String));
+    });
+
+    test("creates a new Stripe customer without requiring an existing user", async () => {
+        const customerInfo = {
+            userId: null, // No user ID provided
+            emails: [],
+            hasPremium: false,
+            stripeCustomerId: null,
+        };
+        const result = await createStripeCustomerId({
+            customerInfo,
+            requireUserToExist: false,
+            stripe,
+        });
+        expect(result).toEqual(expect.any(String));
+    });
+
+    test("throws an error when no user ID is provided but requireUserToExist is true", async () => {
+        const customerInfo = {
+            userId: null,
+            emails: [],
+            hasPremium: false,
+            stripeCustomerId: null,
+        };
+        await expect(createStripeCustomerId({
+            customerInfo,
+            requireUserToExist: true,
+            stripe,
+        })).rejects.toThrow("User not found.");
     });
 });

@@ -14,6 +14,15 @@ export type CreateCheckoutSessionResponse = {
     url: string;
 };
 
+export type CreatePortalSessionParams = {
+    userId: string;
+    returnUrl: string;
+}
+
+export type CreatePortalSessionResponse = {
+    url: string;
+};
+
 export type CheckoutSessionMetadata = {
     userId: string | null;
     paymentType: PaymentType;

@@ -1,4 +1,4 @@
-import { API_CREDITS_FREE, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_FREE, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { prismaInstance } from "../db/instance";
@@ -42,7 +42,7 @@ export const PRICE_IDS_PROD: Record<PaymentType, string> = {
  * NOTE: Make sure these are PRICE IDs, not PRODUCT IDs
  **/
 export const getPriceIds = (): Record<PaymentType, string> => {
-    return process.env.NODE_ENV === "development" ? PRICE_IDS_DEV : PRICE_IDS_PROD;
+    return process.env.NODE_ENV === "production" ? PRICE_IDS_PROD : PRICE_IDS_DEV;
 };
 
 /** Finds the payment type of a Stripe price */
@@ -134,10 +134,10 @@ export const fetchPriceFromRedis = async (paymentType: PaymentType): Promise<num
  * @returns True if the Stripe object was created in the environment matching the current environment
  */
 export const isInCorrectEnvironment = (object: { livemode: boolean }): boolean => {
-    if (process.env.NODE_ENV === "development") {
-        return !object.livemode;
+    if (process.env.NODE_ENV === "production") {
+        return object.livemode;
     }
-    return object.livemode;
+    return !object.livemode;
 };
 
 /** @returns True if the Stripe session should be counted as rewarding a subscription */
@@ -149,6 +149,60 @@ export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, use
         && isInCorrectEnvironment(session);
 };
 
+/**
+ * @param stripe The Stripe object for interacting with the Stripe API
+ * @param customerId The Stripe customer ID
+ * @param userId The user ID linked to the customer ID
+ * @returns Verified subscription information, including the session and payment type, 
+ * or null if the subscription is not found or is invalid
+ */
+export const getVerifiedSubscriptionInfo = async (
+    stripe: Stripe,
+    customerId: string,
+    userId: string,
+): Promise<{
+    session: Stripe.Checkout.Session,
+    subscription: Stripe.Subscription,
+    paymentType: PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
+} | null> => {
+    // Retrieve subscriptions for the customer, and filter out inactive subscriptions
+    const subscriptions = (await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+    })).data.filter(sub => ["active", "trialing"].includes(sub.status) && isInCorrectEnvironment(sub));
+
+    // We could stop here, but we want to make sure that the subscription was initiated 
+    // by this user (and they didn't switch emails to duplicate their subscription).
+    // To do this, we'll check the session metadata associated with the subscription
+    for (const subscription of subscriptions) {
+        // Find sessions associated with the subscription. 
+        // There should only be 1, but you never know
+        const sessions = await stripe.checkout.sessions.list({
+            subscription: subscription.id,
+            limit: 5,
+        });
+
+        // If one of the sessions has metadata that matches the user ID and a 
+        // subscription tier we recognize, we can consider this the verified subscription
+        const verifiedSession = sessions.data.find(session => isValidSubscriptionSession(session, userId));
+        if (verifiedSession) {
+            // As a last check, we'll make sure that the payment type is one we recognize
+            const { paymentType } = verifiedSession.metadata as CheckoutSessionMetadata;
+            const validPaymentTypes = [PaymentType.PremiumMonthly, PaymentType.PremiumYearly];
+            if (validPaymentTypes.includes(paymentType)) {
+                return {
+                    session: verifiedSession,
+                    subscription,
+                    paymentType: paymentType as PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
+                };
+            }
+        }
+    }
+
+    // If we didn't find a verified subscription, return null
+    return null;
+};
+
 type GetStripeCustomerIdResult = {
     emails: { emailAddress: string }[],
     hasPremium: boolean,
@@ -157,7 +211,6 @@ type GetStripeCustomerIdResult = {
 };
 
 //TODO test and use this for check-subscription, and check-credits-payment
-//TODO 2: create similar function for creating customerId
 /** 
  * @param stripe The Stripe object for interacting with the Stripe API
  * @param userId The user ID to find the Stripe customer ID for
@@ -213,16 +266,16 @@ export const getVerifiedCustomerInfo = async (
     // we can check if any of their emails are associated with a Stripe customer ID
     if (!result.stripeCustomerId) {
         for (const email of result.emails) {
-            // Find stripe customers associated with the email
-            const customers = await stripe.customers.list({
+            // Find active stripe customers associated with the email
+            const customers = (await stripe.customers.list({
                 // NOTE: This is case-sensitive. If the user's Stripe email is not what 
                 // we have in the database exactly, this will not work. But there's 
                 // not much we can do about that.
                 email: email.emailAddress,
                 limit: 1,
-            });
-            if (!customers.data.length) continue;
-            result.stripeCustomerId = customers.data[0].id || null;
+            })).data.filter(customer => !customer.deleted);
+            if (!customers.length) continue;
+            result.stripeCustomerId = customers[0].id || null;
             // Update the user's stripeCustomerId
             await prismaInstance.user.update({
                 where: { id: userId },
@@ -232,6 +285,37 @@ export const getVerifiedCustomerInfo = async (
         }
     }
     return result;
+};
+
+/**
+ * Creates and sets a Stripe customer ID for a user
+ * @returns The newly-created Stripe customer ID
+ */
+export const createStripeCustomerId = async ({
+    customerInfo,
+    requireUserToExist,
+    stripe,
+}: {
+    customerInfo: GetStripeCustomerIdResult,
+    requireUserToExist: boolean,
+    stripe: Stripe,
+}): Promise<string> => {
+    // Throw error if there should be a user but there isn't
+    if (requireUserToExist && !customerInfo.userId) {
+        throw new Error("User not found.");
+    }
+    // Create a new Stripe customer
+    const stripeCustomer = await stripe.customers.create({
+        email: customerInfo.emails.length ? customerInfo.emails[0].emailAddress : undefined,
+    });
+    // Store Stripe customer ID in your database
+    if (customerInfo.userId) {
+        await prismaInstance.user.update({
+            where: { id: customerInfo.userId },
+            data: { stripeCustomerId: stripeCustomer.id },
+        });
+    }
+    return stripeCustomer.id;
 };
 
 /** 
@@ -736,7 +820,6 @@ export const setupStripe = (app: Express): void => {
         // Send result
         res.json({ data });
     });
-    // Create endpoint for subscribing or donating
     app.post("/api" + StripeEndpoint.CreateCheckoutSession, async (req: Request, res: Response) => {
         const { userId, variant } = req.body as CreateCheckoutSessionParams;
         const priceId = getPriceIds()[variant];
@@ -754,21 +837,13 @@ export const setupStripe = (app: Express): void => {
                 res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                 return;
             }
-            // If customer doesn't exist (or the existing ID was invalid), create a new customer
+            // Create customer ID if it doesn't exist
             if (!customerInfo.stripeCustomerId) {
-                const stripeCustomer = await stripe.customers.create({
-                    email: customerInfo.emails.length ? customerInfo.emails[0].emailAddress : undefined,
+                customerInfo.stripeCustomerId = await createStripeCustomerId({
+                    customerInfo,
+                    requireUserToExist: !paymentsThatDontNeedUser.includes(paymentType),
+                    stripe,
                 });
-                customerInfo.stripeCustomerId = stripeCustomer.id;
-                // Store Stripe customer ID in your database
-                if (customerInfo.userId) {
-                    await prismaInstance.user.update({
-                        where: { id: userId },
-                        data: {
-                            stripeCustomerId: customerInfo.stripeCustomerId,
-                        },
-                    });
-                }
             }
             // Create checkout session 
             const session = await stripe.checkout.sessions.create({
@@ -804,9 +879,7 @@ export const setupStripe = (app: Express): void => {
     });
     // Create endpoint for updating payment method and switching/canceling subscription
     app.post("/api" + StripeEndpoint.CreatePortalSession, async (req: Request, res: Response) => {
-        // Get input from request body
-        const userId: string = req.body.userId;
-        const returnUrl: string | undefined = req.body.returnUrl;
+        const { userId, returnUrl } = req.body as CreatePortalSessionParams;
 
         try {
             const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
@@ -814,30 +887,22 @@ export const setupStripe = (app: Express): void => {
                 res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                 return;
             }
-            // If customer doesn't exist (or the existing ID was invalid), create a new customer
+            // Create customer ID if it doesn't exist
             if (!customerInfo.stripeCustomerId) {
-                const stripeCustomer = await stripe.customers.create({
-                    email: customerInfo.emails.length ? customerInfo.emails[0].emailAddress : undefined,
+                customerInfo.stripeCustomerId = await createStripeCustomerId({
+                    customerInfo,
+                    requireUserToExist: true,
+                    stripe,
                 });
-                customerInfo.stripeCustomerId = stripeCustomer.id;
-                // Store Stripe customer ID in your database
-                if (customerInfo.userId) {
-                    await prismaInstance.user.update({
-                        where: { id: userId },
-                        data: {
-                            stripeCustomerId: customerInfo.stripeCustomerId,
-                        },
-                    });
-                }
             }
             // Create portal session
             const session = await stripe.billingPortal.sessions.create({
                 customer: customerInfo.stripeCustomerId as string,
                 return_url: returnUrl ?? UI_URL,
             });
-            // Send session URL as response
-            res.json(session);
-            return;
+            // Redirect to portal page
+            const data: CreateCheckoutSessionResponse = { url: session.url };
+            res.status(HttpStatus.Ok).json({ data });
         } catch (error) {
             logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
             res.status(HttpStatus.InternalServerError).json({ error });
@@ -892,42 +957,17 @@ export const setupStripe = (app: Express): void => {
                 if (!customers.data.length) continue;
                 const customerId = customers.data[0].id;
 
-                // Retrieve subscriptions for the customer, and filter out inactive subscriptions
-                const subscriptions = (await stripe.subscriptions.list({
-                    customer: customerId,
-                    status: "all",
-                })).data.filter(sub => ["active", "trialing"].includes(sub.status) && isInCorrectEnvironment(sub));
-                if (!subscriptions.length) continue;
-
-                console.log("got subscriptions", JSON.stringify(subscriptions, null, 2));
-
-                // We could stop here and award the user the subscription, but we want to make sure
-                // that the subscription was initiated by this user (and they didn't switch emails 
-                // to duplicate their subscription).
-                // To do this, we'll check the session metadata associated with the subscription
-                for (const subscription of subscriptions) {
-                    // Find sessions associated with the subscription. 
-                    // There should only be 1, but you never know
-                    const sessions = await stripe.checkout.sessions.list({
-                        subscription: subscription.id,
-                        limit: 5,
-                    });
-                    console.log("sessions", JSON.stringify(sessions, null, 2));
-
-                    // If one of the sessions has metadata that matches the user ID and a 
-                    // subscription tier we recognize, we can consider this the verified subscription
-                    const verifiedSession = sessions.data.find(session => isValidSubscriptionSession(session, userId));
-                    console.log("verifiedSession", JSON.stringify(verifiedSession, null, 2));
-                    if (verifiedSession) {
-                        data = {
-                            status: "now_subscribed",
-                            paymentType: (verifiedSession.metadata as CheckoutSessionMetadata).paymentType as PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
-                        };
-                        // Process payment so the user gets their subscription
-                        await processPayment(stripe, verifiedSession, subscription);
-                        res.status(HttpStatus.Ok).json({ data });
-                        return;
-                    }
+                // Retrieve subscription info
+                const subscriptionInfo = await getVerifiedSubscriptionInfo(stripe, customerId, userId); //TODO replace userId with customerInfo.userId later
+                if (subscriptionInfo) {
+                    data = {
+                        status: "now_subscribed",
+                        paymentType: subscriptionInfo.paymentType,
+                    };
+                    // Process payment so the user gets their subscription
+                    await processPayment(stripe, subscriptionInfo.session, subscriptionInfo.subscription);
+                    res.status(HttpStatus.Ok).json({ data });
+                    return;
                 }
             }
         } catch (error) {

@@ -197,7 +197,7 @@ class StripeMock {
         }) => {
             const allSubscriptions = globalDataStore.subscriptions || [];
             let filteredSubscriptions = customer ? allSubscriptions.filter(subscription => subscription.customer === customer) : allSubscriptions;
-            filteredSubscriptions = status ? filteredSubscriptions.filter(subscription => subscription.status === status) : filteredSubscriptions;
+            filteredSubscriptions = (status && status !== "all") ? filteredSubscriptions.filter(subscription => subscription.status === status) : filteredSubscriptions;
             return {
                 data: filteredSubscriptions.slice(0, limit),
                 has_more: filteredSubscriptions.length > limit,

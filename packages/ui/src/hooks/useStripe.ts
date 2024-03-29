@@ -1,4 +1,4 @@
-import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CommonKey, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CommonKey, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api";
 import { SessionContext } from "contexts/SessionContext";
@@ -113,9 +113,15 @@ export const useStripe = () => {
 
     /** Creates stripe portal session and redirects to portal page */
     const redirectToCustomerPortal = async () => {
+        // If not logged in, redirect to login page
+        if (!currentUser.id) {
+            openLink(setLocation, LINKS.Login, { redirect: window.location.pathname });
+            return;
+        }
+
         toggleLoading(true);
         // Call server to create portal session
-        await fetchData({
+        await fetchData<CreatePortalSessionParams, CreatePortalSessionResponse>({
             endpoint: StripeEndpoint.CreatePortalSession,
             inputs: {
                 userId: currentUser.id,
@@ -123,17 +129,12 @@ export const useStripe = () => {
             },
             method: "POST",
             omitRestBase: true,
-        }).then(async (portalSession: any) => {
-            console.log("portalSession", portalSession);
-            if (portalSession.error) {
-                handleError(portalSession.error);
-                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: portalSession });
-            } else {
-                // Redirect to portal page
-                window.location.href = portalSession.url;
+        }).then(async ({ data }) => {
+            if (!data) {
+                throw new Error("Failed to create portal session");
             }
             // Redirect to portal page
-            // window.location.href = portalSession.url;
+            window.location.href = data.url;
         }).catch((error) => {
             handleError(error);
         }).finally(() => {
