@@ -26,19 +26,19 @@ export class BullQueueMock {
 
     process = jest.fn((concurrency: number | Function, processor?: Function) => {
         let callback = processor;
-        if (typeof concurrency === 'function') {
+        if (typeof concurrency === "function") {
             callback = concurrency;
         }
 
         // Ensure callback is a function before invoking it
-        if (typeof callback === 'function') {
+        if (typeof callback === "function") {
             BullQueueMock.jobs.forEach(job => {
                 // Call the callback with the job and done function
                 callback!(job, () => { }); // The second argument simulates the "done" callback function
             });
         } else {
             // Handle the case where callback is undefined, e.g., log an error or throw an exception
-            console.error('Process function is undefined.');
+            console.error("Process function is undefined.");
         }
     });
 
