@@ -211,7 +211,6 @@ describe("LanguageModelService lmServices", () => {
 
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
-            console.log("beginning of failing test");
             const model = lmService.getModel();
             await expect(lmService.generateContext({
                 contextInfo: contextInfo1,

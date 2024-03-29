@@ -1,4 +1,4 @@
-import { API_CREDITS_FREE, API_CREDITS_PREMIUM, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, HttpStatus, LINKS, PaymentStatus, PaymentType, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_FREE, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { prismaInstance } from "../db/instance";
@@ -147,6 +147,91 @@ export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, use
         && sessionUserId === userId // Was initiated by this user
         && session.status === "complete" // Was completed
         && isInCorrectEnvironment(session);
+};
+
+type GetStripeCustomerIdResult = {
+    emails: { emailAddress: string }[],
+    hasPremium: boolean,
+    stripeCustomerId: string | null,
+    userId: string | null,
+};
+
+//TODO test and use this for check-subscription, and check-credits-payment
+//TODO 2: create similar function for creating customerId
+/** 
+ * @param stripe The Stripe object for interacting with the Stripe API
+ * @param userId The user ID to find the Stripe customer ID for
+ * @returns Verified customer information, including the stripeCustomerId, emails, and userId
+ */
+export const getVerifiedCustomerInfo = async (
+    stripe: Stripe,
+    userId: string | undefined,
+): Promise<GetStripeCustomerIdResult> => {
+    const result: GetStripeCustomerIdResult = {
+        emails: [],
+        hasPremium: false,
+        stripeCustomerId: null,
+        userId: null,
+    };
+    if (!userId) {
+        return result;
+    }
+    // Find the user in the database
+    const user = await prismaInstance.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            emails: { select: { emailAddress: true } },
+            premium: { select: { isActive: true } },
+            stripeCustomerId: true,
+        },
+    });
+    if (!user) {
+        logger.error("User not found.", { trace: "0519", userId });
+        return result;
+    }
+    result.emails = user.emails || [];
+    result.hasPremium = user.premium?.isActive ?? false;
+    result.stripeCustomerId = user.stripeCustomerId || null;
+    result.userId = user.id;
+    // Validate the stripeCustomerId by checking if it exists in Stripe
+    if (result.stripeCustomerId) {
+        try {
+            const customer = await stripe.customers.retrieve(result.stripeCustomerId);
+            // If the customer was deleted, set stripeCustomerId to null
+            if (customer.deleted) {
+                result.stripeCustomerId = null;
+                logger.error("Stripe customer was deleted", { trace: "0522", result });
+            }
+        } catch (error) {
+            // If the customer doesn't exist, set stripeCustomerId to null
+            result.stripeCustomerId = null;
+            logger.error("Invalid Stripe customer ID", { trace: "0521", result, error });
+        }
+    }
+    // If the user does not have a Stripe customer ID,
+    // we can check if any of their emails are associated with a Stripe customer ID
+    if (!result.stripeCustomerId) {
+        for (const email of result.emails) {
+            // Find stripe customers associated with the email
+            const customers = await stripe.customers.list({
+                // NOTE: This is case-sensitive. If the user's Stripe email is not what 
+                // we have in the database exactly, this will not work. But there's 
+                // not much we can do about that.
+                email: email.emailAddress,
+                limit: 1,
+            });
+            if (!customers.data.length) continue;
+            result.stripeCustomerId = customers.data[0].id || null;
+            // Update the user's stripeCustomerId
+            await prismaInstance.user.update({
+                where: { id: userId },
+                data: { stripeCustomerId: result.stripeCustomerId },
+            });
+            break;
+        }
+    }
+    return result;
 };
 
 /** 
@@ -631,7 +716,7 @@ export const setupStripe = (app: Express): void => {
         },
     });
     // Create endpoint for checking subscription prices
-    app.get("/api/subscription-prices", async (_req: Request, res: Response) => {
+    app.get("/api" + StripeEndpoint.SubscriptionPrices, async (_req: Request, res: Response) => {
         // Initialize result
         const data: SubscriptionPricesResponse = {
             monthly: await fetchPriceFromRedis(PaymentType.PremiumMonthly) ?? NaN,
@@ -652,10 +737,8 @@ export const setupStripe = (app: Express): void => {
         res.json({ data });
     });
     // Create endpoint for subscribing or donating
-    app.post("/api/create-checkout-session", async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CreateCheckoutSession, async (req: Request, res: Response) => {
         const { userId, variant } = req.body as CreateCheckoutSessionParams;
-        // Determine price API ID based on variant. Select a product in the Stripe dashboard 
-        // to find this information
         const priceId = getPriceIds()[variant];
         const paymentType = variant as PaymentType;
         if (!priceId) {
@@ -664,47 +747,25 @@ export const setupStripe = (app: Express): void => {
             return;
         }
         try {
-            // Get user from database
-            const user = userId ? await prismaInstance.user.findUnique({
-                where: { id: userId },
-                select: {
-                    emails: { select: { emailAddress: true } },
-                    stripeCustomerId: true,
-                },
-            }) : undefined;
-            // We need user to exist, unless this is for a donation
-            if (!user && paymentType !== PaymentType.Donation) {
-                logger.error("User not found.", { trace: "0519", userId });
+            const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
+            // We typically need the user to exist, but not always
+            const paymentsThatDontNeedUser = [PaymentType.Donation];
+            if (!customerInfo.userId && !paymentsThatDontNeedUser.includes(paymentType)) {
                 res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                 return;
             }
-            // Create or retrieve a Stripe customer
-            let stripeCustomerId = user?.stripeCustomerId;
-            const language = "en"; //TODO
-            // If customer exists, make sure it's valid
-            if (stripeCustomerId) {
-                try {
-                    // Check if the customer exists in Stripe
-                    await stripe.customers.retrieve(stripeCustomerId);
-                } catch (error) {
-                    // The customer does not exist in Stripe. Set stripeCustomerId to null so we can create a new customer
-                    stripeCustomerId = null;
-                    // Also log an error because this shouldn't happen
-                    logger.error("Invalid Stripe customer ID", { trace: "0521", userId, stripeCustomerId, error });
-                }
-            }
             // If customer doesn't exist (or the existing ID was invalid), create a new customer
-            if (!stripeCustomerId) {
+            if (!customerInfo.stripeCustomerId) {
                 const stripeCustomer = await stripe.customers.create({
-                    email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
+                    email: customerInfo.emails.length ? customerInfo.emails[0].emailAddress : undefined,
                 });
-                stripeCustomerId = stripeCustomer.id;
+                customerInfo.stripeCustomerId = stripeCustomer.id;
                 // Store Stripe customer ID in your database
-                if (userId) {
+                if (customerInfo.userId) {
                     await prismaInstance.user.update({
                         where: { id: userId },
                         data: {
-                            stripeCustomerId,
+                            stripeCustomerId: customerInfo.stripeCustomerId,
                         },
                     });
                 }
@@ -721,7 +782,7 @@ export const setupStripe = (app: Express): void => {
                     },
                 ],
                 mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
-                customer: stripeCustomerId,
+                customer: customerInfo.stripeCustomerId,
                 metadata: {
                     paymentType,
                     userId: userId ?? null,
@@ -742,45 +803,36 @@ export const setupStripe = (app: Express): void => {
         }
     });
     // Create endpoint for updating payment method and switching/canceling subscription
-    app.post("/api/create-portal-session", async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CreatePortalSession, async (req: Request, res: Response) => {
         // Get input from request body
         const userId: string = req.body.userId;
         const returnUrl: string | undefined = req.body.returnUrl;
 
-        let stripeCustomerId: string | undefined;
         try {
-            // Get user from database
-            const user = await prismaInstance.user.findUnique({
-                where: { id: userId },
-                select: {
-                    emails: { select: { emailAddress: true } },
-                    stripeCustomerId: true,
-                },
-            });
-            if (!user) {
-                logger.error("User not found.", { trace: "0520", userId });
+            const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
+            if (!customerInfo.userId) {
                 res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                 return;
             }
-            stripeCustomerId = user.stripeCustomerId ?? undefined;
-            // If no customer ID, create one. This shouldn't happen unless the 
-            // user is the admin (which is initialized with premium already, so hasn't 
-            // gone through checkout before)
-            if (!stripeCustomerId) {
+            // If customer doesn't exist (or the existing ID was invalid), create a new customer
+            if (!customerInfo.stripeCustomerId) {
                 const stripeCustomer = await stripe.customers.create({
-                    email: user?.emails?.length ? user.emails[0].emailAddress : undefined,
+                    email: customerInfo.emails.length ? customerInfo.emails[0].emailAddress : undefined,
                 });
-                stripeCustomerId = stripeCustomer.id;
-                await prismaInstance.user.update({
-                    where: { id: userId },
-                    data: {
-                        stripeCustomerId,
-                    },
-                });
+                customerInfo.stripeCustomerId = stripeCustomer.id;
+                // Store Stripe customer ID in your database
+                if (customerInfo.userId) {
+                    await prismaInstance.user.update({
+                        where: { id: userId },
+                        data: {
+                            stripeCustomerId: customerInfo.stripeCustomerId,
+                        },
+                    });
+                }
             }
             // Create portal session
             const session = await stripe.billingPortal.sessions.create({
-                customer: stripeCustomerId as string, // Should be defined now, since we created a customer if it didn't exist
+                customer: customerInfo.stripeCustomerId as string,
                 return_url: returnUrl ?? UI_URL,
             });
             // Send session URL as response
@@ -793,10 +845,22 @@ export const setupStripe = (app: Express): void => {
         }
     });
     // Create endpoint for fixing subscription status
-    app.post("/api/check-subscription", async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CheckSubscription, async (req: Request, res: Response) => {
         let data: CheckSubscriptionResponse = { status: "not_subscribed" };
-        const { userId } = req.body;
+        const { userId } = req.body as CheckSubscriptionParams;
         try {
+            //TODO getVerifiedCustomerInfo is not currently what we should use here, as multiple emails could potentially be connected to a stripe customer ID. If the first email is connected to a customer ID that didn't pay for the subscription, we should check the other emails. To get around this, we should create a helper function for checking if a customer ID is connected to an active subscription, and update getVerifiedCustomerInfo with the option to skip over customer IDs until it finds a verified one
+            // const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
+            // if (!customerInfo.userId) {
+            //     throw new Error("User not found");
+            // }
+            // // If already active, return
+            // if (customerInfo.hasPremium) {
+            //     data = { status: "already_subscribed" };
+            //     res.status(HttpStatus.Ok).json({ data });
+            //     return;
+            // }
+
             // Find user information
             const user = await prismaInstance.user.findUnique({
                 where: { id: userId },
@@ -816,6 +880,7 @@ export const setupStripe = (app: Express): void => {
                 return;
             }
 
+            //TODO can skip email check if customerId already set on user. Need to create helper function for this. This helper function will simplify several functions
             for (const email of user.emails) {
                 // Find stripe customers associated with the email
                 const customers = await stripe.customers.list({
@@ -872,6 +937,30 @@ export const setupStripe = (app: Express): void => {
         }
         return res.status(HttpStatus.Ok).json({ data });
     });
+    // Create endpoint for fixing credits that were not awarded
+    app.post("/api" + StripeEndpoint.CheckCreditsPayment, async (req: Request, res: Response) => {
+        const data: CheckCreditsPaymentResponse = { status: "already_received_all_credits" };
+        const { userId } = req.body as CheckCreditsPaymentParams;
+        try {
+            // Find user information
+            const user = await prismaInstance.user.findUnique({
+                where: { id: userId },
+                select: {
+                    emails: { select: { emailAddress: true } },
+                    premium: { select: { isActive: true } },
+                },
+            });
+            if (!user) {
+                throw new Error("User not found");
+            }
+            //TODO
+        } catch (error) {
+            logger.error("Caught error checking credits payment status", { trace: "0439", error, userId });
+            res.status(HttpStatus.InternalServerError).json({ error });
+            return;
+        }
+        return res.status(HttpStatus.Ok).json({ data });
+    });
     // Create webhook endpoint for messages from Stripe (e.g. payment completed, subscription renewed/canceled)
     app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
         const sig: string | string[] = req.headers["stripe-signature"] || "";
@@ -881,7 +970,7 @@ export const setupStripe = (app: Express): void => {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
             // Call appropriate handler
-            const eventHandlers: { [key: string]: Handler } = {
+            const eventHandlers: { [key in Stripe.WebhookEndpointUpdateParams.EnabledEvent]?: Handler } = {
                 "checkout.session.completed": handleCheckoutSessionCompleted,
                 "checkout.session.expired": handleCheckoutSessionExpired,
                 "customer.deleted": handleCustomerDeleted,
@@ -897,6 +986,9 @@ export const setupStripe = (app: Express): void => {
             if (event.type in eventHandlers) {
                 result = await eventHandlers[event.type]({ event, stripe, res });
             } else {
+                // We should only be subscribing to events we want to handle. Meaning if 
+                // we reach here, we should go to the Stripe dashboard and remove the unhandled event
+                // from the webhook configuration
                 logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
             }
         } catch (error) {

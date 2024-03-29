@@ -816,94 +816,94 @@ describe("ChatContextCollector", () => {
     });
 });
 
-describe('processMentions', () => {
-    const chat = { botParticipants: ['bot1', 'bot2', 'bot3'] };
+describe("processMentions", () => {
+    const chat = { botParticipants: ["bot1", "bot2", "bot3"] };
     const bots = [
-        { id: 'bot1', name: 'Alice' },
-        { id: 'bot2', name: 'Bob' },
+        { id: "bot1", name: "Alice" },
+        { id: "bot2", name: "Bob" },
         // Assuming 'bot3' does not match a bot name to test the failure case
     ];
 
-    it('returns an empty array for messages without mentions', () => {
+    it("returns an empty array for messages without mentions", () => {
         const messageContent = "This is a message without any mentions.";
         expect(processMentions(messageContent, chat, bots)).toEqual([]);
     });
 
-    it('ignores non-mention markdown links', () => {
+    it("ignores non-mention markdown links", () => {
         const messageContent = "Here's a [@link](http://example.com) that is not a mention.";
         expect(processMentions(messageContent, chat, bots)).toEqual([]);
     });
 
-    it('processes valid mentions correctly', () => {
+    it("processes valid mentions correctly", () => {
         const messageContent = `Hello [@Alice](${UI_URL})!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual(['bot1']);
+        expect(processMentions(messageContent, chat, bots)).toEqual(["bot1"]);
     });
 
-    it('returns an empty array for mentions that do not match any bot', () => {
+    it("returns an empty array for mentions that do not match any bot", () => {
         const messageContent = `Hello [@Charlie](${UI_URL}/@Charlie)!`;
         expect(processMentions(messageContent, chat, bots)).toEqual([]);
     });
 
-    it('responds to @Everyone mention by returning all bot participants', () => {
+    it("responds to @Everyone mention by returning all bot participants", () => {
         const messageContent = `Attention [@Everyone](${UI_URL}/fdksf?asdfa="fdasfs")!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual(['bot1', 'bot2', 'bot3']);
+        expect(processMentions(messageContent, chat, bots)).toEqual(["bot1", "bot2", "bot3"]);
     });
 
-    it('filters out mentions with incorrect origin', () => {
+    it("filters out mentions with incorrect origin", () => {
         const messageContent = "Hello [@Alice](https://another-site.com/@Alice)!";
         expect(processMentions(messageContent, chat, bots)).toEqual([]);
     });
 
-    it('handles malformed markdown links gracefully', () => {
+    it("handles malformed markdown links gracefully", () => {
         const messageContent = "This is a malformed link [@Alice](@Alice) without proper markdown.";
         expect(processMentions(messageContent, chat, bots)).toEqual([]);
     });
 
-    it('deduplicates mentions', () => {
+    it("deduplicates mentions", () => {
         const messageContent = `Hi [@Alice](${UI_URL}) and [@Alice](${UI_URL}) again!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual(['bot1']);
+        expect(processMentions(messageContent, chat, bots)).toEqual(["bot1"]);
     });
 });
 
-describe('determineRespondingBots', () => {
-    const userId = 'user123';
-    const chat = { botParticipants: ['bot1', 'bot2'], participantsCount: 3 };
+describe("determineRespondingBots", () => {
+    const userId = "user123";
+    const chat = { botParticipants: ["bot1", "bot2"], participantsCount: 3 };
     const bots = [
-        { id: 'bot1', name: 'BotOne' },
-        { id: 'bot2', name: 'BotTwo' },
+        { id: "bot1", name: "BotOne" },
+        { id: "bot2", name: "BotTwo" },
     ];
 
-    it('returns an empty array if message content is blank', () => {
-        const message = { userId, content: '   ' };
+    it("returns an empty array if message content is blank", () => {
+        const message = { userId, content: "   " };
         expect(determineRespondingBots(message, chat, bots, userId)).toEqual([]);
     });
 
-    it('returns an empty array if message userId does not match', () => {
-        const message = { userId: 'anotherUser', content: 'Hello' };
+    it("returns an empty array if message userId does not match", () => {
+        const message = { userId: "anotherUser", content: "Hello" };
         expect(determineRespondingBots(message, chat, bots, userId)).toEqual([]);
     });
 
-    it('returns an empty array if there are no bots in the chat', () => {
-        const message = { userId, content: 'Hello' };
+    it("returns an empty array if there are no bots in the chat", () => {
+        const message = { userId, content: "Hello" };
         expect(determineRespondingBots(message, chat, [], userId)).toEqual([]);
     });
 
-    it('returns the only bot if there is one bot in a two-participant chat', () => {
-        const singleBotChat = { botParticipants: ['bot1'], participantsCount: 2 };
-        const singleBot = [{ id: 'bot1', name: 'BotOne' }];
-        const message = { userId, content: 'Hello' };
-        expect(determineRespondingBots(message, singleBotChat, singleBot, userId)).toEqual(['bot1']);
+    it("returns the only bot if there is one bot in a two-participant chat", () => {
+        const singleBotChat = { botParticipants: ["bot1"], participantsCount: 2 };
+        const singleBot = [{ id: "bot1", name: "BotOne" }];
+        const message = { userId, content: "Hello" };
+        expect(determineRespondingBots(message, singleBotChat, singleBot, userId)).toEqual(["bot1"]);
     });
 
     // Assuming processMentions is a mockable function that has been properly mocked to return bot IDs based on mentions
-    it('returns bot IDs based on mentions in the message content', () => {
+    it("returns bot IDs based on mentions in the message content", () => {
         const message = { userId, content: `Hello [@BotOne](${UI_URL}/@BotOne)` };
         // Mock `processMentions` here to return ['bot1'] when called with message.content, chat, and bots
         // For demonstration purposes, this test assumes `processMentions` behavior is correctly implemented elsewhere
-        expect(determineRespondingBots(message, chat, bots, userId)).toEqual(['bot1']);
+        expect(determineRespondingBots(message, chat, bots, userId)).toEqual(["bot1"]);
     });
 
-    it('handles unexpected input gracefully', () => {
+    it("handles unexpected input gracefully", () => {
         const message = { userId, content: null }; // Simulate an unexpected null content
         // @ts-ignore: Testing runtime scenario
         expect(() => determineRespondingBots(message, chat, bots, userId)).not.toThrow();
