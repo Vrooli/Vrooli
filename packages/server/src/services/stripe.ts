@@ -37,6 +37,10 @@ export const PRICE_IDS_PROD: Record<PaymentType, string> = {
     PremiumYearly: "price_1OygGCJq1sLW02CVDVmTfWDA",
 };
 
+enum PaymentMethod {
+    Stripe = "Stripe",
+}
+
 /** 
  * Finds all available price IDs for the current environment (development or production)
  * NOTE: Make sure these are PRICE IDs, not PRODUCT IDs
@@ -149,6 +153,12 @@ export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, use
         && isInCorrectEnvironment(session);
 };
 
+type GetVerifiedSubscriptionInfoResult = {
+    session: Stripe.Checkout.Session,
+    subscription: Stripe.Subscription,
+    paymentType: PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
+};
+
 /**
  * @param stripe The Stripe object for interacting with the Stripe API
  * @param customerId The Stripe customer ID
@@ -160,11 +170,7 @@ export const getVerifiedSubscriptionInfo = async (
     stripe: Stripe,
     customerId: string,
     userId: string,
-): Promise<{
-    session: Stripe.Checkout.Session,
-    subscription: Stripe.Subscription,
-    paymentType: PaymentType.PremiumMonthly | PaymentType.PremiumYearly,
-} | null> => {
+): Promise<GetVerifiedSubscriptionInfoResult | null> => {
     // Retrieve subscriptions for the customer, and filter out inactive subscriptions
     const subscriptions = (await stripe.subscriptions.list({
         customer: customerId,
@@ -206,23 +212,32 @@ export const getVerifiedSubscriptionInfo = async (
 type GetStripeCustomerIdResult = {
     emails: { emailAddress: string }[],
     hasPremium: boolean,
+    /** Only returned if `validateSubscription` is true and we find a subscription */
+    subscriptionInfo: GetVerifiedSubscriptionInfoResult | null,
     stripeCustomerId: string | null,
     userId: string | null,
 };
 
-//TODO test and use this for check-subscription, and check-credits-payment
 /** 
  * @param stripe The Stripe object for interacting with the Stripe API
  * @param userId The user ID to find the Stripe customer ID for
+ * @param validateSubscription If true, will skip customer IDs that are not associated with a valid subscription. 
+ * This is useful if someone used stripe before with one email, then subscribed with another.
  * @returns Verified customer information, including the stripeCustomerId, emails, and userId
  */
-export const getVerifiedCustomerInfo = async (
-    stripe: Stripe,
+export const getVerifiedCustomerInfo = async ({
+    userId,
+    stripe,
+    validateSubscription,
+}: {
     userId: string | undefined,
-): Promise<GetStripeCustomerIdResult> => {
+    stripe: Stripe,
+    validateSubscription: boolean,
+}): Promise<GetStripeCustomerIdResult> => {
     const result: GetStripeCustomerIdResult = {
         emails: [],
         hasPremium: false,
+        subscriptionInfo: null,
         stripeCustomerId: null,
         userId: null,
     };
@@ -256,6 +271,15 @@ export const getVerifiedCustomerInfo = async (
                 result.stripeCustomerId = null;
                 logger.error("Stripe customer was deleted", { trace: "0522", result });
             }
+            // Validate subscription if requested
+            if (validateSubscription) {
+                const subscriptionInfo = await getVerifiedSubscriptionInfo(stripe, result.stripeCustomerId as string, userId);
+                result.subscriptionInfo = subscriptionInfo;
+                if (!subscriptionInfo) {
+                    result.stripeCustomerId = null;
+                    logger.info("Stripe customer ID is not associated with an active subscription", { trace: "0518", result });
+                }
+            }
         } catch (error) {
             // If the customer doesn't exist, set stripeCustomerId to null
             result.stripeCustomerId = null;
@@ -276,6 +300,17 @@ export const getVerifiedCustomerInfo = async (
             })).data.filter(customer => !customer.deleted);
             if (!customers.length) continue;
             result.stripeCustomerId = customers[0].id || null;
+            if (!result.stripeCustomerId) continue;
+            // Validate subscription if requested
+            if (validateSubscription) {
+                const subscriptionInfo = await getVerifiedSubscriptionInfo(stripe, result.stripeCustomerId, userId);
+                result.subscriptionInfo = subscriptionInfo;
+                if (!subscriptionInfo) {
+                    result.stripeCustomerId = null;
+                    logger.info("Stripe customer ID is not associated with an active subscription", { trace: "0516", result });
+                    continue;
+                }
+            }
             // Update the user's stripeCustomerId
             await prismaInstance.user.update({
                 where: { id: userId },
@@ -337,7 +372,7 @@ export const processPayment = async (
     const payments = await prismaInstance.payment.findMany({
         where: {
             checkoutId,
-            paymentMethod: "Stripe",
+            paymentMethod: PaymentMethod.Stripe,
             user: { stripeCustomerId: customerId },
         },
     });
@@ -350,9 +385,9 @@ export const processPayment = async (
         checkoutId,
         currency: session.currency ?? "usd",
         description: "Checkout: " + paymentType,
-        paymentMethod: "Stripe",
+        paymentMethod: PaymentMethod.Stripe,
         paymentType,
-        status: "Paid",
+        status: PaymentStatus.Paid,
     } as const;
     const paymentId = payments.length > 0 ? payments[0].id : undefined;
     const paymentSelect = {
@@ -444,7 +479,7 @@ const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandl
 };
 
 /** Checkout expired before payment */
-const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const session = event.data.object as Stripe.Checkout.Session;
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
@@ -452,8 +487,8 @@ const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): P
     const payments = await prismaInstance.payment.findMany({
         where: {
             checkoutId,
-            paymentMethod: "Stripe",
-            status: "Pending",
+            paymentMethod: PaymentMethod.Stripe,
+            status: PaymentStatus.Pending,
             user: { stripeCustomerId: customerId },
         },
     });
@@ -472,14 +507,21 @@ const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): P
 };
 
 /** Customer was deleted */
-const handleCustomerDeleted = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleCustomerDeleted = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
-    // Remove customer ID from user in database
-    await prismaInstance.user.update({
+    // Attempt to find the user associated with the given customerId
+    const user = await prismaInstance.user.findUnique({
         where: { stripeCustomerId: customerId },
-        data: { stripeCustomerId: null },
     });
+    // If the user exists, remove the customerId
+    if (user) {
+        await prismaInstance.user.update({
+            where: { stripeCustomerId: customerId },
+            data: { stripeCustomerId: null },
+        });
+    }
+    // Return an OK status regardless of whether the user was found or not
     return handlerResult(HttpStatus.Ok, res);
 };
 
@@ -645,7 +687,7 @@ const handleInvoicePaymentCreated = async ({ event, res }: EventHandlerArgs): Pr
             checkoutId: invoice.id,
             amount: invoice.amount_due,
             currency: invoice.currency,
-            paymentMethod: "Stripe",
+            paymentMethod: PaymentMethod.Stripe,
             paymentType: getPaymentType(price),
             status: PaymentStatus.Pending,
             userId: user.id,
@@ -728,7 +770,7 @@ const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandle
     // Update the payment status to indicate it was successfully paid
     await prismaInstance.payment.update({
         where: { id: payment.id },
-        data: { status: "Paid" },
+        data: { status: PaymentStatus.Paid },
     });
     if (!payment.user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0223", { customerId, invoice: invoice.id });
@@ -830,7 +872,7 @@ export const setupStripe = (app: Express): void => {
             return;
         }
         try {
-            const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
+            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
             // We typically need the user to exist, but not always
             const paymentsThatDontNeedUser = [PaymentType.Donation];
             if (!customerInfo.userId && !paymentsThatDontNeedUser.includes(paymentType)) {
@@ -882,7 +924,7 @@ export const setupStripe = (app: Express): void => {
         const { userId, returnUrl } = req.body as CreatePortalSessionParams;
 
         try {
-            const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
+            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
             if (!customerInfo.userId) {
                 res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
                 return;
@@ -914,61 +956,26 @@ export const setupStripe = (app: Express): void => {
         let data: CheckSubscriptionResponse = { status: "not_subscribed" };
         const { userId } = req.body as CheckSubscriptionParams;
         try {
-            //TODO getVerifiedCustomerInfo is not currently what we should use here, as multiple emails could potentially be connected to a stripe customer ID. If the first email is connected to a customer ID that didn't pay for the subscription, we should check the other emails. To get around this, we should create a helper function for checking if a customer ID is connected to an active subscription, and update getVerifiedCustomerInfo with the option to skip over customer IDs until it finds a verified one
-            // const customerInfo = await getVerifiedCustomerInfo(stripe, userId);
-            // if (!customerInfo.userId) {
-            //     throw new Error("User not found");
-            // }
-            // // If already active, return
-            // if (customerInfo.hasPremium) {
-            //     data = { status: "already_subscribed" };
-            //     res.status(HttpStatus.Ok).json({ data });
-            //     return;
-            // }
-
-            // Find user information
-            const user = await prismaInstance.user.findUnique({
-                where: { id: userId },
-                select: {
-                    emails: { select: { emailAddress: true } },
-                    premium: { select: { isActive: true } },
-                },
-            });
-            if (!user) {
+            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: true });
+            if (!customerInfo.userId) {
                 throw new Error("User not found");
             }
-
             // If already active, return
-            if (user.premium?.isActive) {
+            if (customerInfo.hasPremium) {
                 data = { status: "already_subscribed" };
                 res.status(HttpStatus.Ok).json({ data });
                 return;
             }
-
-            //TODO can skip email check if customerId already set on user. Need to create helper function for this. This helper function will simplify several functions
-            for (const email of user.emails) {
-                // Find stripe customers associated with the email
-                const customers = await stripe.customers.list({
-                    // NOTE: This is case-sensitive. If no subscriptions are found, we should 
-                    // alert the user that they need to check their email casing
-                    email: email.emailAddress,
-                    limit: 1,
-                });
-                if (!customers.data.length) continue;
-                const customerId = customers.data[0].id;
-
-                // Retrieve subscription info
-                const subscriptionInfo = await getVerifiedSubscriptionInfo(stripe, customerId, userId); //TODO replace userId with customerInfo.userId later
-                if (subscriptionInfo) {
-                    data = {
-                        status: "now_subscribed",
-                        paymentType: subscriptionInfo.paymentType,
-                    };
-                    // Process payment so the user gets their subscription
-                    await processPayment(stripe, subscriptionInfo.session, subscriptionInfo.subscription);
-                    res.status(HttpStatus.Ok).json({ data });
-                    return;
-                }
+            // Return found subscription info
+            if (customerInfo.subscriptionInfo) {
+                data = {
+                    status: "now_subscribed",
+                    paymentType: customerInfo.subscriptionInfo.paymentType,
+                };
+                // Process payment so the user gets their subscription
+                await processPayment(stripe, customerInfo.subscriptionInfo.session, customerInfo.subscriptionInfo.subscription);
+                res.status(HttpStatus.Ok).json({ data });
+                return;
             }
         } catch (error) {
             logger.error("Caught error checking subscription status", { trace: "0430", error, userId });
@@ -982,15 +989,8 @@ export const setupStripe = (app: Express): void => {
         const data: CheckCreditsPaymentResponse = { status: "already_received_all_credits" };
         const { userId } = req.body as CheckCreditsPaymentParams;
         try {
-            // Find user information
-            const user = await prismaInstance.user.findUnique({
-                where: { id: userId },
-                select: {
-                    emails: { select: { emailAddress: true } },
-                    premium: { select: { isActive: true } },
-                },
-            });
-            if (!user) {
+            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
+            if (!customerInfo.userId) {
                 throw new Error("User not found");
             }
             //TODO

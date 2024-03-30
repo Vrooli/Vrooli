@@ -18,32 +18,44 @@ function mockFindUnique<T>(model: string, args: { where: Record<string, any>, se
     return Promise.resolve(result) as any;
 }
 
+function evaluateCondition(record, key: string, condition) {
+    if (typeof condition === "object" && condition !== null) {
+        // Handle "in" condition
+        if ("in" in condition) {
+            return condition.in.includes(record[key]);
+        }
+        // Handle case-insensitive equality
+        if ("equals" in condition) {
+            const valueToCompare = record[key];
+            if ("mode" in condition && condition.mode === "insensitive") {
+                return valueToCompare.toLowerCase() === condition.equals.toLowerCase();
+            } else {
+                return valueToCompare === condition.equals;
+            }
+        }
+        // Handle nested relation or object conditions
+        const relatedModelName = key.charAt(0).toUpperCase() + key.slice(1); // Assuming model names are capitalized
+        if (globalDataStore[relatedModelName]) {
+            const relatedRecords = globalDataStore[relatedModelName];
+            return relatedRecords.some(relatedRecord => {
+                const relationConditionKeys = Object.keys(condition);
+                return relationConditionKeys.every(relationKey =>
+                    evaluateCondition(relatedRecord, relationKey, condition[relationKey]),
+                );
+            });
+        }
+    } else {
+        // Direct equality
+        return record[key] === condition;
+    }
+}
+
 function mockFindMany<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T[]> {
     const records = globalDataStore[model] || [];
     const whereKeys = Object.keys(args.where);
+
     const filteredItems = records.filter(record =>
-        whereKeys.every(key => {
-            const condition = args.where[key];
-            if (typeof condition === "object" && condition !== null) {
-                // Handle "in" condition
-                if ("in" in condition) {
-                    return condition.in.includes((record as any)[key]);
-                }
-                // Handle case-insensitive equality
-                if ("equals" in condition) {
-                    const valueToCompare = (record as any)[key];
-                    if ("mode" in condition && condition.mode === "insensitive") {
-                        return valueToCompare.toLowerCase() === condition.equals.toLowerCase();
-                    } else {
-                        return valueToCompare === condition.equals;
-                    }
-                }
-                // Add more conditions here as needed
-            } else {
-                // Direct equality
-                return (record as any)[key] === condition;
-            }
-        }),
+        whereKeys.every(key => evaluateCondition(record, key, args.where[key])),
     );
 
     const results = filteredItems.map(item => constructSelectResponse(item, args.select));

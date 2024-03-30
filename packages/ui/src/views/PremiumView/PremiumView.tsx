@@ -40,7 +40,14 @@ export const PremiumView = ({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const { currentUser, prices, startCheckout, redirectToCustomerPortal, checkSubscription } = useStripe();
+    const {
+        checkFailedCredits,
+        checkFailedSubscription,
+        currentUser,
+        prices,
+        redirectToCustomerPortal,
+        startCheckout,
+    } = useStripe();
 
     const scrollToElement = (elementId: string) => {
         const element = document.getElementById(elementId);
@@ -198,7 +205,7 @@ export const PremiumView = ({
                                 >${(prices?.monthly ?? 0) / 100}/{t("Month")}</Button>
                                 <Button
                                     fullWidth
-                                    onClick={() => { checkSubscription(); }}
+                                    onClick={() => { checkFailedSubscription(); }}
                                     variant="text"
                                     sx={{
                                         textDecoration: "underline",
@@ -235,6 +242,16 @@ export const PremiumView = ({
                             onClick={() => { startCheckout(PaymentType.Credits); }}
                             variant="outlined"
                         >{t("CreditsButton")}</Button>
+                        <Button
+                            fullWidth
+                            onClick={() => { checkFailedCredits(); }}
+                            variant="text"
+                            sx={{
+                                textDecoration: "underline",
+                                textTransform: "none",
+                                color: "lightgray",
+                            }}
+                        >Didn't receive credits? Check status</Button>
                     </Box>
                 </Box>
                 <Box id="donate" mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
