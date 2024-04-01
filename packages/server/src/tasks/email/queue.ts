@@ -1,6 +1,8 @@
 import { BUSINESS_NAME, LINKS, PaymentType } from "@local/shared";
 import Bull from "bull";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
 
 export type EmailProcessPayload = {
@@ -17,21 +19,27 @@ let UI_URL: string;
 let emailProcess: (job: Bull.Job<EmailProcessPayload>) => Promise<unknown>;
 let emailQueue: Bull.Queue<EmailProcessPayload>;
 let welcomeTemplate: string;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export async function setupEmailQueue() {
+export const setupEmailQueue = async () => {
     try {
-        const loggerModule = await import("../../events/logger.js");
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
         logger = loggerModule.logger;
 
-        const redisConnModule = await import("../../redisConn.js");
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
         HOST = redisConnModule.HOST;
         PORT = redisConnModule.PORT;
 
-        const serverModule = await import("../../server.js");
+        const serverPath = path.join(dirname, "../../server" + importExtension);
+        const serverModule = await import(serverPath);
         UI_URL = serverModule.UI_URL;
 
-        const processModule = await import("./process.js");
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
         emailProcess = processModule.emailProcess;
 
         // Initialize the Bull queue
@@ -41,11 +49,12 @@ export async function setupEmailQueue() {
         emailQueue.process(emailProcess);
 
         // Load templates
-        const welcomeTemplateFile = `${process.env.PROJECT_DIR}/packages/server/dist/tasks/email/templates/welcome.html`;
-        if (fs.existsSync(welcomeTemplateFile)) {
-            welcomeTemplate = fs.readFileSync(welcomeTemplateFile).toString();
+        const emailTemplatePath = path.join(dirname, "../../../dist/tasks/email/templates/welcome.html");
+        if (fs.existsSync(emailTemplatePath)) {
+            welcomeTemplate = fs.readFileSync(emailTemplatePath).toString();
         } else {
-            logger.error(`Could not find welcome email template at ${welcomeTemplateFile}`);
+            logger.error(`Could not find welcome email template at ${emailTemplatePath}`);
+            welcomeTemplate = "";
         }
     } catch (error) {
         const errorMessage = "Failed to setup email queue";
@@ -55,10 +64,20 @@ export async function setupEmailQueue() {
             console.error(errorMessage, error);
         }
     }
-}
+};
 
 /** Adds an email to a task queue */
-export const sendMail = (to: string[] = [], subject = "", text = "", html = "", delay = 0) => {
+export const sendMail = (
+    to: string[],
+    subject: string,
+    text: string,
+    html = "",
+    delay = 0,
+) => {
+    // Must include at least one "to" email address
+    if (to.length === 0) {
+        throw new Error("Email must have at least one recipient");
+    }
     emailQueue.add({
         to,
         subject,
@@ -87,7 +106,7 @@ export const sendVerificationLink = (email: string, userId: string, code: string
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
         text: `Welcome to ${BUSINESS_NAME}! Please log in through [this link](${link}) to verify your account. If you did not create an account with us, please ignore this link.`,
-        html,
+        html: html.length > 0 ? html : undefined,
     });
 };
 

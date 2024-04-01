@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
-import { createStripeCustomerId, fetchPriceFromRedis, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, storePrice } from "./stripe";
+import { createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
@@ -63,6 +63,47 @@ describe("getPaymentType", () => {
 
     // Run tests for both development and production environments
     environments.forEach(runTestsForEnvironment);
+});
+
+describe("getCustomerId function tests", () => {
+    const mockCustomer = { id: "cust_12345" } as Stripe.Customer;
+
+    test("returns the string when customer is a string", () => {
+        const input = "cust_string";
+        const output = getCustomerId(input);
+        expect(output).toBe("cust_string");
+    });
+
+    test("returns the id when customer is a Stripe Customer object", () => {
+        const output = getCustomerId(mockCustomer);
+        expect(output).toBe("cust_12345");
+    });
+
+    test("throws an error when customer is null", () => {
+        expect(() => {
+            getCustomerId(null);
+        }).toThrow("Customer ID not found");
+    });
+
+    test("throws an error when customer is undefined", () => {
+        expect(() => {
+            getCustomerId(undefined);
+        }).toThrow("Customer ID not found");
+    });
+
+    test("throws an error when customer is an empty object", () => {
+        expect(() => {
+            // @ts-ignore Testing runtime scenario
+            getCustomerId({});
+        }).toThrow("Customer ID not found");
+    });
+
+    test("throws an error when id property is not a string", () => {
+        expect(() => {
+            // @ts-ignore Testing runtime scenario
+            getCustomerId({ id: 12345 });
+        }).toThrow("Customer ID not found");
+    });
 });
 
 describe("handlerResult", () => {

@@ -1,5 +1,9 @@
-// NOTE: Untested
-export class BullQueueMock {
+import { noop } from "@local/shared";
+
+type Job = { id: number; data: any; options?: any };
+type ProcessCallback = (job: Job, done: () => void) => void;
+
+class BullQueueMock {
     static instance: BullQueueMock | null = null;
     static instantiationCount = 0;
     static jobs: any[] = [];
@@ -24,7 +28,7 @@ export class BullQueueMock {
         return Promise.resolve(job);
     });
 
-    process = jest.fn((concurrency: number | Function, processor?: Function) => {
+    process = jest.fn((concurrency: number | ProcessCallback, processor?: ProcessCallback) => {
         let callback = processor;
         if (typeof concurrency === "function") {
             callback = concurrency;
@@ -34,7 +38,7 @@ export class BullQueueMock {
         if (typeof callback === "function") {
             BullQueueMock.jobs.forEach(job => {
                 // Call the callback with the job and done function
-                callback!(job, () => { }); // The second argument simulates the "done" callback function
+                callback?.(job, noop); // The second argument simulates the "done" callback function
             });
         } else {
             // Handle the case where callback is undefined, e.g., log an error or throw an exception
@@ -83,6 +87,4 @@ export class BullQueueMock {
     };
 }
 
-export const Queue = (name: string) => {
-    return new BullQueueMock(name);
-};
+export default BullQueueMock;

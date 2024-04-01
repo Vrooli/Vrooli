@@ -67,10 +67,10 @@ export const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPric
  * @returns The customer ID as a string if it exists
  * @throws hrows an error if the customer ID doesn't exist or couldn't be found.
  */
-const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined): string => {
+export const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined): string => {
     if (typeof customer === "string") {
         return customer;
-    } else if (customer && typeof customer === "object") {
+    } else if (customer && typeof customer === "object" && Object.prototype.hasOwnProperty.call(customer, "id") && typeof customer.id === "string") {
         return customer.id; // Access 'id' field if 'customer' is an object
     } else {
         throw new Error("Customer ID not found");
@@ -1006,9 +1006,8 @@ export const setupStripe = (app: Express): void => {
         const sig: string | string[] = req.headers["stripe-signature"] || "";
         let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
         try {
-            // Parse event
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+            // Parse event and verify that it comes from Stripe
+            const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
             // Call appropriate handler
             const eventHandlers: { [key in Stripe.WebhookEndpointUpdateParams.EnabledEvent]?: Handler } = {
                 "checkout.session.completed": handleCheckoutSessionCompleted,
