@@ -70,8 +70,12 @@ export const useStripe = () => {
         handleUrlParams();
     }, [handleUrlParams]);
 
-    /** Creates stripe checkout session and redirects to checkout page */
-    const startCheckout = async (variant: PaymentType) => {
+    /** 
+     * Creates stripe checkout session and redirects to checkout page 
+     * @param variant The type of payment to start
+     * @param amount The amount to pay, if variant is "Donation" or "Credits"
+     */
+    const startCheckout = async (variant: PaymentType, amount?: number) => {
         // If not logged in and trying to get premium, redirect to signup page
         if (!currentUser.id && variant !== PaymentType.Donation) {
             openLink(setLocation, LINKS.Signup, { redirect: window.location.pathname });
@@ -93,6 +97,7 @@ export const useStripe = () => {
         await fetchData<CreateCheckoutSessionParams, CreateCheckoutSessionResponse>({
             endpoint: StripeEndpoint.CreateCheckoutSession,
             inputs: {
+                amount,
                 userId: currentUser.id,
                 variant,
             },

@@ -153,6 +153,15 @@ export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, use
         && isInCorrectEnvironment(session);
 };
 
+/** @returns True if the Stripe session should be counted as rewarding credits */
+export const isValidCreditsPurchaseSession = (session: Stripe.Checkout.Session, userId: string): boolean => {
+    const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
+    return paymentType === PaymentType.Credits // Is a credit purchase
+        && sessionUserId === userId // Was initiated by this user
+        && session.status === "complete" // Was completed
+        && isInCorrectEnvironment(session); // Is in the correct environment (optional, depending on your setup)
+};
+
 type GetVerifiedSubscriptionInfoResult = {
     session: Stripe.Checkout.Session,
     subscription: Stripe.Subscription,
@@ -853,7 +862,7 @@ export const checkSubscriptionPrices = async (stripe: Stripe, res: Response): Pr
  * Creates a checkout session for buying a subscription, donation, credits, or other payment.
  */
 const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
-    const { userId, variant } = req.body as CreateCheckoutSessionParams;
+    const { amount, userId, variant } = req.body as CreateCheckoutSessionParams;
     const priceId = getPriceIds()[variant];
     const paymentType = variant as PaymentType;
     if (!priceId) {
@@ -877,17 +886,44 @@ const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response
                 stripe,
             });
         }
+        let line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+        if ([PaymentType.Credits, PaymentType.Donation].includes(paymentType) && amount) {
+            const integerAmount = Math.max(100, Math.round(amount)); // Should be at minimum 1 USD
+            // For credits with a custom amount, create a dynamic price object
+            line_items = [{
+                price_data: {
+                    currency: "usd",
+                    product_data: {
+                        name: paymentType === PaymentType.Credits
+                            ? "Credits Purchase"
+                            : "Donation",
+                        description: paymentType === PaymentType.Credits
+                            ? "Use credits to chat with bots, run automated routines, autofill forms, and perform any other AI-driven tasks. Purchase credits today and transform how you work, create, and collaborate with Vrooli💙"
+                            : "Support our mission to create an automated and open-source economy with a one-time donation. Thank you for believing in us and our vision for a smarter, more connected world💙",
+                    },
+                    unit_amount: integerAmount,
+                },
+                quantity: 1,
+            }];
+        } else {
+            const priceId = getPriceIds()[variant];
+            if (!priceId) {
+                logger.error("Invalid variant", { trace: "0436", userId, variant });
+                res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
+                return;
+            }
+            // For non-credit variants or credits without a specified amount, use predefined priceId
+            line_items = [{
+                price: priceId,
+                quantity: 1,
+            }];
+        }
         // Create checkout session 
         const session = await stripe.checkout.sessions.create({
             success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
             cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
             payment_method_types: ["card"],
-            line_items: [
-                {
-                    price: priceId,
-                    quantity: 1,
-                },
-            ],
+            line_items,
             mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
             customer: customerInfo.stripeCustomerId,
             metadata: {
@@ -956,7 +992,7 @@ const checkSubscription = async (stripe: Stripe, req: Request, res: Response): P
         }
         // If already active, return
         if (customerInfo.hasPremium) {
-            data = { status: "already_subscribed" };
+            data.status = "already_subscribed";
             res.status(HttpStatus.Ok).json({ data });
             return;
         }
@@ -987,7 +1023,37 @@ const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response):
         if (!customerInfo.userId) {
             throw new Error("User not found");
         }
-        //TODO
+        if (!customerInfo.stripeCustomerId) {
+            data.status = "already_received_all_credits";
+            res.status(HttpStatus.Ok).json({ data });
+            return;
+        }
+        // Find checkout sessions associated with the user
+        const sessionsChecked = 0;
+        const creditsToAward = 0;
+        const done = false;
+        // Continually fetch sessions until we reach a maximum of 250, 
+        // or until we reach sessions older than 180 days
+        while (!done && sessionsChecked < 250) {
+            // Fetch sessions
+            const sessionsList = await stripe.checkout.sessions.list({
+                customer: customerInfo.stripeCustomerId,
+                limit: 25,
+            });
+            // Collect API credit sessions
+            const apiCreditSessions = sessionsList.data.filter(session => isValidCreditsPurchaseSession(session, userId));
+            // TODO fetch payments in database. missing ones should be counted, as well as ones marked as pending
+            // TODO create/update payments
+            // TODO accumulate credis to award
+            // TODO if no more sessions to fetch or the last fetched session was over 180 days ago, break
+        }
+        // If there are credits to award, award them
+        if (creditsToAward > 0) {
+            //TODO
+        } else {
+            data.status = "already_received_all_credits";
+            res.status(HttpStatus.Ok).json({ data });
+        }
     } catch (error) {
         logger.error("Caught error checking credits payment status", { trace: "0439", error, userId });
         res.status(HttpStatus.InternalServerError).json({ error });
@@ -1056,19 +1122,19 @@ export const setupStripe = (app: Express): void => {
             version: "2.0.0",
         },
     });
-    app.get(StripeEndpoint.SubscriptionPrices, async (_req: Request, res: Response) => {
+    app.get("/api" + StripeEndpoint.SubscriptionPrices, async (_req: Request, res: Response) => {
         await checkSubscriptionPrices(stripe, res);
     });
-    app.post(StripeEndpoint.CreateCheckoutSession, async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CreateCheckoutSession, async (req: Request, res: Response) => {
         await createCheckoutSession(stripe, req, res);
     });
-    app.post(StripeEndpoint.CreatePortalSession, async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CreatePortalSession, async (req: Request, res: Response) => {
         await createPortalSession(stripe, req, res);
     });
-    app.post(StripeEndpoint.CheckSubscription, async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CheckSubscription, async (req: Request, res: Response) => {
         await checkSubscription(stripe, req, res);
     });
-    app.post(StripeEndpoint.CheckCreditsPayment, async (req: Request, res: Response) => {
+    app.post("/api" + StripeEndpoint.CheckCreditsPayment, async (req: Request, res: Response) => {
         await checkCreditsPayment(stripe, req, res);
     });
     app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {

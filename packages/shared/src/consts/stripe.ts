@@ -6,6 +6,8 @@ export type SubscriptionPricesResponse = {
 };
 
 export type CreateCheckoutSessionParams = {
+    /** Only used if variant is "Credits" */
+    amount?: number | undefined;
     userId: string | undefined;
     variant: PaymentType;
 };
@@ -46,9 +48,9 @@ export type CheckCreditsPaymentResponse = {
 };
 
 export enum StripeEndpoint {
-    SubscriptionPrices = "/api/subscription-prices",
-    CreateCheckoutSession = "/api/create-checkout-session",
-    CreatePortalSession = "/api/create-portal-session",
-    CheckSubscription = "/api/check-subscription",
-    CheckCreditsPayment = "/api/check-credits-payment",
+    SubscriptionPrices = "/subscription-prices",
+    CreateCheckoutSession = "/create-checkout-session",
+    CreatePortalSession = "/create-portal-session",
+    CheckSubscription = "/check-subscription",
+    CheckCreditsPayment = "/check-credits-payment",
 }

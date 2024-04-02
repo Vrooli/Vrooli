@@ -256,11 +256,13 @@ export interface ProfilePictureInputProps {
     } | null | undefined;
 }
 
-export interface IntegerInputProps extends BoxProps {
+export interface IntegerInputBaseProps extends Omit<BoxProps, "onChange"> {
     allowDecimal?: boolean;
     autoFocus?: boolean;
     disabled?: boolean;
+    error?: boolean;
     fullWidth?: boolean;
+    helperText?: string | boolean | null | undefined;
     key?: string;
     initial?: number;
     label?: string;
@@ -268,9 +270,13 @@ export interface IntegerInputProps extends BoxProps {
     min?: number;
     name: string;
     offset?: number;
+    onChange: (newValue: number) => unknown;
     step?: number;
     tooltip?: string;
+    value: number;
 }
+
+export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
 
 export interface ResourceListInputProps {
     disabled?: boolean;

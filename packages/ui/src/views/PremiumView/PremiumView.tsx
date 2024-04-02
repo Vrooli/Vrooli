@@ -2,10 +2,12 @@ import { API_CREDITS_PREMIUM, LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Link, List, ListItem, ListItemText, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
 import { Testimonials } from "components/Testimonials/Testimonials";
+import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useStripe } from "hooks/useStripe";
 import { useWindowSize } from "hooks/useWindowSize";
-import { CompleteIcon, OpenInNewIcon } from "icons";
+import { CompleteIcon, OpenInNewIcon, ShoppingCartIcon } from "icons";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -40,6 +42,12 @@ export const PremiumView = ({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
+    const [isCustomCreditAmountOpen, setIsCustomCreditAmountOpen] = useState(false);
+    const [customCreditAmount, setCustomCreditAmount] = useState(5);
+
+    const [isCustomDonationAmountOpen, setIsCustomDonationAmountOpen] = useState(false);
+    const [customDonationAmount, setCustomDonationAmount] = useState(20);
+
     const {
         checkFailedCredits,
         checkFailedSubscription,
@@ -54,6 +62,19 @@ export const PremiumView = ({
         if (element) {
             // Scroll so element is in middle of screen
             element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            // Highlight effect with CSS
+            const originalBackground = element.style.backgroundColor;
+            const originalBorderRadius = element.style.borderRadius;
+            element.style.transition = "background-color, 0.5s ease-in-out, border-radius, 0.5s ease-in-out";
+            element.style.backgroundColor = "#ffff9944";
+            element.style.borderRadius = "8px";
+
+            // Remove highlight after some time
+            setTimeout(() => {
+                element.style.backgroundColor = originalBackground;
+                element.style.borderRadius = originalBorderRadius;
+            }, 1000);
         }
     };
 
@@ -232,26 +253,91 @@ export const PremiumView = ({
                         Buy credits to perform AI-related tasks, such as running routines, messaging bots, and auto-filling forms.
                     </Typography>
                     <Box sx={{
-                        background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
-                        color: palette.background.textPrimary,
+                        background: (theme) => `${theme.palette.background.paper}${theme.palette.mode === "light" ? "44" : "c4"}`,
+                        color: (theme) => theme.palette.text.primary,
                         borderRadius: 2,
                         padding: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
                     }}>
-                        <Button
-                            fullWidth
-                            onClick={() => { startCheckout(PaymentType.Credits); }}
-                            variant="outlined"
-                        >{t("CreditsButton")}</Button>
-                        <Button
-                            fullWidth
-                            onClick={() => { checkFailedCredits(); }}
-                            variant="text"
-                            sx={{
-                                textDecoration: "underline",
-                                textTransform: "none",
-                                color: "lightgray",
-                            }}
-                        >Didn't receive credits? Check status</Button>
+                        {!isCustomCreditAmountOpen && <Box sx={{
+                            display: "flex",
+                            flexDirection: { xs: "column", sm: "row" },
+                            gap: 1,
+                        }}>
+                            <Button
+                                fullWidth
+                                onClick={() => { startCheckout(PaymentType.Credits, 500); }}
+                                variant="outlined"
+                            >$5</Button>
+                            <Button
+                                fullWidth
+                                onClick={() => { startCheckout(PaymentType.Credits, 2000); }}
+                                variant="outlined"
+                            >$20</Button>
+                            <Button
+                                fullWidth
+                                onClick={() => { setIsCustomCreditAmountOpen(true); }}
+                                variant="outlined"
+                            >Custom</Button>
+                        </Box>}
+                        {isCustomCreditAmountOpen &&
+                            <Box sx={{
+                                maxWidth: "500px",
+                                width: "100%",
+                                margin: "auto",
+                                marginTop: 2,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                            }}>
+                                <IntegerInputBase
+                                    fullWidth
+                                    label="Custom Amount ($)"
+                                    max={1000}
+                                    min={5}
+                                    name="customCreditAmount"
+                                    value={customCreditAmount}
+                                    onChange={(newValue) => setCustomCreditAmount(newValue)}
+                                />
+                                <Button
+                                    fullWidth
+                                    onClick={() => { startCheckout(PaymentType.Credits, customCreditAmount * 100); }}
+                                    variant="contained"
+                                    disabled={!customCreditAmount}
+                                    endIcon={<ShoppingCartIcon />}
+                                >Buy Credits</Button>
+                            </Box>
+                        }
+                        <Box sx={{
+                            display: "flex",
+                            flexDirection: { xs: "column", sm: "row" },
+                            gap: 1,
+                            justifyContent: "center",
+
+                        }}>
+                            <Button
+                                fullWidth
+                                onClick={() => { scrollToElement("credits-explainer"); }}
+                                variant="text"
+                                sx={{
+                                    textDecoration: "underline",
+                                    textTransform: "none",
+                                    color: "lightgray",
+                                }}
+                            >How do credits work?</Button>
+                            <Button
+                                fullWidth
+                                onClick={() => { checkFailedCredits(); }}
+                                variant="text"
+                                sx={{
+                                    textDecoration: "underline",
+                                    textTransform: "none",
+                                    color: "lightgray",
+                                }}
+                            >Didn't receive credits? Check status</Button>
+                        </Box>
                     </Box>
                 </Box>
                 <Box id="donate" mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
@@ -259,16 +345,63 @@ export const PremiumView = ({
                         Support Vrooli directly by making a donation. Your contribution helps us maintain and improve our services💙
                     </Typography>
                     <Box sx={{
-                        background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
-                        color: palette.background.textPrimary,
+                        background: (theme) => `${theme.palette.background.paper}${theme.palette.mode === "light" ? "44" : "c4"}`,
+                        color: (theme) => theme.palette.text.primary,
                         borderRadius: 2,
                         padding: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
                     }}>
-                        <Button
-                            fullWidth
-                            onClick={() => { startCheckout(PaymentType.Donation); }}
-                            variant="outlined"
-                        >{t("DonationButton")}</Button>
+                        {!isCustomDonationAmountOpen && <Box sx={{
+                            display: "flex",
+                            flexDirection: { xs: "column", sm: "row" },
+                            gap: 1,
+                        }}>
+                            <Button
+                                fullWidth
+                                onClick={() => { startCheckout(PaymentType.Donation, 500); }}
+                                variant="outlined"
+                            >$5</Button>
+                            <Button
+                                fullWidth
+                                onClick={() => { startCheckout(PaymentType.Donation, 2000); }}
+                                variant="outlined"
+                            >$20</Button>
+                            <Button
+                                fullWidth
+                                onClick={() => { setIsCustomDonationAmountOpen(true); }}
+                                variant="outlined"
+                            >Custom</Button>
+                        </Box>}
+                        {isCustomDonationAmountOpen &&
+                            <Box sx={{
+                                maxWidth: "500px",
+                                width: "100%",
+                                margin: "auto",
+                                marginTop: 2,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                            }}>
+                                <IntegerInputBase
+                                    fullWidth
+                                    label="Custom Amount ($)"
+                                    max={1000}
+                                    min={1}
+                                    name="customDonationAmount"
+                                    value={customDonationAmount}
+                                    onChange={(newValue) => setCustomDonationAmount(newValue)}
+                                />
+                                <Button
+                                    fullWidth
+                                    onClick={() => { startCheckout(PaymentType.Donation, customDonationAmount * 100); }}
+                                    variant="contained"
+                                    disabled={!customDonationAmount}
+                                    endIcon={<ShoppingCartIcon />}
+                                >Donate</Button>
+                            </Box>
+                        }
                     </Box>
                 </Box>
                 <Typography variant="h5">Made-Up Testimonials</Typography>
@@ -280,7 +413,7 @@ export const PremiumView = ({
                 }}>
                     <Typography variant="h5" style={{ textAlign: "center", marginBottom: "1.5rem", color: "primary.main" }}>Frequently Asked Questions</Typography>
 
-                    <Typography variant="h6" color="lightgray">1. How is credit usage calculated?</Typography>
+                    <Typography variant="h6" color="lightgray" id="credits-explainer">1. How is credit usage calculated?</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>We base the cost of performing AI-related tasks by the model used, the size of the text passed into each request, and the size of the text returned. We try our best to charge almost exactly what it costs us to run the AI models, and we're always looking for ways to make it cheaper for you.</Typography>
                     <Typography variant="body1" style={{ marginBottom: "1rem" }}>Over time, as models become cheaper and more efficient routines are created, the cost of performing tasks should decrase.</Typography>
 

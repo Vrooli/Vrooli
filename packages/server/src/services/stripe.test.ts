@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
-import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
+import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidCreditsPurchaseSession, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
@@ -347,6 +347,74 @@ describe("isValidSubscriptionSession", () => {
             });
         });
     };
+
+    // Iterate over each environment and run the tests
+    environments.forEach(runTestsForEnvironment);
+});
+
+describe("isValidCreditsPurchaseSession", () => {
+    // Store the original NODE_ENV to restore after tests
+    const originalEnv = process.env.NODE_ENV;
+    const userId = "testUserId";
+
+    // Helper function to run tests in both environments
+    const runTestsForEnvironment = (env) => {
+        describe(`when NODE_ENV is ${env}`, () => {
+            beforeAll(() => {
+                process.env.NODE_ENV = env;
+            });
+
+            afterAll(() => {
+                // Restore the original NODE_ENV after each suite
+                process.env.NODE_ENV = originalEnv;
+            });
+
+            const createMockSession = (overrides) => ({
+                livemode: process.env.NODE_ENV === "production",
+                metadata: {
+                    paymentType: PaymentType.Credits,
+                    userId,
+                },
+                status: "complete",
+                ...overrides,
+            });
+
+            it("returns true for a valid session", () => {
+                const session = createMockSession({});
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(true);
+            });
+
+            it("returns false for a session with an unrecognized payment type", () => {
+                const session = createMockSession({
+                    metadata: { paymentType: "Unrecognized", userId },
+                });
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
+            });
+
+            it("returns false for a session initiated by a different user", () => {
+                const session = createMockSession({
+                    metadata: { paymentType: PaymentType.Credits, userId: "anotherUserId" },
+                });
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
+            });
+
+            it("returns false for an incomplete session", () => {
+                const session = createMockSession({ status: "incomplete" });
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
+            });
+
+            it("returns false for a session in the wrong environment", () => {
+                const session = createMockSession({
+                    // Switch livemode based on environment setting for the test
+                    livemode: !(process.env.NODE_ENV === "production"),
+                });
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
+            });
+        });
+    };
+
+    // Define the environments to test, typically just 'production' and 'development'
+    const environments = ["production", "development"];
 
     // Iterate over each environment and run the tests
     environments.forEach(runTestsForEnvironment);
@@ -1042,10 +1110,10 @@ describe("setupStripe", () => {
 
         // Add expectations for each route
         const endpoints = [
-            ...Object.values(StripeEndpoint),
+            ...Object.values(StripeEndpoint).map(ep => "/api" + ep),
             "/webhooks/stripe",
         ];
-        const gets = [StripeEndpoint.SubscriptionPrices] as string[];
+        const gets = ["/api" + StripeEndpoint.SubscriptionPrices] as string[];
         const posts = endpoints.filter(ep => !gets.includes(ep));
 
         // Check GETs
