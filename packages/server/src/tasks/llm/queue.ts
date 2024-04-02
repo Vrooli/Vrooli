@@ -1,5 +1,7 @@
 import { LlmTask } from "@local/shared";
 import Bull from "bull";
+import path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
 import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage.js";
 import { SessionUserToken } from "../../types.js";
@@ -103,18 +105,23 @@ let HOST: string;
 let PORT: number;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
 let llmQueue: Bull.Queue<LlmRequestPayload>;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export async function setupLlmQueue() {
+export const setupLlmQueue = async () => {
     try {
-        const loggerModule = await import("../../events/logger.js");
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
         logger = loggerModule.logger;
 
-        const redisConnModule = await import("../../redisConn.js");
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
         HOST = redisConnModule.HOST;
         PORT = redisConnModule.PORT;
 
-        const processModule = await import("./process.js");
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
         llmProcess = processModule.llmProcess;
 
         // Initialize the Bull queue
@@ -130,7 +137,7 @@ export async function setupLlmQueue() {
             console.error(errorMessage, error);
         }
     }
-}
+};
 
 /**
  * Responds to a chat message. Handles response generation and processing, 

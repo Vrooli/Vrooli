@@ -821,6 +821,222 @@ const handlePriceUpdated = async ({ event, res }: EventHandlerArgs): Promise<Han
 };
 
 /**
+ * Endpoint for checking subscription prices in the current environment.
+ */
+export const checkSubscriptionPrices = async (stripe: Stripe, res: Response): Promise<void> => {
+    try {
+        // Initialize result
+        const data: SubscriptionPricesResponse = {
+            monthly: await fetchPriceFromRedis(PaymentType.PremiumMonthly) ?? NaN,
+            yearly: await fetchPriceFromRedis(PaymentType.PremiumYearly) ?? NaN,
+        };
+        // Fetch prices from Stripe
+        if (!Number.isInteger(data.monthly)) {
+            const monthlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumMonthly);
+            data.monthly = monthlyPrice?.unit_amount ?? NaN;
+            storePrice(PaymentType.PremiumMonthly, data.monthly);
+        }
+        if (!Number.isInteger(data.yearly)) {
+            const yearlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumYearly);
+            data.yearly = yearlyPrice?.unit_amount ?? NaN;
+            storePrice(PaymentType.PremiumYearly, data.yearly);
+        }
+        // Send result
+        res.status(HttpStatus.Ok).json({ data });
+    } catch (error) {
+        logger.error("Caught error while checking subscription prices", { trace: "0392", error });
+        res.status(HttpStatus.InternalServerError).json({ error });
+    }
+};
+
+/**
+ * Creates a checkout session for buying a subscription, donation, credits, or other payment.
+ */
+const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+    const { userId, variant } = req.body as CreateCheckoutSessionParams;
+    const priceId = getPriceIds()[variant];
+    const paymentType = variant as PaymentType;
+    if (!priceId) {
+        logger.error("Invalid variant", { trace: "0436", userId, variant });
+        res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
+        return;
+    }
+    try {
+        const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
+        // We typically need the user to exist, but not always
+        const paymentsThatDontNeedUser = [PaymentType.Donation];
+        if (!customerInfo.userId && !paymentsThatDontNeedUser.includes(paymentType)) {
+            res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
+            return;
+        }
+        // Create customer ID if it doesn't exist
+        if (!customerInfo.stripeCustomerId) {
+            customerInfo.stripeCustomerId = await createStripeCustomerId({
+                customerInfo,
+                requireUserToExist: !paymentsThatDontNeedUser.includes(paymentType),
+                stripe,
+            });
+        }
+        // Create checkout session 
+        const session = await stripe.checkout.sessions.create({
+            success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
+            cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
+            payment_method_types: ["card"],
+            line_items: [
+                {
+                    price: priceId,
+                    quantity: 1,
+                },
+            ],
+            mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
+            customer: customerInfo.stripeCustomerId,
+            metadata: {
+                paymentType,
+                userId: userId ?? null,
+            } as CheckoutSessionMetadata,
+        });
+        // Redirect to checkout page
+        if (session.url) {
+            const data: CreateCheckoutSessionResponse = { url: session.url };
+            res.status(HttpStatus.Ok).json({ data });
+        } else {
+            throw new Error("No session URL returned from Stripe");
+        }
+    } catch (error) {
+        logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
+        res.status(HttpStatus.InternalServerError).json({ error });
+    }
+};
+
+/**
+ * Creates a portal session for updating payment method or switching/canceling subscription.
+ */
+const createPortalSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+    const { userId, returnUrl } = req.body as CreatePortalSessionParams;
+
+    try {
+        const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
+        if (!customerInfo.userId) {
+            res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
+            return;
+        }
+        // Create customer ID if it doesn't exist
+        if (!customerInfo.stripeCustomerId) {
+            customerInfo.stripeCustomerId = await createStripeCustomerId({
+                customerInfo,
+                requireUserToExist: true,
+                stripe,
+            });
+        }
+        // Create portal session
+        const session = await stripe.billingPortal.sessions.create({
+            customer: customerInfo.stripeCustomerId as string,
+            return_url: returnUrl ?? UI_URL,
+        });
+        // Redirect to portal page
+        const data: CreateCheckoutSessionResponse = { url: session.url };
+        res.status(HttpStatus.Ok).json({ data });
+    } catch (error) {
+        logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
+        res.status(HttpStatus.InternalServerError).json({ error });
+    }
+};
+
+/**
+ * Checks your subscription status, and fixes your subscription status if a payment
+ * was not processed correctly.
+ */
+const checkSubscription = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+    let data: CheckSubscriptionResponse = { status: "not_subscribed" };
+    const { userId } = req.body as CheckSubscriptionParams;
+    try {
+        const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: true });
+        if (!customerInfo.userId) {
+            throw new Error("User not found");
+        }
+        // If already active, return
+        if (customerInfo.hasPremium) {
+            data = { status: "already_subscribed" };
+            res.status(HttpStatus.Ok).json({ data });
+            return;
+        }
+        // Return found subscription info
+        if (customerInfo.subscriptionInfo) {
+            data = {
+                status: "now_subscribed",
+                paymentType: customerInfo.subscriptionInfo.paymentType,
+            };
+            // Process payment so the user gets their subscription
+            await processPayment(stripe, customerInfo.subscriptionInfo.session, customerInfo.subscriptionInfo.subscription);
+            res.status(HttpStatus.Ok).json({ data });
+        }
+    } catch (error) {
+        logger.error("Caught error checking subscription status", { trace: "0430", error, userId });
+        res.status(HttpStatus.InternalServerError).json({ error });
+    }
+};
+
+/**
+ * Fixes any credits that were paid for but not awarded.
+ */
+const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+    const data: CheckCreditsPaymentResponse = { status: "already_received_all_credits" };
+    const { userId } = req.body as CheckCreditsPaymentParams;
+    try {
+        const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
+        if (!customerInfo.userId) {
+            throw new Error("User not found");
+        }
+        //TODO
+    } catch (error) {
+        logger.error("Caught error checking credits payment status", { trace: "0439", error, userId });
+        res.status(HttpStatus.InternalServerError).json({ error });
+    }
+};
+
+/**
+ * Webhook handler for Stripe events.
+ */
+const handleStripeWebhook = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+    const sig: string | string[] = req.headers["stripe-signature"] || "";
+    let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
+    try {
+        // Parse event and verify that it comes from Stripe
+        const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
+        // Call appropriate handler
+        const eventHandlers: { [key in Stripe.WebhookEndpointUpdateParams.EnabledEvent]?: Handler } = {
+            "checkout.session.completed": handleCheckoutSessionCompleted,
+            "checkout.session.expired": handleCheckoutSessionExpired,
+            "customer.deleted": handleCustomerDeleted,
+            "customer.source.expiring": handleCustomerSourceExpiring,
+            "customer.subscription.deleted": handleCustomerSubscriptionDeleted,
+            "customer.subscription.trial_will_end": handleCustomerSubscriptionTrialWillEnd,
+            "customer.subscription.updated": handleCustomerSubscriptionUpdated,
+            "invoice.created": handleInvoicePaymentCreated,
+            "invoice.payment_failed": handleInvoicePaymentFailed,
+            "invoice.payment_succeeded": handleInvoicePaymentSucceeded,
+            "price.updated": handlePriceUpdated,
+        };
+        if (event.type in eventHandlers) {
+            result = await eventHandlers[event.type]({ event, stripe, res });
+        } else {
+            // We should only be subscribing to events we want to handle. Meaning if 
+            // we reach here, we should go to the Stripe dashboard and remove the unhandled event
+            // from the webhook configuration
+            logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
+        }
+    } catch (error) {
+        logger.error("Caught error in /webhooks/stripe", { trace: "0454", error });
+    }
+    res.status(result.status);
+    if (result.message) {
+        res.send(result.message);
+    } else {
+        res.send();
+    }
+};
+
+/**
  * Sets up Stripe-related routes on the provided Express application instance.
  *
  * @param app - The Express application instance to attach routes to.
@@ -831,8 +1047,7 @@ export const setupStripe = (app: Express): void => {
         return;
     }
     // Set up Stripe
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
         apiVersion: "2022-11-15",
         typescript: true,
         appInfo: {
@@ -841,203 +1056,22 @@ export const setupStripe = (app: Express): void => {
             version: "2.0.0",
         },
     });
-    // Create endpoint for checking subscription prices
-    app.get("/api" + StripeEndpoint.SubscriptionPrices, async (_req: Request, res: Response) => {
-        // Initialize result
-        const data: SubscriptionPricesResponse = {
-            monthly: await fetchPriceFromRedis(PaymentType.PremiumMonthly) ?? NaN,
-            yearly: await fetchPriceFromRedis(PaymentType.PremiumYearly) ?? NaN,
-        };
-        // Fetch prices from Stripe
-        if (!data.monthly) {
-            const monthlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumMonthly);
-            data.monthly = monthlyPrice.unit_amount ?? NaN;
-            storePrice(PaymentType.PremiumMonthly, data.monthly);
-        }
-        if (!data.yearly) {
-            const yearlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumYearly);
-            data.yearly = yearlyPrice.unit_amount ?? NaN;
-            storePrice(PaymentType.PremiumYearly, data.yearly);
-        }
-        // Send result
-        res.json({ data });
+    app.get(StripeEndpoint.SubscriptionPrices, async (_req: Request, res: Response) => {
+        await checkSubscriptionPrices(stripe, res);
     });
-    app.post("/api" + StripeEndpoint.CreateCheckoutSession, async (req: Request, res: Response) => {
-        const { userId, variant } = req.body as CreateCheckoutSessionParams;
-        const priceId = getPriceIds()[variant];
-        const paymentType = variant as PaymentType;
-        if (!priceId) {
-            logger.error("Invalid variant", { trace: "0436", userId, variant });
-            res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
-            return;
-        }
-        try {
-            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
-            // We typically need the user to exist, but not always
-            const paymentsThatDontNeedUser = [PaymentType.Donation];
-            if (!customerInfo.userId && !paymentsThatDontNeedUser.includes(paymentType)) {
-                res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
-                return;
-            }
-            // Create customer ID if it doesn't exist
-            if (!customerInfo.stripeCustomerId) {
-                customerInfo.stripeCustomerId = await createStripeCustomerId({
-                    customerInfo,
-                    requireUserToExist: !paymentsThatDontNeedUser.includes(paymentType),
-                    stripe,
-                });
-            }
-            // Create checkout session 
-            const session = await stripe.checkout.sessions.create({
-                success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
-                cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
-                payment_method_types: ["card"],
-                line_items: [
-                    {
-                        price: priceId,
-                        quantity: 1,
-                    },
-                ],
-                mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
-                customer: customerInfo.stripeCustomerId,
-                metadata: {
-                    paymentType,
-                    userId: userId ?? null,
-                } as CheckoutSessionMetadata,
-            });
-            // Redirect to checkout page
-            if (session.url) {
-                const data: CreateCheckoutSessionResponse = { url: session.url };
-                res.status(HttpStatus.Ok).json({ data });
-            } else {
-                throw new Error("No session URL returned from Stripe");
-            }
-            return;
-        } catch (error) {
-            logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
-            res.status(HttpStatus.InternalServerError).json({ error });
-            return;
-        }
+    app.post(StripeEndpoint.CreateCheckoutSession, async (req: Request, res: Response) => {
+        await createCheckoutSession(stripe, req, res);
     });
-    // Create endpoint for updating payment method and switching/canceling subscription
-    app.post("/api" + StripeEndpoint.CreatePortalSession, async (req: Request, res: Response) => {
-        const { userId, returnUrl } = req.body as CreatePortalSessionParams;
-
-        try {
-            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
-            if (!customerInfo.userId) {
-                res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
-                return;
-            }
-            // Create customer ID if it doesn't exist
-            if (!customerInfo.stripeCustomerId) {
-                customerInfo.stripeCustomerId = await createStripeCustomerId({
-                    customerInfo,
-                    requireUserToExist: true,
-                    stripe,
-                });
-            }
-            // Create portal session
-            const session = await stripe.billingPortal.sessions.create({
-                customer: customerInfo.stripeCustomerId as string,
-                return_url: returnUrl ?? UI_URL,
-            });
-            // Redirect to portal page
-            const data: CreateCheckoutSessionResponse = { url: session.url };
-            res.status(HttpStatus.Ok).json({ data });
-        } catch (error) {
-            logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
-            res.status(HttpStatus.InternalServerError).json({ error });
-            return;
-        }
+    app.post(StripeEndpoint.CreatePortalSession, async (req: Request, res: Response) => {
+        await createPortalSession(stripe, req, res);
     });
-    // Create endpoint for fixing subscription status
-    app.post("/api" + StripeEndpoint.CheckSubscription, async (req: Request, res: Response) => {
-        let data: CheckSubscriptionResponse = { status: "not_subscribed" };
-        const { userId } = req.body as CheckSubscriptionParams;
-        try {
-            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: true });
-            if (!customerInfo.userId) {
-                throw new Error("User not found");
-            }
-            // If already active, return
-            if (customerInfo.hasPremium) {
-                data = { status: "already_subscribed" };
-                res.status(HttpStatus.Ok).json({ data });
-                return;
-            }
-            // Return found subscription info
-            if (customerInfo.subscriptionInfo) {
-                data = {
-                    status: "now_subscribed",
-                    paymentType: customerInfo.subscriptionInfo.paymentType,
-                };
-                // Process payment so the user gets their subscription
-                await processPayment(stripe, customerInfo.subscriptionInfo.session, customerInfo.subscriptionInfo.subscription);
-                res.status(HttpStatus.Ok).json({ data });
-                return;
-            }
-        } catch (error) {
-            logger.error("Caught error checking subscription status", { trace: "0430", error, userId });
-            res.status(HttpStatus.InternalServerError).json({ error });
-            return;
-        }
-        return res.status(HttpStatus.Ok).json({ data });
+    app.post(StripeEndpoint.CheckSubscription, async (req: Request, res: Response) => {
+        await checkSubscription(stripe, req, res);
     });
-    // Create endpoint for fixing credits that were not awarded
-    app.post("/api" + StripeEndpoint.CheckCreditsPayment, async (req: Request, res: Response) => {
-        const data: CheckCreditsPaymentResponse = { status: "already_received_all_credits" };
-        const { userId } = req.body as CheckCreditsPaymentParams;
-        try {
-            const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
-            if (!customerInfo.userId) {
-                throw new Error("User not found");
-            }
-            //TODO
-        } catch (error) {
-            logger.error("Caught error checking credits payment status", { trace: "0439", error, userId });
-            res.status(HttpStatus.InternalServerError).json({ error });
-            return;
-        }
-        return res.status(HttpStatus.Ok).json({ data });
+    app.post(StripeEndpoint.CheckCreditsPayment, async (req: Request, res: Response) => {
+        await checkCreditsPayment(stripe, req, res);
     });
-    // Create webhook endpoint for messages from Stripe (e.g. payment completed, subscription renewed/canceled)
     app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
-        const sig: string | string[] = req.headers["stripe-signature"] || "";
-        let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
-        try {
-            // Parse event and verify that it comes from Stripe
-            const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
-            // Call appropriate handler
-            const eventHandlers: { [key in Stripe.WebhookEndpointUpdateParams.EnabledEvent]?: Handler } = {
-                "checkout.session.completed": handleCheckoutSessionCompleted,
-                "checkout.session.expired": handleCheckoutSessionExpired,
-                "customer.deleted": handleCustomerDeleted,
-                "customer.source.expiring": handleCustomerSourceExpiring,
-                "customer.subscription.deleted": handleCustomerSubscriptionDeleted,
-                "customer.subscription.trial_will_end": handleCustomerSubscriptionTrialWillEnd,
-                "customer.subscription.updated": handleCustomerSubscriptionUpdated,
-                "invoice.created": handleInvoicePaymentCreated,
-                "invoice.payment_failed": handleInvoicePaymentFailed,
-                "invoice.payment_succeeded": handleInvoicePaymentSucceeded,
-                "price.updated": handlePriceUpdated,
-            };
-            if (event.type in eventHandlers) {
-                result = await eventHandlers[event.type]({ event, stripe, res });
-            } else {
-                // We should only be subscribing to events we want to handle. Meaning if 
-                // we reach here, we should go to the Stripe dashboard and remove the unhandled event
-                // from the webhook configuration
-                logger.warning("Unhandled Stripe event", { trace: "0438", event: event.type });
-            }
-        } catch (error) {
-            logger.error("Caught error in /webhooks/stripe", { trace: "0454", error });
-        }
-        res.status(result.status);
-        if (result.message) {
-            res.send(result.message);
-        } else {
-            res.send();
-        }
+        await handleStripeWebhook(stripe, req, res);
     });
 };

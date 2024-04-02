@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
+import { CustomError } from "../../events/error";
 
 export type EmailProcessPayload = {
     to: string[];
@@ -76,7 +77,7 @@ export const sendMail = (
 ) => {
     // Must include at least one "to" email address
     if (to.length === 0) {
-        throw new Error("Email must have at least one recipient");
+        throw new CustomError("0354", "InternalError", ["en"]);
     }
     emailQueue.add({
         to,

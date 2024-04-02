@@ -42,11 +42,11 @@ interface WithRedisProps {
 /**
  * Handles the Redis connection/disconnection and error logging
  */
-export async function withRedis({
+export const withRedis = async ({
     process,
     trace,
     traceObject,
-}: WithRedisProps): Promise<boolean> {
+}: WithRedisProps): Promise<boolean> => {
     let success = false;
     try {
         const redis = await initializeRedis();
@@ -56,4 +56,4 @@ export async function withRedis({
         logger.error("Caught error in withRedis", { trace, error, ...traceObject });
     }
     return success;
-}
+};

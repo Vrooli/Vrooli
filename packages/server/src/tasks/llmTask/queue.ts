@@ -1,6 +1,8 @@
 import { SessionUserToken } from "@local/server";
 import { LlmTaskInfo } from "@local/shared";
 import Bull from "bull";
+import path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
 
 export type LlmTaskProcessPayload = {
@@ -19,18 +21,23 @@ let HOST: string;
 let PORT: number;
 let llmTaskProcess: (job: Bull.Job<LlmTaskProcessPayload>) => Promise<unknown>;
 let llmTaskQueue: Bull.Queue<LlmTaskProcessPayload>;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export async function setupLlmTaskQueue() {
+export const setupLlmTaskQueue = async () => {
     try {
-        const loggerModule = await import("../../events/logger.js");
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
         logger = loggerModule.logger;
 
-        const redisConnModule = await import("../../redisConn.js");
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
         HOST = redisConnModule.HOST;
         PORT = redisConnModule.PORT;
 
-        const processModule = await import("./process.js");
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
         llmTaskProcess = processModule.llmTaskProcess;
 
         // Initialize the Bull queue
@@ -46,7 +53,7 @@ export async function setupLlmTaskQueue() {
             console.error(errorMessage, error);
         }
     }
-}
+};
 
 export const processLlmTask = (data: LlmTaskProcessPayload) => {
     llmTaskQueue.add(data, { timeout: 1000 * 60 * 1 });

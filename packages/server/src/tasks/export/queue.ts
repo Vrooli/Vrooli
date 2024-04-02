@@ -1,4 +1,6 @@
 import Bull from "bull";
+import path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
 
 export type ExportProcessPayload = {
@@ -10,19 +12,24 @@ let HOST: string;
 let PORT: number;
 let exportProcess: (job: Bull.Job<ExportProcessPayload>) => Promise<unknown>;
 let exportQueue: Bull.Queue<ExportProcessPayload>;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export async function setupExportQueue() {
+export const setupExportQueue = async () => {
     try {
-        const loggerModule = await import("../../events/logger.js");
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
         logger = loggerModule.logger;
 
-        const redisConnModule = await import("../../redisConn.js");
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
         HOST = redisConnModule.HOST;
         PORT = redisConnModule.PORT;
 
-        const processModule = await import("./process.js");
-        exportProcess = processModule.exportProcess;
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
+        exportProcess = processModule.emailProcess;
 
         // Initialize the Bull queue
         exportQueue = new Bull<ExportProcessPayload>("export", {
@@ -37,7 +44,7 @@ export async function setupExportQueue() {
             console.error(errorMessage, error);
         }
     }
-}
+};
 
 export const exportData = (data: ExportProcessPayload) => {
     exportQueue.add(data); //TODO

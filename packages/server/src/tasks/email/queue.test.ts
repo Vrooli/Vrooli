@@ -105,7 +105,7 @@ describe("sendMail function tests", () => {
     it("throws an error if no recipient is provided", async () => {
         expect(() => {
             sendMail([], "Subject", "Text body");
-        }).toThrow("Email must have at least one recipient");
+        }).toThrow();
     });
 });
 

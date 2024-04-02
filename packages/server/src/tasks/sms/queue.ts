@@ -1,6 +1,9 @@
 import { BUSINESS_NAME } from "@local/shared";
 import Bull from "bull";
+import path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
+import { CustomError } from "../../events/error";
 
 export type SmsProcessPayload = {
     to: string[];
@@ -12,18 +15,23 @@ let HOST: string;
 let PORT: number;
 let smsProcess: (job: Bull.Job<SmsProcessPayload>) => Promise<unknown>;
 let smsQueue: Bull.Queue<SmsProcessPayload>;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export async function setupSmsQueue() {
+export const setupSmsQueue = async () => {
     try {
-        const loggerModule = await import("../../events/logger.js");
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
         logger = loggerModule.logger;
 
-        const redisConnModule = await import("../../redisConn.js");
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
         HOST = redisConnModule.HOST;
         PORT = redisConnModule.PORT;
 
-        const processModule = await import("./process.js");
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
         smsProcess = processModule.smsProcess;
 
         // Initialize the Bull queue
@@ -39,9 +47,13 @@ export async function setupSmsQueue() {
             console.error(errorMessage, error);
         }
     }
-}
+};
 
-export const sendSms = (to = [], body: string) => {
+export const sendSms = (to: string[], body: string) => {
+    // Must include at least one "to" number
+    if (to.length === 0) {
+        throw new CustomError("0353", "InternalError", ["en"]);
+    }
     smsQueue.add({ to, body });
 };
 

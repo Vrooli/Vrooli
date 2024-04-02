@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { HttpStatus, PaymentType } from "@local/shared";
+import { HttpStatus, PaymentType, StripeEndpoint } from "@local/shared";
 import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
-import { createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, storePrice } from "./stripe";
+import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
@@ -441,7 +441,7 @@ describe("getVerifiedSubscriptionInfo", () => {
     });
 
     afterEach(() => {
-        StripeMock.clearData();
+        StripeMock.resetMock();
         PrismaClient.clearData();
     });
 
@@ -581,7 +581,7 @@ describe("getVerifiedCustomerInfo", () => {
     });
 
     afterEach(() => {
-        StripeMock.clearData();
+        StripeMock.resetMock();
         PrismaClient.clearData();
     });
 
@@ -712,7 +712,7 @@ describe("createStripeCustomerId", () => {
     });
 
     afterEach(() => {
-        StripeMock.clearData();
+        StripeMock.resetMock();
         PrismaClient.clearData();
     });
 
@@ -798,7 +798,7 @@ describe("handleCheckoutSessionExpired", () => {
     });
 
     afterEach(() => {
-        StripeMock.clearData();
+        StripeMock.resetMock();
         PrismaClient.clearData();
     });
 
@@ -858,7 +858,7 @@ describe("handleCustomerDeleted", () => {
     });
 
     afterEach(() => {
-        StripeMock.clearData();
+        StripeMock.resetMock();
         PrismaClient.clearData();
     });
 
@@ -904,5 +904,158 @@ describe("handleCustomerDeleted", () => {
 
         // Expect the function to still return an OK status without throwing any errors
         expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+    });
+});
+
+describe("checkSubscriptionPrices", () => {
+    let stripeMock;
+    let resMock;
+    const monthlyPrice = 1_000;
+    const yearlyPrice = 10_000;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        // Setup Stripe Mock
+        stripeMock = new StripeMock() as unknown as Stripe;
+        StripeMock.injectData({
+            prices: [{
+                id: getPriceIds().PremiumMonthly,
+                unit_amount: monthlyPrice,
+            }, {
+                id: getPriceIds().PremiumYearly,
+                unit_amount: yearlyPrice,
+            }],
+        });
+
+        // Setup Redis Mock
+        RedisClientMock.resetMock();
+        RedisClientMock.__setAllMockData({});
+
+        // Mock response object
+        resMock = {
+            status: jest.fn(() => resMock),
+            json: jest.fn(),
+        };
+    });
+
+    afterEach(() => {
+        StripeMock.resetMock();
+    });
+
+    test("should successfully return prices from Redis", async () => {
+        storePrice(PaymentType.PremiumMonthly, 69);
+        storePrice(PaymentType.PremiumYearly, 420);
+
+        await checkSubscriptionPrices(stripeMock, resMock);
+
+        expect(resMock.status).toHaveBeenCalledWith(200);
+        expect(resMock.json).toHaveBeenCalledWith({
+            data: {
+                monthly: 69,
+                yearly: 420,
+            },
+        });
+    });
+
+    test("should fallback to Stripe when prices are not available in Redis", async () => {
+        await checkSubscriptionPrices(stripeMock, resMock);
+
+        const redisMonthlyPrice = await fetchPriceFromRedis(PaymentType.PremiumMonthly);
+        const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
+        expect(redisMonthlyPrice).toBe(monthlyPrice);
+        expect(redisYearlyPrice).toBe(yearlyPrice);
+
+        expect(resMock.status).toHaveBeenCalledWith(200);
+        expect(resMock.json).toHaveBeenCalledWith({
+            data: {
+                monthly: monthlyPrice,
+                yearly: yearlyPrice,
+            },
+        });
+    });
+
+    test("should recover from redis failures", async () => {
+        RedisClientMock.simulateFailure(true);
+
+        await checkSubscriptionPrices(stripeMock, resMock);
+
+        expect(resMock.status).toHaveBeenCalledWith(200);
+        expect(resMock.json).toHaveBeenCalledWith({
+            data: {
+                monthly: monthlyPrice,
+                yearly: yearlyPrice,
+            },
+        });
+    });
+
+    test("should handle partial data availability", async () => {
+        storePrice(PaymentType.PremiumMonthly, 69);
+
+        await checkSubscriptionPrices(stripeMock, resMock);
+
+        const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
+        expect(redisYearlyPrice).toBe(yearlyPrice);
+
+        expect(resMock.status).toHaveBeenCalledWith(200);
+        expect(resMock.json).toHaveBeenCalledWith({
+            data: {
+                monthly: 69,
+                yearly: yearlyPrice,
+            },
+        });
+    });
+
+    test("should catch stripe errors", async () => {
+        StripeMock.simulateFailure(true);
+
+        await checkSubscriptionPrices(stripeMock, resMock);
+
+        expect(resMock.status).toHaveBeenCalledWith(500);
+        expect(resMock.json).toHaveBeenCalledWith({ error: expect.any(Object) });
+    });
+});
+
+describe("setupStripe", () => {
+    let app;
+    beforeEach(() => {
+        app = { get: jest.fn(), post: jest.fn() };
+        process.env.STRIPE_SECRET_KEY = "sk_test_123";
+        process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_456";
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test("should log error and return if Stripe keys are missing", () => {
+        delete process.env.STRIPE_SECRET_KEY;
+
+        setupStripe(app);
+
+        expect(app.get).not.toHaveBeenCalled();
+        expect(app.post).not.toHaveBeenCalled();
+    });
+
+    test("should setup Stripe routes if keys are provided", () => {
+        setupStripe(app);
+
+        // Add expectations for each route
+        const endpoints = [
+            ...Object.values(StripeEndpoint),
+            "/webhooks/stripe",
+        ];
+        const gets = [StripeEndpoint.SubscriptionPrices] as string[];
+        const posts = endpoints.filter(ep => !gets.includes(ep));
+
+        // Check GETs
+        gets.forEach((endpoint) => {
+            expect(app.get.mock.calls.flat()).toContain(endpoint);
+        });
+
+        // Check POSTs
+        posts.forEach((endpoint) => {
+            expect(app.post.mock.calls.flat()).toContain(endpoint);
+        });
     });
 });

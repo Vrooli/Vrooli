@@ -1,4 +1,6 @@
 import Bull from "bull";
+import path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
 
 export type PushSubscription = {
@@ -21,18 +23,23 @@ let HOST: string;
 let PORT: number;
 let pushProcess: (job: Bull.Job<PushSubscription & PushPayload>) => Promise<unknown>;
 let pushQueue: Bull.Queue<PushSubscription & PushPayload>;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export async function setupPushQueue() {
+export const setupPushQueue = async () => {
     try {
-        const loggerModule = await import("../../events/logger.js");
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
         logger = loggerModule.logger;
 
-        const redisConnModule = await import("../../redisConn.js");
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
         HOST = redisConnModule.HOST;
         PORT = redisConnModule.PORT;
 
-        const processModule = await import("./process.js");
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
         pushProcess = processModule.pushProcess;
 
         // Initialize the Bull queue
@@ -48,7 +55,7 @@ export async function setupPushQueue() {
             console.error(errorMessage, error);
         }
     }
-}
+};
 
 export const sendPush = (subscription: PushSubscription, payload: PushPayload, delay = 0) => {
     pushQueue.add({
