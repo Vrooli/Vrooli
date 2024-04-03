@@ -4,7 +4,7 @@ type PrismaSelect = Record<string, any>;
 
 let globalDataStore = {};
 
-function mockFindUnique<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> {
+const mockFindUnique = <T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> => {
     const records = globalDataStore[model] || [];
     const whereKeys = Object.keys(args.where);
     const item = records.find(record =>
@@ -16,23 +16,9 @@ function mockFindUnique<T>(model: string, args: { where: Record<string, any>, se
     // Return only the fields that are requested in the select clause
     const result = constructSelectResponse(item, args.select);
     return Promise.resolve(result) as any;
-}
+};
 
-function mockFindFirst<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> {
-    const records = globalDataStore[model] || [];
-    const whereKeys = Object.keys(args.where);
-
-    const item = records.find(record =>
-        whereKeys.every(key => evaluateCondition(record, key, args.where[key])),
-    );
-
-    if (!item) return Promise.resolve(null);
-
-    const result = constructSelectResponse(item, args.select);
-    return Promise.resolve(result) as any;
-}
-
-function evaluateCondition(record, key: string, condition) {
+const evaluateCondition = (record, key: string, condition) => {
     if (typeof condition === "object" && condition !== null) {
         // Handle "in" condition
         if ("in" in condition) {
@@ -62,9 +48,23 @@ function evaluateCondition(record, key: string, condition) {
         // Direct equality
         return record[key] === condition;
     }
-}
+};
 
-function mockFindMany<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T[]> {
+const mockFindFirst = <T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> => {
+    const records = globalDataStore[model] || [];
+    const whereKeys = Object.keys(args.where);
+
+    const item = records.find(record =>
+        whereKeys.every(key => evaluateCondition(record, key, args.where[key])),
+    );
+
+    if (!item) return Promise.resolve(null);
+
+    const result = constructSelectResponse(item, args.select);
+    return Promise.resolve(result) as any;
+};
+
+const mockFindMany = <T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T[]> => {
     const records = globalDataStore[model] || [];
     const whereKeys = Object.keys(args.where);
 
@@ -74,36 +74,44 @@ function mockFindMany<T>(model: string, args: { where: Record<string, any>, sele
 
     const results = filteredItems.map(item => constructSelectResponse(item, args.select));
     return Promise.resolve(results) as unknown as Promise<T[]>;
-}
+};
 
-function mockCreate<T>(model: string, args: { data: T }): Promise<T> {
+const mockCreate = <T>(model: string, args: { data: T }): Promise<T> => {
     const records = globalDataStore[model] || [];
     const newItem = { id: uuid(), ...args.data };
     records.push(newItem);
     return Promise.resolve(newItem);
-}
+};
 
-function constructSelectResponse<T>(item: T, select?: Record<string, boolean>): Partial<T> {
+const constructSelectResponse = <T>(item: T, select?: Record<string, any>): Partial<T> => {
     if (!select) return item; // If no select clause, return the whole item
 
-    function constructNestedResponse(nestedItem: any, nestedSelect: Record<string, any>) {
+    function constructNestedResponse(nestedItem: any, nestedSelect: Record<string, any>, parentModel?: string) {
         return Object.keys(nestedSelect).reduce((acc, key) => {
-            if (nestedSelect[key] === true) {
-                if (nestedItem[key] !== undefined) {
-                    acc[key] = nestedItem[key];
-                }
+            if (nestedSelect[key] === true && nestedItem[key] !== undefined) {
+                acc[key] = nestedItem[key];
             } else if (typeof nestedSelect[key] === "object" && nestedItem[key] !== undefined) {
-                // Check for Prisma pattern where relations are wrapped in "select"
+                // Derive the related model name and ensure it matches keys in globalDataStore
+                const relatedModelName = key.charAt(0).toUpperCase() + key.slice(1); // Adjust as necessary
+
                 if (nestedSelect[key].select) {
                     if (Array.isArray(nestedItem[key])) {
-                        // Handle array of relations
-                        acc[key] = nestedItem[key].map(item => constructNestedResponse(item, nestedSelect[key].select));
+                        // Initialize relatedModel in globalDataStore if not present
+                        if (!globalDataStore[relatedModelName]) globalDataStore[relatedModelName] = [];
+
+                        acc[key] = nestedItem[key].map(relatedItem => {
+                            const relatedData = globalDataStore[relatedModelName].find(r => r.id === relatedItem.id);
+                            return constructNestedResponse(relatedData ?? relatedItem, nestedSelect[key].select, relatedModelName);
+                        });
                     } else {
-                        // Handle single relation object
-                        acc[key] = constructNestedResponse(nestedItem[key], nestedSelect[key].select);
+                        // For single relation object, safely fetch related data or fallback
+                        const relatedData = parentModel
+                            ? nestedItem[key]
+                            : globalDataStore[relatedModelName]?.find(r => r.id === nestedItem[key].id) ?? nestedItem[key];
+                        acc[key] = constructNestedResponse(relatedData, nestedSelect[key].select, relatedModelName);
                     }
                 } else {
-                    acc[key] = constructNestedResponse(nestedItem[key], nestedSelect[key]);
+                    acc[key] = constructNestedResponse(nestedItem[key], nestedSelect[key], parentModel);
                 }
             }
             return acc;
@@ -112,9 +120,9 @@ function constructSelectResponse<T>(item: T, select?: Record<string, boolean>): 
 
     const result = constructNestedResponse(item, select);
     return result as Partial<T>;
-}
+};
 
-function mockUpdate<T>(model: string, args: { where: Record<string, any>, data: T }): Promise<T> {
+const mockUpdate = <T>(model: string, args: { where: Record<string, any>, data: T }): Promise<T> => {
     const records = globalDataStore[model] || [];
     const whereKeys = Object.keys(args.where);
     const index = records.findIndex(record =>
@@ -125,9 +133,9 @@ function mockUpdate<T>(model: string, args: { where: Record<string, any>, data: 
 
     records[index] = { ...records[index], ...args.data };
     return Promise.resolve(records[index]);
-}
+};
 
-function mockUpsert<T>(model: string, args: { where: Record<string, any>, create: T, update: T }): Promise<T> {
+const mockUpsert = <T>(model: string, args: { where: Record<string, any>, create: T, update: T }): Promise<T> => {
     const records = globalDataStore[model] || [];
     const existingItem = mockFindUnique(records, { where: args.where });
     return existingItem.then(item => {
@@ -137,7 +145,7 @@ function mockUpsert<T>(model: string, args: { where: Record<string, any>, create
             return mockCreate(records, { data: args.create });
         }
     });
-}
+};
 
 class PrismaClientMock {
     static instance = new PrismaClientMock();

@@ -193,6 +193,7 @@ export * from "./models";
 export * from "./notify";
 export * from "./redisConn";
 export * from "./server";
+export * from "./sockets/events";
 export * from "./tasks";
 export * from "./utils";
 export * from "./validators";

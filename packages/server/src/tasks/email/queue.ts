@@ -121,11 +121,11 @@ export const feedbackNotifyAdmin = (text: string, from?: string) => {
 };
 
 /** Adds a thank you email for a completed payment (not recurring) to a task queue */
-export const sendPaymentThankYou = (emailAddress: string, paymentType: PaymentType) => {
+export const sendPaymentThankYou = (emailAddress: string, isDonation: boolean) => {
     emailQueue.add({
         to: [emailAddress],
-        subject: `Thank you for your ${paymentType === PaymentType.Donation ? "donation" : "purchase"}!`,
-        text: paymentType === PaymentType.Donation ?
+        subject: `Thank you for your ${isDonation ? "donation" : "purchase"}!`,
+        text: isDonation ?
             `Thank you for your donation to ${BUSINESS_NAME}! Your support is greatly appreciated.` :
             `Thank you for purchasing a premium subscription to ${BUSINESS_NAME}! Your benefits will be available immediately. Thank you for your support!`,
     });

@@ -1,4 +1,4 @@
-import { Notify, batch, logger, prismaInstance } from "@local/server";
+import { Notify, batch, emitSocketEvent, logger, prismaInstance } from "@local/server";
 import { API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
@@ -40,6 +40,8 @@ export const paymentsCreditsFreePremium = async (): Promise<void> => {
                         const language = user.languages.length > 0 ? user.languages[0].language : "en";
                         Notify(language).pushFreeCreditsReceived().toUser(user.id);
                     }
+                    // Update credits shown in UI for user, if they happen to be online
+                    emitSocketEvent("apiCredits", user.id, { credits: user.premium.credits + "" });
                 }
             },
             select: {

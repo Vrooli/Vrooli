@@ -1,4 +1,4 @@
-import { API_CREDITS_FREE, API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
@@ -38,7 +38,7 @@ export const PRICE_IDS_PROD: Record<PaymentType, string> = {
     PremiumYearly: "price_1OygGCJq1sLW02CVDVmTfWDA",
 };
 
-enum PaymentMethod {
+export enum PaymentMethod {
     Stripe = "Stripe",
 }
 
@@ -50,7 +50,11 @@ export const getPriceIds = (): Record<PaymentType, string> => {
     return process.env.NODE_ENV === "production" ? PRICE_IDS_PROD : PRICE_IDS_DEV;
 };
 
-/** Finds the payment type of a Stripe price */
+/** 
+ * Finds the payment type of a Stripe price 
+ * 
+ * @throws Error if the price ID is invalid
+ */
 export const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPrice): PaymentType => {
     const priceId = typeof price === "string" ? price : price.id;
     const prices = getPriceIds();
@@ -490,7 +494,7 @@ export const processPayment = async (
     }
     // Send thank you notification
     for (const email of payment.user.emails) {
-        sendPaymentThankYou(email.emailAddress, payment.paymentType as PaymentType);
+        sendPaymentThankYou(email.emailAddress, [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(payment.paymentType as PaymentType));
     }
 };
 
@@ -552,7 +556,7 @@ export const handleCustomerDeleted = async ({ event, res }: EventHandlerArgs): P
 };
 
 /** Customer's credit card is about to expire */
-const handleCustomerSourceExpiring = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleCustomerSourceExpiring = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Find user with the given Stripe customer ID
@@ -617,97 +621,113 @@ export const handleCustomerSubscriptionTrialWillEnd = async ({ event, res }: Omi
     return handlerResult(HttpStatus.Ok, res);
 };
 
-/** User updated subscription (i.e. switched from monthly to yearly, canceled, or renewed) */
-const handleCustomerSubscriptionUpdated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+/**
+ * Calculates the expiration date and active status of a subscription.
+ * 
+ * @param currentPeriodEnd - The end of the current billing cycle as a Unix timestamp in seconds.
+ * @returns The new expiration date and active status.
+ */
+export const calculateExpiryAndStatus = (currentPeriodEnd: number) => {
+    const newExpiresAt = new Date(currentPeriodEnd * 1000); // Convert seconds to milliseconds
+    const now = new Date();
+    const isActive = newExpiresAt > now;
+    return { newExpiresAt, isActive };
+};
+
+/** 
+ * Occurs whenever a subscription changes (e.g., switching from monthly 
+ * to yearly, or changing the status from trial to active). 
+ */
+export const handleCustomerSubscriptionUpdated = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
-    // Check that subscription contains exactly one item
-    if (subscription.items.data.length !== 1) {
-        return handlerResult(HttpStatus.InternalServerError, res, `Subscription contains ${subscription.items.data.length} items`, "0471", { customerId });
+
+    // Skip processing if the subscription is not marked as active. 
+    // Canceled subscriptions are handled by the customer.subscription.deleted event.
+    if (subscription.status !== "active") {
+        // This isn't a problem with the request itself, so we'll return a 200 status code
+        return handlerResult(HttpStatus.Ok, res, "Subscription is not active.");
     }
-    const paymentType = getPaymentType(subscription.items.data[0].price.id);
-    // Calculate new expiration date based on current period end of subscription
-    const nextBillingCycleTimestamp = subscription.current_period_end;
-    const newExpiresAt = new Date(nextBillingCycleTimestamp * 1000);
-    const isActive = subscription.status === "active";
-    // Fetch user with stripeCustomerId
+
     const user = await prismaInstance.user.findFirst({
         where: { stripeCustomerId: customerId },
+        select: {
+            id: true,
+            emails: {
+                select: {
+                    emailAddress: true,
+                },
+            },
+        },
     });
-    // If no user is found, return with error
     if (!user) {
         return handlerResult(HttpStatus.InternalServerError, res, "User not found on customer.subscription.updated", "0457", { customerId });
     }
-    // Find or create premium record
-    let premiumRecord = await prismaInstance.premium.findFirst({
-        where: { user: { id: user.id } },
-        select: {
-            id: true,
-            user: { select: { emails: { select: { emailAddress: true } } } },
+
+    // Calculate new expiration date and active status. 
+    // Should always be active, unless the new expiry date is somehow in the past
+    const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
+    // Note that we're not updating the user's credits here, as that would only happen when 
+    // activating a subscription. That's handled by the checkout.session.completed event.
+    await prismaInstance.user.update({
+        where: { id: user.id },
+        data: {
+            premium: {
+                upsert: {
+                    create: {
+                        enabledAt: isActive ? new Date() : undefined,
+                        expiresAt: newExpiresAt,
+                        isActive,
+                    },
+                    update: {
+                        expiresAt: newExpiresAt,
+                        isActive,
+                    },
+                },
+            },
         },
     });
-    if (premiumRecord) {
-        // Update the record
-        await prismaInstance.premium.update({
-            where: { id: premiumRecord.id },
-            data: {
-                expiresAt: newExpiresAt.toISOString(),
-                isActive,
-            },
-        });
-    } else {
-        // Create a new record
-        premiumRecord = await prismaInstance.premium.create({
-            data: {
-                user: { connect: { id: user.id } },
-                expiresAt: newExpiresAt.toISOString(),
-                isActive,
-            },
-            select: {
-                id: true,
-                user: { select: { emails: { select: { emailAddress: true } } } },
-            },
-        });
-    }
-    // If subscription was activated, update credits and send notification
-    if (isActive && premiumRecord?.user) {
-        await prismaInstance.user.update({
-            where: { id: user.id },
-            data: {
-                premium: {
-                    update: {
-                        credits: API_CREDITS_PREMIUM,
-                    },
-                },
-            },
-        });
-        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_PREMIUM + "" });
-        for (const email of premiumRecord.user.emails) {
-            sendPaymentThankYou(email.emailAddress, paymentType);
+
+    if (isActive) {
+        for (const email of user.emails) {
+            sendPaymentThankYou(email.emailAddress, false);
         }
-    }
-    // If subscription was canceled, remove credits and send notification
-    else if (!isActive && premiumRecord?.user) {
-        await prismaInstance.user.update({
-            where: { id: user.id },
-            data: {
-                premium: {
-                    update: {
-                        credits: API_CREDITS_FREE,
-                    },
-                },
-            },
-        });
-        emitSocketEvent("apiCredits", user.id, { credits: API_CREDITS_FREE + "" });
-        for (const email of premiumRecord.user.emails) {
+    } else {
+        for (const email of user.emails) {
             sendSubscriptionCanceled(email.emailAddress);
         }
     }
+
     return handlerResult(HttpStatus.Ok, res);
 };
 
+export const parseInvoiceData = (invoice: Stripe.Invoice) => {
+    // For our purposes, we can assume that there is only one line in the invoice.
+    const line = invoice.lines.data.length > 0 ? invoice.lines.data[0] : null;
+    if (!line) {
+        return { error: "No lines found in invoice" };
+    }
+    const { amount, price } = line;
+    const paymentType = price ? getPaymentType(price) : null;
+    // If this is a payment type we don't understand, return error
+    if (!paymentType) {
+        return { error: "Unknown payment type" };
+    }
+    // Return data used to upsert payments from invoices
+    return {
+        data: {
+            checkoutId: invoice.id, // Typically we use a checkout ID here. But for invoices we'll use the invoice ID
+            amount,
+            currency: invoice.currency,
+            paymentMethod: PaymentMethod.Stripe,
+            paymentType,
+            description: "Payment for Invoice ID: " + invoice.id,
+        },
+    } as const;
+};
+
 /** Payment created, but not finalized */
-const handleInvoicePaymentCreated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleInvoicePaymentCreated = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find user with the given Stripe customer ID
@@ -716,61 +736,85 @@ const handleInvoicePaymentCreated = async ({ event, res }: EventHandlerArgs): Pr
     });
     // Check if user is found
     if (!user) {
-        return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0456", { customerId, invoice: invoice.id });
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found", "0456", { customerId, invoice });
     }
-    // Check if invoice.lines, invoice.lines.data[0], and invoice.lines.data[0].price are not null
-    const price = invoice.lines && invoice.lines.data[0] && invoice.lines.data[0].price;
-    if (!price) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Price not found", "0225", { customerId, invoice: invoice.id });
+    const { data: paymentData, error: paymentError } = parseInvoiceData(invoice);
+    if (paymentError || !paymentData) {
+        return handlerResult(HttpStatus.InternalServerError, res, paymentError ?? "Unknown error occurred", "0225", { customerId, invoice });
     }
-    // Create new payment in the database
-    const newPayment = await prismaInstance.payment.create({
-        data: {
+    // Upsert payment in the database
+    const existingPayment = await prismaInstance.payment.findFirst({
+        where: {
             checkoutId: invoice.id,
-            amount: invoice.amount_due,
-            currency: invoice.currency,
-            paymentMethod: PaymentMethod.Stripe,
-            paymentType: getPaymentType(price),
-            status: PaymentStatus.Pending,
-            userId: user.id,
-            description: "Payment for Invoice ID: " + invoice.id,
+            user: { stripeCustomerId: customerId },
         },
+        select: { id: true },
     });
-    // Check if payment creation was successful
-    if (!newPayment) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Payment creation failed", "0458", { customerId, invoice: invoice.id });
+    if (existingPayment) {
+        await prismaInstance.payment.update({
+            where: { id: existingPayment.id },
+            data: {
+                ...paymentData,
+                status: PaymentStatus.Pending,
+            },
+        });
+    } else {
+        await prismaInstance.payment.create({
+            data: {
+                ...paymentData,
+                status: PaymentStatus.Pending,
+                user: { connect: { id: user.id } },
+            },
+        });
     }
     return handlerResult(HttpStatus.Ok, res);
 };
 
 /** Payment failed */
-const handleInvoicePaymentFailed = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleInvoicePaymentFailed = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find corresponding payment in the database
-    const payment = await prismaInstance.payment.findFirst({
+    const paymentSelect = {
+        id: true,
+        paymentType: true,
+        user: {
+            select: {
+                emails: { select: { emailAddress: true } },
+            },
+        },
+    } as const;
+    let payment = await prismaInstance.payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
         },
-        select: {
-            id: true,
-            paymentType: true,
-            user: {
-                select: {
-                    emails: { select: { emailAddress: true } },
-                },
-            },
-        },
+        select: paymentSelect,
     });
     if (!payment) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Invoice payment not found.", "0444", { customerId, invoice: invoice.id });
+        logger.warning("Did not find existing invoice. This may indicate that handleInvoicePaymentCreated is not working propertly", { trace: "0172", invoice });
+        // Create a new payment
+        const { data: paymentData, error: paymentError } = parseInvoiceData(invoice);
+        if (paymentError || !paymentData) {
+            return handlerResult(HttpStatus.InternalServerError, res, paymentError ?? "Unknown error occurred", "0229", { customerId, invoice });
+        }
+        payment = await prismaInstance.payment.create({
+            data: {
+                ...paymentData,
+                status: PaymentStatus.Failed,
+                user: {
+                    connect: { stripeCustomerId: customerId },
+                },
+            },
+            select: paymentSelect,
+        });
+    } else {
+        // Update the payment status to Failed
+        await prismaInstance.payment.update({
+            where: { id: payment.id },
+            data: { status: PaymentStatus.Failed },
+        });
     }
-    // Update the payment status to Failed
-    await prismaInstance.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.Failed },
-    });
     // Notify user
     for (const email of payment.user?.emails ?? []) {
         sendPaymentFailed(email.emailAddress, payment.paymentType as PaymentType);

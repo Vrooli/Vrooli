@@ -178,7 +178,7 @@ describe("Email task enqueuing tests", () => {
     });
 
     it("correctly enqueues email for sendPaymentThankYou function", async () => {
-        sendPaymentThankYou(testEmail, PaymentType.Donation);
+        sendPaymentThankYou(testEmail, true);
         await expectEmailToBeEnqueuedWith(emailQueue, {
             to: [testEmail],
         });
