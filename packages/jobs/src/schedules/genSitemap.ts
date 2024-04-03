@@ -1,4 +1,4 @@
-import { logger, ModelMap, PrismaType, UI_URL_REMOTE, withPrisma } from "@local/server";
+import { logger, ModelMap, prismaInstance, UI_URL_REMOTE } from "@local/server";
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
 import fs from "fs";
 import path from "path";
@@ -61,7 +61,6 @@ const uuidToBase36 = (uuid: string): string => {
  * @returns Names of the files that were generated
  */
 const genSitemapForObject = async (
-    prisma: PrismaType,
     objectType: typeof sitemapObjectTypes[number],
 ): Promise<string[]> => {
     logger.info(`Generating sitemap for ${objectType}`);
@@ -85,7 +84,7 @@ const genSitemapForObject = async (
         do {
             // Find all public objects
             const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], objectType);
-            const batch = await delegate(prisma).findMany({
+            const batch = await delegate(prismaInstance).findMany({
                 where: {
                     ...validate().visibility.public,
                 },
@@ -172,24 +171,22 @@ export const genSitemap = async (): Promise<void> => {
     }
     // Initialize ModelMap, which is needed later
     await ModelMap.init();
-    const success = await withPrisma({
-        process: async (prisma) => {
-            const sitemapFileNames: string[] = [];
-            // Generate sitemap for each object type
-            for (const objectType of sitemapObjectTypes) {
-                const sitemapFileNamesForObject = await genSitemapForObject(prisma, objectType);
-                // Add sitemap file names to array
-                sitemapFileNames.push(...sitemapFileNamesForObject);
-            }
-            // Generate sitemap index file
-            const sitemapIndex = generateSitemapIndex(`${UI_URL_REMOTE}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
-            // Write sitemap index file
-            fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
-        },
-        trace: "0463",
-        traceObject: { routeSitemapFileName, sitemapDir },
-    });
-    if (success) logger.info("✅ Sitemap generated successfully");
+    try {
+        const sitemapFileNames: string[] = [];
+        // Generate sitemap for each object type
+        for (const objectType of sitemapObjectTypes) {
+            const sitemapFileNamesForObject = await genSitemapForObject(objectType);
+            // Add sitemap file names to array
+            sitemapFileNames.push(...sitemapFileNamesForObject);
+        }
+        // Generate sitemap index file
+        const sitemapIndex = generateSitemapIndex(`${UI_URL_REMOTE}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
+        // Write sitemap index file
+        fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
+        logger.info("✅ Sitemap generated successfully");
+    } catch (error) {
+        logger.error("genSitemap caught error", { error, trace: "0463", routeSitemapFileName, sitemapDir });
+    }
 };
 
 export const isSitemapMissing = async (): Promise<boolean> => {

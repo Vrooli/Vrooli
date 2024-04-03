@@ -1,4 +1,4 @@
-import { batch } from "@local/server";
+import { batch, logger, prismaInstance } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 /**
@@ -11,37 +11,41 @@ export const logSmartContractStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => await batch<Prisma.smart_contract_versionFindManyArgs>({
-    objectType: "SmartContractVersion",
-    processBatch: async (batch, prisma) => {
-        await prisma.stats_smart_contract.createMany({
-            data: batch.map(smartContractVersion => ({
-                smartContractId: smartContractVersion.root.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                calls: 0, //TODO no way to track calls yet
-                routineVersions: smartContractVersion._count.calledByRoutineVersions,
-            })),
+) => {
+    try {
+        await batch<Prisma.smart_contract_versionFindManyArgs>({
+            objectType: "SmartContractVersion",
+            processBatch: async (batch) => {
+                await prismaInstance.stats_smart_contract.createMany({
+                    data: batch.map(smartContractVersion => ({
+                        smartContractId: smartContractVersion.root.id,
+                        periodStart,
+                        periodEnd,
+                        periodType,
+                        calls: 0, //TODO no way to track calls yet
+                        routineVersions: smartContractVersion._count.calledByRoutineVersions,
+                    })),
+                });
+            },
+            select: {
+                id: true,
+                root: {
+                    select: { id: true },
+                },
+                _count: {
+                    select: { calledByRoutineVersions: true },
+                },
+            },
+            where: {
+                calledByRoutineVersions: {
+                    some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
+                },
+                isDeleted: false,
+                isLatest: true,
+                root: { isDeleted: false },
+            },
         });
-    },
-    select: {
-        id: true,
-        root: {
-            select: { id: true },
-        },
-        _count: {
-            select: { calledByRoutineVersions: true },
-        },
-    },
-    trace: "0424",
-    traceObject: { periodType, periodStart, periodEnd },
-    where: {
-        calledByRoutineVersions: {
-            some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
-        },
-        isDeleted: false,
-        isLatest: true,
-        root: { isDeleted: false },
-    },
-});
+    } catch (error) {
+        logger.error("logSmartContractStats caught error", { error, trace: "0103", periodType, periodStart, periodEnd });
+    }
+};

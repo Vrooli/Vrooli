@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
-import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlerResult, isInCorrectEnvironment, isValidCreditsPurchaseSession, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
+import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
@@ -975,6 +975,82 @@ describe("handleCustomerDeleted", () => {
     });
 });
 
+describe("handlePriceUpdated", () => {
+    let res;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        RedisClientMock.resetMock();
+        RedisClientMock.__setAllMockData({});
+        res = {
+            send: jest.fn(),
+            status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
+        };
+    });
+
+    it("handles a valid price update event", async () => {
+        // Setup
+        const event = {
+            data: {
+                object: {
+                    id: getPriceIds().PremiumMonthly,
+                    unit_amount: 1000,
+                },
+            },
+        } as unknown as Stripe.Event;
+
+        // Act
+        const result = await handlePriceUpdated({ event, res });
+
+        // Assert
+        const storedPrice = await fetchPriceFromRedis(PaymentType.PremiumMonthly);
+        expect(storedPrice).toBe(1000);
+        expect(result).toEqual({ status: HttpStatus.Ok });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+    });
+
+    it("handles an event with undefined unit_amount by not storing the price", async () => {
+        // Setup
+        const event = {
+            data: {
+                object: {
+                    id: "price_123456",
+                    unit_amount: undefined,
+                },
+            },
+        } as unknown as Stripe.Event;
+        await storePrice(PaymentType.PremiumYearly, 420);
+
+        // Act
+        const result = await handlePriceUpdated({ event, res });
+
+        // Assert
+        expect(result).toEqual({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+        const originalStoredPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
+        expect(originalStoredPrice).toBe(420);
+    });
+
+    it("throws error for unknown price ID", async () => {
+        // Setup
+        const event = {
+            data: {
+                object: {
+                    id: "price_unknown",
+                    unit_amount: 1000,
+                },
+            },
+        } as unknown as Stripe.Event;
+
+        // Act
+        const result = await handlePriceUpdated({ event, res });
+
+        // Assert
+        expect(result).toEqual({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+    });
+});
+
 describe("checkSubscriptionPrices", () => {
     let stripeMock;
     let resMock;
@@ -1081,6 +1157,49 @@ describe("checkSubscriptionPrices", () => {
 
         expect(resMock.status).toHaveBeenCalledWith(500);
         expect(resMock.json).toHaveBeenCalledWith({ error: expect.any(Object) });
+    });
+});
+
+// NOTE: session.created is in seconds
+describe("isStripeObjectOlderThan", () => {
+    // Constant for 180 days in milliseconds
+    const DAYS_180_MS = 180 * 24 * 60 * 60 * 1000;
+    const DAYS_1_MS = 24 * 60 * 60 * 1000;
+    const HOURS_1_MS = 60 * 60 * 1000;
+
+    test("should return true for a session older than 180 days", () => {
+        const session = {
+            created: (Date.now() - (DAYS_180_MS + DAYS_1_MS)) / 1000, // 181 days in the past
+        };
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(true);
+    });
+
+    test("should return false for a session exactly 180 days old", () => {
+        const session = {
+            created: (Date.now() - DAYS_180_MS) / 1000, // 180 days in the past
+        };
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(false);
+    });
+
+    test("should return false for a session less than 180 days old", () => {
+        const session = {
+            created: (Date.now() - (DAYS_180_MS - DAYS_1_MS)) / 1000, // 179 days in the past
+        };
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(false);
+    });
+
+    test("should handle sessions in the future as less than 180 days old", () => {
+        const session = {
+            created: (Date.now() + DAYS_1_MS) / 1000, // 1 day in the future
+        };
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(false);
+    });
+
+    test("should return true when age difference is set to 0 days and the session is in the past", () => {
+        const session = {
+            created: (Date.now() - HOURS_1_MS) / 1000, // 1 hour in the past
+        };
+        expect(isStripeObjectOlderThan(session, 0)).toBe(true);
     });
 });
 

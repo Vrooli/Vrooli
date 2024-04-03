@@ -8,7 +8,7 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { BatchProps, EmbeddableType, EmbeddingTables, FindManyArgs, GenericModelLogic, ModelMap, PrismaType, batch, getEmbeddings } from "@local/server";
+import { EmbeddableType, EmbeddingTables, FindManyArgs, GenericModelLogic, ModelMap, batch, getEmbeddings, logger, prismaInstance } from "@local/server";
 import { RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
@@ -41,13 +41,11 @@ const extractTranslatedSentences = <T extends { translations: { language: string
 
 /**
  * Updates the embedding for a given object.
- * @param prisma - The Prisma client instance.
  * @param tableName - The name of the table where the embeddings should be updated.
  * @param id - The id of the object to update.
  * @param embeddings - The text embedding array returned from the API.
  */
 const updateEmbedding = async (
-    prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
     id: string,
     embeddings: number[],
@@ -55,19 +53,17 @@ const updateEmbedding = async (
     const tableName = EmbeddingTables[objectType];
     const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;
     // Use raw query to update the embedding, because the Prisma client doesn't support Postgres vectors
-    await prisma.$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
+    await prismaInstance.$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
 };
 
 /**
  * Processes a batch of translatable objects and updates each stale translation embedding.
  * @param batch - The batch of objects to process.
- * @param prisma - The Prisma client instance.
  * @param instruction - The instruction used to generate the embeddings.
  * @param tableName - The name of the table where the embeddings should be updated. e.g. "api_version_translation"
  */
 const processTranslatedBatchHelper = async (
     batch: { translations: { id: string, embeddingNeedsUpdate: boolean, language: string }[] }[],
-    prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
     if (!ModelMap.isModel(objectType)) return;
@@ -81,7 +77,7 @@ const processTranslatedBatchHelper = async (
     await Promise.all(batch.map(async (curr, index) => {
         const translationsToUpdate = curr.translations.filter(t => t.embeddingNeedsUpdate);
         for (const translation of translationsToUpdate) {
-            await updateEmbedding(prisma, objectType, translation.id, embeddings[index]);
+            await updateEmbedding(objectType, translation.id, embeddings[index]);
         }
     }));
 };
@@ -90,13 +86,11 @@ const processTranslatedBatchHelper = async (
 /**
  * Processes a batch of non-translatable objects and updates their embeddings.
  * @param batch - The batch of objects to process.
- * @param prisma - The Prisma client instance.
  * @param instruction - The instruction used to generate the embeddings.
  * @param tableName - The name of the table where the embeddings should be updated. e.g. "reminder"
  */
 const processUntranslatedBatchHelper = async (
     batch: { id: string }[],
-    prisma: PrismaType,
     objectType: EmbeddableType | `${EmbeddableType}`,
 ): Promise<void> => {
     if (!ModelMap.isModel(objectType)) return;
@@ -109,9 +103,17 @@ const processUntranslatedBatchHelper = async (
     // Update the embeddings for each object
     await Promise.all(
         batch.map(async (obj, index) => {
-            await updateEmbedding(prisma, objectType, obj.id, embeddings[index]);
+            await updateEmbedding(objectType, obj.id, embeddings[index]);
         }),
     );
+};
+
+type EmbeddingBatchProps<T extends FindManyArgs> = {
+    objectType: EmbeddableType | `${EmbeddableType}`,
+    processBatch: (batch: any[], objectType: `${EmbeddableType}`) => Promise<void>,
+    trace: string,
+    traceObject?: Record<string, any>,
+    where: T["where"],
 };
 
 const embeddingBatch = async <T extends FindManyArgs>({
@@ -119,19 +121,20 @@ const embeddingBatch = async <T extends FindManyArgs>({
     processBatch,
     trace,
     traceObject,
-    ...props
-}: Omit<BatchProps<T>, "batchSize" | "objectType" | "processBatch" | "select"> & {
-    objectType: EmbeddableType | `${EmbeddableType}`,
-    processBatch: (batch: any[], prisma: PrismaType, objectType: `${EmbeddableType}`) => Promise<void>,
-}) => batch<T>({
-    batchSize: API_BATCH_SIZE,
-    objectType,
-    processBatch: async (batch, prisma) => await processBatch(batch, prisma, objectType),
-    select: ModelMap.get(objectType).display().embed!.select(),
-    trace,
-    traceObject,
-    ...props,
-});
+    where,
+}: EmbeddingBatchProps<T>) => {
+    try {
+        await batch<T>({
+            batchSize: API_BATCH_SIZE,
+            objectType,
+            processBatch: async (batch) => processBatch(batch, objectType),
+            select: ModelMap.get(objectType).display().embed!.select(),
+            where,
+        });
+    } catch (error) {
+        logger.error("embeddingBatch caught error", { error, trace, ...traceObject });
+    }
+};
 
 const batchEmbeddingsApiVersion = async () => embeddingBatch<Prisma.api_versionFindManyArgs>({
     objectType: "ApiVersion",

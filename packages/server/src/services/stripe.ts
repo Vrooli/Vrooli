@@ -1,4 +1,5 @@
-import { API_CREDITS_FREE, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_FREE, API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { PrismaPromise } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { prismaInstance } from "../db/instance";
@@ -390,7 +391,7 @@ export const processPayment = async (
     }
     // Upsert paid payment
     const data = {
-        amount: session.amount_subtotal ?? session.amount_total ?? 0,
+        amount: session.amount_subtotal ?? 0, // Use subtotal because total includes tax, discounts, etc.
         checkoutId,
         currency: session.currency ?? "usd",
         description: "Checkout: " + paymentType,
@@ -400,6 +401,7 @@ export const processPayment = async (
     } as const;
     const paymentId = payments.length > 0 ? payments[0].id : undefined;
     const paymentSelect = {
+        amount: true,
         paymentType: true,
         user: {
             select: {
@@ -425,7 +427,22 @@ export const processPayment = async (
     }
     // If credits, award user the relevant number of credits
     if (payment.paymentType === PaymentType.Credits) {
-        //TODO
+        const creditsToAward = (BigInt(payment.amount) * API_CREDITS_MULTIPLIER);
+        await prismaInstance.user.update({
+            where: { id: payment.user.id },
+            data: {
+                premium: {
+                    upsert: {
+                        create: {
+                            credits: creditsToAward,
+                        },
+                        update: {
+                            credits: { increment: creditsToAward },
+                        },
+                    },
+                },
+            },
+        });
     }
     // If subscription, upsert premium status
     else if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
@@ -821,12 +838,19 @@ const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandle
  * This means this condition isn't needed unless Stripe changes how prices work. 
  * But I already wrote it, so I'm leaving it here.
  */
-const handlePriceUpdated = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handlePriceUpdated = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
     const price = event.data.object as Stripe.Price;
-    const paymentType = getPaymentType(price);
-    const updatedAmount = price.unit_amount;
-    storePrice(paymentType, updatedAmount ?? 0);
-    return handlerResult(HttpStatus.Ok, res);
+    try {
+        const paymentType = getPaymentType(price);
+        const updatedAmount = price.unit_amount;
+        if (updatedAmount) {
+            await storePrice(paymentType, updatedAmount ?? 0);
+            return handlerResult(HttpStatus.Ok, res);
+        }
+    } catch (error) {
+        logger.error("Caught error in handlePriceUpdated", { trace: "0172", error });
+    }
+    return handlerResult(HttpStatus.InternalServerError, res, "Price amount not found", "0170", { price });
 };
 
 /**
@@ -1013,6 +1037,21 @@ const checkSubscription = async (stripe: Stripe, req: Request, res: Response): P
 };
 
 /**
+ * Checks if a Stripe object is older than a specified age difference. 
+ * Useful for expiration purposes.
+ */
+export const isStripeObjectOlderThan = (
+    stripeObject: { created: number }, // "created" is in seconds, according to Stripe API
+    ageDifferenceMs: number,
+) => {
+    const now = Date.now();
+    return (stripeObject.created * 1000) + ageDifferenceMs < now;
+};
+
+// Constant for 180 days in milliseconds
+const DAYS_180_MS = 180 * 24 * 60 * 60 * 1000;
+
+/**
  * Fixes any credits that were paid for but not awarded.
  */
 const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
@@ -1029,9 +1068,10 @@ const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response):
             return;
         }
         // Find checkout sessions associated with the user
-        const sessionsChecked = 0;
-        const creditsToAward = 0;
-        const done = false;
+        let sessionsChecked = 0;
+        let creditsToAward = BigInt(0); // Credits to award in cents * API_CREDITS_MULTIPLIER
+        const upsertOperations: Promise<object>[] = []; // Holds upsert operations for payments
+        let done = false;
         // Continually fetch sessions until we reach a maximum of 250, 
         // or until we reach sessions older than 180 days
         while (!done && sessionsChecked < 250) {
@@ -1040,16 +1080,79 @@ const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response):
                 customer: customerInfo.stripeCustomerId,
                 limit: 25,
             });
-            // Collect API credit sessions
-            const apiCreditSessions = sessionsList.data.filter(session => isValidCreditsPurchaseSession(session, userId));
-            // TODO fetch payments in database. missing ones should be counted, as well as ones marked as pending
-            // TODO create/update payments
-            // TODO accumulate credis to award
-            // TODO if no more sessions to fetch or the last fetched session was over 180 days ago, break
+            sessionsChecked += sessionsList.data.length;
+            // Collect valid and complete API credit sessions
+            let validCreditSessions = sessionsList.data.filter(session => isValidCreditsPurchaseSession(session, userId));
+            // Fetch payments in database. missing ones should be counted, as well as ones marked as pending
+            const existingPayments = await prismaInstance.payment.findMany({
+                where: {
+                    checkoutId: { in: validCreditSessions.map(session => session.id) },
+                    paymentMethod: PaymentMethod.Stripe,
+                    user: { stripeCustomerId: customerInfo.stripeCustomerId },
+                },
+                select: {
+                    id: true,
+                    checkoutId: true,
+                    status: true,
+                },
+            });
+            // Filter out sessions which we've already processed and marked as paid
+            validCreditSessions = validCreditSessions.filter(session => {
+                const payment = existingPayments.find(payment => payment.checkoutId === session.id);
+                return !payment || payment.status !== PaymentStatus.Paid;
+            });
+            // Accumulate credis to award and payments that need to be upserted
+            for (const session of validCreditSessions) {
+                creditsToAward += (BigInt(session.amount_subtotal ?? 0) * API_CREDITS_MULTIPLIER); // Use subtotal because total includes tax, discounts, etc.
+                const payment = existingPayments.find(payment => payment.checkoutId === session.id);
+                const paymentData = {
+                    amount: session.amount_subtotal ?? 0, // Use subtotal because total includes tax, discounts, etc.
+                    checkoutId: session.id,
+                    currency: session.currency ?? "usd", // TODO Hopefully always usd, or else our credits logic is flawed (both here and in processPayment). We'll have to see...
+                    status: PaymentStatus.Paid,
+                    paymentMethod: PaymentMethod.Stripe,
+                };
+                if (payment) {
+                    upsertOperations.push(prismaInstance.payment.update({
+                        where: { id: payment.id },
+                        data: paymentData,
+                    }));
+                } else {
+                    upsertOperations.push(prismaInstance.payment.create({
+                        data: {
+                            ...paymentData,
+                            description: "Credits Purchase",
+                            user: { connect: { id: customerInfo.userId } },
+                        },
+                    }));
+                }
+            }
+            // If no more sessions to fetch or the last fetched session was over 180 days ago, break
+            if (!sessionsList.has_more || isStripeObjectOlderThan(sessionsList.data[sessionsList.data.length - 1], DAYS_180_MS)) {
+                done = true;
+            }
         }
-        // If there are credits to award, award them
+        // If there are credits to award, award them and upsert payments in the database
         if (creditsToAward > 0) {
-            //TODO
+            const updateUserCredits = prismaInstance.user.update({
+                where: { id: userId },
+                data: {
+                    premium: {
+                        upsert: {
+                            create: {
+                                credits: creditsToAward,
+                            },
+                            update: {
+                                credits: { increment: creditsToAward },
+                            },
+                        },
+                    },
+                },
+            });
+            // Execute all operations in one transaction
+            await prismaInstance.$transaction([updateUserCredits, ...upsertOperations] as PrismaPromise<object>[]);
+            data.status = "new_credits_received";
+            res.status(HttpStatus.Ok).json({ data });
         } else {
             data.status = "already_received_all_credits";
             res.status(HttpStatus.Ok).json({ data });

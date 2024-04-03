@@ -1,35 +1,38 @@
-import { FindManyArgs, batch, logger } from "@local/server";
+import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
 import { GqlModelType, uppercaseFirstLetter } from "@local/shared";
 import pkg from "lodash";
 
 const { camelCase } = pkg;
 
 const processTableInBatches = async (tableName: string): Promise<void> => {
-    await batch<FindManyArgs>({
-        objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
-        processBatch: async (batch, prisma) => {
-            for (const item of batch) {
-                const actualCount = item._count.bookmarkedBy;
-                if (item.bookmarks !== actualCount) {
-                    logger.warning(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
-                    await prisma[tableName].update({
-                        where: { id: item.id },
-                        data: { bookmarks: actualCount },
-                    });
+    try {
+        await batch<FindManyArgs>({
+            objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
+            processBatch: async (batch) => {
+                for (const item of batch) {
+                    const actualCount = item._count.bookmarkedBy;
+                    if (item.bookmarks !== actualCount) {
+                        logger.warning(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
+                        await prismaInstance[tableName].update({
+                            where: { id: item.id },
+                            data: { bookmarks: actualCount },
+                        });
+                    }
                 }
-            }
-        },
-        select: {
-            id: true,
-            bookmarks: true,
-            _count: {
-                select: {
-                    bookmarkedBy: true,
+            },
+            select: {
+                id: true,
+                bookmarks: true,
+                _count: {
+                    select: {
+                        bookmarkedBy: true,
+                    },
                 },
             },
-        },
-        trace: "0166",
-    });
+        });
+    } catch (error) {
+        logger.error("processTableInBatches caught error", { error, trace: "0166" });
+    }
 };
 
 export const countBookmarks = async (): Promise<void> => {

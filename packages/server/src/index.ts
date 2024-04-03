@@ -187,6 +187,7 @@ if (process.env.npm_package_name === "@local/server") {
 
 // Export files for "jobs" package
 export * from "./builders";
+export * from "./db/instance";
 export * from "./events";
 export * from "./models";
 export * from "./notify";

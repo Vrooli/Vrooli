@@ -102,7 +102,7 @@ export async function cudHelper({
     const deletedIdsByType: { [key in GqlModelType]?: string[] } = {};
     const beforeDeletedData: { [key in GqlModelType]?: object } = {};
     // Create array to store operations for transaction
-    const operations: PrismaPromise<any>[] = [];
+    const operations: Promise<object>[] = [];
     // Loop through each type to populate operations array
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         const { delegate, idField, mutate } = ModelMap.getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
@@ -124,7 +124,7 @@ export async function cudHelper({
                     data,
                     select,
                 });
-                operations.push(createOperation as any);
+                operations.push(createOperation);
             }
         }
         // Update
@@ -139,7 +139,7 @@ export async function cudHelper({
                     data,
                     select,
                 });
-                operations.push(updateOperation as any);
+                operations.push(updateOperation);
             }
         }
         // Delete
@@ -161,14 +161,14 @@ export async function cudHelper({
                 const deleteOperation = delegate(prismaInstance).deleteMany({
                     where: { [idField]: { in: existingIds } },
                 });
-                operations.push(deleteOperation as any);
+                operations.push(deleteOperation);
             } catch (error) {
                 throw new CustomError("0417", "InternalError", userData.languages, { error, deletingIds, objectType });
             }
         }
     }
     // Perform all operations in transaction
-    const transactionResult = await prismaInstance.$transaction(operations);
+    const transactionResult = await prismaInstance.$transaction(operations as PrismaPromise<object>[]);
     // Loop again through each type to process results
     let transactionIndex = 0;
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
