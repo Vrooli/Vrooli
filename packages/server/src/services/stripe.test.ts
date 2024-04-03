@@ -2,13 +2,21 @@
 import { HttpStatus, PaymentType, StripeEndpoint } from "@local/shared";
 import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
+import Bull from "../__mocks__/bull";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
-import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
+import { setupEmailQueue } from "../tasks/email/queue";
+import { checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handleCustomerSubscriptionDeleted, handleCustomerSubscriptionTrialWillEnd, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, setupStripe, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
 const environments = ["development", "production"];
+
+const createRes = () => ({
+    json: jest.fn(),
+    send: jest.fn(),
+    status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
+});
 
 describe("getPaymentType", () => {
     const originalEnv = process.env.NODE_ENV;
@@ -859,10 +867,7 @@ describe("handleCheckoutSessionExpired", () => {
                 stripeCustomerId: "customer2",
             }],
         });
-        res = {
-            send: jest.fn(),
-            status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
-        };
+        res = createRes();
     });
 
     afterEach(() => {
@@ -919,10 +924,7 @@ describe("handleCustomerDeleted", () => {
                 stripeCustomerId: "customer2",
             }],
         });
-        res = {
-            send: jest.fn(),
-            status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
-        };
+        res = createRes();
     });
 
     afterEach(() => {
@@ -975,6 +977,146 @@ describe("handleCustomerDeleted", () => {
     });
 });
 
+const expectEmailQueue = (mockQueue, expectedData) => {
+    // Check if the add function was called
+    expect(mockQueue.add).toHaveBeenCalled();
+
+    // Extract the actual data passed to the mock
+    const actualData = mockQueue.add.mock.calls[0][0];
+
+    // If there's expected data, match it against the actual data
+    if (expectedData) {
+        expect(actualData).toMatchObject(expectedData);
+    }
+};
+
+describe("handleCustomerSubscriptionDeleted", () => {
+    let res;
+    let emailQueue;
+
+    beforeAll(async () => {
+        emailQueue = new Bull("email");
+        await setupEmailQueue();
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        res = createRes();
+        Bull.resetMock();
+        PrismaClient.injectData({
+            User: [{
+                id: "user1",
+                stripeCustomerId: "cus_123",
+                emails: [{ emailAddress: "user@example.com" }],
+                premium: { isActive: true },
+            }, {
+                id: "user2",
+                stripeCustomerId: "cus_234",
+                emails: [],
+            }],
+        });
+    });
+
+    afterEach(() => {
+        PrismaClient.clearData();
+    });
+
+    test("should send email when user is found and has email", async () => {
+        const mockEvent = {
+            data: { object: { customer: "cus_123" } },
+        } as unknown as Stripe.Event;
+        await handleCustomerSubscriptionDeleted({ event: mockEvent, res });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expectEmailQueue(emailQueue, { to: ["user@example.com"] });
+        // Also make sure it didn't affect the premium status
+        // @ts-ignore Testing runtime scenario
+        const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
+        expect(updatedUser.premium.isActive).toBe(true);
+    });
+
+    test("should not send email when user is found but has no email", async () => {
+        const mockEvent = {
+            data: { object: { customer: "cus_234" } },
+        } as unknown as Stripe.Event;
+        await handleCustomerSubscriptionDeleted({ event: mockEvent, res });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(emailQueue.add).not.toHaveBeenCalled();
+    });
+
+    test("should return error when user is not found", async () => {
+        const mockEvent = {
+            data: { object: { customer: "non_existent_customer" } },
+        } as unknown as Stripe.Event;
+        await handleCustomerSubscriptionDeleted({ event: mockEvent, res });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+        expect(emailQueue.add).not.toHaveBeenCalled();
+    });
+});
+
+describe("handleCustomerSubscriptionTrialWillEnd", () => {
+    let res;
+    let emailQueue;
+
+    beforeAll(async () => {
+        emailQueue = new Bull("email");
+        await setupEmailQueue();
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        res = createRes();
+        Bull.resetMock();
+        PrismaClient.injectData({
+            User: [{
+                id: "user1",
+                stripeCustomerId: "cus_123",
+                emails: [{ emailAddress: "user@example.com" }],
+            }, {
+                id: "user2",
+                stripeCustomerId: "cus_234",
+                emails: [],
+            }],
+        });
+    });
+
+    afterEach(() => {
+        PrismaClient.clearData();
+    });
+
+    test("should send email when user is found and has email", async () => {
+        const mockEvent = {
+            data: { object: { customer: "cus_123" } },
+        } as unknown as Stripe.Event;
+        await handleCustomerSubscriptionTrialWillEnd({ event: mockEvent, res });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expectEmailQueue(emailQueue, { to: ["user@example.com"] });
+    });
+
+    test("should not send email when user is found but has no email", async () => {
+        const mockEvent = {
+            data: { object: { customer: "cus_234" } },
+        } as unknown as Stripe.Event;
+        await handleCustomerSubscriptionTrialWillEnd({ event: mockEvent, res });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(emailQueue.add).not.toHaveBeenCalled();
+    });
+
+    test("should return error when user is not found", async () => {
+        const mockEvent = {
+            data: { object: { customer: "non_existent_customer" } },
+        } as unknown as Stripe.Event;
+        await handleCustomerSubscriptionTrialWillEnd({ event: mockEvent, res });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+        expect(emailQueue.add).not.toHaveBeenCalled();
+    });
+});
+
 describe("handlePriceUpdated", () => {
     let res;
 
@@ -982,10 +1124,7 @@ describe("handlePriceUpdated", () => {
         jest.clearAllMocks();
         RedisClientMock.resetMock();
         RedisClientMock.__setAllMockData({});
-        res = {
-            send: jest.fn(),
-            status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
-        };
+        res = createRes();
     });
 
     it("handles a valid price update event", async () => {
@@ -1053,7 +1192,7 @@ describe("handlePriceUpdated", () => {
 
 describe("checkSubscriptionPrices", () => {
     let stripeMock;
-    let resMock;
+    let res;
     const monthlyPrice = 1_000;
     const yearlyPrice = 10_000;
 
@@ -1077,10 +1216,7 @@ describe("checkSubscriptionPrices", () => {
         RedisClientMock.__setAllMockData({});
 
         // Mock response object
-        resMock = {
-            status: jest.fn(() => resMock),
-            json: jest.fn(),
-        };
+        res = createRes();
     });
 
     afterEach(() => {
@@ -1091,10 +1227,10 @@ describe("checkSubscriptionPrices", () => {
         storePrice(PaymentType.PremiumMonthly, 69);
         storePrice(PaymentType.PremiumYearly, 420);
 
-        await checkSubscriptionPrices(stripeMock, resMock);
+        await checkSubscriptionPrices(stripeMock, res);
 
-        expect(resMock.status).toHaveBeenCalledWith(200);
-        expect(resMock.json).toHaveBeenCalledWith({
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(res.json).toHaveBeenCalledWith({
             data: {
                 monthly: 69,
                 yearly: 420,
@@ -1103,15 +1239,15 @@ describe("checkSubscriptionPrices", () => {
     });
 
     test("should fallback to Stripe when prices are not available in Redis", async () => {
-        await checkSubscriptionPrices(stripeMock, resMock);
+        await checkSubscriptionPrices(stripeMock, res);
 
         const redisMonthlyPrice = await fetchPriceFromRedis(PaymentType.PremiumMonthly);
         const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
         expect(redisMonthlyPrice).toBe(monthlyPrice);
         expect(redisYearlyPrice).toBe(yearlyPrice);
 
-        expect(resMock.status).toHaveBeenCalledWith(200);
-        expect(resMock.json).toHaveBeenCalledWith({
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(res.json).toHaveBeenCalledWith({
             data: {
                 monthly: monthlyPrice,
                 yearly: yearlyPrice,
@@ -1122,10 +1258,10 @@ describe("checkSubscriptionPrices", () => {
     test("should recover from redis failures", async () => {
         RedisClientMock.simulateFailure(true);
 
-        await checkSubscriptionPrices(stripeMock, resMock);
+        await checkSubscriptionPrices(stripeMock, res);
 
-        expect(resMock.status).toHaveBeenCalledWith(200);
-        expect(resMock.json).toHaveBeenCalledWith({
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(res.json).toHaveBeenCalledWith({
             data: {
                 monthly: monthlyPrice,
                 yearly: yearlyPrice,
@@ -1136,13 +1272,13 @@ describe("checkSubscriptionPrices", () => {
     test("should handle partial data availability", async () => {
         storePrice(PaymentType.PremiumMonthly, 69);
 
-        await checkSubscriptionPrices(stripeMock, resMock);
+        await checkSubscriptionPrices(stripeMock, res);
 
         const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
         expect(redisYearlyPrice).toBe(yearlyPrice);
 
-        expect(resMock.status).toHaveBeenCalledWith(200);
-        expect(resMock.json).toHaveBeenCalledWith({
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(res.json).toHaveBeenCalledWith({
             data: {
                 monthly: 69,
                 yearly: yearlyPrice,
@@ -1153,10 +1289,10 @@ describe("checkSubscriptionPrices", () => {
     test("should catch stripe errors", async () => {
         StripeMock.simulateFailure(true);
 
-        await checkSubscriptionPrices(stripeMock, resMock);
+        await checkSubscriptionPrices(stripeMock, res);
 
-        expect(resMock.status).toHaveBeenCalledWith(500);
-        expect(resMock.json).toHaveBeenCalledWith({ error: expect.any(Object) });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+        expect(res.json).toHaveBeenCalledWith({ error: expect.any(Object) });
     });
 });
 

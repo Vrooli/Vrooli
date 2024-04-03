@@ -18,6 +18,20 @@ function mockFindUnique<T>(model: string, args: { where: Record<string, any>, se
     return Promise.resolve(result) as any;
 }
 
+function mockFindFirst<T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> {
+    const records = globalDataStore[model] || [];
+    const whereKeys = Object.keys(args.where);
+
+    const item = records.find(record =>
+        whereKeys.every(key => evaluateCondition(record, key, args.where[key])),
+    );
+
+    if (!item) return Promise.resolve(null);
+
+    const result = constructSelectResponse(item, args.select);
+    return Promise.resolve(result) as any;
+}
+
 function evaluateCondition(record, key: string, condition) {
     if (typeof condition === "object" && condition !== null) {
         // Handle "in" condition
@@ -139,6 +153,7 @@ class PrismaClientMock {
             const modelName = snakeCase(modelType);
 
             PrismaClientMock.instance[modelName] = {
+                findFirst: jest.fn((args) => mockFindFirst(modelType, args)),
                 findUnique: jest.fn((args) => mockFindUnique(modelType, args)),
                 findMany: jest.fn((args) => mockFindMany(modelType, args)),
                 create: jest.fn((args) => mockCreate(modelType, args)),

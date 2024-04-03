@@ -7,7 +7,7 @@ import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
 import { UI_URL } from "../server";
 import { emitSocketEvent } from "../sockets/events";
-import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled } from "../tasks/email/queue";
+import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue";
 
 type EventHandlerArgs = {
     event: Stripe.Event,
@@ -576,7 +576,7 @@ const handleCustomerSourceExpiring = async ({ event, res }: EventHandlerArgs): P
  * User canceled subscription. They still have paid for their current 
  * billing period, so don't set as inactive
  */
-const handleCustomerSubscriptionDeleted = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleCustomerSubscriptionDeleted = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Find user 
@@ -597,8 +597,24 @@ const handleCustomerSubscriptionDeleted = async ({ event, res }: EventHandlerArg
 };
 
 /** Trial ending in a few days */
-const handleCustomerSubscriptionTrialWillEnd = async ({ res }: EventHandlerArgs): Promise<HandlerResult> => {
-    return handlerResult(HttpStatus.NotImplemented, res, "customer.subscription.trial_will_end not implemented", "0460");
+export const handleCustomerSubscriptionTrialWillEnd = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = getCustomerId(subscription.customer);
+    // Find user with the given Stripe customer ID
+    const user = await prismaInstance.user.findFirst({
+        where: { stripeCustomerId: customerId },
+        select: {
+            emails: { select: { emailAddress: true } },
+        },
+    });
+    if (!user) {
+        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0192", { customerId });
+    }
+    // If found, send notification
+    for (const email of user.emails) {
+        sendTrialEndingSoon(email.emailAddress);
+    }
+    return handlerResult(HttpStatus.Ok, res);
 };
 
 /** User updated subscription (i.e. switched from monthly to yearly, canceled, or renewed) */
@@ -763,7 +779,7 @@ const handleInvoicePaymentFailed = async ({ event, res }: EventHandlerArgs): Pro
 };
 
 
-/** Payment succeeded (e.g. subscription renewed) */
+/** Invoice payment succeeded (e.g. subscription renewed) */
 const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
@@ -973,7 +989,6 @@ const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response
  */
 const createPortalSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
     const { userId, returnUrl } = req.body as CreatePortalSessionParams;
-
     try {
         const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
         if (!customerInfo.userId) {

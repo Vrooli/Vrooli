@@ -168,3 +168,13 @@ export const sendSubscriptionEnded = (emailAddress: string) => {
         text: `Your subscription has ended. If this wasn't intentional, please renew your subscription to continue enjoying premium benefits. Thank you for using ${BUSINESS_NAME}!`,
     });
 };
+
+/** Adds trial ending soon email to a task queue */
+export const sendTrialEndingSoon = (emailAddress: string) => {
+    const link = `${UI_URL}${LINKS.Pro}`;
+    emailQueue.add({
+        to: [emailAddress],
+        subject: "Your trial is ending soon!",
+        text: `Your free trial is ending soon. Upgrade to a pro subscription to continue receiving benefits, such as free monthly credits and increased limits. ${link}`,
+    });
+};
