@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { HttpStatus, PaymentType, StripeEndpoint } from "@local/shared";
+import { HttpStatus, PaymentStatus, PaymentType, StripeEndpoint } from "@local/shared";
 import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import Bull from "../__mocks__/bull";
 import { RedisClientMock } from "../__mocks__/redis";
 import StripeMock from "../__mocks__/stripe";
 import { setupEmailQueue } from "../tasks/email/queue";
-import { PaymentMethod, calculateExpiryAndStatus, checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handleCustomerSourceExpiring, handleCustomerSubscriptionDeleted, handleCustomerSubscriptionTrialWillEnd, handleCustomerSubscriptionUpdated, handleInvoicePaymentCreated, handleInvoicePaymentFailed, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, parseInvoiceData, setupStripe, storePrice } from "./stripe";
+import { PaymentMethod, calculateExpiryAndStatus, checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handleCustomerSourceExpiring, handleCustomerSubscriptionDeleted, handleCustomerSubscriptionTrialWillEnd, handleCustomerSubscriptionUpdated, handleInvoicePaymentCreated, handleInvoicePaymentFailed, handleInvoicePaymentSucceeded, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, parseInvoiceData, setupStripe, storePrice } from "./stripe";
 
 const { PrismaClient } = pkg;
 
@@ -1470,7 +1470,7 @@ describe("handleInvoicePaymentFailed", () => {
         // Verify that payment status was updated to Failed
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
-        expect(updatedPayment?.status).toBe("Failed");
+        expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
     });
 
     test("creates a new payment and sets status to Failed when no existing payment is found", async () => {
@@ -1520,6 +1520,133 @@ describe("handleInvoicePaymentFailed", () => {
 
         expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expectEmailQueue(emailQueue, { to: ["user@example.com"] });
+    });
+});
+
+describe("handleInvoicePaymentSucceeded", () => {
+    let res;
+    let stripeMock;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        res = createRes();
+        PrismaClient.injectData({
+            User: [{
+                id: "user1",
+                stripeCustomerId: "cus_123",
+                emails: [{ emailAddress: "user@example.com" }],
+            }],
+            Payment: [{
+                checkoutId: "inv_123",
+                paymentType: "Subscription",
+                user: {
+                    id: "user1",
+                },
+            }],
+        });
+        stripeMock = new StripeMock() as unknown as Stripe;
+        StripeMock.injectData({
+            subscriptions: [{
+                id: "sub_123",
+                current_period_end: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // Mocking 30 days ahead
+            }],
+        });
+    });
+
+    afterEach(() => {
+        PrismaClient.clearData();
+        StripeMock.resetMock();
+    });
+
+    test("updates existing payment status to Paid", async () => {
+        const mockEvent = {
+            data: { object: { customer: "cus_123", id: "inv_123" } },
+        } as unknown as Stripe.Event;
+        await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        // @ts-ignore Testing runtime scenario
+        const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
+        expect(updatedPayment?.status).toBe(PaymentStatus.Paid);
+    });
+
+    test("creates a new payment and sets status to Paid when no existing payment is found", async () => {
+        const mockEvent = {
+            data: {
+                object: {
+                    customer: "cus_123",
+                    id: "inv_321",
+                    currency: "usd",
+                    lines: { data: [{ amount: 2000, price: { id: getPriceIds().PremiumYearly, unit_amount: 2000 } }] },
+                    subscription: "sub_123",
+                },
+            },
+        } as unknown as Stripe.Event;
+        await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        // @ts-ignore Testing runtime scenario
+        const newPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
+        expect(newPayment?.status).toBe(PaymentStatus.Paid);
+        expect(newPayment?.amount).toBe(2000);
+        expect(newPayment?.paymentMethod).toBe("Stripe");
+        expect(newPayment?.user).not.toBeNull();
+    });
+
+    test("returns an error when parseInvoiceData returns an error", async () => {
+        const mockEvent = {
+            data: {
+                object: {
+                    customer: "cus_123",
+                    id: "inv_321",
+                    currency: "usd",
+                    lines: { data: [] }, // A payment with no lines should return an error
+                    subscription: "sub_123",
+                },
+            },
+        } as unknown as Stripe.Event;
+        await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+    });
+
+    test("updates user premium status for subscription payments", async () => {
+        const mockEvent = {
+            data: {
+                object: {
+                    customer: "cus_123",
+                    id: "inv_321",
+                    currency: "usd",
+                    lines: { data: [{ amount: 2000, price: { id: getPriceIds().PremiumYearly, unit_amount: 2000 } }] },
+                    subscription: "sub_123",
+                },
+            },
+        } as unknown as Stripe.Event;
+        await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        // @ts-ignore Testing runtime scenario
+        const user = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
+        expect(user?.premium?.isActive).toBe(true);
+    });
+
+    test("returns an error if subscription details could not be retrieved", async () => {
+        StripeMock.simulateFailure(true);
+
+        const mockEvent = {
+            data: {
+                object: {
+                    customer: "cus_123",
+                    id: "inv_321",
+                    currency: "usd",
+                    lines: { data: [{ amount: 2000, price: { id: getPriceIds().PremiumYearly, unit_amount: 2000 } }] },
+                    subscription: "sub_123",
+                },
+            },
+        } as unknown as Stripe.Event;
+        await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
+
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 });
 

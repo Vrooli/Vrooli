@@ -1,22 +1,8 @@
-import { snakeCase, uuid } from "@local/shared";
+import { pascalCase, snakeCase, uuid } from "@local/shared";
 
 type PrismaSelect = Record<string, any>;
 
 let globalDataStore = {};
-
-const mockFindUnique = <T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> => {
-    const records = globalDataStore[model] || [];
-    const whereKeys = Object.keys(args.where);
-    const item = records.find(record =>
-        whereKeys.every(key => (record as any)[key] === args.where[key]),
-    );
-
-    if (!item) return Promise.resolve(null);
-
-    // Return only the fields that are requested in the select clause
-    const result = constructSelectResponse(item, args.select);
-    return Promise.resolve(result) as any;
-};
 
 const evaluateCondition = (record, key: string, condition) => {
     if (typeof condition === "object" && condition !== null) {
@@ -34,7 +20,7 @@ const evaluateCondition = (record, key: string, condition) => {
             }
         }
         // Handle nested relation or object conditions
-        const relatedModelName = key.charAt(0).toUpperCase() + key.slice(1); // Assuming model names are capitalized
+        const relatedModelName = pascalCase(key);
         if (globalDataStore[relatedModelName]) {
             const relatedRecords = globalDataStore[relatedModelName];
             return relatedRecords.some(relatedRecord => {
@@ -50,17 +36,32 @@ const evaluateCondition = (record, key: string, condition) => {
     }
 };
 
+const findIndex = (records: any[], where: Record<string, any>) => {
+    const whereKeys = Object.keys(where);
+
+    return records.findIndex(record =>
+        whereKeys.every(key => evaluateCondition(record, key, where[key])),
+    );
+};
+
+const mockFindUnique = <T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> => {
+    const records = globalDataStore[model] || [];
+    const index = findIndex(records, args.where);
+
+    if (index === -1) return Promise.resolve(null);
+
+    // Return only the fields that are requested in the select clause
+    const result = constructSelectResponse(records[index], args.select);
+    return Promise.resolve(result) as any;
+};
+
 const mockFindFirst = <T>(model: string, args: { where: Record<string, any>, select?: PrismaSelect }): Promise<T | null> => {
     const records = globalDataStore[model] || [];
-    const whereKeys = Object.keys(args.where);
+    const index = findIndex(records, args.where);
 
-    const item = records.find(record =>
-        whereKeys.every(key => evaluateCondition(record, key, args.where[key])),
-    );
+    if (index === -1) return Promise.resolve(null);
 
-    if (!item) return Promise.resolve(null);
-
-    const result = constructSelectResponse(item, args.select);
+    const result = constructSelectResponse(records[index], args.select);
     return Promise.resolve(result) as any;
 };
 
@@ -76,8 +77,52 @@ const mockFindMany = <T>(model: string, args: { where: Record<string, any>, sele
     return Promise.resolve(results) as unknown as Promise<T[]>;
 };
 
+function processRelations(data, globalDataStore) {
+    Object.keys(data).forEach(key => {
+        if (typeof data[key] === "object" && data[key] !== null) {
+            const modelName = key; // Assuming the model name matches the key
+            // Check for 'upsert' operation
+            if (data[key].upsert) {
+                const { create, update } = data[key].upsert;
+                const records = globalDataStore[modelName] || [];
+                const conditions = create; // Assuming 'create' object includes identification fields
+                const index = findIndex(records, conditions);
+
+                if (index === -1) {
+                    // No existing record found, proceed with create
+                    const newItem = { id: uuid(), ...create };
+                    records.push(newItem);
+                    data[key] = newItem;
+                } else {
+                    // Record found, proceed with update
+                    records[index] = { ...records[index], ...update };
+                    data[key] = records[index];
+                }
+                globalDataStore[modelName] = records; // Ensure global data store is updated
+            }
+            // Check for 'connect' operation
+            else if (data[key].connect) {
+                const conditions = data[key].connect;
+                const records = globalDataStore[pascalCase(modelName)] || [];
+                const index = findIndex(records, conditions);
+                data[key] = records[index] || conditions;
+            }
+            // Check for 'disconnect' operation
+            else if (data[key].disconnect) {
+                // Implement disconnect logic based on your application's requirements
+                // This could involve setting the key to null or removing it entirely
+                data[key] = null; // Simple example
+            } else {
+                // Recursively process nested objects
+                processRelations(data[key], globalDataStore);
+            }
+        }
+    });
+}
+
 const mockCreate = <T>(model: string, args: { data: T }): Promise<T> => {
     const records = globalDataStore[model] || [];
+    processRelations(args.data, globalDataStore); // Process relations before creating
     const newItem = { id: uuid(), ...args.data };
     records.push(newItem);
     return Promise.resolve(newItem);
@@ -92,7 +137,7 @@ const constructSelectResponse = <T>(item: T, select?: Record<string, any>): Part
                 acc[key] = nestedItem[key];
             } else if (typeof nestedSelect[key] === "object" && nestedItem[key] !== undefined) {
                 // Derive the related model name and ensure it matches keys in globalDataStore
-                const relatedModelName = key.charAt(0).toUpperCase() + key.slice(1); // Adjust as necessary
+                const relatedModelName = pascalCase(key);
 
                 if (nestedSelect[key].select) {
                     if (Array.isArray(nestedItem[key])) {
@@ -124,13 +169,11 @@ const constructSelectResponse = <T>(item: T, select?: Record<string, any>): Part
 
 const mockUpdate = <T>(model: string, args: { where: Record<string, any>, data: T }): Promise<T> => {
     const records = globalDataStore[model] || [];
-    const whereKeys = Object.keys(args.where);
-    const index = records.findIndex(record =>
-        whereKeys.every(key => (record as any)[key] === args.where[key]),
-    );
+    const index = findIndex(records, args.where);
 
     if (index === -1) throw new Error("Record not found");
 
+    processRelations(args.data, globalDataStore);
     records[index] = { ...records[index], ...args.data };
     return Promise.resolve(records[index]);
 };

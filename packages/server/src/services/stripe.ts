@@ -824,71 +824,89 @@ export const handleInvoicePaymentFailed = async ({ event, res }: Omit<EventHandl
 
 
 /** Invoice payment succeeded (e.g. subscription renewed) */
-const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
-    // Find the user associated with the invoice
-    const user = await prismaInstance.user.findFirst({
-        where: { stripeCustomerId: customerId },
-    });
-    if (!user) {
-        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0461", { customerId, invoice: invoice.id });
-    }
-    // Find the corresponding payment in the database
-    const payment = await prismaInstance.payment.findFirst({
+    // Find corresponding payment in the database
+    const paymentSelect = {
+        id: true,
+        paymentType: true,
+        user: {
+            select: {
+                id: true,
+                emails: { select: { emailAddress: true } },
+            },
+        },
+    } as const;
+    let payment = await prismaInstance.payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
         },
-        select: {
-            id: true,
-            paymentType: true,
-            user: {
-                select: {
-                    id: true,
-                },
-            },
-        },
+        select: paymentSelect,
     });
     if (!payment) {
-        return handlerResult(HttpStatus.InternalServerError, res, "Invoice payment not found", "0462", { customerId, invoice: invoice.id });
-    }
-    // Update the payment status to indicate it was successfully paid
-    await prismaInstance.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.Paid },
-    });
-    if (!payment.user) {
-        return handlerResult(HttpStatus.InternalServerError, res, "User not found.", "0223", { customerId, invoice: invoice.id });
+        logger.warning("Did not find existing invoice. This may indicate that handleInvoicePaymentCreated is not working propertly", { trace: "0458", invoice });
+        // Create a new payment
+        const { data: paymentData, error: paymentError } = parseInvoiceData(invoice);
+        if (paymentError || !paymentData) {
+            return handlerResult(HttpStatus.InternalServerError, res, paymentError ?? "Unknown error occurred", "0231", { customerId, invoice });
+        }
+        payment = await prismaInstance.payment.create({
+            data: {
+                ...paymentData,
+                status: PaymentStatus.Paid,
+                user: {
+                    connect: { stripeCustomerId: customerId },
+                },
+            },
+            select: paymentSelect,
+        });
+    } else {
+        // Update the payment status to Paid
+        await prismaInstance.payment.update({
+            where: { id: payment.id },
+            data: { status: PaymentStatus.Paid },
+        });
     }
     // If subscription, update or create premium status
-    if (payment.paymentType === PaymentType.PremiumMonthly || payment.paymentType === PaymentType.PremiumYearly) {
+    const isSubscription = [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(payment.paymentType as PaymentType);
+    if (isSubscription && payment.user) {
         // Fetch subscription from Stripe
-        const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-        const expiresAt = new Date(stripeSubscription.current_period_end * 1000).toISOString();
-        const premiums = await prismaInstance.premium.findMany({
-            where: { user: { id: payment.user.id } },
-        });
-        if (premiums.length === 0) {
-            await prismaInstance.premium.create({
-                data: {
-                    enabledAt: new Date().toISOString(),
-                    expiresAt,
-                    isActive: true,
-                    user: { connect: { id: payment.user.id } },
-                },
-            });
-        } else {
-            await prismaInstance.premium.update({
-                where: { id: premiums[0].id },
-                data: {
-                    expiresAt,
-                    isActive: true,
-                },
-            });
+        const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+        let subscription: Stripe.Response<Stripe.Subscription> | null = null;
+        try {
+            if (subscriptionId) {
+                subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            }
+        } catch (error) {
+            logger.error("Caught error while fetching subscription", { trace: "0540", error });
         }
+        if (!subscription) {
+            return handlerResult(HttpStatus.InternalServerError, res, "Subscription not found", "0234", { customerId, invoice });
+        }
+        const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
+        // Note that we're not updating the user's credits here, as that would only happen when 
+        // activating a subscription. That's handled by the checkout.session.completed event.
+        await prismaInstance.user.update({
+            where: { id: payment.user.id },
+            data: {
+                premium: {
+                    upsert: {
+                        create: {
+                            enabledAt: isActive ? new Date() : undefined,
+                            expiresAt: newExpiresAt,
+                            isActive,
+                        },
+                        update: {
+                            expiresAt: newExpiresAt,
+                            isActive,
+                        },
+                    },
+                },
+            },
+        });
     }
-    // Probably? don't need to send an email for this one
     return handlerResult(HttpStatus.Ok, res);
 };
 
