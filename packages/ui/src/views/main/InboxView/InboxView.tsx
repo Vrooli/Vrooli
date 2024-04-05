@@ -41,7 +41,7 @@ export const InboxView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<InboxPageTabOption>({ id: "inbox-tabs", tabParams: inboxTabParams, display });
+    } = useTabs({ id: "inbox-tabs", tabParams: inboxTabParams, display });
 
     const {
         allData,
@@ -92,11 +92,11 @@ export const InboxView = ({
     }, [setLocation]);
 
     const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
-        if (currTab.tabType === InboxPageTabOption.Notification) {
+        if (currTab.key === InboxPageTabOption.Notification) {
             return [onMarkAllAsRead, CompleteIcon, "MarkAllAsRead"] as const;
         }
         return [openCreateChat, AddIcon, "CreateChat"] as const;
-    }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
+    }, [currTab.key, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
         switch (action) {

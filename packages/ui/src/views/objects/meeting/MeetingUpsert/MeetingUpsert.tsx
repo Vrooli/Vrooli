@@ -16,7 +16,6 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -136,7 +135,7 @@ const MeetingForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.Meeting}
+                defaultTab="Meeting"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}

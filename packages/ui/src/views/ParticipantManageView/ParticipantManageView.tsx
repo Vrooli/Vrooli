@@ -37,15 +37,15 @@ export const ParticipantManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
+    } = useTabs({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(chat.id),
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where(chat.id),
-    })
+        where: where({ chatId: chat.id }),
+    });
 
     const {
         isSelecting,
@@ -58,16 +58,16 @@ export const ParticipantManageView = ({
     // Remove selection when tab changes
     useEffect(() => {
         setSelectedData([]);
-    }, [currTab.tabType]);
+    }, [currTab.key]);
 
     // Handle add/update invite dialog
     const [invitesToUpsert, setInvitesToUpsert] = useState<ChatInviteShape[]>([]);
     const handleInvitesUpdate = useCallback(() => {
-        if (currTab.tabType !== ParticipantManagePageTabOption.ChatInvite) return;
+        if (currTab.key !== ParticipantManagePageTabOption.ChatInvite) return;
         setInvitesToUpsert(selectedData as ChatInviteShape[]);
-    }, [currTab.tabType, selectedData]);
+    }, [currTab.key, selectedData]);
     const handleInvitesCreate = useCallback(() => {
-        if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
+        if (currTab.key !== ParticipantManagePageTabOption.Add) return;
         const asInvites: ChatInviteShape[] = (selectedData as User[]).map(user => ({
             __typename: "ChatInvite",
             id: DUMMY_ID,
@@ -78,7 +78,7 @@ export const ParticipantManageView = ({
             user,
         } as const));
         setInvitesToUpsert(asInvites);
-    }, [chat.id, currTab.tabType, selectedData]);
+    }, [chat.id, currTab.key, selectedData]);
     const onInviteCompleted = (invites: ChatInvite[]) => {
         setInvitesToUpsert([]);
     };
@@ -108,21 +108,21 @@ export const ParticipantManageView = ({
         }
         // If there are selected items, show relevant actions depending on tab
         if (selectedData.length > 0) {
-            if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.tabType)) {
+            if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.key as ParticipantManagePageTabOption)) {
                 buttons.push(<Tooltip title={t("Delete")}>
                     <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
                         <DeleteIcon {...actionIconProps} />
                     </IconButton>
                 </Tooltip>);
             }
-            if (currTab.tabType === ParticipantManagePageTabOption.ChatInvite) {
+            if (currTab.key === ParticipantManagePageTabOption.ChatInvite) {
                 buttons.push(<Tooltip title={t("Edit")}>
                     <IconButton aria-label={t("Edit")} onClick={handleInvitesUpdate} sx={{ background: palette.secondary.main }}>
                         <EditIcon {...actionIconProps} />
                     </IconButton>
                 </Tooltip>);
             }
-            if (currTab.tabType === ParticipantManagePageTabOption.Add) {
+            if (currTab.key === ParticipantManagePageTabOption.Add) {
                 buttons.push(<Tooltip title={t("Add")}>
                     <IconButton aria-label={t("Add")} onClick={handleInvitesCreate} sx={{ background: palette.secondary.main }}>
                         <AddIcon {...actionIconProps} />
@@ -137,7 +137,7 @@ export const ParticipantManageView = ({
             </IconButton>
         </Tooltip>);
         return buttons;
-    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.tabType, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
+    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
 
     return (
         <MaybeLargeDialog

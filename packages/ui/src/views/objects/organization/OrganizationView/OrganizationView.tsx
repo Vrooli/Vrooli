@@ -90,7 +90,7 @@ export const OrganizationView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<OrganizationPageTabOption>({ id: "organization-tabs", tabParams: organizationTabParams, display });
+    } = useTabs({ id: "organization-tabs", tabParams: organizationTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(organization?.id),
@@ -129,8 +129,8 @@ export const OrganizationView = ({
      */
     const toAddNew = useCallback((event: any) => {
         // TODO need member page
-        if (currTab.tabType === OrganizationPageTabOption.Member) return;
-        setLocation(`${LINKS[currTab.tabType]}/add`);
+        if (currTab.key === OrganizationPageTabOption.Member) return;
+        setLocation(`${LINKS[currTab.key]}/add`);
     }, [currTab, setLocation]);
 
     return (
@@ -268,7 +268,7 @@ export const OrganizationView = ({
                 />
                 <Box>
                     {
-                        currTab.tabType === OrganizationPageTabOption.Resource ? resources : (
+                        currTab.key === OrganizationPageTabOption.Resource ? resources : (
                             <SearchList
                                 {...findManyData}
                                 display={display}
@@ -292,7 +292,7 @@ export const OrganizationView = ({
             </Box>
             <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
-                {currTab.tabType !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                {currTab.key !== OrganizationPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}
                 {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>

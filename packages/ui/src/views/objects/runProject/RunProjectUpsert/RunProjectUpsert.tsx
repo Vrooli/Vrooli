@@ -17,7 +17,6 @@ import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -128,7 +127,7 @@ const RunProjectForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.RunProject}
+                defaultTab="RunProject"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}

@@ -109,7 +109,7 @@ export const UserView = ({
     const availableTabs = useMemo(() => {
         // Details tab is only for bots
         if (user?.isBot) return userTabParams;
-        return userTabParams.filter(tab => tab.tabType !== UserPageTabOption.Details);
+        return userTabParams.filter(tab => tab.key !== UserPageTabOption.Details);
     }, [user]);
     const {
         currTab,
@@ -118,7 +118,7 @@ export const UserView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<UserPageTabOption>({ id: "user-tabs", tabParams: availableTabs, display });
+    } = useTabs({ id: "user-tabs", tabParams: availableTabs, display });
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(user?.id ?? ""),
@@ -126,7 +126,7 @@ export const UserView = ({
         searchType,
         take: 20,
         where: where({ userId: user?.id ?? "", permissions }),
-    })
+    });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -154,8 +154,8 @@ export const UserView = ({
 
     /** Opens add new page */
     const toAddNew = useCallback(() => {
-        setLocation(`${LINKS[currTab.tabType]}/add`);
-    }, [currTab.tabType, setLocation]);
+        setLocation(`${LINKS[currTab.key]}/add`);
+    }, [currTab.key, setLocation]);
 
     /** Opens dialog to add or invite user to an organization/meeting/chat */
     const handleAddOrInvite = useCallback(() => {
@@ -334,7 +334,7 @@ export const UserView = ({
                         borderBottom: `1px solid ${palette.divider}`,
                     }}
                 />
-                {currTab.tabType === UserPageTabOption.Details && (
+                {currTab.key === UserPageTabOption.Details && (
                     <FormSection sx={{
                         overflowX: "hidden",
                         marginTop: 0,
@@ -457,7 +457,7 @@ export const UserView = ({
                         />
                     </FormSection>
                 )}
-                {currTab.tabType !== UserPageTabOption.Details && <Box>
+                {currTab.key !== UserPageTabOption.Details && <Box>
                     <SearchList
                         {...findManyData}
                         display={display}
@@ -478,7 +478,7 @@ export const UserView = ({
                 </Box>}
             </Box>
             <SideActionsButtons display={display}>
-                {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                {currTab.key !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}
                 {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>

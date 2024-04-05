@@ -51,7 +51,7 @@ export const ChatSideMenu = ({
         searchType,
         tabs,
         where,
-    } = useTabs<ChatPageTabOption>({ id: `${idPrefix ?? ""}chat-side-tabs`, tabParams: chatTabParams, display: "dialog" });
+    } = useTabs({ id: `${idPrefix ?? ""}chat-side-tabs`, tabParams: chatTabParams, display: "dialog" });
 
     // Handle opening and closing
     const { isOpen, close } = useSideMenu({ id, idPrefix, isMobile });
@@ -113,10 +113,10 @@ export const ChatSideMenu = ({
     }, [addBookmark, bookmarkLists]);
 
     const tabToAddData: { [key in ChatPageTabOption]?: readonly [CommonKey, (() => unknown)] } = {
-        [ChatPageTabOption.Chat]: ["NewChat", () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); }],
-        [ChatPageTabOption.Favorite]: ["AddBookmark", () => { openFindBookmarkDialog(); }],
-        [ChatPageTabOption.PromptMy]: ["CreatePrompt", () => { setLocation(`${getObjectUrlBase({ __typename: "Standard" })}/add`); }],
-        [ChatPageTabOption.RoutineMy]: ["CreateRoutine", () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); }],
+        Chat: ["NewChat", () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); }],
+        Favorite: ["AddBookmark", () => { openFindBookmarkDialog(); }],
+        PromptMy: ["CreatePrompt", () => { setLocation(`${getObjectUrlBase({ __typename: "Standard" })}/add`); }],
+        RoutineMy: ["CreateRoutine", () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); }],
     } as const;
 
     const findManyData = useFindMany<ListObject>({
@@ -124,7 +124,7 @@ export const ChatSideMenu = ({
         searchType,
         take: 20,
         where: where(),
-    })
+    });
 
     return (
         <>
@@ -193,8 +193,8 @@ export const ChatSideMenu = ({
                             <SearchIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                         </IconButton>
                     </Tooltip>
-                    {tabToAddData[currTab.tabType] && <Tooltip title={t(tabToAddData[currTab.tabType]![0])}>
-                        <IconButton aria-label="add" onClick={tabToAddData[currTab.tabType]![1]}>
+                    {tabToAddData[currTab.key] && <Tooltip title={t(tabToAddData[currTab.key]![0])}>
+                        <IconButton aria-label="add" onClick={tabToAddData[currTab.key]![1]}>
                             <AddIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                         </IconButton>
                     </Tooltip>}

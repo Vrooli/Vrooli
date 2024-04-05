@@ -9,7 +9,7 @@ import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
 import { ListObject } from "utils/display/listTools";
-import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
+import { memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 
 /**
@@ -29,24 +29,24 @@ export const MemberManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
+    } = useTabs({ id: "member-manage-tabs", tabParams: memberTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(organization.id),
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where(organization.id),
-    })
+        where: where({ organizationId: organization.id }),
+    });
 
     //    // Handle add/update invite dialog
     //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
     //    const handleInvitesUpdate = useCallback(() => {
-    //        if (currTab.tabType !== ParticipantManagePageTabOption.MemberInvite) return;
+    //        if (currTab.key !== ParticipantManagePageTabOption.MemberInvite) return;
     //        setInvitesToUpsert(selectedData as MemberInviteShape[]);
-    //    }, [currTab.tabType, selectedData]);
+    //    }, [currTab.key, selectedData]);
     //    const handleInvitesCreate = useCallback(() => {
-    //        if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
+    //        if (currTab.key !== ParticipantManagePageTabOption.Add) return;
     //        const asInvites: MemberInviteShape[] = (selectedData as User[]).map(user => ({
     //            __typename: "MemberInvite",
     //            id: DUMMY_ID,
@@ -57,7 +57,7 @@ export const MemberManageView = ({
     //            user,
     //        } as const));
     //        setInvitesToUpsert(asInvites);
-    //    }, [organization.id, currTab.tabType, selectedData]);
+    //    }, [organization.id, currTab.key, selectedData]);
     //    const onInviteCompleted = () => {
     //        // TODO Handle any post-completion tasks here, if necessary
     //        setInvitesToUpsert([]);

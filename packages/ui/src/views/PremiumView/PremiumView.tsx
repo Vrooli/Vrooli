@@ -1,13 +1,14 @@
-import { API_CREDITS_PREMIUM, LINKS, PaymentType } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Link, List, ListItem, ListItemText, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useTheme } from "@mui/material";
 import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
 import { Testimonials } from "components/Testimonials/Testimonials";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { SessionContext } from "contexts/SessionContext";
 import { useStripe } from "hooks/useStripe";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CompleteIcon, OpenInNewIcon, ShoppingCartIcon } from "icons";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -39,6 +40,7 @@ export const PremiumView = ({
 }: PremiumViewProps) => {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+    const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -152,7 +154,7 @@ export const PremiumView = ({
                     </ListItem>
                 </List>
                 {/* Main features as table */}
-                <Box id="pro-features" sx={{ width: "100%", margin: "auto", paddingTop: 2, boxShadow: 3 }}>
+                <Box id="pro-features" sx={{ width: "100%", margin: "auto", boxShadow: 3 }}>
                     <Typography variant="h5" sx={{ textAlign: "center" }}>{t("Feature", { count: 2 })}</Typography>
                     <Typography variant="body2" mb={1} sx={{ textAlign: "left", color: palette.error.main }}>
                         <span style={{ fontSize: "x-large", verticalAlign: "middle" }}>*</span> {t("ComingSoon")}
@@ -254,13 +256,18 @@ export const PremiumView = ({
                     </Typography>
                     <Box sx={{
                         background: (theme) => `${theme.palette.background.paper}${theme.palette.mode === "light" ? "44" : "c4"}`,
-                        color: (theme) => theme.palette.text.primary,
+                        color: "white",
                         borderRadius: 2,
                         padding: 1,
                         display: "flex",
                         flexDirection: "column",
                         gap: 1,
                     }}>
+                        {session?.isLoggedIn && (
+                            <Typography variant="body1" sx={{ textAlign: "center", paddingTop: 1, paddingBottom: 1 }}>
+                                {`Current credits: $${(Number(BigInt(currentUser.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}`}
+                            </Typography>
+                        )}
                         {!isCustomCreditAmountOpen && <Box sx={{
                             display: "flex",
                             flexDirection: { xs: "column", sm: "row" },
@@ -346,7 +353,7 @@ export const PremiumView = ({
                     </Typography>
                     <Box sx={{
                         background: (theme) => `${theme.palette.background.paper}${theme.palette.mode === "light" ? "44" : "c4"}`,
-                        color: (theme) => theme.palette.text.primary,
+                        color: "white",
                         borderRadius: 2,
                         padding: 1,
                         display: "flex",

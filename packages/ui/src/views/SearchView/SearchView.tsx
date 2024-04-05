@@ -16,7 +16,7 @@ import { ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption, SearchType, searchViewTabParams } from "utils/search/objectToSearch";
+import { SearchType, searchViewTabParams } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";
 
 /**
@@ -38,7 +38,7 @@ export const SearchView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<SearchPageTabOption>({ id: "search-tabs", tabParams: searchViewTabParams, display });
+    } = useTabs({ id: "search-tabs", tabParams: searchViewTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "page",

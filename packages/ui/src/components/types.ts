@@ -2,6 +2,7 @@ import { LlmTaskInfo, User } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
+import { TabsInfo } from "utils/search/objectToSearch";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 export interface ChatBubbleProps {
@@ -58,15 +59,15 @@ export interface DiagonalWaveLoaderProps {
     sx?: SxType;
 }
 
-export interface PageTabsProps<T, S extends boolean = true> {
+export interface PageTabsProps<TabList extends TabsInfo> {
     ariaLabel: string,
-    currTab: PageTab<T, S>,
+    currTab: PageTab<TabList>,
     fullWidth?: boolean,
     id?: string,
     /** Ignore Icons in tabs, rendering them using labels instead */
     ignoreIcons?: boolean,
-    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<T, S>) => unknown,
-    tabs: PageTab<T, S>[],
+    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList>) => unknown,
+    tabs: PageTab<TabList>[],
     sx?: SxType,
 }
 

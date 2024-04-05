@@ -19,7 +19,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -139,7 +138,7 @@ const FocusModeForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.FocusMode}
+                defaultTab="FocusMode"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}

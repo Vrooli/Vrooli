@@ -180,7 +180,7 @@ export const CalendarView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<CalendarPageTabOption>({ id: "calendar-tabs", tabParams: calendarTabParams, display });
+    } = useTabs({ id: "calendar-tabs", tabParams: calendarTabParams, display });
 
     // Find schedules
     const {
@@ -310,7 +310,7 @@ export const CalendarView = ({
             <ScheduleUpsert
                 canChangeTab
                 canSetScheduleFor
-                defaultTab={currTab.tabType === "All" ? CalendarPageTabOption.Meeting : currTab.tabType}
+                defaultTab={currTab.key === "All" ? CalendarPageTabOption.Meeting : currTab.key}
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={true}

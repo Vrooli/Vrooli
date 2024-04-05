@@ -50,6 +50,13 @@ const CHAT_DEFAULTS = {
     }],
 } as unknown as Chat;
 
+type DashboardTabsInfo = {
+    IsSearchable: false;
+    Key: string; // "All" of focus mode's ID
+    Payload: FocusMode | undefined;
+    WhereParams: undefined;
+}
+
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
     display,
@@ -145,37 +152,43 @@ export const DashboardView = ({
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode | "Add", false>[]>(() => ([
+    const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => ([
         ...allFocusModes.map((mode, index) => ({
+            color: "",
+            data: mode,
             index,
+            key: mode.id,
             label: mode.name,
-            tabType: mode,
+            searchPlaceholder: "",
         })),
         {
-            index: allFocusModes.length,
-            label: "Add",
+            color: "",
+            data: undefined,
             Icon: AddIcon,
-            tabType: "Add",
+            index: allFocusModes.length,
+            key: "Add",
+            label: "Add",
+            searchPlaceholder: "",
         },
     ]), [allFocusModes]);
     const currTab = useMemo(() => {
         if (typeof activeFocusMode === "string") return "Add";
-        const match = tabs.find(tab => typeof tab.tabType !== "string" && tab.tabType.id === activeFocusMode?.mode?.id);
+        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, activeFocusMode]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode | "Add", false>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<DashboardTabsInfo>) => {
         e.preventDefault();
         // If "Add", go to the add focus mode page
-        if (tab.tabType === "Add") {
+        if (tab.key === "Add" || !tab.data) {
             setLocation(LINKS.SettingsFocusModes);
             return;
         }
         // Otherwise, publish the focus mode
         PubSub.get().publish("focusMode", {
             __typename: "ActiveFocusMode" as const,
-            mode: tab.tabType,
+            mode: tab.data,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, [setLocation]);
@@ -402,7 +415,7 @@ export const DashboardView = ({
                     {showTabs && currTab && <PageTabs
                         ariaLabel="home-tabs"
                         id="home-tabs"
-                        currTab={currTab as PageTab<FocusMode, false>}
+                        currTab={currTab as PageTab<DashboardTabsInfo>}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}

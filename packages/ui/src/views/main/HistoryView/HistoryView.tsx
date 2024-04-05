@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ListObject } from "utils/display/listTools";
 import { getObjectUrlBase } from "utils/navigation/openObject";
-import { HistoryPageTabOption, SearchType, historyTabParams } from "utils/search/objectToSearch";
+import { SearchType, historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
 export const HistoryView = ({
@@ -29,7 +29,7 @@ export const HistoryView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<HistoryPageTabOption>({ id: "history-tabs", tabParams: historyTabParams, display });
+    } = useTabs({ id: "history-tabs", tabParams: historyTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "page",

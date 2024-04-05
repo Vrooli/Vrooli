@@ -7,7 +7,7 @@ import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { policyTabParams } from "utils/search/objectToSearch";
+import { PolicyTabsInfo, policyTabParams } from "utils/search/objectToSearch";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { PrivacyPolicyViewProps } from "../types";
@@ -52,8 +52,8 @@ export const PrivacyPolicyView = ({
     });
 
 
-    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
+    const { currTab, tabs } = useTabs({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);

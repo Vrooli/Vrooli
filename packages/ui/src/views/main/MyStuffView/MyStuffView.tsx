@@ -21,7 +21,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { getObjectUrlBase } from "utils/navigation/openObject";
-import { MyStuffPageTabOption, SearchType, myStuffTabParams } from "utils/search/objectToSearch";
+import { SearchType, myStuffTabParams } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
 
 export const MyStuffView = ({
@@ -47,16 +47,16 @@ export const MyStuffView = ({
      * Always keeps routines, projects, and notes
      */
     const filteredTabs = useMemo(() => myStuffTabParams.filter(tab => {
-        switch (tab.tabType) {
-            case MyStuffPageTabOption.Api:
+        switch (tab.key) {
+            case "Api":
                 return Boolean(apisCount);
-            case MyStuffPageTabOption.Organization:
+            case "Organization":
                 return Boolean(membershipsCount);
-            case MyStuffPageTabOption.Question:
+            case "Question":
                 return Boolean(questionsAskedCount);
-            case MyStuffPageTabOption.SmartContract:
+            case "SmartContract":
                 return Boolean(smartContractsCount);
-            case MyStuffPageTabOption.Standard:
+            case "Standard":
                 return Boolean(standardsCount);
         }
         return true;
@@ -67,7 +67,7 @@ export const MyStuffView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MyStuffPageTabOption>({ id: "my-stuff-tabs", tabParams: filteredTabs, display });
+    } = useTabs({ id: "my-stuff-tabs", tabParams: filteredTabs, display });
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(userId),
@@ -75,7 +75,7 @@ export const MyStuffView = ({
         searchType,
         take: 20,
         where: where({ userId: userId ?? "" }),
-    })
+    });
 
     const {
         isSelecting,
@@ -106,7 +106,7 @@ export const MyStuffView = ({
         // Navigate to object's add page
         setLocation(`${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`);
     }, [searchType, setLocation]);
-    const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
+    const onSelectCreateTypeClose = useCallback((type?: SearchType | `${SearchType}`) => {
         if (type) setLocation(`${getObjectUrlBase({ __typename: type as `${GqlModelType}` })}/add`);
         else setSelectCreateTypeAnchorEl(null);
     }, [setLocation]);
@@ -126,17 +126,19 @@ export const MyStuffView = ({
                 onClose={() => onSelectCreateTypeClose()}
             >
                 {/* Never show 'All' */}
-                {myStuffTabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
-                    <MenuItem
-                        key={tab.searchType}
-                        onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
-                    >
-                        <ListItemIcon>
-                            <tab.Icon fill={palette.background.textPrimary} />
-                        </ListItemIcon>
-                        <ListItemText primary={t(tab.searchType, { count: 1, defaultValue: tab.searchType })} />
-                    </MenuItem>
-                ))}
+                {myStuffTabParams
+                    .filter((t) => ![SearchType.Popular]
+                        .includes(t.searchType as SearchType)).map(({ Icon, key, searchType }) => (
+                            <MenuItem
+                                key={key}
+                                onClick={() => onSelectCreateTypeClose(searchType)}
+                            >
+                                {Icon && <ListItemIcon>
+                                    <Icon fill={palette.background.textPrimary} />
+                                </ListItemIcon>}
+                                <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
+                            </MenuItem>
+                        ))}
             </Menu>
             <TopBar
                 display={display}

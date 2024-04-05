@@ -91,9 +91,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const filteredTabs = useMemo(() => {
         let filtered = findObjectTabParams;
         // Apply limitTo filter
-        if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.tabType) || limitTo.includes(`${tab.tabType}Version` as FindObjectTabOption));
+        if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
         // If onlyVersioned, filter tabs which don't have a corresponding versioned search type
-        if (onlyVersioned) filtered = filtered.filter(tab => `${tab.tabType}Version` in SearchType);
+        if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
         return filtered;
     }, [limitTo, onlyVersioned]);
     const {
@@ -101,7 +101,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         handleTabChange,
         searchType,
         tabs,
-    } = useTabs<FindObjectTabOption>({ id: "find-object-tabs", tabParams: filteredTabs, display: "dialog" });
+    } = useTabs({ id: "find-object-tabs", tabParams: filteredTabs, display: "dialog" });
 
     // Dialog for creating new object
     const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
@@ -167,7 +167,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         // Otherwise, open create dialog for current tab
         else setCreateObjectType(currTab.searchType.replace("Version", "") as CreateViewTypes ?? null);
     }, [currTab, searchType]);
-    const onSelectCreateTypeClose = useCallback((type?: SearchType) => {
+    const onSelectCreateTypeClose = useCallback((type?: SearchType | `${SearchType}`) => {
         if (type) setCreateObjectType(type.replace("Version", "") as CreateViewTypes);
         else setSelectCreateTypeAnchorEl(null);
     }, []);
@@ -298,17 +298,19 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 onClose={() => onSelectCreateTypeClose()}
             >
                 {/* Never show 'All' */}
-                {findObjectTabParams.filter((t) => ![SearchType.Popular].includes(t.searchType)).map(tab => (
-                    <MenuItem
-                        key={tab.searchType}
-                        onClick={() => onSelectCreateTypeClose(tab.searchType as SearchType)}
-                    >
-                        <ListItemIcon>
-                            <tab.Icon fill={palette.background.textPrimary} />
-                        </ListItemIcon>
-                        <ListItemText primary={t(tab.searchType, { count: 1, defaultValue: tab.searchType })} />
-                    </MenuItem>
-                ))}
+                {findObjectTabParams.filter((t) => ![SearchType.Popular]
+                    .includes(t.searchType as SearchType))
+                    .map(({ Icon, key, searchType }) => (
+                        <MenuItem
+                            key={key}
+                            onClick={() => onSelectCreateTypeClose(searchType)}
+                        >
+                            {Icon && <ListItemIcon>
+                                <Icon fill={palette.background.textPrimary} />
+                            </ListItemIcon>}
+                            <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
+                        </MenuItem>
+                    ))}
             </Menu>}
             {/* Main content */}
             <LargeDialog

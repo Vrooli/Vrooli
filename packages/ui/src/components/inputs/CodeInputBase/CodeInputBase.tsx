@@ -690,8 +690,9 @@ export const CodeInputBase = ({
 
     // Handle action buttons
     type Action = {
-        label: string,
         Icon: SvgComponent,
+        key: string,
+        label: string,
         onClick: () => unknown,
     }
     const actions = useMemo(() => {
@@ -699,15 +700,17 @@ export const CodeInputBase = ({
         // If user has premium, add button for AI assistant
         if (credits && BigInt(credits) > 0) {
             actionsList.push({
-                label: "AI assistant",
                 Icon: MagicIcon,
+                key: "assistant",
+                label: "AI assistant",
                 onClick: () => { openAssistantDialog(); },
             });
         }
         // Always add undo and redo buttons
         actionsList.push({
-            label: t("Undo"),
             Icon: UndoIcon,
+            key: "undo",
+            label: t("Undo"),
             onClick: async () => {
                 await loadCommandFunctions();
                 if (codeMirrorRef.current?.view) {
@@ -716,8 +719,9 @@ export const CodeInputBase = ({
             },
         });
         actionsList.push({
-            label: t("Redo"),
             Icon: RedoIcon,
+            key: "redo",
+            label: t("Redo"),
             onClick: async () => {
                 await loadCommandFunctions();
                 if (codeMirrorRef.current?.view) {
@@ -728,8 +732,9 @@ export const CodeInputBase = ({
         // For json and jsonStandard, add "pretty print" button to format JSON
         if (mode === StandardLanguage.Json || mode === StandardLanguage.JsonStandard) {
             actionsList.push({
-                label: t("Format"),
                 Icon: OpenThreadIcon,
+                key: "format",
+                label: t("Format"),
                 onClick: () => {
                     try {
                         const parsed = JSON.parse(internalValue);
@@ -800,7 +805,7 @@ export const CodeInputBase = ({
                             flexWrap: "wrap",
                             alignItems: "center",
                         }}>
-                            {actions.map(({ label, Icon, onClick }, i) => <Tooltip key={i} title={label}>
+                            {actions.map(({ Icon, key, label, onClick }, i) => <Tooltip key={key} title={label}>
                                 <IconButton
                                     onClick={onClick}
                                     disabled={disabled}

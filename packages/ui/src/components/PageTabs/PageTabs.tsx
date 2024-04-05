@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
 import { useWindowSize } from "hooks/useWindowSize";
 import { createRef, useCallback, useEffect, useRef } from "react";
+import { TabStateColors, TabsInfo } from "utils/search/objectToSearch";
 
-export const PageTabs = <T, S extends boolean = true>({
+export const PageTabs = <TabList extends TabsInfo>({
     ariaLabel,
     currTab,
     fullWidth = false,
@@ -12,7 +14,7 @@ export const PageTabs = <T, S extends boolean = true>({
     onChange,
     tabs,
     sx,
-}: PageTabsProps<T, S>) => {
+}: PageTabsProps<TabList>) => {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -187,19 +189,19 @@ export const PageTabs = <T, S extends boolean = true>({
                 ...sx,
             }}
         >
-            {tabs.map(({ color, href, Icon, label }, index) => {
+            {tabs.map(({ color, href, Icon, key, label }, index) => {
                 const isSelected = currTab.index === index;
                 const providedColor = color !== undefined ?
                     typeof color === "string" ? color :
                         isSelected ?
-                            color.active :
-                            color.inactive :
+                            (color as TabStateColors).active :
+                            (color as TabStateColors).inactive :
                     undefined;
                 const tabColor = providedColor ?? (isMobile ?
                     palette.primary.contrastText :
                     palette.primary.light);
                 return (
-                    <Tooltip key={index} title={(Icon && !ignoreIcons) ? label : ""}>
+                    <Tooltip key={key} title={(Icon && !ignoreIcons) ? label : ""}>
                         <Box
                             id={`${ariaLabel}-${index}`}
                             ref={tabRefs.current[index]}
@@ -218,7 +220,12 @@ export const PageTabs = <T, S extends boolean = true>({
                                 filter: isSelected ? "none" : "brightness(0.8)",
                             }}
                         >
-                            {(Icon && !ignoreIcons) ? <Icon fill={tabColor} /> : <Typography variant="body2" style={{ color: tabColor }}>{label}</Typography>}
+                            {
+                                (Icon && !ignoreIcons)
+                                    // @ts-ignore TypeScript being bitchy
+                                    ? <Icon fill={tabColor} />
+                                    : <Typography variant="body2" style={{ color: tabColor }}>{label}</Typography>
+                            }
                         </Box>
                     </Tooltip>
                 );

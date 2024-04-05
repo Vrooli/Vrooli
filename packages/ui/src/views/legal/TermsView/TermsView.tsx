@@ -1,14 +1,14 @@
 import { Box } from "@mui/material";
 import termsMarkdown from "assets/policy/terms.md";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useMarkdown } from "hooks/useMarkdown";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { policyTabParams } from "utils/search/objectToSearch";
+import { PolicyTabsInfo, policyTabParams } from "utils/search/objectToSearch";
 import { PolicyTabOption } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";
 
@@ -21,8 +21,8 @@ export const TermsView = ({
 
     const terms = useMarkdown(termsMarkdown);
 
-    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
+    const { currTab, tabs } = useTabs({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "dialog" });
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);

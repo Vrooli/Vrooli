@@ -17,7 +17,6 @@ import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { RunRoutineShape, shapeRunRoutine } from "utils/shape/models/runRoutine";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -127,7 +126,7 @@ const RunRoutineForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.RunRoutine}
+                defaultTab="RunRoutine"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}

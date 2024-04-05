@@ -1,13 +1,14 @@
-import { CommonKey, EmojisKey } from "@local/shared";
+import { EmojisKey } from "@local/shared";
 import { Box, Button, IconButton, Input, Palette, Paper, Popover, useTheme } from "@mui/material";
-import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { useTabs } from "hooks/useTabs";
 import { useZIndex } from "hooks/useZIndex";
 import i18next from "i18next";
 import { AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TabParam } from "utils/search/objectToSearch";
 import emojis from "./data/emojis";
 
 const MINIMUM_VERSION: number | null = null;
@@ -25,51 +26,60 @@ enum CategoryTabOption {
     Flags = "Flags"
 }
 
-const categoryTabParams = [{
+type EmojiTabsInfo = {
+    IsSearchable: false;
+    Key: CategoryTabOption;
+    Payload: undefined;
+    WhereParams: undefined;
+}
+
+const iconColor = (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary;
+
+const categoryTabParams: TabParam<EmojiTabsInfo>[] = [{
+    color: iconColor,
     Icon: HistoryIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisSuggested" as CommonKey,
-    tabType: CategoryTabOption.Suggested,
+    key: "Suggested",
+    titleKey: "EmojisSuggested",
 }, {
+    color: iconColor,
     Icon: RoutineValidIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisSmileysPeople" as CommonKey,
-    tabType: CategoryTabOption.SmileysPeople,
+    key: "SmileysPeople",
+    titleKey: "EmojisSmileysPeople",
 }, {
+    color: iconColor,
     Icon: VrooliIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisAnimalsNature" as CommonKey,
-    tabType: CategoryTabOption.AnimalsNature,
+    key: "AnimalsNature",
+    titleKey: "EmojisAnimalsNature",
 }, {
+    color: iconColor,
     Icon: FoodIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisFoodDrink" as CommonKey,
-    tabType: CategoryTabOption.FoodDrink,
+    key: "FoodDrink",
+    titleKey: "EmojisFoodDrink",
 }, {
+    color: iconColor,
     Icon: AirplaneIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisTravelPlaces" as CommonKey,
-    tabType: CategoryTabOption.TravelPlaces,
+    key: "TravelPlaces",
+    titleKey: "EmojisTravelPlaces",
 }, {
+    color: iconColor,
     Icon: AwardIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisActivities" as CommonKey,
-    tabType: CategoryTabOption.Activities,
+    key: "Activities",
+    titleKey: "EmojisActivities",
 }, {
+    color: iconColor,
     Icon: ProjectIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisObjects" as CommonKey,
-    tabType: CategoryTabOption.Objects,
+    key: "Objects",
+    titleKey: "EmojisObjects",
 }, {
+    color: iconColor,
     Icon: CompleteIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisSymbols" as CommonKey,
-    tabType: CategoryTabOption.Symbols,
+    key: "Symbols",
+    titleKey: "EmojisSymbols",
 }, {
+    color: iconColor,
     Icon: ReportIcon,
-    color: (palette: Palette) => palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary,
-    titleKey: "EmojisFlags" as CommonKey,
-    tabType: CategoryTabOption.Flags,
+    key: "Flags",
+    titleKey: "EmojisFlags",
 }];
 
 enum EmojiProperties {
@@ -238,7 +248,7 @@ function Suggested({
     category,
     onSelect,
 }: {
-    category: CategoryTabOption;
+    category: CategoryTabOption | `${CategoryTabOption}`;
     onSelect: (emoji: string) => unknown;
 }) {
     const suggested = useMemo(() => getSuggested(), []);
@@ -272,7 +282,7 @@ function EmojiCategory({
     children,
     hidden,
 }: {
-    category: CategoryTabOption;
+    category: CategoryTabOption | `${CategoryTabOption}`;
     children: React.ReactNode;
     hidden: boolean;
 }) {
@@ -303,7 +313,7 @@ const RenderCategory = ({
     activeSkinTone: SkinTone;
     index: number;
     isInView: boolean;
-    category: CategoryTabOption;
+    category: CategoryTabOption | `${CategoryTabOption}`;
     onSelect: (emoji: string) => unknown;
 }) => {
     const emojis = useMemo(() => {
@@ -356,10 +366,9 @@ export const EmojiPicker = ({
         currTab: activeCategory,
         handleTabChange: setActiveCategory,
         tabs: categories,
-    } = useTabs<CategoryTabOption>({ id: "emoji-picker-tabs", tabParams: categoryTabParams as any[], display: "dialog" });
+    } = useTabs({ id: "emoji-picker-tabs", tabParams: categoryTabParams, display: "dialog" });
     useEffect(() => {
-        const categoryDiv = document.querySelector(`[data-name="${activeCategory.tabType}"]`);
-        console.log("category divvvvv", categoryDiv, activeCategory);
+        const categoryDiv = document.querySelector(`[data-name="${activeCategory.key}"]`);
         if (categoryDiv) {
             categoryDiv.scrollIntoView();
         }
@@ -541,19 +550,19 @@ export const EmojiPicker = ({
                     {/* Emoji list */}
                     <ul style={{ padding: 0, margin: 0 }}>
                         {categoryTabParams.map((category, index) => {
-                            if (category.tabType === CategoryTabOption.Suggested) {
+                            if (category.key === CategoryTabOption.Suggested) {
                                 return <Suggested
-                                    key={category.tabType}
-                                    category={category.tabType}
+                                    key={category.key}
+                                    category={category.key}
                                     onSelect={onSelect}
                                 />;
                             }
                             return (
                                 <RenderCategory
-                                    key={category.tabType}
+                                    key={category.key}
                                     index={index}
                                     activeSkinTone={activeSkinTone}
-                                    category={category.tabType}
+                                    category={category.key}
                                     isInView={visibleCategories.has(index)}
                                     onSelect={onSelect}
                                 />

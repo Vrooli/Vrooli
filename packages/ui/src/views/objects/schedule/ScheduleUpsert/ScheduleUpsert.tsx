@@ -26,7 +26,7 @@ import { AddIcon, DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
-import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
+import { calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleFormProps, ScheduleUpsertProps } from "../types";
@@ -210,7 +210,7 @@ const ScheduleForm = ({
                     label: t("Delete"),
                     onClick: handleDelete,
                 }] : []}
-                title={t(`${isCreate ? "Create" : "Update"}${currTab.tabType}` as any)}
+                title={t(`${isCreate ? "Create" : "Update"}${currTab.key}` as any)}
                 // Can only link to an object when creating
                 below={isCreate && canChangeTab && <PageTabs
                     ariaLabel="schedule-link-tabs"
@@ -228,7 +228,7 @@ const ScheduleForm = ({
                 <Stack direction="column" spacing={4} padding={2}>
                     {canSetScheduleFor && <RelationshipList
                         isEditing={true}
-                        limitTo={[currTab.tabType] as RelationshipButtonType[]}
+                        limitTo={[currTab.key] as RelationshipButtonType[]}
                         objectType={"Schedule"}
                         sx={{ marginBottom: 4 }}
                     />}
@@ -386,7 +386,7 @@ const ScheduleForm = ({
     );
 };
 
-const tabParams = calendarTabParams.filter(tp => tp.tabType !== "All");
+const tabParams = calendarTabParams.filter(tp => tp.key !== "All");
 
 export const ScheduleUpsert = ({
     canChangeTab = true,
@@ -404,7 +404,7 @@ export const ScheduleUpsert = ({
         currTab,
         handleTabChange,
         tabs,
-    } = useTabs<CalendarPageTabOption>({
+    } = useTabs({
         id: "schedule-tabs",
         tabParams,
         defaultTab,
@@ -423,10 +423,10 @@ export const ScheduleUpsert = ({
             // because Formik will treat them as uncontrolled inputs and throw errors. 
             // Instead, we pretend that false is null and an empty string is undefined.
             ...(isCreate && canSetScheduleFor ? {
-                focusMode: currTab.tabType === "FocusMode" ? false : "",
-                meeting: currTab.tabType === "Meeting" ? false : "",
-                runProject: currTab.tabType === "RunProject" ? false : "",
-                runRoutine: currTab.tabType === "RunRoutine" ? false : "",
+                focusMode: currTab.key === "FocusMode" ? false : "",
+                meeting: currTab.key === "Meeting" ? false : "",
+                runProject: currTab.key === "RunProject" ? false : "",
+                runRoutine: currTab.key === "RunRoutine" ? false : "",
             } : {}),
         } as Schedule),
     });
