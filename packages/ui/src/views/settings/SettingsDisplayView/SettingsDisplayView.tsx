@@ -55,7 +55,7 @@ const SettingsDisplayForm = ({
                     variant="subheader"
                 />
                 <Stack direction="column" spacing={2} p={1}>
-                    <ThemeSwitch />
+                    <ThemeSwitch updateServer={false} />
                     <TextSizeButtons />
                     <LeftHandedCheckbox />
                 </Stack>

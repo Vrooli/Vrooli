@@ -1,4 +1,4 @@
-import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, noop, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, noop, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
@@ -209,7 +209,7 @@ export const SideMenu = () => {
                 primary={account.name ?? account.handle}
                 // Credits are calculated in cents * 1 million. 
                 // We'll convert it to dollars
-                secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(1_000_000)) / 100).toFixed(2)}`}
+                secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}`}
             />
         </ListItem>
     ), [accounts, handleUserClick]);
@@ -312,7 +312,7 @@ export const SideMenu = () => {
                         height: "fit-content",
                         padding: 1,
                     }}>
-                        <ThemeSwitch />
+                        <ThemeSwitch updateServer />
                         <TextSizeButtons />
                         <LeftHandedCheckbox />
                         <LanguageSelector />
