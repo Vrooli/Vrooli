@@ -5,35 +5,13 @@
  * unclear whether EU's Cookie Law applies to localStorage, but it is better to
  * be safe than sorry.
  */
-import { ActiveFocusMode, COOKIE, exists, FocusMode, GqlModelType, LlmTaskInfo, ValueOf } from "@local/shared";
+import { ActiveFocusMode, FocusMode, GqlModelType, LlmTaskInfo } from "@local/shared";
 import { NavigableObject } from "types";
 import { getDeviceInfo } from "./display/device";
 import { chatMatchHash } from "./hash";
 import { LocalStorageLruCache } from "./localStorageLruCache";
 
-/**
- * Handles storing and retrieving cookies, which may or 
- * may not be permitted by the user's cookie preferences
- */
-export const Cookies = {
-    ...COOKIE,
-    PartialData: "partialData", // Used to store partial data for the page before the full data is loaded
-    Preferences: "cookiePreferences",
-    Theme: "theme",
-    FontSize: "fontSize",
-    Language: "language",
-    LastTab: "lastTab",
-    IsLeftHanded: "isLeftHanded",
-    FocusModeActive: "focusModeActive",
-    FocusModeAll: "focusModeAll",
-    ShowMarkdown: "showMarkdown",
-    SideMenuState: "sideMenuState",
-    ChatMessageTree: "chatMessageTree",
-    ChatParticipants: "chatParticipants",
-    FormData: "formData",
-    AllowFormCaching: "allowFormCaching",
-};
-export type Cookies = ValueOf<typeof Cookies>;
+const MAX_CACHE_SIZE = 300;
 
 /**
  * Preferences for the user's cookie settings
@@ -45,7 +23,44 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
-export const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T): T | undefined => {
+export type CreateType = "Api" | "Bot" | "Chat" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
+export type ThemeType = "light" | "dark";
+
+type SimpleStoragePayloads = {
+    CreateOrder: CreateType[],
+    Preferences: CookiePreferences,
+    Theme: ThemeType,
+    FontSize: number,
+    Language: string,
+    LastTab: string | null,
+    IsLeftHanded: boolean,
+    FocusModeActive: ActiveFocusMode | null,
+    FocusModeAll: FocusMode[],
+    ShowMarkdown: boolean,
+    SideMenuState: boolean,
+}
+type SimpleStorageType = keyof SimpleStoragePayloads;
+
+type SimpleStorageInfo<T extends keyof SimpleStoragePayloads> = {
+    __type: keyof CookiePreferences;
+    check: (value: unknown) => boolean
+    fallback: SimpleStoragePayloads[T];
+    shape?: (value: SimpleStoragePayloads[T]) => SimpleStoragePayloads[T];
+};
+
+type CacheStoragePayloads = {
+    AllowFormCaching: AllowFormCaching,
+    ChatMessageTree: ChatMessageTreeCookie,
+    ChatParticipants: ChatGroupCookie,
+    FormData: FormCacheEntry,
+    PartialData: CookiePartialData, // Used to store partial data for the page before the full data is loaded
+}
+type CacheStorageType = keyof CacheStoragePayloads;
+
+export const getStorageItem = <T extends SimpleStorageType | string>(
+    name: T,
+    typeCheck: (value: unknown) => boolean,
+): (T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown) | undefined => {
     const cookie = localStorage.getItem(name);
     // Try to parse
     try {
@@ -59,55 +74,108 @@ export const getCookie = <T>(name: Cookies | string, typeCheck: (value: unknown)
     return undefined;
 };
 
-export const setCookie = (name: Cookies | string, value: unknown) => { localStorage.setItem(name, JSON.stringify(value)); };
+export const setStorageItem = <T extends SimpleStorageType | string>(
+    name: T,
+    value: T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown,
+) => {
+    localStorage.setItem(name, JSON.stringify(value));
+};
 
 /**
  * Gets a cookie if it exists, otherwise sets it to the default value. 
  * Assumes that you have already checked that the cookie is allowed.
  */
-export const getOrSetCookie = <T>(name: Cookies | string, typeCheck: (value: unknown) => value is T, defaultValue?: T): T | undefined => {
-    const cookie = getCookie(name, typeCheck);
-    if (exists(cookie)) return cookie;
-    if (exists(defaultValue)) setCookie(name, defaultValue);
-    return defaultValue;
-};
-
-/**
- * Finds the user's cookie preferences.
- * @returns CookiePreferences object, or null if not set
- */
-export const getCookiePreferences = (): CookiePreferences | null => {
-    // PWAs don't require cookie consent
-    if (getDeviceInfo().isStandalone) {
-        return {
-            strictlyNecessary: true,
-            performance: true,
-            functional: true,
-            targeting: true,
-        };
+export const getOrSetCookie = <T extends SimpleStorageType | string>(
+    name: T,
+    check: (value: unknown) => boolean,
+    fallback: T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown,
+): T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown => {
+    const cookie = getStorageItem(name, check);
+    if (cookie !== undefined) return cookie;
+    // NOTE: The only cookie we'll refuse to set is "Preferences", since 
+    // the user needs to set these using the cookie dialog
+    if (name !== "Preferences") {
+        setStorageItem(name, fallback);
     }
-    const cookie = getCookie(Cookies.Preferences, (value: unknown): value is CookiePreferences => typeof value === "object");
-    if (!cookie) return null;
-    return {
-        strictlyNecessary: cookie.strictlyNecessary || true,
-        performance: cookie.performance || false,
-        functional: cookie.functional || false,
-        targeting: cookie.targeting || false,
-    };
+    return fallback;
 };
 
-/**
- * Sets the user's cookie preferences.
- * @param preferences CookiePreferences object
- */
-export const setCookiePreferences = (preferences: CookiePreferences) => {
-    const validatedPreferences: CookiePreferences = {
-        strictlyNecessary: preferences.strictlyNecessary === true,
-        performance: preferences.performance === true,
-        functional: preferences.functional === true,
-        targeting: preferences.targeting === true,
-    };
-    setCookie(Cookies.Preferences, validatedPreferences);
+export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
+    CreateOrder: {
+        __type: "functional",
+        check: (value) => Array.isArray(value) && value.every(v => typeof v === "string"),
+        fallback: [],
+    },
+    FocusModeActive: {
+        __type: "functional",
+        check: (value) => typeof value === "object" || value === null,
+        fallback: null,
+    },
+    FocusModeAll: {
+        __type: "functional",
+        check: (value) => Array.isArray(value),
+        fallback: [],
+    },
+    FontSize: {
+        __type: "functional",
+        check: (value) => typeof value === "number",
+        fallback: 14,
+        // Ensure font size is not too small or too large. This would make the UI unusable.
+        shape: (value) => Math.max(8, Math.min(24, value)),
+    },
+    IsLeftHanded: {
+        __type: "functional",
+        check: (value) => typeof value === "boolean",
+        fallback: false,
+    },
+    Language: {
+        __type: "functional",
+        check: (value) => typeof value === "string",
+        fallback: "en",
+    },
+    LastTab: {
+        __type: "functional",
+        check: (value) => typeof value === "string" && value !== "",
+        fallback: null,
+    },
+    Preferences: {
+        __type: "strictlyNecessary",
+        check: (value) => typeof value === "object",
+        fallback: {
+            strictlyNecessary: false,
+            performance: false,
+            functional: false,
+            targeting: false,
+        },
+        // Allow all for PWAs
+        shape: (value) => {
+            if (getDeviceInfo().isStandalone) {
+                // Use fallback with all true
+                return Object.fromEntries(Object.keys(cookies.Preferences.fallback).map(k => [k, true])) as CookiePreferences;
+            }
+            return {
+                strictlyNecessary: value.strictlyNecessary || true,
+                performance: value.performance || false,
+                functional: value.functional || false,
+                targeting: value.targeting || false,
+            };
+        },
+    },
+    ShowMarkdown: {
+        __type: "functional",
+        check: (value) => typeof value === "boolean",
+        fallback: false,
+    },
+    SideMenuState: {
+        __type: "functional",
+        check: (value) => typeof value === "object" && value !== null && Object.values(value).every(v => typeof v === "boolean"),
+        fallback: false,
+    },
+    Theme: {
+        __type: "functional",
+        check: (value) => value === "light" || value === "dark",
+        fallback: window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
+    },
 };
 
 /**
@@ -119,93 +187,63 @@ export const setCookiePreferences = (preferences: CookiePreferences) => {
  * @param fallback Optional fallback value to use if cookie is not allowed
  */
 export const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) => {
-    const preferences = getCookiePreferences();
-    if (cookieType === "strictlyNecessary" || preferences?.[cookieType]) {
+    const preferences = getStorageItem("Preferences", cookies.Preferences.check) ?? cookies.Preferences.fallback;
+    if (cookieType === "strictlyNecessary" || preferences[cookieType]) {
         return callback();
     }
     else {
-        console.warn(`Not allowed to get/set cookie ${cookieType}`);
+        console.warn(`Not allowed to get/set cookie ${cookieType}`, preferences, localStorage.getItem("Preferences"));
         return fallback;
     }
 };
 
-type ThemeType = "light" | "dark";
-export const getCookieTheme = <T extends ThemeType | undefined>(fallback?: T): T =>
-    ifAllowed("functional",
-        () => getOrSetCookie(Cookies.Theme, (value: unknown): value is ThemeType => value === "light" || value === "dark", fallback),
-        fallback,
-    );
-export const setCookieTheme = (theme: ThemeType) => ifAllowed("functional", () => setCookie(Cookies.Theme, theme));
-
-export const getCookieFontSize = <T extends number | undefined>(fallback?: T): T =>
-    ifAllowed("functional",
+/**
+ * Retrieves data from localStorage, if allowed by the user's cookie preferences.
+ * @param name The name of the cookie to retrieve
+ * @param id Provides unique identifier for the cookie, if needed (e.g. last tab is stored for many different tabs)
+ * @returns The value of the cookie, or the fallback value if the cookie is not allowed
+ */
+export const getCookie = <T extends SimpleStorageType>(
+    name: T,
+    id?: string,
+): SimpleStoragePayloads[T] => {
+    const { __type, check, fallback, shape } = cookies[name] || {};
+    return ifAllowed(
+        __type,
         () => {
-            const size = getOrSetCookie(Cookies.FontSize, (value: unknown): value is number => typeof value === "number", fallback);
-            // Ensure font size is not too small or too large. This would make the UI unusable.
-            return size ? Math.max(8, Math.min(24, size)) : undefined;
+            const key = id ? `${name}-${id}` : name;
+            const storedValue = getOrSetCookie(key, check, fallback) as SimpleStoragePayloads[T];
+            return storedValue !== undefined && typeof shape === "function"
+                ? shape(storedValue)
+                : storedValue;
         },
         fallback,
     );
-export const setCookieFontSize = (fontSize: number) => ifAllowed("functional", () => setCookie(Cookies.FontSize, fontSize));
+};
 
-export const getCookieLanguage = <T extends string | undefined>(fallback?: T): T =>
-    ifAllowed("functional",
-        () => getOrSetCookie(Cookies.Language, (value: unknown): value is string => typeof value === "string", fallback),
-        fallback,
-    );
-export const setCookieLanguage = (language: string) => ifAllowed("functional", () => setCookie(Cookies.Language, language));
+/**
+ * Stroes data in localStorage only if the user has permitted the cookie's type.
+ * @param name The name of the cookie to set
+ * @param value The value to store in the cookie
+ * @param id Provides unique identifier for the cookie, if needed (e.g. last tab is stored for many different tabs)
+ */
+export const setCookie = <T extends SimpleStorageType>(
+    name: T,
+    value: SimpleStoragePayloads[T],
+    id?: string,
+) => {
+    const { __type } = cookies[name] || {};
+    const key = id ? `${name}-${id}` : name;
+    ifAllowed(__type, () => { setStorageItem(key, value); });
+};
 
-export const getCookieIsLeftHanded = <T extends boolean | undefined>(fallback?: T): T =>
-    ifAllowed("functional",
-        () => getOrSetCookie(Cookies.IsLeftHanded, (value: unknown): value is boolean => typeof value === "boolean", fallback),
-        fallback,
-    );
-export const setCookieIsLeftHanded = (isLeftHanded: boolean) => ifAllowed("functional", () => setCookie(Cookies.IsLeftHanded, isLeftHanded));
-
-export const getCookieActiveFocusMode = <T extends ActiveFocusMode | undefined>(fallback?: T): T =>
-    ifAllowed("functional",
-        () => getOrSetCookie(Cookies.FocusModeActive, (value: unknown): value is ActiveFocusMode => typeof value === "object", fallback),
-        fallback,
-    );
-export const setCookieActiveFocusMode = (focusMode: ActiveFocusMode | null) => ifAllowed("functional", () => setCookie(Cookies.FocusModeActive, focusMode));
-
-export const getCookieAllFocusModes = <T extends FocusMode[]>(fallback?: T): T =>
-    ifAllowed("functional",
-        () => getOrSetCookie(Cookies.FocusModeAll, (value: unknown): value is FocusMode[] => Array.isArray(value), fallback),
-        fallback,
-    );
-export const setCookieAllFocusModes = (modes: FocusMode[]) => ifAllowed("functional", () => setCookie(Cookies.FocusModeAll, modes));
-
-export const getCookieSideMenuState = <T extends boolean | undefined>(id: string, fallback?: T): T =>
-    ifAllowed("functional",
-        () => {
-            const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
-            return allMenus?.[id] ?? fallback;
-        },
-        fallback,
-    );
-
-export const setCookieSideMenuState = (id: string, state: boolean) => ifAllowed("functional", () => {
-    const allMenus = getOrSetCookie(Cookies.SideMenuState, (value: unknown): value is Record<string, boolean> => typeof value === "object" && value !== null, {});
-    setCookie(Cookies.SideMenuState, allMenus ? { ...allMenus, [id]: state } : { [id]: state });
-});
-
-export const getCookieShowMarkdown = <T extends boolean | undefined>(fallback?: T): T =>
-    ifAllowed("functional",
-        () => getOrSetCookie(Cookies.ShowMarkdown, (value: unknown): value is boolean => typeof value === "boolean", fallback),
-        fallback,
-    );
-export const setCookieShowMarkdown = (showMarkdown: boolean) => ifAllowed("functional", () => setCookie(Cookies.ShowMarkdown, showMarkdown));
-
-export const getCookieLastTab = <T>(id: string, fallback?: T): T | undefined => ifAllowed("functional", () => {
-    const lastTab = getOrSetCookie(`${Cookies.LastTab}-${id}`, (value: unknown): value is string => typeof value === "string", undefined);
-    return lastTab as unknown as T;
-}, fallback);
-export const setCookieLastTab = <T>(id: string, tabType: T) => ifAllowed("functional", () => setCookie(`${Cookies.LastTab}-${id}`, tabType));
-
-
-
-
+export const removeCookie = <T extends SimpleStorageType | CacheStorageType>(
+    name: T,
+    id?: string,
+) => {
+    const key = id ? `${name}-${id}` : name;
+    localStorage.removeItem(key);
+};
 
 /** Represents the stored values for a particular form identified by objectType and objectId */
 type FormCacheEntry = {
@@ -332,11 +370,10 @@ type Cache = {
     order: string[], // Order of objects in cache, for FIFO
 };
 
-const MAX_CACHE_SIZE = 300;
 
 /** Get object containing all cached objects */
 const getCache = (): Cache => getOrSetCookie(
-    Cookies.PartialData, // Cookie name
+    "PartialData", // Cookie name
     (value: unknown): value is Cache =>
         typeof value === "object" &&
         typeof (value as Partial<Cache>)?.idMap === "object" &&
@@ -416,7 +453,7 @@ export const setCookiePartialData = (partialData: CookiePartialData, dataType: D
                 // Add it back to the end
                 cache.order.push(key);
             }
-            setCookie(Cookies.PartialData, cache);
+            setStorageItem("PartialData", cache);
             return;
         }
         // If the cache is full, remove the oldest object
@@ -433,7 +470,7 @@ export const setCookiePartialData = (partialData: CookiePartialData, dataType: D
         // Push the new object to the end of the FIFO order
         cache.order.push(key);
 
-        setCookie(Cookies.PartialData, cache);
+        setStorageItem("PartialData", cache);
     });
 });
 export const removeCookiePartialData = (partialData: CookiePartialData) => ifAllowed("functional", () => {
@@ -451,5 +488,5 @@ export const removeCookiePartialData = (partialData: CookiePartialData) => ifAll
     if (existingIndex !== -1) {
         cache.order.splice(existingIndex, 1);
     }
-    setCookie(Cookies.PartialData, cache);
+    setStorageItem("PartialData", cache);
 });

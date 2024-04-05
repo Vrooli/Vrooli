@@ -2,7 +2,7 @@ import { Checkbox, Stack, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
-import { getCookieIsLeftHanded } from "utils/cookies";
+import { getCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -11,7 +11,7 @@ import { PubSub } from "utils/pubsub";
 export function LeftHandedCheckbox() {
     const { t } = useTranslation();
 
-    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
+    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
 
     const handleToggle = useCallback(() => {
         setIsLeftHanded(!isLeftHanded);

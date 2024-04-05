@@ -1,5 +1,5 @@
 import { ActiveFocusMode, FocusMode, Session, SessionUser, uuidValidate } from "@local/shared";
-import { getCookieActiveFocusMode, getCookieAllFocusModes, getCookieLanguage } from "utils/cookies";
+import { getCookie } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
 
 /**
@@ -60,9 +60,9 @@ export const getSiteLanguage = (session: Session | null | undefined): string => 
     // If found, return it
     if (siteLanguage) return siteLanguage;
     // If no languages found in session, check local storage (i.e. cookies)
-    const cookieLanguages = getCookieLanguage();
+    const storedLanguage = getCookie("Language");
     // Check if it's a site language
-    if (cookieLanguages && siteLanguages.includes(cookieLanguages)) return cookieLanguages;
+    if (storedLanguage && siteLanguages.includes(storedLanguage)) return storedLanguage;
     // Otherwise, return default (first in array)
     return siteLanguages[0];
 };
@@ -74,8 +74,8 @@ export const getFocusModeInfo = (session: Session | null | undefined): {
     // Try to find focus modes user from session
     const { activeFocusMode, focusModes } = getCurrentUser(session);
 
-    const active = activeFocusMode ?? getCookieActiveFocusMode() ?? null;
-    let all = focusModes ?? getCookieAllFocusModes() ?? [];
+    const active = activeFocusMode ?? getCookie("FocusModeActive") ?? null;
+    let all = focusModes ?? getCookie("FocusModeAll") ?? [];
 
     // If there is an active focus mode, move it to the first position in the 'all' array
     if (active) {

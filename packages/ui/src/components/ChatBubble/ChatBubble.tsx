@@ -575,8 +575,8 @@ export const ChatBubble = ({
                         <Typography variant="body2">
                             {name}
                         </Typography>
-                        {adornments.length > 0 && adornments.map((Adornment, index) => (
-                            <Box key={index} sx={{
+                        {adornments.map(({ Adornment, key }, index) => (
+                            <Box key={key} sx={{
                                 width: fontSizeToPixels("0.85rem") * Number("1.5"),
                                 height: fontSizeToPixels("0.85rem") * Number("1.5"),
                             }}>

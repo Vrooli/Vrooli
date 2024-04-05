@@ -1,104 +1,81 @@
 import { CommonKey } from "@local/shared";
-import { Palette, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, parseSearchParams, useLocation } from "route";
-import { SvgComponent } from "types";
-import { getCookieLastTab, setCookieLastTab } from "utils/cookies";
-import { SearchType } from "utils/search/objectToSearch";
+import { getCookie, setCookie } from "utils/cookies";
+import { TabParam, TabsInfo } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
 
-export type TabParam<T, S extends boolean = true> = {
-    color?: (palette: Palette) => (string | { active: string, inactive: string })
-    href?: string;
-    Icon?: SvgComponent,
-    titleKey: CommonKey;
-    tabType: T;
-} & (S extends true ? {
-    searchPlaceholderKey?: CommonKey;
-    searchType: SearchType;
-    where: (params?: any) => { [x: string]: any };
-} : object);
-
-export type PageTab<T, S extends boolean = true> = {
-    color?: string | { active: string, inactive: string };
-    href?: string;
-    index: number;
-    Icon?: SvgComponent;
-    label: string;
-    tabType: T;
-} & (S extends true ? {
-    searchPlaceholder: string;
-    searchType: SearchType;
-} : object);
-
-type UseTabsParam<T, S extends boolean = true> = TabParam<T, S>;
+export type PageTab<TabList extends TabsInfo> = Omit<TabParam<TabList>, "color" | "searchPlaceholderKey" | "titleKey"> & {
+    color: string,
+    index: number,
+    label: string,
+    searchPlaceholder: string,
+};
 
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-export const useTabs = <T, S extends boolean = true>({
+export const useTabs = <TabList extends TabsInfo>({
     defaultTab,
     display,
     id,
     tabParams,
 }: {
-    defaultTab?: T,
+    defaultTab?: TabList["Key"] | `${TabList["Key"]}`,
     display: ViewDisplayType,
     id: string,
-    tabParams: readonly UseTabsParam<T, S>[],
+    tabParams: readonly TabParam<TabList>[],
 }) => {
     const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
 
-    const tabs = useMemo<PageTab<T, S>[]>(() => {
+    const tabs = useMemo(() => {
         return tabParams.map((tab, i) => ({
+            ...tab,
             color: typeof tab.color === "function" ? tab.color(palette) : tab.color,
-            href: tab.href,
-            Icon: tab.Icon,
             index: i,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            searchPlaceholder: t((tab as UseTabsParam<T, true>).searchPlaceholderKey ?? "Search"),
-            searchType: (tab as UseTabsParam<T, true>).searchType,
-            tabType: tab.tabType,
-        }));
+            searchPlaceholder: t((tab as { searchPlaceholderKey?: CommonKey }).searchPlaceholderKey ?? "Search"),
+        })) as PageTab<TabList>[];
     }, [palette, t, tabParams]);
 
-    const [currTab, setCurrTab] = useState<PageTab<T, S>>(() => {
-        const storedTab = getCookieLastTab<T>(id);
+    const [currTab, setCurrTab] = useState<PageTab<TabList>>(() => {
+        const storedKey = getCookie("LastTab", id);
         if (display !== "page") {
-            const defaultIndex = tabs.findIndex(tab => tab.tabType === (storedTab || defaultTab));
+            const defaultIndex = tabs.findIndex(tab => tab.key === (storedKey || defaultTab));
             return tabs[defaultIndex !== -1 ? defaultIndex : 0];
         }
         const searchParams = parseSearchParams();
-        const tabFromParams = tabs.find(tab => tab.tabType === searchParams.type);
-        return tabFromParams || tabs.find(tab => tab.tabType === storedTab || defaultTab) || tabs[0];
+        const tabFromParams = tabs.find(tab => tab.key === searchParams.type);
+        return tabFromParams || tabs.find(tab => tab.key === storedKey || defaultTab) || tabs[0];
     });
 
     useEffect(() => {
         if (display === "page") {
             const searchParams = parseSearchParams();
-            const tabFromParams = tabs.find(tab => tab.tabType === searchParams.type);
+            const tabFromParams = tabs.find(tab => tab.key === searchParams.type);
             if (tabFromParams) {
                 setCurrTab(tabFromParams);
             }
         }
     }, [location, display, tabs]);
 
-    const handleTabChange = useCallback((e: ChangeEvent<unknown> | undefined, tab: PageTab<T, S>) => {
+    const handleTabChange = useCallback((e: ChangeEvent<unknown> | undefined, tab: PageTab<TabList>) => {
         e?.preventDefault();
-        if (display === "page") addSearchParams(setLocation, { type: tab.tabType });
-        setCookieLastTab(id, tab.tabType);
+        if (display === "page") addSearchParams(setLocation, { type: tab.key });
+        setCookie("LastTab", tab.key, id);
         setCurrTab(tab);
     }, [display, setLocation, id]);
 
-    const changeTab = useCallback((tabType: T) => {
-        const tab = tabs.find(tab => tab.tabType === tabType);
+    const changeTab = useCallback((key: TabList["Key"]) => {
+        const tab = tabs.find(tab => tab.key === key);
         if (tab) handleTabChange(undefined, tab);
     }, [handleTabChange, tabs]);
 
-    const currTabParams = useMemo(() => tabParams[currTab.index], [currTab.index, tabParams]);
+    const currTabParams = useMemo(() => tabParams[currTab.index] as TabParam<TabList>, [currTab, tabParams]);
 
     return { tabs, currTab, setCurrTab, handleTabChange, changeTab, ...currTabParams };
 };

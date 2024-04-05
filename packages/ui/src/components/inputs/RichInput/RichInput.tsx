@@ -7,7 +7,7 @@ import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookieMatchingChat, getCookieShowMarkdown, setCookieShowMarkdown } from "utils/cookies";
+import { getCookie, getCookieMatchingChat, setCookie } from "utils/cookies";
 import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
@@ -64,10 +64,10 @@ export const RichInputBase = ({
         resetInternalValue(value);
     }, [value, resetInternalValue]);
 
-    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookieShowMarkdown() ?? false);
+    const [isMarkdownOn, setIsMarkdownOn] = useState(getCookie("ShowMarkdown"));
     const toggleMarkdown = useCallback(() => {
         setIsMarkdownOn(!isMarkdownOn);
-        setCookieShowMarkdown(!isMarkdownOn);
+        setCookie("ShowMarkdown", !isMarkdownOn);
     }, [isMarkdownOn]);
 
     const closeAssistantDialog = useCallback(() => {

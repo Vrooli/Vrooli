@@ -1,6 +1,7 @@
 import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
+import { ThemeType } from "./cookies";
 import { ChatMessageShape } from "./shape/models/chatMessage";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
@@ -80,7 +81,7 @@ export interface EventPayloads {
     session: Session | undefined;
     sideMenu: SideMenuPub;
     snack: SnackPub;
-    theme: "light" | "dark";
+    theme: ThemeType;
     tutorial: void;
 }
 

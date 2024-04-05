@@ -333,8 +333,8 @@ export function ObjectListItemBase<T extends ListObject>({
                                 pointerEvents: "none",
                             }}>
                                 <ListItemText primary={titleOverride ?? title} sx={{ display: "contents" }} />
-                                {adornments.map((Adornment) => (
-                                    <Box sx={{
+                                {adornments.map(({ Adornment, key }) => (
+                                    <Box key={key} sx={{
                                         width: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
                                         height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
                                     }}>

@@ -49,9 +49,9 @@ export const ReportsView = ({
                 onClose={onClose}
                 title={t("Report", { count: 2 })}
             />
-            {reports.map((report, i) => {
+            {reports.map((report) => {
                 return <Box
-                    key={i}
+                    key={report.id}
                     sx={{
                         background: palette.background.paper,
                         color: palette.background.textPrimary,

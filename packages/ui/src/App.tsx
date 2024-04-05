@@ -26,7 +26,7 @@ import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
-import { getCookieFontSize, getCookieIsLeftHanded, getCookiePreferences, getCookieTheme, setCookieActiveFocusMode, setCookieAllFocusModes, setCookieFontSize, setCookieIsLeftHanded, setCookieLanguage, setCookieTheme } from "utils/cookies";
+import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/cookies";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { PubSub, SideMenuPub } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
@@ -47,13 +47,9 @@ export const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => 
 
 /** Attempts to find theme without using session */
 const findThemeWithoutSession = (): Theme => {
-    // Get font size from cookie
-    const fontSize = getCookieFontSize(14);
-    // Get isLeftHanded from cookie
-    const isLefthanded = getCookieIsLeftHanded(false);
-    // Get theme. First check cookie, then window
-    const windowPrefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-    const theme = getCookieTheme(windowPrefersLight ? "light" : "dark");
+    const fontSize = getCookie("FontSize");
+    const isLefthanded = getCookie("IsLeftHanded");
+    const theme = getCookie("Theme");
     // Return theme object
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 };
@@ -68,9 +64,9 @@ export const App = () => {
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
-    const [fontSize, setFontSize] = useState<number>(getCookieFontSize(14));
+    const [fontSize, setFontSize] = useState<number>(getCookie("FontSize"));
     const [language, setLanguage] = useState<string>(getSiteLanguage(undefined));
-    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
+    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
     const [isLoading, setIsLoading] = useState(false);
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,7 +109,7 @@ export const App = () => {
         document.querySelector("meta[name=\"theme-color\"]")?.setAttribute("content", theme.palette.primary.dark);
         document.querySelector("meta[name=\"apple-mobile-web-app-status-bar-style\"]")?.setAttribute("content", theme.palette.primary.dark);
         // Also store in local storage
-        setCookieTheme(theme.palette.mode);
+        setCookie("Theme", theme.palette.mode);
     }, [fontSize, isLeftHanded]);
 
     /** Sets up google adsense */
@@ -173,7 +169,7 @@ export const App = () => {
         // Determine theme
         let theme: Theme | null | undefined;
         // Try getting theme from session
-        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme as "light" | "dark"];
+        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme as ThemeType];
         // If not found, try alternative methods
         if (!theme) theme = findThemeWithoutSession();
         // Update theme state, meta tags, and local storage
@@ -190,7 +186,7 @@ export const App = () => {
             PubSub.get().publish("snack", { autoHideDuration: "persist", id: "online-status", messageKey: "NoInternet", severity: "Error" });
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
-        const cookiePreferences = getCookiePreferences();
+        const cookiePreferences = getStorageItem("Preferences", () => true);
         if (!cookiePreferences) {
             PubSub.get().publish("cookies");
         }
@@ -267,8 +263,9 @@ export const App = () => {
             // Store user's focus modes in local storage
             const currentlyActiveFocusMode = getCurrentUser(session)?.activeFocusMode ?? null;
             const focusModes = getCurrentUser(session)?.focusModes ?? [];
-            setCookieActiveFocusMode(await getActiveFocusMode(currentlyActiveFocusMode, focusModes));
-            setCookieAllFocusModes(focusModes);
+            const activeFocusMode = await getActiveFocusMode(currentlyActiveFocusMode, focusModes);
+            setCookie("FocusModeActive", activeFocusMode);
+            setCookie("FocusModeAll", focusModes);
         });
         // Handle theme updates
         const themeSub = PubSub.get().subscribe("theme", (data) => {
@@ -277,7 +274,7 @@ export const App = () => {
         });
         // Handle focus mode updates
         const focusModeSub = PubSub.get().subscribe("focusMode", (data) => {
-            setCookieActiveFocusMode(data);
+            setCookie("FocusModeActive", data);
             setSession((prevState) => {
                 if (!prevState) return prevState;
                 const updatedUsers = prevState?.users?.map((user, index) => {
@@ -312,17 +309,17 @@ export const App = () => {
         // Handle font size updates
         const fontSizeSub = PubSub.get().subscribe("fontSize", (data) => {
             setFontSize(data);
-            setCookieFontSize(data);
+            setCookie("FontSize", data);
         });
         // Handle language updates
         const languageSub = PubSub.get().subscribe("language", (data) => {
             setLanguage(data);
-            setCookieLanguage(data);
+            setCookie("Language", data);
         });
         // Handle isLeftHanded updates
         const isLeftHandedSub = PubSub.get().subscribe("isLeftHanded", (data) => {
             setIsLeftHanded(data);
-            setCookieIsLeftHanded(data);
+            setCookie("IsLeftHanded", data);
         });
         // Handle tutorial popup
         const tutorialSub = PubSub.get().subscribe("tutorial", () => {

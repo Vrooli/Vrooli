@@ -46,7 +46,7 @@ export const DiagonalWaveLoader = ({
         <Loader size={size} sx={sx} data-testid="diagonal-wave-loader">
             {Array.from({ length: 9 }, (_, i) => (
                 <Circle
-                    key={i}
+                    key={`circle-${i}`} // Using the index as key is not recommended, but it's fine here
                     color={color}
                     style={{ animationDelay: `${(i % 3) * 0.3 + Math.floor(i / 3) * 0.3}s` }}
                 />

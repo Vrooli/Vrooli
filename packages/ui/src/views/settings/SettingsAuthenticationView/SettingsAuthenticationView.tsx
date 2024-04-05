@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
-import { Cookies } from "utils/cookies";
+import { removeCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
 
@@ -101,7 +101,7 @@ export const SettingsAuthenticationView = ({
             fetch: logOut,
             inputs: { id },
             onSuccess: (data) => {
-                localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                removeCookie("FormData"); // Clear old form data cache
                 PubSub.get().publish("session", data);
                 PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
             },

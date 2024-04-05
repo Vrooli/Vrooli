@@ -18,7 +18,7 @@ import { EmailIcon, UserIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
-import { Cookies } from "utils/cookies";
+import { removeCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { SignupViewProps } from "views/types";
@@ -57,7 +57,7 @@ const SignupForm = () => {
                             theme: palette.mode ?? "light",
                         },
                         onSuccess: (data) => {
-                            localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                            removeCookie("FormData"); // Clear old form data cache
                             setupPush(false);
                             PubSub.get().publish("session", data);
                             PubSub.get().publish("celebration", { targetId: "sign-up-button" });

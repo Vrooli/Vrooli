@@ -78,7 +78,7 @@ export function CommentContainer({
         // Make comment first, so you can see it without having to scroll to the bottom
         setAllData(curr => [{
             __typename: "CommentThread",
-            comment: comment as any,
+            comment,
             childThreads: [],
             endCursor: null,
             totalInThread: 0,

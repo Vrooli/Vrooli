@@ -74,8 +74,8 @@ export const Title = ({
                     }}
                 >{title}</Typography>}
                 {/* Adornments */}
-                {adornments && adornments.map((Adornment) => (
-                    <Box sx={{
+                {adornments && adornments.map(({ Adornment, key }) => (
+                    <Box key={key} sx={{
                         height: fontSizeToPixels(fontSize ?? "1rem") * Number(typography[variant === "header" ? "h3" : "h4"].lineHeight ?? "1.5"),
                     }}>
                         {Adornment}

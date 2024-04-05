@@ -304,6 +304,17 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
     return { title: title ?? "", subtitle: subtitle ?? "" };
 };
 
+export type DisplayAdornment = {
+    Adornment: JSX.Element,
+    key: string,
+};
+
+type GetDisplayResult = {
+    title: string,
+    subtitle: string,
+    adornments: DisplayAdornment[],
+};
+
 /**
  * Gets the name and subtitle of a list object
  * @param object A list object
@@ -314,8 +325,8 @@ export const getDisplay = (
     object: ListObject | null | undefined,
     languages?: readonly string[],
     palette?: Palette,
-): { title: string, subtitle: string, adornments: JSX.Element[] } => {
-    const adornments: JSX.Element[] = [];
+): GetDisplayResult => {
+    const adornments: GetDisplayResult["adornments"] = [];
     if (!object) return { title: "", subtitle: "", adornments };
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getDisplay((object as Partial<Bookmark | Reaction | View>).to as ListObject);
@@ -378,26 +389,31 @@ export const getDisplay = (
     }
     // If a User, and `isBot` is true, add BotIcon to adornments
     if (isOfType(object, "User") && (object as Partial<User>).isBot) {
-        adornments.push(
-            <BotIcon
-                key="bot"
+        adornments.push({
+            Adornment: <BotIcon
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
                 width="100%"
                 height="100%"
                 style={{ padding: "1px" }}
             />,
-        );
+            key: "bot",
+        });
         // If the bot is depicting a real person, add a chip indicating that
         if ((object as Partial<User>).isBotDepictingPerson) {
-            adornments.push(<Chip key="parody" label="Parody" sx={{ backgroundColor: palette?.mode === "light" ? "#521f81" : "#a979d5", color: "white", display: "inline" }} />);
+            adornments.push({
+                Adornment: <Chip key="parody" label="Parody" sx={{ backgroundColor: palette?.mode === "light" ? "#521f81" : "#a979d5", color: "white", display: "inline" }} />,
+                key: "parody",
+            });
         }
     }
     // If a Routine and there are nodes and edges, add icon indicating that it's a multi-step routine
-    if (isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount) {
-        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
-    }
-    if (isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount)) {
-        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
+    const isMultiStepRoutineVersion = isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount;
+    const isMultiStepRoutine = isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount);
+    if (isMultiStepRoutineVersion || isMultiStepRoutine) {
+        adornments.push({
+            Adornment: <Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />,
+            key: "multi-step",
+        });
     }
     // Return result
     return { title, subtitle, adornments };
