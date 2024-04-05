@@ -25,6 +25,7 @@ export const LargeDialog = ({
             TransitionComponent={UpTransition}
             sx={{
                 zIndex,
+                ...sxs?.root,
                 "& > .MuiDialog-container": {
                     "& > .MuiPaper-root": {
                         zIndex,
@@ -42,7 +43,7 @@ export const LargeDialog = ({
                         "& > .MuiDialogContent-root": {
                             position: "relative",
                         },
-                        ...(sxs?.paper ?? {}),
+                        ...sxs?.paper,
                     },
                 },
             }}

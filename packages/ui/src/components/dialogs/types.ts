@@ -261,7 +261,10 @@ export interface LargeDialogProps {
     isOpen: boolean;
     onClose: (_event: unknown, reason: "backdropClick" | "escapeKeyDown") => unknown;
     titleId?: string;
-    sxs?: { paper?: SxType; }
+    sxs?: {
+        paper?: SxType;
+        root?: SxType;
+    };
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {

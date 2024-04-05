@@ -33,13 +33,11 @@ export const CookiesSnack = ({
     };
 
     const handleCustomizeCookies = (preferences?: CookiePreferences) => {
-        if (preferences) {
-            // Set preference in local storage
-            setCookie("Preferences", preferences);
-        }
-        // Close dialog
         setIsCustomizeOpen(false);
-        handleClose();
+        if (preferences) {
+            setCookie("Preferences", preferences);
+            handleClose();
+        }
     };
 
     return (

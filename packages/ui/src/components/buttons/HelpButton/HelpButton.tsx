@@ -57,6 +57,7 @@ export const HelpButton = ({
                             horizontal: "left",
                         }}
                         sx={{
+                            zIndex: "40000 !important",
                             "& .MuiPopover-paper": {
                                 background: palette.background.default,
                                 maxWidth: "min(90vw, 500px)",
