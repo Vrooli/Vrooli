@@ -4,13 +4,13 @@ import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SvgComponent } from "types";
+import { CreateType, getCookie, setCookie } from "utils/cookies";
 import { CreateViewProps } from "../types";
 
-type CreateType = "Api" | "Bot" | "Chat" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
 type CreateInfo = {
     objectType: CreateType;
     description: CommonKey,
@@ -18,7 +18,7 @@ type CreateInfo = {
     id: string,
 }
 
-const createCards: CreateInfo[] = [
+export const createCards: CreateInfo[] = [
     {
         objectType: "Reminder",
         description: "CreateReminderDescription",
@@ -87,6 +87,17 @@ const createCards: CreateInfo[] = [
     },
 ];
 
+const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
+    const history = getCookie("CreateOrder");
+    cards.sort((a, b) => {
+        const aIndex = history.indexOf(a.objectType);
+        const bIndex = history.indexOf(b.objectType);
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+    });
+};
+
 export const CreateView = ({
     display,
     onClose,
@@ -94,8 +105,23 @@ export const CreateView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
+    const sortedCards = useMemo(() => {
+        const cardsCopy = [...createCards];
+        sortCardsByUsageHistory(cardsCopy);
+        return cardsCopy;
+    }, []);
+
     const onSelect = useCallback((objectType: CreateType) => {
+        // Update location
         setLocation(`${LINKS[objectType === "Bot" ? "User" : objectType]}/add`);
+        // Update usage history
+        const history = getCookie("CreateOrder");
+        const index = history.indexOf(objectType);
+        if (index !== -1) {
+            history.splice(index, 1);
+        }
+        history.unshift(objectType);
+        setCookie("CreateOrder", history);
     }, [setLocation]);
 
     return (
@@ -106,7 +132,7 @@ export const CreateView = ({
                 title={t("Create")}
             />
             <CardGrid minWidth={300}>
-                {createCards.map(({ objectType, description, Icon, id }, index) => (
+                {sortedCards.map(({ objectType, description, Icon, id }, index) => (
                     <TIDCard
                         buttonText={t("Create")}
                         description={t(description)}
