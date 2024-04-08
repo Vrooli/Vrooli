@@ -154,7 +154,7 @@ export const DashboardView = ({
     // Handle tabs
     const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => ([
         ...allFocusModes.map((mode, index) => ({
-            color: "",
+            color: palette.background.textPrimary,
             data: mode,
             index,
             key: mode.id,
@@ -162,7 +162,7 @@ export const DashboardView = ({
             searchPlaceholder: "",
         })),
         {
-            color: "",
+            color: palette.background.textPrimary,
             data: undefined,
             Icon: AddIcon,
             index: allFocusModes.length,
@@ -170,7 +170,7 @@ export const DashboardView = ({
             label: "Add",
             searchPlaceholder: "",
         },
-    ]), [allFocusModes]);
+    ]), [allFocusModes, palette.background.textPrimary]);
     const currTab = useMemo(() => {
         if (typeof activeFocusMode === "string") return "Add";
         const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.mode?.id);

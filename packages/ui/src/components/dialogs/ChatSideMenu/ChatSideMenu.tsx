@@ -199,17 +199,24 @@ export const ChatSideMenu = ({
                         </IconButton>
                     </Tooltip>}
                 </Box>
+                <SelectorBase
+                    color={palette.background.textPrimary}
+                    name="tab"
+                    value={currTab}
+                    label=""
+                    onChange={(tab) => handleTabChange(undefined, tab)}
+                    options={tabs}
+                    getOptionLabel={(o) => o.label}
+                    fullWidth={true}
+                    sxs={{
+                        fieldset: {
+                            border: "none",
+                            borderRadius: 0,
+                            borderBottom: `1px solid ${palette.divider}`,
+                        },
+                    }}
+                />
                 <Box sx={{ overflowY: "auto" }} >
-                    <SelectorBase
-                        color={palette.background.textPrimary}
-                        name="tab"
-                        value={currTab}
-                        label=""
-                        onChange={(tab) => handleTabChange(undefined, tab)}
-                        options={tabs}
-                        getOptionLabel={(o) => o.label}
-                        fullWidth={true}
-                    />
                     <SearchList
                         {...findManyData}
                         id="chat-related-search-list"

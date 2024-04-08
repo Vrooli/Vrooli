@@ -1,7 +1,7 @@
 import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
@@ -15,9 +15,9 @@ const PROFILE_TARGET_SIZE = 100;
 /**
  * Processes an image file and returns an object URL for it
  */
-const handleImagePreview = async (file: any) => {
+const handleImagePreview = async (file: File): Promise<string | undefined> => {
     // Extract extension from file name or path
-    const ext = (file.name ? file.name.split(".").pop() : file.path.split(".").pop()).toLowerCase();
+    const ext = (file.name ?? (file as { path?: string }).path ?? "").split(".").pop()?.toLowerCase() ?? "";
     // .heic and .heif files are not supported by browsers, 
     // so we need to convert them to JPEGs (thanks, Apple)
     if (ext === "heic" || ext === "heif") {
@@ -52,6 +52,7 @@ const handleImagePreview = async (file: any) => {
         }
         return URL.createObjectURL(file);
     }
+    return undefined;
 };
 
 export const ProfilePictureInput = ({
@@ -107,12 +108,12 @@ export const ProfilePictureInput = ({
         },
     });
 
-    const removeBannerImage = (event: any) => {
+    const removeBannerImage = (event: React.MouseEvent) => {
         event.stopPropagation();
         setBannerImageUrl(undefined);
         onBannerImageChange(null);
     };
-    const removeProfileImage = (event: any) => {
+    const removeProfileImage = (event: React.MouseEvent) => {
         event.stopPropagation();
         setProfileImageUrl(undefined);
         onProfileImageChange(null);

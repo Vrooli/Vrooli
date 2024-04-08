@@ -25,7 +25,7 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
     label = "Select",
     required = true,
     disabled = false,
-    sx,
+    sxs,
     tabIndex,
     value,
 }: SelectorBaseProps<T>) => {
@@ -107,7 +107,7 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                 value={exists(value) ? getOptionLabel(value) : ""}
                 variant="outlined"
                 sx={{
-                    ...sx,
+                    ...sxs?.root,
                     color: color ?? palette.background.textPrimary,
                     "& .MuiSelect-select": {
                         paddingTop: "12px",
@@ -123,6 +123,9 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                     },
                     "& .MuiPaper-root": {
                         zIndex: 9999,
+                    },
+                    "& fieldset": {
+                        ...sxs?.fieldset,
                     },
                 }}
                 tabIndex={tabIndex}

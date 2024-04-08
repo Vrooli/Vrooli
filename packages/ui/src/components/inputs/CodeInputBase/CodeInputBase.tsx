@@ -783,9 +783,11 @@ export const CodeInputBase = ({
                                 fullWidth
                                 inputAriaLabel="select language"
                                 label={"Language"}
-                                sx={{
-                                    width: "fit-content",
-                                    minWidth: "200px",
+                                sxs={{
+                                    root: {
+                                        width: "fit-content",
+                                        minWidth: "200px",
+                                    },
                                 }}
                             />
                         </Grid>

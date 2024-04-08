@@ -232,7 +232,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
-                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <PrivacyPolicyView display="page" />
@@ -372,7 +371,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
-                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <TermsView display="page" />
