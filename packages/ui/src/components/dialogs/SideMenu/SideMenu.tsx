@@ -1,5 +1,5 @@
 import { API_CREDITS_MULTIPLIER, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, noop, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
@@ -307,17 +307,28 @@ export const SideMenu = () => {
                     {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
                 </Stack>
                 <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
-                    <Stack id="side-menu-display-settings" direction="column" spacing={2} sx={{
-                        minWidth: "fit-content",
-                        height: "fit-content",
-                        padding: 1,
-                    }}>
-                        <ThemeSwitch updateServer />
+                    <Box
+                        id="side-menu-display-settings"
+                        sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                            minWidth: "fit-content",
+                            height: "fit-content",
+                            padding: 1,
+                        }}>
+                        <ThemeSwitch updateServer sx={{ justifyContent: "flex-start" }} />
                         <TextSizeButtons />
-                        <LeftHandedCheckbox />
+                        <LeftHandedCheckbox sx={{ justifyContent: "flex-start" }} />
                         <LanguageSelector />
                         <FocusModeSelector />
-                    </Stack>
+                    </Box>
+                    <Link
+                        href={LINKS.SettingsDisplay}
+                        sx={{ textAlign: "right" }}
+                    >
+                        <Typography variant="body2" sx={{ marginRight: "12px", marginBottom: 1 }}>{t("SeeAll")}</Typography>
+                    </Link>
                 </Collapse>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* List of quick links */}
