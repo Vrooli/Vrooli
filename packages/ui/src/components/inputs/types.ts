@@ -184,30 +184,31 @@ export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionBut
 export type RichInputMarkdownProps = RichInputChildProps;
 export type RichInputLexicalProps = RichInputChildProps;
 
-export type RichInputAction =
-    "Assistant" |
-    "Bold" |
-    "Code" |
-    "Header1" |
-    "Header2" |
-    "Header3" |
-    "Header4" |
-    "Header5" |
-    "Header6" |
-    "Italic" |
-    "Link" |
-    "ListBullet" |
-    "ListCheckbox" |
-    "ListNumber" |
-    "Mode" |
-    "Quote" |
-    "Redo" |
-    "SetValue" |
-    "Spoiler" |
-    "Strikethrough" |
-    "Table" |
-    "Underline" |
-    "Undo";
+export enum RichInputAction {
+    Assistant = "Assistant",
+    Bold = "Bold",
+    Code = "Code",
+    Header1 = "Header1",
+    Header2 = "Header2",
+    Header3 = "Header3",
+    Header4 = "Header4",
+    Header5 = "Header5",
+    Header6 = "Header6",
+    Italic = "Italic",
+    Link = "Link",
+    ListBullet = "ListBullet",
+    ListCheckbox = "ListCheckbox",
+    ListNumber = "ListNumber",
+    Mode = "Mode",
+    Quote = "Quote",
+    Redo = "Redo",
+    SetValue = "SetValue",
+    Spoiler = "Spoiler",
+    Strikethrough = "Strikethrough",
+    Table = "Table",
+    Underline = "Underline",
+    Undo = "Undo",
+}
 export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
 export type PasswordTextInputProps = TextInputProps & {

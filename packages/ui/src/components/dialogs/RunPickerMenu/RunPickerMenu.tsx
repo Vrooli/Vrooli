@@ -94,15 +94,16 @@ export const RunPickerMenu = ({
 
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
+        const runName = run.name || displayDate(run.startedAt) || "Run";
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteOne,
             inputs: { id: run.id, objectType: run.__typename as DeleteType },
             successCondition: (data) => data.success,
-            successMessage: () => ({ messageKey: "RunDeleted", messageVariables: { runName: displayDate(run.startedAt) } }),
+            successMessage: () => ({ messageKey: "RunDeleted", messageVariables: { runName } }),
             onSuccess: (data) => {
                 onDelete(run);
             },
-            errorMessage: () => ({ messageKey: "RunDeleteFailed", messageVariables: { runName: displayDate(run.startedAt) } }),
+            errorMessage: () => ({ messageKey: "RunDeleteFailed", messageVariables: { runName } }),
         });
     }, [deleteOne, onDelete]);
 
@@ -137,7 +138,7 @@ export const RunPickerMenu = ({
         if (run.completedComplexity > 0) {
             PubSub.get().publish("alertDialog", {
                 messageKey: "RunDeleteConfirm",
-                messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
+                messageVariables: { startDate: displayDate(run.startedAt) || "", percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [
                     { labelKey: "Yes", onClick: () => { deleteRun(run); } },
                     { labelKey: "Cancel" },
