@@ -154,6 +154,8 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "b": () => insertStyle("Bold"), // CTRL + B - Bold
             "i": () => insertStyle("Italic"), // CTRL + I - Italic
             "k": () => insertStyle("Link"), // CTRL + K - Insert link
+            "e": () => insertStyle("Code"), // CTRL + E - Code
+            "Q": () => insertStyle("Quote"), // CTRL + SHIFT + Q - Quote
             "z": () => undo(), // CTRL + Z - Undo
             "Z": () => redo(), // CTRL + SHIFT + Z = Redo
             "S": () => insertStyle("Strikethrough"), // CTRL + SHIFT + S - Strikethrough

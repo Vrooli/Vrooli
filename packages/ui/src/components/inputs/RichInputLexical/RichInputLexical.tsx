@@ -39,7 +39,7 @@ export const CAN_USE_DOM: boolean =
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
 /** Every supported block type (e.g. lists, headers, quote) */
-const blockTypeToActionName: { [x: string]: RichInputAction } = {
+const blockTypeToActionName: { [x: string]: RichInputAction | `${RichInputAction}` } = {
     bullet: "ListBullet",
     check: "ListCheckbox",
     code: "Code",

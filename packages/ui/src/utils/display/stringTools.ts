@@ -1,3 +1,5 @@
+import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
+
 /**
  * Returns the first non-blank, non-whitespace string
  * @param strings Strings to check
@@ -258,7 +260,8 @@ export const insertHeader = (header: Headers, text: string, start: number, end: 
 };
 
 /**
- * Pads selection with the given substring
+ * Toggles padding around the selection, with special handling for Markdown italics and bold.
+ * Adds padding if not present, removes it if present, and considers bold formatting.
  * @param padStart The substring to add before the selection
  * @param padEnd The substring to add after the selection
  * @param text The full text from the input field
@@ -273,11 +276,58 @@ export const padSelection = (
     start: number,
     end: number,
 ): TextStyleResult => {
-    // Insert pad around selection
-    const updatedText = text.substring(0, start) + padStart + text.substring(start, end) + padEnd + text.substring(end);
-    // Keep the selection in the same relative position
-    const updatedStart = start + padStart.length;
-    const updatedEnd = end + padStart.length;
+    let updatedText = text;
+    let updatedStart = start;
+    let updatedEnd = end;
+
+    // Special handling for "*" (Markdown italics and bold)
+    if (padStart === "*" && padEnd === "*") {
+        const beforeText = text.substring(0, start);
+        const afterText = text.substring(end);
+        const regexPattern = /\*+/g;
+
+        const beforeMatches = beforeText.match(regexPattern);
+        const afterMatches = afterText.match(regexPattern);
+
+        const lastBeforeMatch = beforeMatches ? beforeMatches[beforeMatches.length - 1] : "";
+        const firstAfterMatch = afterMatches ? afterMatches[0] : "";
+
+        // Check if we're exactly surrounded by "**" which indicates bold
+        if (lastBeforeMatch === "**" && firstAfterMatch === "**") {
+            // Add italics inside bold
+            updatedText = beforeText + padStart + text.substring(start, end) + padEnd + afterText;
+            updatedStart = start + padStart.length;
+            updatedEnd = end + padEnd.length;
+        }
+        else if (lastBeforeMatch.endsWith("*") && firstAfterMatch.startsWith("*")) {
+            // Remove existing asterisks (just the italics, not any of the extra asterisks)
+            updatedText = beforeText.substring(0, beforeText.length - 1) + text.substring(start, end) + afterText.substring(1);
+            updatedStart = start - 1;
+            updatedEnd = end - 1;
+        } else {
+            // Add italics if no surrounding asterisks
+            updatedText = beforeText + padStart + text.substring(start, end) + padEnd + afterText;
+            updatedStart = start + padStart.length;
+            updatedEnd = end + padEnd.length;
+        }
+    } else {
+        // Normal handling for other paddings
+        const isPaddedStart = text.substring(start - padStart.length, start) === padStart;
+        const isPaddedEnd = text.substring(end, end + padEnd.length) === padEnd;
+
+        if (isPaddedStart && isPaddedEnd) {
+            // Remove padding
+            updatedText = text.substring(0, start - padStart.length) + text.substring(start, end) + text.substring(end + padEnd.length);
+            updatedStart = start - padStart.length;
+            updatedEnd = end - padStart.length;
+        } else {
+            // Add padding
+            updatedText = text.substring(0, start) + padStart + text.substring(start, end) + padEnd + text.substring(end);
+            updatedStart = start + padStart.length;
+            updatedEnd = end + padStart.length;
+        }
+    }
+
     return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
 
@@ -289,71 +339,240 @@ export const padSelection = (
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertLink = (text: string, start: number, end: number): TextStyleResult => {
-    // If no selection, insert [link](url) at the cursor
+    const isValidUrl = (url: string): boolean => {
+        return urlRegex.test(url)
+            || urlRegexDev.test(url)
+            || walletAddressRegex.test(url)
+            || (url.startsWith("@") && handleRegex.test(url.substring(1))); // Remove leading"@"
+    };
+
+    // No selection: insert a placeholder link
     if (start === end) {
-        const placeholder = "[display text](url)";
+        const placeholder = "[label](url)";
         const updatedText = text.substring(0, start) + placeholder + text.substring(end);
-        // Place cursor at the end of the "url" word
-        const updatedStart = start + placeholder.length - 1;
-        const updatedEnd = updatedStart;
+        // Place cursor inside the placeholder URL for immediate editing
+        const updatedStart = start + placeholder.length - 4;
+        const updatedEnd = start + placeholder.length - 1;
         return { text: updatedText, start: updatedStart, end: updatedEnd };
     }
-    // Otherwise, call padSelection
-    return padSelection("[", "](url)", text, start, end);
+
+    // Handle selection
+    const selection = text.substring(start, end).trim();
+    let updatedText, updatedStart, updatedEnd;
+
+    if (isValidUrl(selection)) {
+        // Selection is a valid URL: use it as the URL in the markdown link
+        const markdown = `[label](${selection})`;
+        updatedText = text.substring(0, start) + markdown + text.substring(end);
+        // Adjust cursor to allow immediate editing of the display text
+        updatedStart = start + 1; // Just after '['
+        updatedEnd = start + 6; // Just before ']'
+    } else {
+        // Selection is not a URL: treat it as display text
+        const markdown = `[${selection}](url)`;
+        updatedText = text.substring(0, start) + markdown + text.substring(end);
+        // Adjust cursor to allow immediate editing of the placeholder URL
+        updatedStart = end + 3; // Account for "](".length
+        updatedEnd = updatedStart + "url".length;
+    }
+
+    return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
 
 /**
- * Inserts a bullet list item at the beginning of each line in the selection.
+ * Toggles a bullet list item at the beginning of each line in the selection.
  * @param text The full text from the input field
  * @param start The start index of the cursor/selection
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertBulletList = (text: string, start: number, end: number): TextStyleResult => {
-    const [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
-    const updatedText = replaceText(text, lines.map(line => `* ${line}`).join("\n"), linesStart, linesEnd);
-    //TODO not sure how to handle selection yet
-    return { text: updatedText, start, end };
+    // Helper function to detect if a line is bulleted
+    const isBulleted = (line: string) => line.startsWith("* ");
+
+    // Get all lines in the selection
+    // eslint-disable-next-line prefer-const
+    let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
+    // Make sure we're always working with at least one line
+    if (lines.length === 0) {
+        lines = [""];
+    }
+
+    // Check if all lines are already bulleted
+    const allBulleted = lines.every(isBulleted);
+    // If so, remove the bullets
+    if (allBulleted) {
+        const updatedLines = lines.map(line => line.substring(2));
+        const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
+        // Keep the selection in the same relative position. This means the start should move 
+        // at most 2 characters to the left, making sure not to move back past the start of the line
+        const updatedStart = Math.max(start - 2, linesStart);
+        const updatedEnd = end - (2 * lines.length);
+        return { text: updatedText, start: updatedStart, end: updatedEnd };
+    }
+
+    // Otherwise, insert a bullet at the start of each line
+    const updatedLines = lines.map(line => `* ${line}`);
+    const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
+    // Keep the selection in the same relative position
+    const updatedStart = start + 2;
+    const updatedEnd = end + (2 * lines.length);
+    return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
 
 /**
- * Inserts a number list item at the beginning of each line in the selection.
+ * Toggles a number list item at the beginning of each line in the selection.
  * @param text The full text from the input field
  * @param start The start index of the cursor/selection
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertNumberList = (text: string, start: number, end: number): TextStyleResult => {
-    const [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
-    const updatedText = replaceText(text, lines.map((line, i) => `${i + 1}. ${line}`).join("\n"), linesStart, linesEnd);
-    //TODO not sure how to handle selection yet
-    return { text: updatedText, start, end };
+    // Get all lines in the selection
+    // eslint-disable-next-line prefer-const
+    let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
+    // Make sure we're always working with at least one line
+    if (lines.length === 0) {
+        lines = [""];
+    }
+
+    // Detect existing numbering and determine if all selected lines are already numbered
+    const numberPrefixRegex = /^\d+\.\s+/;
+    const allNumbered = lines.every(line => numberPrefixRegex.test(line));
+
+    let updatedLines: string[], updatedStart: number, updatedEnd: number;
+
+    if (allNumbered) {
+        // Remove numbering from all lines
+        updatedLines = lines.map(line => line.replace(numberPrefixRegex, ""));
+        const totalRemovedLength = lines.reduce((acc, line) => acc + (line.match(numberPrefixRegex)?.[0].length ?? 0), 0);
+        updatedStart = Math.max(linesStart, start - 3);
+        updatedEnd = Math.max(linesStart, end - totalRemovedLength);
+    } else {
+        // Add numbering to all lines
+        updatedLines = lines.map((line, index) => `${index + 1}. ${line}`);
+        const numberLengthDifference = updatedLines.reduce((acc, line) => acc + line.split(".")[0].length + 2, 0);// - lines.join("\n").length;
+        updatedStart = start + 3;
+        updatedEnd = end + numberLengthDifference;
+    }
+
+    const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
+
+    return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
 
 /**
- * Inserts a checkbox list item at the beginning of each line in the selection.
+ * Toggles a checkbox list item at the beginning of each line in the selection.
  * @param text The full text from the input field
  * @param start The start index of the cursor/selection
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertCheckboxList = (text: string, start: number, end: number): TextStyleResult => {
-    const [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
-    const updatedText = replaceText(text, lines.map(line => `- [ ] ${line}`).join("\n"), linesStart, linesEnd);
-    //TODO not sure how to handle selection yet
-    return { text: updatedText, start, end };
+    // Get all lines in the selection
+    // eslint-disable-next-line prefer-const
+    let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
+    // Make sure we're always working with at least one line
+    if (lines.length === 0) {
+        lines = [""];
+    }
+
+    const checkboxRegex = /^- \[[x ]\] /;
+
+    // Determine if all selected lines have a checkbox
+    const allHaveCheckbox = lines.every(line => checkboxRegex.test(line));
+
+    let updatedLines: string[], updatedStart: number, updatedEnd: number;
+
+    if (allHaveCheckbox) {
+        // Remove checkboxes from all lines
+        updatedLines = lines.map(line => line.replace(checkboxRegex, ""));
+        const totalRemovedLength = lines.reduce((acc, line) => acc + (line.match(checkboxRegex)?.[0].length ?? 0), 0);
+        updatedStart = Math.max(linesStart, start - totalRemovedLength / lines.length); // Average removal length per line
+        updatedEnd = Math.max(linesStart, end - totalRemovedLength);
+    } else {
+        // Add unchecked checkboxes to all lines
+        updatedLines = lines.map(line => `- [ ] ${line}`);
+        const checkboxLength = "- [ ] ".length;
+        updatedStart = start + checkboxLength;
+        updatedEnd = end + (checkboxLength * lines.length);
+    }
+
+    const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
+
+    return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
 
 /**
- * Inserts code quotes or a code block, depending on the selection.
+ * Toggles code quotes or a code block, depending on the selection.
  * @param text The full text from the input field
  * @param start The start index of the cursor/selection
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertCode = (text: string, start: number, end: number): TextStyleResult => {
-    // TODO
-    return { text, start, end };
+    const selection = text.substring(start, end);
+    const isMultiLine = selection.includes("\n");
+
+    const inlineCodeMarker = "`";
+    const codeBlockMarker = "```";
+
+    if (isMultiLine) {
+        // For multi-line, check if it's already a code block considering "\n```" before and after
+        const preText = text.substring(start - codeBlockMarker.length - 1, start);
+        const postText = text.substring(end, end + codeBlockMarker.length + 1);
+        if (preText === `${codeBlockMarker}\n` && postText === `\n${codeBlockMarker}`) {
+            // Remove code block markers including new lines
+            return {
+                text: text.substring(0, start - codeBlockMarker.length - 1) + selection + text.substring(end + codeBlockMarker.length + 1),
+                start: start - codeBlockMarker.length - 1,
+                end: end - codeBlockMarker.length - 1,
+            };
+        }
+
+        // Check if the start and end of the selection are inline code markers
+        if (selection.startsWith(codeBlockMarker + "\n") && selection.endsWith("\n" + codeBlockMarker)) {
+            // Remove inline code markers
+            return {
+                text: text.substring(0, start) + selection.substring(4, selection.length - 4) + text.substring(end),
+                start,
+                end: end - 8,
+            };
+        }
+
+        // Otherwise, Add code block markers with new lines around the selection
+        return {
+            text: text.substring(0, start) + `${codeBlockMarker}\n` + selection + `\n${codeBlockMarker}` + text.substring(end),
+            start: start + codeBlockMarker.length + 1,
+            end: end + codeBlockMarker.length + 1,
+        };
+    } else {
+        // Handle single-line selections for inline code
+        // Check if the selection is already surrounded by inline code markers
+        const paddedWithInlineCode = text.substring(start - inlineCodeMarker.length, start) === inlineCodeMarker
+            && text.substring(end, end + inlineCodeMarker.length) === inlineCodeMarker;
+        if (paddedWithInlineCode) {
+            // Remove inline code markers
+            return {
+                text: text.substring(0, start - inlineCodeMarker.length) + selection + text.substring(end + inlineCodeMarker.length),
+                start: start - inlineCodeMarker.length,
+                end: end - inlineCodeMarker.length,
+            };
+        }
+
+        // Check if the start and end of the selection are inline code markers
+        if (text[start] === inlineCodeMarker && text[end - 1] === inlineCodeMarker) {
+            // Remove inline code markers
+            return {
+                text: text.substring(0, start) + selection.substring(1, selection.length - 1) + text.substring(end),
+                start,
+                end: end - 2,
+            };
+        }
+
+        // Otherwise, add inline code markers around the selection
+        return padSelection(inlineCodeMarker, inlineCodeMarker, text, start, end);
+    }
 };
 
 /**
@@ -364,8 +583,60 @@ export const insertCode = (text: string, start: number, end: number): TextStyleR
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertQuote = (text: string, start: number, end: number): TextStyleResult => {
-    // TODO
-    return { text, start, end };
+    // Get all lines in the selection
+    // eslint-disable-next-line prefer-const
+    let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
+    // Make sure we're always working with at least one line
+    if (lines.length === 0) {
+        lines = [""];
+    }
+
+    // Check if all lines are already quoted
+    const quotePattern = /^(>+)(\s)?/; // Matches sequences of ">" at the start of a line, optionally followed by a space
+    const allLinesQuoted = lines.every(line => quotePattern.test(line));
+
+    const updatedLines: string[] = [];
+
+    lines.forEach((line, index) => {
+        const match = line.match(quotePattern);
+
+        // If all lines are quoted, remove the quoting
+        if (allLinesQuoted) {
+            if (!match) {
+                console.error("No match found for quoted line", line);
+                return;
+            }
+            // Remove one level of quoting
+            const isNested = line.startsWith(">>"); // Has at least two levels of quoting
+            const quotes = match[0];
+            const updatedLine = isNested ? line.substring(1) : line.substring(quotes.length);
+            updatedLines.push(updatedLine);
+            // If the selection start is on this line, adjust it to account for the removed quote
+            if (index === 0) {
+                start -= isNested ? 1 : quotes.length;
+            }
+            // Continually adjust the end index
+            end -= isNested ? 1 : quotes.length;
+        }
+        // Otherwise, add quoting
+        else {
+            const updatedLine = match ? ">" + line : "> " + line;
+            updatedLines.push(updatedLine);
+            // If the selection start is on this line, adjust it to account for the added quote
+            if (index === 0) {
+                start += match ? 1 : 2;
+            }
+            // Continually adjust the end index
+            end += match ? 1 : 2;
+        }
+    });
+
+    const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
+
+    // Ensure the start index does not go to the previous line
+    start = Math.max(linesStart, start);
+
+    return { text: updatedText, start, end };
 };
 
 /**
@@ -378,6 +649,10 @@ export const insertQuote = (text: string, start: number, end: number): TextStyle
  * @returns The updated text, start, and end index of the cursor
  */
 export const insertTable = (rows: number, cols: number, text: string, start: number, end: number): TextStyleResult => {
+    // Don't do anything if rows or cols are invalid
+    if (rows <= 0 || cols <= 0) {
+        return { text, start, end };
+    }
     // Generate table markdown based on rows and cols
     let tableStr = "|";
     for (let c = 0; c < cols; c++) {
@@ -393,10 +668,27 @@ export const insertTable = (rows: number, cols: number, text: string, start: num
             tableStr += "   |";
         }
     }
-    // Insert table markdown at the cursor
-    const updatedText = replaceText(text, tableStr, start, end);
+    // Get starting line
+    const [firstLine, _, firstLineEnd] = getLineAtIndex(text, start);
+    let tableStart = start;
+    let tableEnd = end;
+    // If the first line has non-whitespace characters, insert the table on the next line
+    if (firstLine.trim() !== "") {
+        console.log("inserting at next line");
+        // Handle case where there is no next line
+        if (firstLineEnd === text.length) {
+            tableStr = "\n" + tableStr;
+            tableStart = firstLineEnd;
+        } else {
+            tableStart = firstLineEnd + 1;
+        }
+        tableEnd = tableStart;
+        tableStr += "\n";
+    }
     // Move the selection to the first cell
-    const updatedStart = start + 2;
-    const updatedEnd = updatedStart;
+    const updatedStart = (firstLine.trim() !== "" && firstLineEnd === text.length) ? tableStart + 3 : tableStart + 2;
+    const updatedEnd = updatedStart + "Header".length;
+    // Insert table markdown at the cursor
+    const updatedText = replaceText(text, tableStr, tableStart, tableEnd);
     return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
