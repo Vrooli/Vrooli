@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Headers, displayDate, firstString, fontSizeToPixels, getLineAtIndex, getLineEnd, getLineStart, getLinesAtRange, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "./stringTools";
+import { Headers, displayDate, firstString, fontSizeToPixels, generateContext, getLineAtIndex, getLineEnd, getLineStart, getLinesAtRange, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "./stringTools";
 
 describe("firstString", () => {
     it("returns the first non-empty, non-whitespace string", () => {
@@ -1304,5 +1304,40 @@ describe("insertTable function", () => {
         // Expect selection to be in the first header cell
         expect(start).toEqual(updatedText.indexOf("Header"));
         expect(end).toEqual(updatedText.indexOf("Header") + "Header".length);
+    });
+});
+
+describe("generateContext function", () => {
+    const MAX_CONTENT_LENGTH = 1500;
+
+    it("returns the trimmed selected text wrapped in a quote block", () => {
+        const selected = " Selected text ";
+        const fullText = "Full text is irrelevant in this case";
+        const context = generateContext(selected, fullText);
+        expect(context).toEqual("\"\"\"\nSelected text\n\"\"\"\n\n");
+    });
+
+    it("returns the last 1500 characters of selected text when it exceeds the maximum length", () => {
+        const longSelected = "z" + "a".repeat(MAX_CONTENT_LENGTH + 50);
+        const context = generateContext(longSelected, "");
+        expect(context).toEqual(`"""\n...${longSelected.slice(-MAX_CONTENT_LENGTH - 3)}\n"""\n\n`);
+    });
+
+    it("returns the full text trimmed and wrapped in a quote block if no selected text", () => {
+        const selected = "";
+        const fullText = " Full text ";
+        const context = generateContext(selected, fullText);
+        expect(context).toEqual("\"\"\"\nFull text\n\"\"\"\n\n");
+    });
+
+    it("returns the last 1500 characters of the full text if it exceeds the maximum length and no selected text", () => {
+        const fullText = "z" + "b".repeat(MAX_CONTENT_LENGTH + 50);
+        const context = generateContext("", fullText);
+        expect(context).toEqual(`"""\n...${fullText.slice(-MAX_CONTENT_LENGTH - 3)}\n"""\n\n`);
+    });
+
+    it("returns empty string when both selected text and full text are empty", () => {
+        const context = generateContext("", "");
+        expect(context).toEqual("");
     });
 });

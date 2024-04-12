@@ -169,7 +169,7 @@ export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
     enterWillSubmit?: boolean;
     id: string;
-    openAssistantDialog: (selectedText: string) => unknown;
+    openAssistantDialog: (selected: string, fullText: string) => unknown;
     onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
     redo: () => unknown;
     setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;

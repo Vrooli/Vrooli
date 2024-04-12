@@ -14,6 +14,7 @@ import React from "react";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat } from "utils/cookies";
+import { generateContext } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
@@ -482,6 +483,7 @@ export const CodeInputBase = ({
     disabled,
     format,
     limitTo,
+    name,
     variables,
 }: CodeInputBaseProps) => {
     const { palette } = useTheme();
@@ -630,6 +632,8 @@ export const CodeInputBase = ({
         };
     }, [errors, mode, palette.error.main, wrappedLinter]);
 
+    const id = useMemo(() => `code-container-${name}`, [name]);
+
     // Handle assistant dialog
     const closeAssistantDialog = useCallback(() => {
         setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
@@ -651,24 +655,16 @@ export const CodeInputBase = ({
         const userId = getCurrentUser(session)?.id;
         if (!userId) return;
 
-        // We want to provide the assistant with the most relevant context
-        let context: string | undefined = undefined;
-        const maxContextLength = 1500;
-        // Get highlighted text
-        let highlightedText = "";
-        const selection = codeMirrorRef.current?.view?.state?.selection;
-        if (selection) {
-            const { from, to } = selection.ranges[0];
-            highlightedText = codeMirrorRef.current?.view?.state?.doc?.sliceString(from, to) ?? "";
+        if (!codeMirrorRef.current || !codeMirrorRef.current.view) {
+            console.error("CodeMirror not found");
+            return;
         }
-        if (highlightedText.length > maxContextLength) highlightedText = highlightedText.substring(0, maxContextLength);
-        if (highlightedText.length > 0) context = highlightedText;
-        // If there's not highlighted text, provide the full text if it's not too long or short
-        else if (internalValue.length <= maxContextLength && internalValue.length > 2) context = internalValue;
-        // Otherwise, provide the last 1500 characters
-        else if (internalValue.length > 2) context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
-        // Put code block around context
-        if (context) context = "```\n" + context + "\n```\n\n";
+        const codeDoc = codeMirrorRef.current.view.state.doc;
+        const selectionRanges = codeMirrorRef.current.view.state.selection.ranges;
+        // Only use the first selection range, if it exists
+        const selection = selectionRanges.length > 0 ? codeDoc.sliceString(selectionRanges[0].from, selectionRanges[0].to) : "";
+        const fullText = codeDoc.sliceString(0, Number.MAX_SAFE_INTEGER);
+        const context = generateContext(selection, fullText);
 
         // Now we'll try to find an existing chat with Valyxa for this task
         const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "standard");
@@ -686,7 +682,7 @@ export const CodeInputBase = ({
 
         // Open the assistant dialog
         setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, internalValue, session]);
+    }, [disabled, session]);
 
     // Handle action buttons
     type Action = {
@@ -832,6 +828,7 @@ export const CodeInputBase = ({
                 </Box>
                 <Suspense fallback={<div>Loading editor...</div>}>
                     <LazyCodeMirror
+                        id={id}
                         ref={codeMirrorRef as any}
                         value={internalValue}
                         theme={palette.mode === "dark" ? "dark" : "light"}

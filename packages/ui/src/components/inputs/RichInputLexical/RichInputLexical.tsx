@@ -20,7 +20,7 @@ import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/t
 import { $findMatchingParent, $getNearestNodeOfType } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $INTERNAL_isPointSelection, $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalEditor, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, TextNode, createEditor } from "lexical";
+import { $INTERNAL_isPointSelection, $createParagraphNode, $getNodeByKey, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, TextNode, createEditor } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
@@ -308,6 +308,46 @@ const ALL_TRANSFORMERS = [
     ...TEXT_MATCH_TRANSFORMERS,
 ];
 
+// Node formats, represented as bit flags in TextNode.__format
+const BOLD_FLAG = 1;
+const ITALIC_FLAG = 2;
+const STRIKETHROUGH_FLAG = 4;
+const UNDERLINE_FLAG = 8;
+
+const applyStyles = (
+    text: string,
+    format: number,
+    parentNode: LexicalNode | null,
+    canApplyHeader = true,
+) => {
+    // Apply text styling
+    if (format & BOLD_FLAG) {
+        text = `**${text}**`;
+    }
+    if (format & ITALIC_FLAG) {
+        text = `*${text}*`;
+    }
+    if (format & UNDERLINE_FLAG) {
+        // Markdown doesn't support underline, use HTML or a placeholder
+        text = `<u>${text}</u>`;
+    }
+    if (format & STRIKETHROUGH_FLAG) {
+        text = `~~${text}~~`;
+    }
+    if (!parentNode) return text;
+
+    // If the parent node is a heading, add the appropriate number of "#" characters
+    if (parentNode.__type === "heading" && canApplyHeader) {
+        text = "#".repeat((parentNode as HeadingNode).__size) + " " + text;
+    }
+    // Check if the parent node is a custom node like SpoilerNode
+    else if (parentNode instanceof SpoilerNode) {
+        text = `||${text}||`;
+    }
+
+    return text;
+};
+
 /** Actual components of RichInputLexical. Needed so that we can use the lexical provider */
 const RichInputLexicalComponents = ({
     autoFocus = false,
@@ -454,27 +494,60 @@ const RichInputLexicalComponents = ({
         });
     }, [activeStates, editor]);
 
-
     useEffect(() => {
         if (!setHandleAction) return;
         setHandleAction((action, data) => {
-            console.log("in RichInputlExical handleAction", action);
-            const dispatch = editor.dispatchCommand;
             const actionMap = {
-                "Assistant": () => openAssistantDialog(""),
-                "Bold": () => dispatch(FORMAT_TEXT_COMMAND, "bold"),
-                "Code": () => dispatch(TOGGLE_CODE_BLOCK_COMMAND, (void 0)),
+                "Assistant": () => {
+                    editor.update(() => {
+                        const selection = $getSelection() as RangeSelection | null;
+                        let selectedText = "";
+                        if (selection !== null) {
+                            const anchorNode = $getNodeByKey(selection.anchor.key);
+                            const focusNode = $getNodeByKey(selection.focus.key);
+
+                            if (anchorNode && focusNode) {
+                                // Assuming anchorNode comes before focusNode in the document
+                                const nodes = anchorNode.getNodesBetween(focusNode);
+
+                                let canApplyHeader = true; // Can only apply header style once per line
+                                // Concatenate the text from these nodes
+                                selectedText = nodes.map((node) => {
+                                    // If normal or stylized text
+                                    if (node.__type === "text") {
+                                        const parentNode = node.__parent ? $getNodeByKey(node.__parent) : null;
+                                        const formattedText = applyStyles(node.getTextContent(), (node as TextNode).__format, parentNode, canApplyHeader);
+                                        if (parentNode?.__type === "heading") {
+                                            canApplyHeader = false;
+                                        }
+                                        return formattedText;
+                                    }
+                                    // If a newline (this node type might be used in other cases, but we're not sure yet)
+                                    else if (node.__type === "paragraph") {
+                                        canApplyHeader = true;
+                                        return "\n";
+                                    }
+                                    return "";
+                                }).join("");
+                            }
+                        }
+                        const fullText = $convertToMarkdownString(ALL_TRANSFORMERS, $getRoot());
+                        openAssistantDialog(selectedText, fullText);
+                    });
+                },
+                "Bold": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold"),
+                "Code": () => editor.dispatchCommand(TOGGLE_CODE_BLOCK_COMMAND, (void 0)),
                 "Header1": () => toggleHeading("h1"),
                 "Header2": () => toggleHeading("h2"),
                 "Header3": () => toggleHeading("h3"),
                 "Header4": () => toggleHeading("h4"),
                 "Header5": () => toggleHeading("h5"),
                 "Header6": () => toggleHeading("h6"),
-                "Italic": () => dispatch(FORMAT_TEXT_COMMAND, "italic"),
-                "Link": () => dispatch(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
-                "ListBullet": () => dispatch(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
-                "ListCheckbox": () => dispatch(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
-                "ListNumber": () => dispatch(INSERT_ORDERED_LIST_COMMAND, (void 0)),
+                "Italic": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic"),
+                "Link": () => editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
+                "ListBullet": () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
+                "ListCheckbox": () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
+                "ListNumber": () => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, (void 0)),
                 "Quote": () => { }, //TODO
                 "Redo": () => {
                     redo();
@@ -491,10 +564,10 @@ const RichInputLexicalComponents = ({
                         $convertFromMarkdownString(data, ALL_TRANSFORMERS);
                     }, HISTORY_MERGE_OPTIONS);
                 },
-                "Spoiler": dispatch(TOGGLE_SPOILER_COMMAND, (void 0)),
-                "Strikethrough": () => dispatch(FORMAT_TEXT_COMMAND, "strikethrough"),
+                "Spoiler": () => editor.dispatchCommand(TOGGLE_SPOILER_COMMAND, (void 0)),
+                "Strikethrough": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough"),
                 "Table": () => { }, //TODO
-                "Underline": () => dispatch(FORMAT_TEXT_COMMAND, "underline"),
+                "Underline": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline"),
                 "Undo": () => {
                     undo();
                     triggerEditorChange();

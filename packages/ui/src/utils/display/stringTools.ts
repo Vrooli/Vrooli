@@ -692,3 +692,35 @@ export const insertTable = (rows: number, cols: number, text: string, start: num
     const updatedText = replaceText(text, tableStr, tableStart, tableEnd);
     return { text: updatedText, start: updatedStart, end: updatedEnd };
 };
+
+const MAX_CONTENT_LENGTH = 1500;
+
+/**
+ * Generates a context string from a selection of text, or most/all of the text if no selection.
+ * @param selected The current selection
+ * @param fullText The full text from the input field
+ * @returns The formatted context string
+ */
+export const generateContext = (selected: string, fullText: string): string => {
+    // Wraps text in a quote block to indicate that it's context
+    const wrapContext = (context: string) => {
+        return `"""\n${context}\n"""\n\n`;
+    };
+    let context = selected.trim();
+    // If selected text is too long, provide the last 1500 characters
+    if (context.length > MAX_CONTENT_LENGTH) {
+        context = "..." + context.substring(context.length - MAX_CONTENT_LENGTH - 3, context.length);
+        return wrapContext(context.trim());
+    } else if (context.length > 0) {
+        return wrapContext(context.trim());
+    }
+    const fullValue = fullText.trim();
+    if (fullValue.length <= 0) {
+        return "";
+    }
+    // If there's no selection, provide the full text if it's not too long
+    if (fullValue.length <= MAX_CONTENT_LENGTH) context = fullValue;
+    // Otherwise, provide the last 1500 characters
+    else context = "..." + fullValue.substring(fullValue.length - MAX_CONTENT_LENGTH - 3, fullValue.length);
+    return wrapContext(context.trim());
+};

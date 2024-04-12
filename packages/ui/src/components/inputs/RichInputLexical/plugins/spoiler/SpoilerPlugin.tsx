@@ -1,6 +1,6 @@
 import { TextMatchTransformer } from "@lexical/markdown";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $getSelection, $isRangeSelection, $isTextNode, COMMAND_PRIORITY_LOW, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedLexicalNode, Spread, TextNode, createCommand, type EditorConfig, type LexicalNode, type NodeKey } from "lexical";
+import { $getSelection, $isRangeSelection, $isTextNode, COMMAND_PRIORITY_LOW, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedLexicalNode, Spread, TextNode, createCommand, type EditorConfig, type LexicalNode } from "lexical";
 
 export type SerializedSpoilerNode = Spread<
     {
@@ -9,9 +9,14 @@ export type SerializedSpoilerNode = Spread<
     SerializedLexicalNode
 >;
 
+export const SPOILER_NODE_FORMAT = 16;
+
 export class SpoilerNode extends ElementNode {
-    constructor(key?: NodeKey) {
+    __format: number;
+
+    constructor(key?: string) {
         super(key);
+        this.__format = SPOILER_NODE_FORMAT;
     }
 
     static getType(): string {

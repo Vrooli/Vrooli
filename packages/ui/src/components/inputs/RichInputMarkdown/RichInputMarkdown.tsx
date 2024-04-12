@@ -111,7 +111,10 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         setHandleAction((action, data) => {
             // Anything that isn't a style action goes in the actionMap
             const actionMap = {
-                "Assistant": () => openAssistantDialog(getTextSelection(id).selected),
+                "Assistant": () => {
+                    const { selected, inputElement } = getTextSelection(id);
+                    openAssistantDialog(selected, inputElement?.value ?? "");
+                },
                 "Redo": redo,
                 "SetValue": () => {
                     if (typeof data !== "string") {

@@ -9,6 +9,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookie, getCookieMatchingChat, setCookie } from "utils/cookies";
 import { getDeviceInfo, keyComboToString } from "utils/display/device";
+import { generateContext } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
@@ -70,6 +71,8 @@ export const RichInputBase = ({
         setCookie("ShowMarkdown", !isMarkdownOn);
     }, [isMarkdownOn]);
 
+    const id = useMemo(() => `input-container-${name}`, [name]);
+
     const closeAssistantDialog = useCallback(() => {
         setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
         PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "note", isOpen: false });
@@ -85,21 +88,14 @@ export const RichInputBase = ({
         onDeleted: closeAssistantDialog,
         task: "note",
     });
-    const openAssistantDialog = useCallback((highlighted: string) => {
+    const openAssistantDialog = useCallback((selected: string, fullText: string) => {
+        console.log("in openAssistantDialog", id);
         if (disabled) return;
         const userId = getCurrentUser(session)?.id;
         if (!userId) return;
 
-        // We want to provide the assistant with the most relevant context
-        const maxContextLength = 1500;
-        let context = highlighted.trim();
-        if (context.length > maxContextLength) context = context.substring(0, maxContextLength);
-        // If there's not highlighted text, provide the full text if it's not too long
-        else if (internalValue.length <= maxContextLength) context = internalValue;
-        // Otherwise, provide the last 1500 characters
-        else context = internalValue.substring(internalValue.length - maxContextLength, internalValue.length);
-        // Put quote block around context
-        if (context) context = `"""\n${context}\n"""\n\n`;
+        const context = generateContext(selected, fullText);
+        console.log("got context", context);
 
         // Now we'll try to find an existing chat with Valyxa for this task
         const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "note");
@@ -117,9 +113,7 @@ export const RichInputBase = ({
 
         // Open the assistant dialog
         setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, internalValue, session]);
-
-    const id = useMemo(() => `input-container-${name}`, [name]);
+    }, [disabled, id, session]);
 
     /** Prevents input from losing focus when the toolbar is pressed */
     const handleMouseDown = useCallback((e) => {

@@ -556,7 +556,6 @@ export const DashboardView = ({
                         messageActions.postMessage(trimmed);
                     },
                 }]}
-                disableAssistant={true}
                 fullWidth
                 getTaggableItems={async (message) => {
                     // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
