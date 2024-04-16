@@ -1,9 +1,15 @@
-import { TextMatchTransformer } from "@lexical/markdown";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import hljs from "highlight.js";
 import { copyIconPath } from "icons";
-import { $applyNodeReplacement, $createParagraphNode, $getSelection, $isRangeSelection, COMMAND_PRIORITY_HIGH, DOMConversionMap, DOMConversionOutput, ElementNode, SerializedElementNode, TextNode, createCommand, type EditorConfig, type LexicalNode, type NodeKey } from "lexical";
 import { PubSub } from "utils/pubsub";
+import { CODE_BLOCK_COMMAND } from "../commands";
+import { COMMAND_PRIORITY_HIGH } from "../consts";
+import { useLexicalComposerContext } from "../context";
+import { ElementNode } from "../nodes/ElementNode";
+import { type LexicalNode } from "../nodes/LexicalNode";
+import { $createParagraphNode } from "../nodes/ParagraphNode";
+import { TextNode } from "../nodes/TextNode";
+import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeKey, SerializedElementNode } from "../types";
+import { $applyNodeReplacement, $getSelection, $isRangeSelection } from "../utils";
 
 export type SerializedCodeBlockNode = SerializedElementNode & {
     type: "codeblock";
@@ -245,8 +251,6 @@ export function $isCodeBlockNode(node: LexicalNode): node is CodeBlockNode {
     return node instanceof CodeBlockNode;
 }
 
-export const TOGGLE_CODE_BLOCK_COMMAND = createCommand("TOGGLE_CODE_BLOCK");
-
 const codeBlockCommandListener = () => {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) {
@@ -286,30 +290,9 @@ export function CodeBlockPlugin(): null {
         throw new Error("CodeBlockPlugin: CodeBlockNode not registered on editor");
     }
     editor.registerCommand(
-        TOGGLE_CODE_BLOCK_COMMAND,
+        CODE_BLOCK_COMMAND,
         codeBlockCommandListener,
         COMMAND_PRIORITY_HIGH, // Higher priority than built-in code block command
     );
     return null;
 }
-
-export const CODE_BLOCK_TRANSFORMER: TextMatchTransformer = {
-    dependencies: [],
-    export: (node, exportChildren, exportFormat) => {
-        if (node instanceof CodeBlockNode) {
-            const codeText = exportChildren(node);
-            return `\`\`\`\n${codeText}\n\`\`\``;
-        }
-        return null;
-    },
-    importRegExp: /```(.*?)```/s,  // 's' flag for multiline support
-    regExp: /```(.*?)```$/s,
-    replace: (textNode, match) => {
-        const codeContent = match[0].slice(3, -3); // Remove the surrounding backticks
-        // Assuming $createCodeBlockNode is a function to create a code block node
-        const codeBlockNode = $createCodeBlockNode(codeContent);
-        textNode.replace(codeBlockNode);
-    },
-    trigger: "```",
-    type: "text-match",
-};

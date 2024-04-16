@@ -1,41 +1,47 @@
-import { HashtagNode } from "@lexical/hashtag";
-import { $isLinkNode, AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
-import { $isListNode, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from "@lexical/list";
-import { $convertToMarkdownString, ElementTransformer, HEADING, ORDERED_LIST, QUOTE, TEXT_FORMAT_TRANSFORMERS, TEXT_MATCH_TRANSFORMERS, TextMatchTransformer, UNORDERED_LIST } from "@lexical/markdown";
-import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
-import { InitialEditorStateType } from "@lexical/react/LexicalComposer";
-import { LexicalComposerContext, LexicalComposerContextType, createLexicalComposerContext, useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
-import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
-import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
-import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
-import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
-import { $createHeadingNode, $isHeadingNode, HeadingNode, HeadingTagType, QuoteNode } from "@lexical/rich-text";
-import { $isAtNodeEnd, $setBlocksType } from "@lexical/selection";
-import { $isTableNode, TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { $findMatchingParent, $getNearestNodeOfType } from "@lexical/utils";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
-import { $INTERNAL_isPointSelection, $createParagraphNode, $getNodeByKey, $getRoot, $getSelection, $isRangeSelection, $isRootOrShadowRoot, COMMAND_PRIORITY_CRITICAL, EditorState, EditorThemeClasses, ElementNode, FORMAT_TEXT_COMMAND, INTERNAL_PointSelection, LexicalEditor, LexicalNode, LineBreakNode, NodeKey, ParagraphNode, RangeSelection, SELECTION_CHANGE_COMMAND, TextNode, createEditor } from "lexical";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";
-import { $convertFromMarkdownString } from "./builder";
-import { CODE_BLOCK_TRANSFORMER, CodeBlockNode, CodeBlockPlugin, TOGGLE_CODE_BLOCK_COMMAND } from "./plugins/code/CodePlugin";
-import { SPOILER_LINES_TRANSFORMER, SPOILER_TAGS_TRANSFORMER, SpoilerNode, SpoilerPlugin, TOGGLE_SPOILER_COMMAND } from "./plugins/spoiler/SpoilerPlugin";
+import { $convertFromMarkdownString, $convertToMarkdownString, registerMarkdownShortcuts } from "./builder";
+import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands";
+import { CAN_USE_DOM, COMMAND_PRIORITY_CRITICAL } from "./consts";
+import { LexicalComposerContext, LexicalComposerContextType, createLexicalComposerContext, useLexicalComposerContext } from "./context";
+import { EditorState, LexicalEditor, createEditor } from "./editor";
+import { ElementNode } from "./nodes/ElementNode";
+import { HashtagNode } from "./nodes/HashtagNode";
+import { $isHeadingNode, HeadingNode } from "./nodes/HeadingNode";
+import { HorizontalRuleNode } from "./nodes/HorizontalRuleNode";
+import { LexicalNode } from "./nodes/LexicalNode";
+import { LineBreakNode } from "./nodes/LineBreakNode";
+import { $isLinkNode, AutoLinkNode, LinkNode } from "./nodes/LinkNode";
+import { ListItemNode } from "./nodes/ListItemNode";
+import { ListNode } from "./nodes/ListNode";
+import { $createParagraphNode, ParagraphNode } from "./nodes/ParagraphNode";
+import { QuoteNode } from "./nodes/QuoteNode";
+import { TableCellNode } from "./nodes/TableCellNode";
+import { $isTableNode, TableNode } from "./nodes/TableNode";
+import { TableRowNode } from "./nodes/TableRowNode";
+import { TextNode } from "./nodes/TextNode";
+import { CheckListPlugin } from "./plugins/CheckListPlugin";
+import { CodeBlockNode, CodeBlockPlugin } from "./plugins/CodePlugin";
+import { LinkPlugin } from "./plugins/LinkPlugin";
+import { ListPlugin } from "./plugins/ListPlugin";
+import { OnChangePlugin } from "./plugins/OnChangePlugin";
+import { RichTextPlugin } from "./plugins/RichTextPlugin";
+import { SpoilerPlugin } from "./plugins/SpoilerPlugin";
+import { TablePlugin } from "./plugins/TablePlugin";
+import { RangeSelection } from "./selection";
 import "./theme.css";
+import { ELEMENT_TRANSFORMERS } from "./transformers/elementTransformers";
+import { TEXT_TRANSFORMERS, applyTextTransformers } from "./transformers/textFormatTransformers";
+import { TEXT_MATCH_TRANSFORMERS } from "./transformers/textMatchTransformers";
+import { EditorThemeClasses, HeadingTagType, InitialEditorStateType, LexicalTransformer, NodeKey } from "./types";
+import { $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isListNode, $isRangeSelection, $isRootOrShadowRoot } from "./utils";
 
-export const CAN_USE_DOM: boolean =
-    typeof window !== "undefined" &&
-    typeof window.document !== "undefined" &&
-    typeof window.document.createElement !== "undefined";
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
 /** Every supported block type (e.g. lists, headers, quote) */
@@ -51,11 +57,6 @@ const blockTypeToActionName: { [x: string]: RichInputAction | `${RichInputAction
     h6: "Header6",
     number: "ListNumber",
     quote: "Quote",
-};
-
-const rootTypeToRootName = {
-    root: "Root",
-    table: "Table",
 };
 
 /** Maps Lexical classes to CSS classes defined in theme.css */
@@ -266,53 +267,11 @@ export function getSelectedNode(
     }
 }
 
-// Custom transformers for syntax not supported by CommonMark (Markdown's spec)
-const UNDERLINE: TextMatchTransformer = {
-    dependencies: [],
-    export: (node, exportChildren, exportFormat) => {
-        const isUnderlined = (node as TextNode).__style === "text-decoration: underline;";
-        const shouldExportChildren = node instanceof ElementNode;
-        if (isUnderlined) {
-            return `<u>${shouldExportChildren ? exportChildren(node as ElementNode) : (node as TextNode).__text}</u>`;
-        }
-        return null;
-    },
-    importRegExp: /<u>(.*?)<\/u>/,
-    regExp: /<u>(.*?)<\/u>$/,
-    replace: (textNode, match) => {
-        const newTextContent = match[1];
-        const newTextNode = new TextNode(newTextContent);
-        newTextNode.setStyle("text-decoration: underline;");
-        textNode.replace(newTextNode);
-    },
-    trigger: "<u>",
-    type: "text-match",
-};
-
-const CUSTOM_TEXT_TRANSFORMERS: Array<TextMatchTransformer | ElementTransformer> = [
-    UNDERLINE,
-    SPOILER_LINES_TRANSFORMER,
-    SPOILER_TAGS_TRANSFORMER,
-    CODE_BLOCK_TRANSFORMER,
-];
-
-const ALL_TRANSFORMERS = [
-    ...CUSTOM_TEXT_TRANSFORMERS,
-    // ...TRANSFORMERS,
-    HEADING,
-    QUOTE,
-    // // CODE,
-    UNORDERED_LIST,
-    ORDERED_LIST,
-    ...TEXT_FORMAT_TRANSFORMERS,
+const ALL_TRANSFORMERS: LexicalTransformer[] = [
+    ...ELEMENT_TRANSFORMERS,
+    ...TEXT_TRANSFORMERS,
     ...TEXT_MATCH_TRANSFORMERS,
 ];
-
-// Node formats, represented as bit flags in TextNode.__format
-const BOLD_FLAG = 1;
-const ITALIC_FLAG = 2;
-const STRIKETHROUGH_FLAG = 4;
-const UNDERLINE_FLAG = 8;
 
 const applyStyles = (
     text: string,
@@ -320,33 +279,125 @@ const applyStyles = (
     parentNode: LexicalNode | null,
     canApplyHeader = true,
 ) => {
-    // Apply text styling
-    if (format & BOLD_FLAG) {
-        text = `**${text}**`;
-    }
-    if (format & ITALIC_FLAG) {
-        text = `*${text}*`;
-    }
-    if (format & UNDERLINE_FLAG) {
-        // Markdown doesn't support underline, use HTML or a placeholder
-        text = `<u>${text}</u>`;
-    }
-    if (format & STRIKETHROUGH_FLAG) {
-        text = `~~${text}~~`;
-    }
+    text = applyTextTransformers(text, format);
     if (!parentNode) return text;
 
     // If the parent node is a heading, add the appropriate number of "#" characters
     if (parentNode.__type === "heading" && canApplyHeader) {
         text = "#".repeat((parentNode as HeadingNode).__size) + " " + text;
     }
-    // Check if the parent node is a custom node like SpoilerNode
-    else if (parentNode instanceof SpoilerNode) {
-        text = `||${text}||`;
-    }
 
     return text;
 };
+
+export const MarkdownShortcutPlugin = ({
+    transformers,
+}: Readonly<{
+    transformers: Array<LexicalTransformer>;
+}>): null => {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+        return registerMarkdownShortcuts(editor, transformers);
+    }, [editor, transformers]);
+
+    return null;
+};
+
+export type ContentEditableProps = {
+    ariaActiveDescendant?: React.AriaAttributes["aria-activedescendant"];
+    ariaAutoComplete?: React.AriaAttributes["aria-autocomplete"];
+    ariaControls?: React.AriaAttributes["aria-controls"];
+    ariaDescribedBy?: React.AriaAttributes["aria-describedby"];
+    ariaExpanded?: React.AriaAttributes["aria-expanded"];
+    ariaLabel?: React.AriaAttributes["aria-label"];
+    ariaLabelledBy?: React.AriaAttributes["aria-labelledby"];
+    ariaMultiline?: React.AriaAttributes["aria-multiline"];
+    ariaOwns?: React.AriaAttributes["aria-owns"];
+    ariaRequired?: React.AriaAttributes["aria-required"];
+    autoCapitalize?: HTMLDivElement["autocapitalize"];
+    "data-testid"?: string | null | undefined;
+} & React.AllHTMLAttributes<HTMLDivElement>;
+
+export function ContentEditable({
+    ariaActiveDescendant,
+    ariaAutoComplete,
+    ariaControls,
+    ariaDescribedBy,
+    ariaExpanded,
+    ariaLabel,
+    ariaLabelledBy,
+    ariaMultiline,
+    ariaOwns,
+    ariaRequired,
+    autoCapitalize,
+    className,
+    id,
+    role = "textbox",
+    spellCheck = true,
+    style,
+    tabIndex,
+    "data-testid": testid,
+    ...rest
+}: ContentEditableProps): JSX.Element {
+    const [editor] = useLexicalComposerContext();
+    const [isEditable, setEditable] = useState(false);
+
+    const ref = useCallback(
+        (rootElement: null | HTMLElement) => {
+            // defaultView is required for a root element.
+            // In multi-window setups, the defaultView may not exist at certain points.
+            if (
+                rootElement &&
+                rootElement.ownerDocument &&
+                rootElement.ownerDocument.defaultView
+            ) {
+                editor.setRootElement(rootElement);
+            }
+        },
+        [editor],
+    );
+
+    useLayoutEffect(() => {
+        setEditable(editor.isEditable());
+        return editor.registerEditableListener((currentIsEditable) => {
+            setEditable(currentIsEditable);
+        });
+    }, [editor]);
+
+    return (
+        <div
+            {...rest}
+            aria-activedescendant={!isEditable ? undefined : ariaActiveDescendant}
+            aria-autocomplete={!isEditable ? "none" : ariaAutoComplete}
+            aria-controls={!isEditable ? undefined : ariaControls}
+            aria-describedby={ariaDescribedBy}
+            aria-expanded={
+                !isEditable
+                    ? undefined
+                    : role === "combobox"
+                        ? !!ariaExpanded
+                        : undefined
+            }
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            aria-multiline={ariaMultiline}
+            aria-owns={!isEditable ? undefined : ariaOwns}
+            aria-readonly={!isEditable ? true : undefined}
+            aria-required={ariaRequired}
+            autoCapitalize={autoCapitalize}
+            className={className}
+            contentEditable={isEditable}
+            data-testid={testid}
+            id={id}
+            ref={ref}
+            role={role}
+            spellCheck={spellCheck}
+            style={style}
+            tabIndex={tabIndex}
+        />
+    );
+}
 
 /** Actual components of RichInputLexical. Needed so that we can use the lexical provider */
 const RichInputLexicalComponents = ({
@@ -408,12 +459,12 @@ const RichInputLexicalComponents = ({
             const elementDOM = activeEditor.getElementByKey(elementKey);
 
             // Find text formats
-            updatedStates.Bold = selection.hasFormat("bold");
-            updatedStates.Italic = selection.hasFormat("italic");
-            updatedStates.Underline = selection.hasFormat("underline");
-            updatedStates.Strikethrough = selection.hasFormat("strikethrough");
-            // updatedStates.Subscript = selection.hasFormat("subscript");
-            // updatedStates.Superscript = selection.hasFormat("superscript");
+            updatedStates.Bold = selection.hasFormat("BOLD");
+            updatedStates.Code = selection.hasFormat("CODE_INLINE");
+            updatedStates.Italic = selection.hasFormat("ITALIC");
+            updatedStates.Underline = selection.hasFormat("UNDERLINE_LINES") || selection.hasFormat("UNDERLINE_TAGS");
+            updatedStates.Spoiler = selection.hasFormat("SPOILER_LINES") || selection.hasFormat("SPOILER_TAGS");
+            updatedStates.Strikethrough = selection.hasFormat("STRIKETHROUGH");
             // Check if link
             const node = getSelectedNode(selection);
             const parent = node.getParent();
@@ -488,9 +539,10 @@ const RichInputLexicalComponents = ({
     const toggleHeading = useCallback((headingSize: HeadingTagType) => {
         editor.update(() => {
             const selection = $getSelection();
-            if (selection && $INTERNAL_isPointSelection(selection)) {
-                $setBlocksType(selection as INTERNAL_PointSelection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
-            }
+            //TODO
+            // if (selection && $INTERNAL_isPointSelection(selection)) {
+            //     $setBlocksType(selection as INTERNAL_PointSelection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
+            // }
         });
     }, [activeStates, editor]);
 
@@ -535,15 +587,15 @@ const RichInputLexicalComponents = ({
                         openAssistantDialog(selectedText, fullText);
                     });
                 },
-                "Bold": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold"),
-                "Code": () => editor.dispatchCommand(TOGGLE_CODE_BLOCK_COMMAND, (void 0)),
+                "Bold": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "BOLD"),
+                "Code": () => editor.dispatchCommand(CODE_BLOCK_COMMAND, (void 0)),
                 "Header1": () => toggleHeading("h1"),
                 "Header2": () => toggleHeading("h2"),
                 "Header3": () => toggleHeading("h3"),
                 "Header4": () => toggleHeading("h4"),
                 "Header5": () => toggleHeading("h5"),
                 "Header6": () => toggleHeading("h6"),
-                "Italic": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic"),
+                "Italic": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "ITALIC"),
                 "Link": () => editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
                 "ListBullet": () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
                 "ListCheckbox": () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
@@ -564,10 +616,10 @@ const RichInputLexicalComponents = ({
                         $convertFromMarkdownString(data, ALL_TRANSFORMERS);
                     }, HISTORY_MERGE_OPTIONS);
                 },
-                "Spoiler": () => editor.dispatchCommand(TOGGLE_SPOILER_COMMAND, (void 0)),
-                "Strikethrough": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough"),
-                "Table": () => { }, //TODO
-                "Underline": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline"),
+                "Spoiler": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "SPOILER_TAGS"),
+                "Strikethrough": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "STRIKETHROUGH"),
+                "Table": () => editor.dispatchCommand(INSERT_TABLE_COMMAND, data as { rows: number, columns: number }),
+                "Underline": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "UNDERLINE_TAGS"),
                 "Undo": () => {
                     undo();
                     triggerEditorChange();
@@ -620,8 +672,6 @@ const RichInputLexicalComponents = ({
                         ...sxs?.textArea,
                     } as CSSProperties}
                 />}
-                placeholder={<></>} // Doesn't work for some reason, so we use our own placeholder
-                ErrorBoundary={LexicalErrorBoundary}
             />
             {value.length === 0 && <div style={{
                 color: palette.background.textSecondary,
@@ -666,7 +716,7 @@ export const RichInputLexical = ({
             $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         },
         namespace: "RichInputEditor",
-        nodes: [AutoLinkNode, CodeBlockNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, SpoilerNode, TableNode, TableCellNode, TableRowNode],
+        nodes: [AutoLinkNode, CodeBlockNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, TableNode, TableCellNode, TableRowNode],
         onError,
         theme,
     }), [value]);

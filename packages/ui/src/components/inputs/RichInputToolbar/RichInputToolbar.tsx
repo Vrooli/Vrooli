@@ -418,7 +418,7 @@ export const RichInputToolbar = ({
                         <ToolButton
                             disabled={disabled}
                             icon={<LinkIcon fill={palette.primary.contrastText} />}
-                            label={`${t("Link")} (${keyComboToString("Ctrl", "k")})`}
+                            label={`${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "k")})`}
                             onClick={() => { handleToggleAction("Link"); }}
                             palette={palette}
                         />
