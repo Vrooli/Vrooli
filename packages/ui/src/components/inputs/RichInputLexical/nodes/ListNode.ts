@@ -1,37 +1,30 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LIST_INDENT_SIZE } from "../consts";
 import { type LexicalEditor } from "../editor";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, ElementTransformer, ListNodeTagType, ListType, NodeKey, SerializedListNode } from "../types";
-import { $applyNodeReplacement, $createTextNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isElementNode, $isLeafNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
+import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $createListItemNode, $isListItemNode, ListItemNode } from "./ListItemNode";
-import { $createParagraphNode, $isParagraphNode, ParagraphNode } from "./ParagraphNode";
+import { getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, type LexicalNode } from "./LexicalNode";
+import { type ListItemNode } from "./ListItemNode";
+import { type ParagraphNode } from "./ParagraphNode";
 
 export class ListNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "List";
     __tag: ListNodeTagType;
-    /** @internal */
     __start: number;
-    /** @internal */
     __listType: ListType;
 
-    static getType(): string {
-        return "list";
-    }
-
     static clone(node: ListNode): ListNode {
-        const listType = node.__listType || TAG_TO_LIST_TYPE[node.__tag];
-
-        return new ListNode(listType, node.__start, node.__key);
+        const { __listType, __start, __key } = node;
+        return $createNode("List", { listType: __listType, start: __start, key: __key });
     }
 
-    constructor(listType: ListType, start: number, key?: NodeKey) {
-        super(key);
+    constructor({ listType, start, ...rest }: NodeConstructorPayloads["List"]) {
+        super(rest);
         const _listType = TAG_TO_LIST_TYPE[listType] || listType;
         this.__listType = _listType;
         this.__tag = _listType === "number" ? "ol" : "ul";
-        this.__start = start;
+        this.__start = start === undefined ? 1 : start;
     }
 
     getTag(): ListNodeTagType {
@@ -63,7 +56,6 @@ export class ListNode extends ElementNode {
         }
         // @ts-expect-error Internal field.
         dom.__lexicalListType = this.__listType;
-        setListThemeClassNames(dom, config.theme, this);
 
         return dom;
     }
@@ -77,14 +69,12 @@ export class ListNode extends ElementNode {
             return true;
         }
 
-        setListThemeClassNames(dom, config.theme, this);
-
         return false;
     }
 
     static transform(): (node: LexicalNode) => void {
         return (node: LexicalNode) => {
-            if (!$isListNode(node)) {
+            if (!$isNode("List", node)) {
                 throw new Error("node is not a ListNode");
             }
             mergeNextSiblingListIfSameType(node);
@@ -92,7 +82,7 @@ export class ListNode extends ElementNode {
         };
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             ol: (node: Node) => ({
                 conversion: convertListNode,
@@ -105,11 +95,11 @@ export class ListNode extends ElementNode {
         };
     }
 
-    static importJSON(serializedNode: SerializedListNode): ListNode {
-        const node = $createListNode(serializedNode.listType, serializedNode.start);
-        node.setFormat(serializedNode.format);
-        node.setIndent(serializedNode.indent);
-        node.setDirection(serializedNode.direction);
+    static importJSON({ direction, format, indent, listType, start }: SerializedListNode): ListNode {
+        const node = $createNode("List", { listType, start });
+        node.setFormat(format);
+        node.setIndent(indent);
+        node.setDirection(direction);
         return node;
     }
 
@@ -131,10 +121,10 @@ export class ListNode extends ElementNode {
     exportJSON(): SerializedListNode {
         return {
             ...super.exportJSON(),
+            __type: "List",
             listType: this.getListType(),
             start: this.getStart(),
             tag: this.getTag(),
-            type: "list",
             version: 1,
         };
     }
@@ -151,15 +141,15 @@ export class ListNode extends ElementNode {
         for (let i = 0; i < nodesToAppend.length; i++) {
             const currentNode = nodesToAppend[i];
 
-            if ($isListItemNode(currentNode)) {
+            if ($isNode("ListItem", currentNode)) {
                 super.append(currentNode);
             } else {
-                const listItemNode = $createListItemNode();
+                const listItemNode = $createNode("ListItem", {});
 
-                if ($isListNode(currentNode)) {
+                if ($isNode("List", currentNode)) {
                     listItemNode.append(currentNode);
-                } else if ($isElementNode(currentNode)) {
-                    const textNode = $createTextNode(currentNode.getTextContent());
+                } else if ($isNode("Element", currentNode)) {
+                    const textNode = $createNode("Text", { text: currentNode.getTextContent() });
                     listItemNode.append(textNode);
                 } else {
                     listItemNode.append(currentNode);
@@ -171,7 +161,7 @@ export class ListNode extends ElementNode {
     }
 
     extractWithChild(child: LexicalNode): boolean {
-        return $isListItemNode(child);
+        return $isNode("ListItem", child);
     }
 }
 
@@ -185,14 +175,14 @@ export const updateChildrenListItemValue = (list: ListNode): void => {
     const isNotChecklist = list.getListType() !== "check";
     let value = list.getStart();
     for (const child of list.getChildren()) {
-        if ($isListItemNode(child)) {
+        if ($isNode("ListItem", child)) {
             if (child.getValue() !== value) {
                 child.setValue(value);
             }
             if (isNotChecklist && child.getChecked() != null) {
                 child.setChecked(undefined);
             }
-            if (!$isListNode(child.getFirstChild())) {
+            if (!$isNode("List", child.getFirstChild())) {
                 value++;
             }
         }
@@ -268,12 +258,12 @@ function normalizeChildren(nodes: LexicalNode[]): Array<ListItemNode> {
     const normalizedListItems: ListItemNode[] = [];
     for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
-        if ($isListItemNode(node)) {
+        if ($isNode("ListItem", node)) {
             normalizedListItems.push(node);
             const children = node.getChildren();
             if (children.length > 1) {
                 children.forEach((child) => {
-                    if ($isListNode(child)) {
+                    if ($isNode("List", child)) {
                         normalizedListItems.push(wrapInListItem(child));
                     }
                 });
@@ -291,15 +281,15 @@ function convertListNode(domNode: Node): DOMConversionOutput {
     if (nodeName === "ol") {
         // @ts-ignore
         const start = domNode.start;
-        node = $createListNode("number", start);
+        node = $createNode("List", { listType: "number", start });
     } else if (nodeName === "ul") {
         if (
             isHTMLElement(domNode) &&
             domNode.getAttribute("__lexicallisttype") === "check"
         ) {
-            node = $createListNode("check");
+            node = $createNode("List", { listType: "check" });
         } else {
-            node = $createListNode("bullet");
+            node = $createNode("List", { listType: "bullet" });
         }
     }
 
@@ -314,61 +304,40 @@ const TAG_TO_LIST_TYPE: Record<string, ListType> = {
     ul: "bullet",
 };
 
-/**
- * Creates a ListNode of listType.
- * @param listType - The type of list to be created. Can be 'number', 'bullet', or 'check'.
- * @param start - Where an ordered list starts its count, start = 1 if left undefined.
- * @returns The new ListNode
- */
-export const $createListNode = (listType: ListType, start = 1): ListNode => {
-    return $applyNodeReplacement(new ListNode(listType, start));
-};
-
-/**
- * Checks to see if the node is a ListNode.
- * @param node - The node to be checked.
- * @returns true if the node is a ListNode, false otherwise.
- */
-export const $isListNode = (
-    node: LexicalNode | null | undefined,
-): node is ListNode => {
-    return node instanceof ListNode;
-};
-
 const createListOrMerge = (node: ElementNode, listType: ListType): ListNode => {
-    if ($isListNode(node)) {
+    if ($isNode("List", node)) {
         return node;
     }
 
-    const previousSibling = node.getPreviousSibling();
-    const nextSibling = node.getNextSibling();
-    const listItem = $createListItemNode();
+    const previousSibling = getPreviousSibling(node);
+    const nextSibling = getNextSibling(node);
+    const listItem = $createNode("ListItem", {});
     listItem.setFormat(node.getFormatType());
     listItem.setIndent(node.getIndent());
     append(listItem, node.getChildren());
 
     if (
-        $isListNode(previousSibling) &&
+        $isNode("List", previousSibling) &&
         listType === previousSibling.getListType()
     ) {
         previousSibling.append(listItem);
         node.remove();
         // if the same type of list is on both sides, merge them.
 
-        if ($isListNode(nextSibling) && listType === nextSibling.getListType()) {
+        if ($isNode("List", nextSibling) && listType === nextSibling.getListType()) {
             append(previousSibling, nextSibling.getChildren());
             nextSibling.remove();
         }
         return previousSibling;
     } else if (
-        $isListNode(nextSibling) &&
+        $isNode("List", nextSibling) &&
         listType === nextSibling.getListType()
     ) {
         nextSibling.getFirstChildOrThrow().insertBefore(listItem);
         node.remove();
         return nextSibling;
     } else {
-        const list = $createListNode(listType);
+        const list = $createNode("List", { listType });
         list.append(listItem);
         node.replace(list);
         return list;
@@ -398,21 +367,21 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
                 }
                 const [anchor] = anchorAndFocus;
                 const anchorNode = anchor.getNode();
-                const anchorNodeParent = anchorNode.getParent();
+                const anchorNodeParent = getParent(anchorNode);
 
                 if ($isSelectingEmptyListItem(anchorNode, nodes)) {
-                    const list = $createListNode(listType);
+                    const list = $createNode("List", { listType });
 
                     if ($isRootOrShadowRoot(anchorNodeParent)) {
                         anchorNode.replace(list);
-                        const listItem = $createListItemNode();
-                        if ($isElementNode(anchorNode)) {
+                        const listItem = $createNode("ListItem", {});
+                        if ($isNode("Element", anchorNode)) {
                             listItem.setFormat(anchorNode.getFormatType());
                             listItem.setIndent(anchorNode.getIndent());
                         }
                         list.append(listItem);
-                    } else if ($isListItemNode(anchorNode)) {
-                        const parent = anchorNode.getParentOrThrow();
+                    } else if ($isNode("ListItem", anchorNode)) {
+                        const parent = getParentOrThrow(anchorNode);
                         append(list, parent.getChildren());
                         parent.replace(list);
                     }
@@ -426,23 +395,23 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
                 const node = nodes[i];
 
                 if (
-                    $isElementNode(node) &&
+                    $isNode("Element", node) &&
                     node.isEmpty() &&
-                    !$isListItemNode(node) &&
-                    !handled.has(node.getKey())
+                    !$isNode("ListItem", node) &&
+                    !handled.has(node.__key)
                 ) {
                     createListOrMerge(node, listType);
                     continue;
                 }
 
                 if ($isLeafNode(node)) {
-                    let parent = node.getParent();
+                    let parent = getParent(node);
                     while (parent != null) {
-                        const parentKey = parent.getKey();
+                        const parentKey = parent.__key;
 
-                        if ($isListNode(parent)) {
+                        if ($isNode("List", parent)) {
                             if (!handled.has(parentKey)) {
-                                const newListNode = $createListNode(listType);
+                                const newListNode = $createNode("List", { listType });
                                 append(newListNode, parent.getChildren());
                                 parent.replace(newListNode);
                                 handled.add(parentKey);
@@ -450,7 +419,7 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
 
                             break;
                         } else {
-                            const nextParent = parent.getParent();
+                            const nextParent = getParent(parent);
 
                             if ($isRootOrShadowRoot(nextParent) && !handled.has(parentKey)) {
                                 handled.add(parentKey);
@@ -485,40 +454,40 @@ export const $handleListInsertParagraph = (): boolean => {
     // Only run this code on empty list items
     const anchor = selection.anchor.getNode();
 
-    if (!$isListItemNode(anchor) || anchor.getChildrenSize() !== 0) {
+    if (!$isNode("ListItem", anchor) || anchor.getChildrenSize() !== 0) {
         return false;
     }
     const topListNode = $getTopListNode(anchor);
-    const parent = anchor.getParent();
+    const parent = getParent(anchor);
 
-    if (!$isListNode(parent)) {
+    if (!$isNode("List", parent)) {
         throw new Error("A ListItemNode must have a ListNode for a parent.");
     }
 
-    const grandparent = parent.getParent();
+    const grandparent = getParent(parent);
 
     let replacementNode;
 
     if ($isRootOrShadowRoot(grandparent)) {
-        replacementNode = $createParagraphNode();
+        replacementNode = $createNode("Paragraph", {});
         topListNode.insertAfter(replacementNode);
-    } else if ($isListItemNode(grandparent)) {
-        replacementNode = $createListItemNode();
+    } else if ($isNode("ListItem", grandparent)) {
+        replacementNode = $createNode("ListItem", {});
         grandparent.insertAfter(replacementNode);
     } else {
         return false;
     }
     replacementNode.select();
 
-    const nextSiblings = anchor.getNextSiblings();
+    const nextSiblings = getNextSiblings(anchor);
 
     if (nextSiblings.length > 0) {
-        const newList = $createListNode(parent.getListType());
+        const newList = $createNode("List", { listType: parent.getListType() });
 
-        if ($isParagraphNode(replacementNode)) {
+        if ($isNode("Paragraph", replacementNode)) {
             replacementNode.insertAfter(newList);
         } else {
-            const newListItem = $createListItemNode();
+            const newListItem = $createNode("ListItem", {});
             newListItem.append(newList);
             replacementNode.insertAfter(newListItem);
         }
@@ -557,7 +526,7 @@ export const removeList = (editor: LexicalEditor): void => {
                     const node = nodes[i];
 
                     if ($isLeafNode(node)) {
-                        const listItemNode = $getNearestNodeOfType(node, ListItemNode);
+                        const listItemNode = $getNearestNodeOfType("ListItem", node);
 
                         if (listItemNode != null) {
                             listNodes.add($getTopListNode(listItemNode));
@@ -572,7 +541,7 @@ export const removeList = (editor: LexicalEditor): void => {
                 const listItems = $getAllListItems(listNode);
 
                 for (const listItemNode of listItems) {
-                    const paragraph = $createParagraphNode();
+                    const paragraph = $createNode("Paragraph", {});
 
                     append(paragraph, listItemNode.getChildren());
 
@@ -586,10 +555,10 @@ export const removeList = (editor: LexicalEditor): void => {
                     // When the corresponding listItemNode is deleted and replaced by the newly generated paragraph
                     // we should manually set the selection's focus and anchor to the newly generated paragraph.
                     if (listItemNode.__key === selection.anchor.key) {
-                        selection.anchor.set(paragraph.getKey(), 0, "element");
+                        selection.anchor.set(paragraph.__key, 0, "element");
                     }
                     if (listItemNode.__key === selection.focus.key) {
-                        selection.focus.set(paragraph.getKey(), 0, "element");
+                        selection.focus.set(paragraph.__key, 0, "element");
                     }
 
                     listItemNode.remove();
@@ -605,10 +574,10 @@ const $isSelectingEmptyListItem = (
     nodes: Array<LexicalNode>,
 ): boolean => {
     return (
-        $isListItemNode(anchorNode) &&
+        $isNode("ListItem", anchorNode) &&
         (nodes.length === 0 ||
             (nodes.length === 1 &&
-                anchorNode.is(nodes[0]) &&
+                anchorNode.__key !== nodes[0]?.__key &&
                 anchorNode.getChildrenSize() === 0))
     );
 };
@@ -647,9 +616,9 @@ export const mergeLists = (list1: ListNode, list2: ListNode): void => {
  * @param list - The list whose next sibling should be potentially merged
  */
 export const mergeNextSiblingListIfSameType = (list: ListNode): void => {
-    const nextSibling = list.getNextSibling();
+    const nextSibling = getNextSibling(list);
     if (
-        $isListNode(nextSibling) &&
+        $isNode("List", nextSibling) &&
         list.getListType() === nextSibling.getListType()
     ) {
         mergeLists(list, nextSibling);
@@ -682,10 +651,10 @@ export const listExport = (
     const children = listNode.getChildren();
     let index = 0;
     for (const listItemNode of children) {
-        if ($isListItemNode(listItemNode)) {
+        if ($isNode("ListItem", listItemNode)) {
             if (listItemNode.getChildrenSize() === 1) {
                 const firstChild = listItemNode.getFirstChild();
-                if ($isListNode(firstChild)) {
+                if ($isNode("List", firstChild)) {
                     output.push(listExport(firstChild, exportChildren, depth + 1));
                     continue;
                 }
@@ -708,12 +677,11 @@ export const listExport = (
 
 export const listReplace = (listType: ListType): ElementTransformer["replace"] => {
     return (parentNode, children, match) => {
-        const previousNode = parentNode.getPreviousSibling();
-        const nextNode = parentNode.getNextSibling();
-        const listItem = $createListItemNode(
-            listType === "check" ? match[3] === "x" : undefined,
-        );
-        if ($isListNode(nextNode) && nextNode.getListType() === listType) {
+        const previousNode = getPreviousSibling(parentNode);
+        const nextNode = getNextSibling(parentNode);
+        const checked = listType === "check" ? match[3] === "x" : undefined;
+        const listItem = $createNode("ListItem", { checked });
+        if ($isNode("List", nextNode) && nextNode.getListType() === listType) {
             const firstChild = nextNode.getFirstChild();
             if (firstChild !== null) {
                 firstChild.insertBefore(listItem);
@@ -723,16 +691,14 @@ export const listReplace = (listType: ListType): ElementTransformer["replace"] =
             }
             parentNode.remove();
         } else if (
-            $isListNode(previousNode) &&
+            $isNode("List", previousNode) &&
             previousNode.getListType() === listType
         ) {
             previousNode.append(listItem);
             parentNode.remove();
         } else {
-            const list = $createListNode(
-                listType,
-                listType === "number" ? Number(match[2]) : undefined,
-            );
+            const start = listType === "number" ? Number(match[1]) : 1;
+            const list = $createNode("List", { listType, start });
             list.append(listItem);
             parentNode.replace(list);
         }

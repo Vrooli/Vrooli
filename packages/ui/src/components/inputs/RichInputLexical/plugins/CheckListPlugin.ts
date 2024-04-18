@@ -4,9 +4,10 @@ import { INSERT_CHECK_LIST_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMA
 import { COMMAND_PRIORITY_LOW } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
+import { getNextSibling, getParent, getParentOrThrow, getPreviousSibling } from "../nodes/LexicalNode";
 import { ListItemNode } from "../nodes/ListItemNode";
 import { insertList } from "../nodes/ListNode";
-import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isElementNode, $isListItemNode, $isListNode, $isRangeSelection, calculateZoomLevel, isHTMLElement, mergeRegister } from "../utils";
+import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, isHTMLElement, mergeRegister } from "../utils";
 
 export const CheckListPlugin = (): null => {
     const [editor] = useLexicalComposerContext();
@@ -63,7 +64,7 @@ export const CheckListPlugin = (): null => {
                         editor.update(() => {
                             const listItemNode = $getNearestNodeFromDOMNode(activeItem);
 
-                            if ($isListItemNode(listItemNode)) {
+                            if ($isNode("ListItem", listItemNode)) {
                                 event.preventDefault();
                                 listItemNode!.toggleChecked();
                             }
@@ -89,12 +90,12 @@ export const CheckListPlugin = (): null => {
                                 const anchorNode = anchor.getNode();
                                 const elementNode = $findMatchingParent(
                                     anchorNode,
-                                    (node) => $isElementNode(node) && !node.isInline(),
+                                    (node) => $isNode("Element", node) && !node.isInline(),
                                 );
-                                if ($isListItemNode(elementNode)) {
-                                    const parent = elementNode.getParent();
+                                if ($isNode("ListItem", elementNode)) {
+                                    const parent = getParent(elementNode);
                                     if (
-                                        $isListNode(parent) &&
+                                        $isNode("List", parent) &&
                                         parent!.getListType() === "check" &&
                                         (isElement ||
                                             elementNode.getFirstDescendant() === anchorNode)
@@ -179,7 +180,7 @@ const handleClick = (event: Event) => {
                 if (event.target) {
                     const node = $getNearestNodeFromDOMNode(domNode);
 
-                    if ($isListItemNode(node)) {
+                    if ($isNode("ListItem", node)) {
                         domNode.focus();
                         node.toggleChecked();
                     }
@@ -228,28 +229,28 @@ const findCheckListItemSibling = (
     node: ListItemNode,
     backward: boolean,
 ): ListItemNode | null => {
-    let sibling = backward ? node.getPreviousSibling() : node.getNextSibling();
+    let sibling = backward ? getPreviousSibling(node) : getNextSibling(node);
     let parent: ListItemNode | null = node;
 
     // Going up in a tree to get non-null sibling
-    while (sibling == null && $isListItemNode(parent)) {
+    while (sibling == null && $isNode("ListItem", parent)) {
         // Get li -> parent ul/ol -> parent li
-        parent = parent.getParentOrThrow().getParent();
+        parent = getParent(getParentOrThrow(parent));
 
         if (parent != null) {
             sibling = backward
-                ? parent.getPreviousSibling()
-                : parent.getNextSibling();
+                ? getPreviousSibling(parent)
+                : getNextSibling(parent);
         }
     }
 
     // Going down in a tree to get first non-nested list item
-    while ($isListItemNode(sibling)) {
+    while ($isNode("ListItem", sibling)) {
         const firstChild = backward
             ? sibling.getLastChild()
             : sibling.getFirstChild();
 
-        if (!$isListNode(firstChild)) {
+        if (!$isNode("List", firstChild)) {
             return sibling;
         }
 
@@ -270,7 +271,7 @@ const handleArrownUpOrDown = (
         editor.update(() => {
             const listItem = $getNearestNodeFromDOMNode(activeItem);
 
-            if (!$isListItemNode(listItem)) {
+            if (!$isNode("ListItem", listItem)) {
                 return;
             }
 

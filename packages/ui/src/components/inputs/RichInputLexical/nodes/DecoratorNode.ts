@@ -1,8 +1,9 @@
 import { LexicalEditor } from "../editor";
-import { EditorConfig } from "../types";
+import { EditorConfig, NodeType } from "../types";
 import { LexicalNode } from "./LexicalNode";
 
 export class DecoratorNode<T> extends LexicalNode {
+    static __type: NodeType = "Decorator";
 
     /**
      * The returned value is added to the LexicalEditor._decorators
@@ -23,9 +24,3 @@ export class DecoratorNode<T> extends LexicalNode {
         return true;
     }
 }
-
-export const $isDecoratorNode = <T>(
-    node: LexicalNode | null | undefined,
-): node is DecoratorNode<T> => {
-    return node instanceof DecoratorNode;
-};

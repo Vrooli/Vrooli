@@ -1,26 +1,7 @@
+import { TEXT_FLAGS } from "../consts";
 import { LexicalNode } from "../nodes/LexicalNode";
 import { TextFormatTransformer, TextFormatType } from "../types";
-import { $isTextNode } from "../utils";
-
-export const TEXT_FLAGS: Record<TextFormatType, number> = {
-    BOLD: 1,
-    CODE_BLOCK: 2,
-    CODE_INLINE: 4,
-    HEADING: 8,
-    HIGHLIGHT: 16,
-    ITALIC: 32,
-    LIST_ORDERED: 64,
-    LIST_UNORDERED: 128,
-    QUOTE: 256,
-    SPOILER_LINES: 512,
-    SPOILER_TAGS: 1024,
-    STRIKETHROUGH: 2048,
-    SUBSCRIPT: 4096,
-    SUPERSCRIPT: 8192,
-    UNDERLINE_LINES: 16384,
-    UNDERLINE_TAGS: 32768,
-} as const;
-
+import { $isNode } from "../utils";
 
 export const BOLD: TextFormatTransformer = {
     format: "BOLD",
@@ -139,7 +120,7 @@ export const hasTextFormat = (
  * @param format The format to check for.
  */
 export const hasFormat = (node: LexicalNode | null, format: TextFormatType) => {
-    return $isTextNode(node) && hasTextFormat(node.__format, format);
+    return $isNode("Text", node) && hasTextFormat(node.getFormat(), format);
 };
 
 /** 

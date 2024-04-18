@@ -1,9 +1,9 @@
 import { SPOILER_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_LOW } from "../consts";
+import { COMMAND_PRIORITY_LOW, TEXT_FLAGS } from "../consts";
 import { useLexicalComposerContext } from "../context";
-import { TextNode } from "../nodes/TextNode";
-import { TEXT_FLAGS, hasFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
-import { $getSelection, $isRangeSelection, $isTextNode } from "../utils";
+import { type TextNode } from "../nodes/TextNode";
+import { hasFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
+import { $getSelection, $isNode, $isRangeSelection } from "../utils";
 
 const spoilerCommandListener = () => {
     const selection = $getSelection();
@@ -25,7 +25,7 @@ const spoilerCommandListener = () => {
         const { anchor, focus } = selection;
         const [startOffset, endOffset] = [anchor.offset, focus.offset].sort((a, b) => a - b);
 
-        if (nodes.length === 1 && $isTextNode(nodes[0])) {
+        if (nodes.length === 1 && $isNode("Text", nodes[0])) {
             // Simple case: single text node in selection
             const node = nodes[0];
             node.splitText(startOffset);
@@ -34,7 +34,7 @@ const spoilerCommandListener = () => {
         } else {
             // Complex case: multiple nodes
             nodes.forEach((node, index) => {
-                if ($isTextNode(node)) {
+                if ($isNode("Text", node)) {
                     if (index === 0) {
                         node.splitText(startOffset);
                         node.setFormat(node.getFormat() | TEXT_FLAGS.SPOILER_LINES);

@@ -1,21 +1,18 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useCallback, useEffect, useState } from "react";
 import { SELECTION_CHANGE_COMMAND } from "./commands";
-import { DOM_ELEMENT_TYPE } from "./consts";
+import { DOM_ELEMENT_TYPE, TEXT_FLAGS } from "./consts";
 import { useLexicalComposerContext } from "./context";
 import { EditorState, LexicalEditor } from "./editor";
 import { markCollapsedSelectionFormat, markSelectionChangeFromDOMUpdate } from "./events";
 import { getIsProcessingMutations } from "./mutations";
-import { ElementNode } from "./nodes/ElementNode";
-import { LexicalNode, insertRangeAfter } from "./nodes/LexicalNode";
-import { $createLineBreakNode, $isLineBreakNode } from "./nodes/LineBreakNode";
-import { $createParagraphNode } from "./nodes/ParagraphNode";
-import { $createTabNode, $isTabNode } from "./nodes/TabNode";
-import { TextNode } from "./nodes/TextNode";
-import { TEXT_FLAGS, toggleTextFormatType } from "./transformers/textFormatTransformers";
+import { type ElementNode } from "./nodes/ElementNode";
+import { getIndexWithinParent, getNextSibling, getNextSiblings, getParent, getParentKeys, getParentOrThrow, getPreviousSibling, insertRangeAfter, isAttachedToRoot, isSelected, type LexicalNode } from "./nodes/LexicalNode";
+import { type TextNode } from "./nodes/TextNode";
+import { toggleTextFormatType } from "./transformers/textFormatTransformers";
 import { BaseSelection, ElementPointType, NodeKey, PointType, TableDOMRows, TableDOMTable, TextFormatType, TextPointType } from "./types";
 import { getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode } from "./updates";
-import { $createTextNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isDecoratorNode, $isElementNode, $isNodeSelection, $isRangeSelection, $isRootNode, $isRootOrShadowRoot, $isTextNode, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getNodeFromDOM, getTextNodeOffset, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
+import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getNodeFromDOM, getTextNodeOffset, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
 
 export const $createPoint = (
     key: NodeKey,
@@ -53,11 +50,11 @@ export class Point {
         const aOffset = this.offset;
         const bOffset = b.offset;
 
-        if ($isElementNode(aNode)) {
+        if ($isNode("Element", aNode)) {
             const aNodeDescendant = aNode.getDescendantByIndex<ElementNode>(aOffset);
             aNode = aNodeDescendant != null ? aNodeDescendant : aNode;
         }
-        if ($isElementNode(bNode)) {
+        if ($isNode("Element", bNode)) {
             const bNodeDescendant = bNode.getDescendantByIndex<ElementNode>(bOffset);
             bNode = bNodeDescendant != null ? bNodeDescendant : bNode;
         }
@@ -99,7 +96,7 @@ const shouldResolveAncestor = (
     resolvedOffset: number,
     lastPoint: null | PointType,
 ): boolean => {
-    const parent = resolvedElement.getParent();
+    const parent = getParent(resolvedElement);
     return (
         lastPoint === null ||
         parent === null ||
@@ -138,18 +135,18 @@ export const internalMakeRangeSelection = (
  * Please do not use it as it may change in the future.
  */
 export const INTERNAL_$isBlock = (node: LexicalNode): node is ElementNode => {
-    if ($isDecoratorNode(node)) {
+    if ($isNode("Decorator", node)) {
         return false;
     }
-    if (!$isElementNode(node) || $isRootOrShadowRoot(node)) {
+    if (!$isNode("Element", node) || $isRootOrShadowRoot(node)) {
         return false;
     }
 
     const firstChild = node.getFirstChild();
     const isLeafElement =
         firstChild === null ||
-        $isLineBreakNode(firstChild) ||
-        $isTextNode(firstChild) ||
+        $isNode("LineBreak", firstChild) ||
+        $isNode("Text", firstChild) ||
         firstChild.isInline();
 
     return !node.isInline() && node.canBeEmpty() !== false && isLeafElement;
@@ -191,7 +188,7 @@ const internalResolveSelectionPoint = (
         }
         resolvedNode = getNodeFromDOM(childDOM);
 
-        if ($isTextNode(resolvedNode)) {
+        if ($isNode("Text", resolvedNode)) {
             resolvedOffset = getTextNodeOffset(resolvedNode, moveSelectionToEnd);
         } else {
             let resolvedElement = getNodeFromDOM(dom);
@@ -199,14 +196,14 @@ const internalResolveSelectionPoint = (
             if (resolvedElement === null) {
                 return null;
             }
-            if ($isElementNode(resolvedElement)) {
+            if ($isNode("Element", resolvedElement)) {
                 resolvedOffset = Math.min(
                     resolvedElement.getChildrenSize(),
                     resolvedOffset,
                 );
                 let child = resolvedElement.getChildAtIndex(resolvedOffset);
                 if (
-                    $isElementNode(child) &&
+                    $isNode("Element", child) &&
                     shouldResolveAncestor(child, resolvedOffset, lastPoint)
                 ) {
                     const descendant = moveSelectionToEnd
@@ -217,12 +214,12 @@ const internalResolveSelectionPoint = (
                         resolvedOffset = 0;
                     } else {
                         child = descendant;
-                        resolvedElement = $isElementNode(child)
+                        resolvedElement = $isNode("Element", child)
                             ? child
-                            : child.getParentOrThrow();
+                            : getParentOrThrow(child);
                     }
                 }
-                if ($isTextNode(child)) {
+                if ($isNode("Text", child)) {
                     resolvedNode = child;
                     resolvedElement = null;
                     resolvedOffset = getTextNodeOffset(child, moveSelectionToEnd);
@@ -234,21 +231,21 @@ const internalResolveSelectionPoint = (
                     resolvedOffset++;
                 }
             } else {
-                const index = resolvedElement.getIndexWithinParent();
+                const index = getIndexWithinParent(resolvedElement);
                 // When selecting decorators, there can be some selection issues when using resolvedOffset,
                 // and instead we should be checking if we're using the offset
                 if (
                     offset === 0 &&
-                    $isDecoratorNode(resolvedElement) &&
+                    $isNode("Decorator", resolvedElement) &&
                     getNodeFromDOM(dom) === resolvedElement
                 ) {
                     resolvedOffset = index;
                 } else {
                     resolvedOffset = index + 1;
                 }
-                resolvedElement = resolvedElement.getParentOrThrow();
+                resolvedElement = getParentOrThrow(resolvedElement);
             }
-            if ($isElementNode(resolvedElement)) {
+            if ($isNode("Element", resolvedElement)) {
                 return $createPoint(resolvedElement.__key, resolvedOffset, "element");
             }
         }
@@ -256,7 +253,7 @@ const internalResolveSelectionPoint = (
         // TextNode or null
         resolvedNode = getNodeFromDOM(dom);
     }
-    if (!$isTextNode(resolvedNode)) {
+    if (!$isNode("Text", resolvedNode)) {
         return null;
     }
     return $createPoint(resolvedNode.__key, resolvedOffset, "text");
@@ -271,12 +268,12 @@ const resolveSelectionPointOnBoundary = (
     const node = point.getNode();
 
     if (offset === 0) {
-        const prevSibling: LexicalNode | null | undefined = node.getPreviousSibling();
-        const parent = node.getParent();
+        const prevSibling: LexicalNode | null | undefined = getPreviousSibling(node);
+        const parent = getParent(node);
 
         if (!isBackward) {
             if (
-                $isElementNode(prevSibling) &&
+                $isNode("Element", prevSibling) &&
                 !isCollapsed &&
                 prevSibling.isInline()
             ) {
@@ -284,27 +281,27 @@ const resolveSelectionPointOnBoundary = (
                 point.offset = prevSibling.getChildrenSize();
                 // @ts-expect-error: intentional
                 point.type = "element";
-            } else if ($isTextNode(prevSibling)) {
+            } else if ($isNode("Text", prevSibling)) {
                 point.key = prevSibling.__key;
                 point.offset = prevSibling.getTextContent().length;
             }
         } else if (
             (isCollapsed || !isBackward) &&
             prevSibling === null &&
-            $isElementNode(parent) &&
+            $isNode("Element", parent) &&
             parent.isInline()
         ) {
-            const parentSibling = parent.getPreviousSibling();
-            if ($isTextNode(parentSibling)) {
+            const parentSibling = getPreviousSibling(parent);
+            if ($isNode("Text", parentSibling)) {
                 point.key = parentSibling.__key;
                 point.offset = parentSibling.getTextContent().length;
             }
         }
     } else if (offset === node.getTextContent().length) {
-        const nextSibling = node.getNextSibling();
-        const parent = node.getParent();
+        const nextSibling = getNextSibling(node);
+        const parent = getParent(node);
 
-        if (isBackward && $isElementNode(nextSibling) && nextSibling.isInline()) {
+        if (isBackward && $isNode("Element", nextSibling) && nextSibling.isInline()) {
             point.key = nextSibling.__key;
             point.offset = 0;
             // @ts-expect-error: intentional
@@ -312,12 +309,12 @@ const resolveSelectionPointOnBoundary = (
         } else if (
             (isCollapsed || isBackward) &&
             nextSibling === null &&
-            $isElementNode(parent) &&
+            $isNode("Element", parent) &&
             parent.isInline() &&
             !parent.canInsertTextAfter()
         ) {
-            const parentSibling = parent.getNextSibling();
-            if ($isTextNode(parentSibling)) {
+            const parentSibling = getNextSibling(parent);
+            if ($isNode("Text", parentSibling)) {
                 point.key = parentSibling.__key;
                 point.offset = 0;
             }
@@ -406,7 +403,7 @@ const internalResolveSelectionPoints = (
         // Ensure if we're selecting the content of a decorator that we
         // return null for this point, as it's not in the controlled scope
         // of Lexical.
-        if ($isDecoratorNode(anchorNode) && $isDecoratorNode(focusNode)) {
+        if ($isNode("Decorator", anchorNode) && $isNode("Decorator", focusNode)) {
             return null;
         }
     }
@@ -695,7 +692,7 @@ export const applySelectionTransforms = (
     if ($isRangeSelection(nextSelection)) {
         const anchor = nextSelection.anchor;
         const focus = nextSelection.focus;
-        let anchorNode;
+        let anchorNode: TextNode | null = null;
 
         if (anchor.type === "text") {
             anchorNode = anchor.getNode();
@@ -718,9 +715,9 @@ const $transferStartingElementPointToTextPoint = (
 ) => {
     const element = start.getNode();
     const placementNode = element.getChildAtIndex(start.offset);
-    const textNode = $createTextNode();
-    const target = $isRootNode(element)
-        ? $createParagraphNode().append(textNode)
+    const textNode = $createNode("Text", { text: "" });
+    const target = $isNode("Root", element)
+        ? $createNode("Paragraph", {}).append(textNode)
         : textNode;
     textNode.setFormat(format);
     textNode.setStyle(style);
@@ -783,7 +780,7 @@ export class RangeSelection implements BaseSelection {
     style: string;
     anchor: PointType;
     focus: PointType;
-    _cachedNodes: Array<LexicalNode> | null;
+    _cachedNodes: LexicalNode[] | null;
     dirty: boolean;
 
     constructor(
@@ -844,7 +841,7 @@ export class RangeSelection implements BaseSelection {
      *
      * @returns an Array containing all the nodes in the Selection
      */
-    getNodes(): Array<LexicalNode> {
+    getNodes(): LexicalNode[] {
         const cachedNodes = this._cachedNodes;
         if (cachedNodes !== null) {
             return cachedNodes;
@@ -859,12 +856,12 @@ export class RangeSelection implements BaseSelection {
         const startOffset = firstPoint.offset;
         const endOffset = lastPoint.offset;
 
-        if ($isElementNode(firstNode)) {
+        if ($isNode("Element", firstNode)) {
             const firstNodeDescendant =
                 firstNode.getDescendantByIndex<ElementNode>(startOffset);
             firstNode = firstNodeDescendant != null ? firstNodeDescendant : firstNode;
         }
-        if ($isElementNode(lastNode)) {
+        if ($isNode("Element", lastNode)) {
             let lastNodeDescendant =
                 lastNode.getDescendantByIndex<ElementNode>(endOffset);
             // We don't want to over-select, as node selection infers the child before
@@ -874,15 +871,15 @@ export class RangeSelection implements BaseSelection {
                 lastNodeDescendant !== firstNode &&
                 lastNode.getChildAtIndex(endOffset) === lastNodeDescendant
             ) {
-                lastNodeDescendant = lastNodeDescendant.getPreviousSibling();
+                lastNodeDescendant = getPreviousSibling(lastNodeDescendant);
             }
             lastNode = lastNodeDescendant != null ? lastNodeDescendant : lastNode;
         }
 
-        let nodes: Array<LexicalNode>;
+        let nodes: LexicalNode[];
 
         if (firstNode.is(lastNode)) {
-            if ($isElementNode(firstNode) && firstNode.getChildrenSize() > 0) {
+            if ($isNode("Element", firstNode) && firstNode.getChildrenSize() > 0) {
                 nodes = [];
             } else {
                 nodes = [firstNode];
@@ -936,7 +933,7 @@ export class RangeSelection implements BaseSelection {
         let prevWasElement = true;
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
-            if ($isElementNode(node) && !node.isInline()) {
+            if ($isNode("Element", node) && !node.isInline()) {
                 if (!prevWasElement) {
                     textContent += "\n";
                 }
@@ -947,7 +944,7 @@ export class RangeSelection implements BaseSelection {
                 }
             } else {
                 prevWasElement = false;
-                if ($isTextNode(node)) {
+                if ($isNode("Text", node)) {
                     let text = node.getTextContent();
                     if (node === firstNode) {
                         if (node === lastNode) {
@@ -973,7 +970,7 @@ export class RangeSelection implements BaseSelection {
                     }
                     textContent += text;
                 } else if (
-                    ($isDecoratorNode(node) || $isLineBreakNode(node)) &&
+                    ($isNode("Decorator", node) || $isNode("LineBreak", node)) &&
                     (node !== lastNode || !this.isCollapsed())
                 ) {
                     textContent += node.getTextContent();
@@ -1081,11 +1078,11 @@ export class RangeSelection implements BaseSelection {
         for (let i = 0; i < length; i++) {
             const part = parts[i];
             if (part === "\n" || part === "\r\n") {
-                nodes.push($createLineBreakNode());
+                nodes.push($createNode("LineBreak", {}));
             } else if (part === "\t") {
-                nodes.push($createTabNode());
+                nodes.push($createNode("Tab", {}));
             } else {
-                nodes.push($createTextNode(part));
+                nodes.push($createNode("Text", { text: part }));
             }
         }
         this.insertNodes(nodes);
@@ -1116,12 +1113,12 @@ export class RangeSelection implements BaseSelection {
         const endOffset = endPoint.offset;
         let firstNode: TextNode = selectedNodes[0] as TextNode;
 
-        if (!$isTextNode(firstNode)) {
+        if (!$isNode("Text", firstNode)) {
             throw new Error("insertText: first node is not a text node");
         }
         const firstNodeText = firstNode.getTextContent();
         const firstNodeTextLength = firstNodeText.length;
-        const firstNodeParent = firstNode.getParentOrThrow();
+        const firstNodeParent = getParentOrThrow(firstNode);
         const lastIndex = selectedNodesLength - 1;
         let lastNode = selectedNodes[lastIndex];
 
@@ -1132,15 +1129,15 @@ export class RangeSelection implements BaseSelection {
                 firstNode.isToken() ||
                 !firstNode.canInsertTextAfter() ||
                 (!firstNodeParent.canInsertTextAfter() &&
-                    firstNode.getNextSibling() === null))
+                    getNextSibling(firstNode) === null))
         ) {
-            let nextSibling = firstNode.getNextSibling<TextNode>();
+            let nextSibling = getNextSibling<TextNode>(firstNode);
             if (
-                !$isTextNode(nextSibling) ||
+                !$isNode("Text", nextSibling) ||
                 !nextSibling.canInsertTextBefore() ||
                 $isTokenOrSegmented(nextSibling)
             ) {
-                nextSibling = $createTextNode();
+                nextSibling = $createNode("Text", { text: "" });
                 nextSibling.setFormat(format);
                 if (!firstNodeParent.canInsertTextAfter()) {
                     firstNodeParent.insertAfter(nextSibling);
@@ -1161,11 +1158,11 @@ export class RangeSelection implements BaseSelection {
                 firstNode.isToken() ||
                 !firstNode.canInsertTextBefore() ||
                 (!firstNodeParent.canInsertTextBefore() &&
-                    firstNode.getPreviousSibling() === null))
+                    getPreviousSibling(firstNode) === null))
         ) {
-            let prevSibling = firstNode.getPreviousSibling<TextNode>();
-            if (!$isTextNode(prevSibling) || $isTokenOrSegmented(prevSibling)) {
-                prevSibling = $createTextNode();
+            let prevSibling = getPreviousSibling<TextNode>(firstNode);
+            if (!$isNode("Text", prevSibling) || $isTokenOrSegmented(prevSibling)) {
+                prevSibling = $createNode("Text", { text: "" });
                 prevSibling.setFormat(format);
                 if (!firstNodeParent.canInsertTextBefore()) {
                     firstNodeParent.insertBefore(prevSibling);
@@ -1180,7 +1177,7 @@ export class RangeSelection implements BaseSelection {
                 return;
             }
         } else if (firstNode.isSegmented() && startOffset !== firstNodeTextLength) {
-            const textNode = $createTextNode(firstNode.getTextContent());
+            const textNode = $createNode("Text", { text: firstNode.getTextContent() });
             textNode.setFormat(format);
             firstNode.replace(textNode);
             firstNode = textNode;
@@ -1189,12 +1186,12 @@ export class RangeSelection implements BaseSelection {
             // do not allow text to be inserted before or after, we first
             // clear the content. Then we normalize selection, then insert
             // the new content.
-            const lastNodeParent = lastNode.getParent();
+            const lastNodeParent = getParent(lastNode);
 
             if (
                 !firstNodeParent.canInsertTextBefore() ||
                 !firstNodeParent.canInsertTextAfter() ||
-                ($isElementNode(lastNodeParent) &&
+                ($isNode("Element", lastNodeParent) &&
                     (!lastNodeParent.canInsertTextBefore() ||
                         !lastNodeParent.canInsertTextAfter()))
             ) {
@@ -1207,7 +1204,7 @@ export class RangeSelection implements BaseSelection {
 
         if (selectedNodesLength === 1) {
             if (firstNode.isToken()) {
-                const textNode = $createTextNode(text);
+                const textNode = $createNode("Text", { text });
                 textNode.select();
                 firstNode.replace(textNode);
                 return;
@@ -1223,7 +1220,7 @@ export class RangeSelection implements BaseSelection {
                     firstNode.setFormat(format);
                     firstNode.setStyle(style);
                 } else {
-                    const textNode = $createTextNode(text);
+                    const textNode = $createNode("Text", { text });
                     textNode.setFormat(format);
                     textNode.setStyle(style);
                     textNode.select();
@@ -1240,10 +1237,10 @@ export class RangeSelection implements BaseSelection {
                     }
                     return;
                 }
-            } else if ($isTabNode(firstNode)) {
+            } else if ($isNode("Tab", firstNode)) {
                 // We don't need to check for delCount because there is only the entire selected node case
                 // that can hit here for content size 1 and with canInsertTextBeforeAfter false
-                const textNode = $createTextNode(text);
+                const textNode = $createNode("Text", { text });
                 textNode.setFormat(format);
                 textNode.setStyle(style);
                 textNode.select();
@@ -1267,18 +1264,18 @@ export class RangeSelection implements BaseSelection {
             }
         } else {
             const markedNodeKeysForKeep = new Set([
-                ...firstNode.getParentKeys(),
-                ...lastNode.getParentKeys(),
+                ...getParentKeys(firstNode),
+                ...getParentKeys(lastNode),
             ]);
 
             // We have to get the parent elements before the next section,
             // as in that section we might mutate the lastNode.
-            const firstElement = $isElementNode(firstNode)
+            const firstElement = $isNode("Element", firstNode)
                 ? firstNode
-                : firstNode.getParentOrThrow();
-            let lastElement = $isElementNode(lastNode)
+                : getParentOrThrow(firstNode);
+            let lastElement = $isNode("Element", lastNode)
                 ? lastNode
-                : lastNode.getParentOrThrow();
+                : getParentOrThrow(lastNode);
             let lastElementChild = lastNode;
 
             // If the last element is inline, we should instead look at getting
@@ -1289,7 +1286,7 @@ export class RangeSelection implements BaseSelection {
                 // Keep traversing till we have a non-inline element parent.
                 do {
                     lastElementChild = lastElement;
-                    lastElement = lastElement.getParentOrThrow();
+                    lastElement = getParentOrThrow(lastElement);
                 } while (lastElement.isInline());
             }
 
@@ -1298,25 +1295,25 @@ export class RangeSelection implements BaseSelection {
                 (endPoint.type === "text" &&
                     (endOffset !== 0 || lastNode.getTextContent() === "")) ||
                 (endPoint.type === "element" &&
-                    lastNode.getIndexWithinParent() < endOffset)
+                    getIndexWithinParent(lastNode) < endOffset)
             ) {
                 if (
-                    $isTextNode(lastNode) &&
+                    $isNode("Text", lastNode) &&
                     !lastNode.isToken() &&
                     endOffset !== lastNode.getTextContentSize()
                 ) {
                     if (lastNode.isSegmented()) {
-                        const textNode = $createTextNode(lastNode.getTextContent());
+                        const textNode = $createNode("Text", { text: lastNode.getTextContent() });
                         lastNode.replace(textNode);
                         lastNode = textNode;
                     }
                     // root node selections only select whole nodes, so no text splice is necessary
-                    if (!$isRootNode(endPoint.getNode()) && endPoint.type === "text") {
+                    if (!$isNode("Root", endPoint.getNode()) && endPoint.type === "text") {
                         lastNode = (lastNode as TextNode).spliceText(0, endOffset, "");
                     }
                     markedNodeKeysForKeep.add(lastNode.__key);
                 } else {
-                    const lastNodeParent = lastNode.getParentOrThrow();
+                    const lastNodeParent = getParentOrThrow(lastNode);
                     if (
                         !lastNodeParent.canBeEmpty() &&
                         lastNodeParent.getChildrenSize() === 1
@@ -1344,7 +1341,7 @@ export class RangeSelection implements BaseSelection {
             // TODO: should we keep on traversing parents if we're inside another
             // nested inline element?
             const insertionTarget =
-                firstElement.isInline() && firstNode.getNextSibling() === null
+                firstElement.isInline() && getNextSibling(firstNode) === null
                     ? firstElement
                     : firstNode;
 
@@ -1353,12 +1350,12 @@ export class RangeSelection implements BaseSelection {
 
                 if (
                     lastNodeChild.is(firstNode) ||
-                    ($isElementNode(lastNodeChild) && lastNodeChild.isParentOf(firstNode))
+                    ($isNode("Element", lastNodeChild) && lastNodeChild.isParentOf(firstNode))
                 ) {
                     break;
                 }
 
-                if (lastNodeChild.isAttached()) {
+                if (isAttachedToRoot(lastNodeChild)) {
                     if (
                         !selectedNodesSet.has(lastNodeChild) ||
                         lastNodeChild.is(lastElementChild)
@@ -1389,7 +1386,7 @@ export class RangeSelection implements BaseSelection {
                         markedNodeKeysForKeep.delete(parent.__key);
                         lastRemovedParent = parent;
                     }
-                    parent = parent.getParent();
+                    parent = getParent(parent);
                 }
             }
 
@@ -1412,7 +1409,7 @@ export class RangeSelection implements BaseSelection {
             } else if (startOffset === firstNodeTextLength) {
                 firstNode.select();
             } else {
-                const textNode = $createTextNode(text);
+                const textNode = $createNode("Text", { text });
                 textNode.select();
                 firstNode.replace(textNode);
             }
@@ -1450,9 +1447,9 @@ export class RangeSelection implements BaseSelection {
         }
 
         const selectedNodes = this.getNodes();
-        const selectedTextNodes: Array<TextNode> = [];
+        const selectedTextNodes: TextNode[] = [];
         for (const selectedNode of selectedNodes) {
-            if ($isTextNode(selectedNode)) {
+            if ($isNode("Text", selectedNode)) {
                 selectedTextNodes.push(selectedNode);
             }
         }
@@ -1572,7 +1569,7 @@ export class RangeSelection implements BaseSelection {
      *
      * @param nodes - the nodes to insert
      */
-    insertNodes(nodes: Array<LexicalNode>): void {
+    insertNodes(nodes: LexicalNode[]): void {
         if (nodes.length === 0) {
             return;
         }
@@ -1591,7 +1588,7 @@ export class RangeSelection implements BaseSelection {
         const last = nodes[nodes.length - 1]!;
 
         // CASE 1: insert inside a code block
-        if ("__language" in firstBlock && $isElementNode(firstBlock)) {
+        if ("__language" in firstBlock && $isNode("Element", firstBlock)) {
             if ("__language" in nodes[0]) {
                 this.insertText(nodes[0].getTextContent());
             } else {
@@ -1604,10 +1601,10 @@ export class RangeSelection implements BaseSelection {
 
         // CASE 2: All elements of the array are inline
         const notInline = (node: LexicalNode) =>
-            ($isElementNode(node) || $isDecoratorNode(node)) && !node.isInline();
+            ($isNode("Element", node) || $isNode("Decorator", node)) && !node.isInline();
 
         if (!nodes.some(notInline)) {
-            if (!$isElementNode(firstBlock)) {
+            if (!$isNode("Element", firstBlock)) {
                 throw new Error("Expected 'firstBlock' to be an ElementNode");
             }
             const index = removeTextAndSplitBlock(this);
@@ -1623,18 +1620,18 @@ export class RangeSelection implements BaseSelection {
         const isLI = (node: LexicalNode) =>
             "__value" in node && "__checked" in node;
         const isMergeable = (node: LexicalNode): node is ElementNode =>
-            $isElementNode(node) &&
+            $isNode("Element", node) &&
             INTERNAL_$isBlock(node) &&
             !node.isEmpty() &&
-            $isElementNode(firstBlock) &&
+            $isNode("Element", firstBlock) &&
             (!firstBlock.isEmpty() || isLI(firstBlock));
 
-        const shouldInsert = !$isElementNode(firstBlock) || !firstBlock.isEmpty();
+        const shouldInsert = !$isNode("Element", firstBlock) || !firstBlock.isEmpty();
         const insertedParagraph = shouldInsert ? this.insertParagraph() : null;
         const lastToInsert = blocks[blocks.length - 1];
         let firstToInsert = blocks[0];
         if (isMergeable(firstToInsert)) {
-            if (!$isElementNode(firstBlock)) {
+            if (!$isNode("Element", firstBlock)) {
                 throw new Error("Expected 'firstBlock' to be an ElementNode");
             }
             firstBlock.append(...firstToInsert.getChildren());
@@ -1647,23 +1644,23 @@ export class RangeSelection implements BaseSelection {
 
         if (
             insertedParagraph &&
-            $isElementNode(lastInsertedBlock) &&
+            $isNode("Element", lastInsertedBlock) &&
             (isLI(insertedParagraph) || INTERNAL_$isBlock(lastToInsert))
         ) {
             lastInsertedBlock.append(...insertedParagraph.getChildren());
             insertedParagraph.remove();
         }
-        if ($isElementNode(firstBlock) && firstBlock.isEmpty()) {
+        if ($isNode("Element", firstBlock) && firstBlock.isEmpty()) {
             firstBlock.remove();
         }
 
         nodeToSelect.selectEnd();
 
         // To understand this take a look at the test "can wrap post-linebreak nodes into new element"
-        const lastChild = $isElementNode(firstBlock)
+        const lastChild = $isNode("Element", firstBlock)
             ? firstBlock.getLastChild()
             : null;
-        if ($isLineBreakNode(lastChild) && lastInsertedBlock !== firstBlock) {
+        if ($isNode("LineBreak", lastChild) && lastInsertedBlock !== firstBlock) {
             lastChild.remove();
         }
     }
@@ -1675,19 +1672,19 @@ export class RangeSelection implements BaseSelection {
      */
     insertParagraph(): ElementNode | null {
         if (this.anchor.key === "root") {
-            const paragraph = $createParagraphNode();
+            const paragraph = $createNode("Paragraph", {});
             $getRoot().splice(this.anchor.offset, 0, [paragraph]);
             paragraph.select();
             return paragraph;
         }
         const index = removeTextAndSplitBlock(this);
         const block = $getAncestor(this.anchor.getNode(), INTERNAL_$isBlock)!;
-        if (!$isElementNode(block)) {
+        if (!$isNode("Element", block)) {
             throw new Error("Expected ancestor to be an ElementNode");
         }
         const firstToAppend = block.getChildAtIndex(index);
         const nodesToInsert = firstToAppend
-            ? [firstToAppend, ...firstToAppend.getNextSiblings()]
+            ? [firstToAppend, ...getNextSiblings(firstToAppend)]
             : [];
         const newBlock = block.insertNewAfter(this, false) as ElementNode | null;
         if (newBlock) {
@@ -1704,12 +1701,12 @@ export class RangeSelection implements BaseSelection {
      * current Selection.
      */
     insertLineBreak(selectStart?: boolean): void {
-        const lineBreak = $createLineBreakNode();
+        const lineBreak = $createNode("LineBreak", {});
         this.insertNodes([lineBreak]);
         // this is used in MacOS with the command 'ctrl-O' (openLineBreak)
         if (selectStart) {
-            const parent = lineBreak.getParentOrThrow();
-            const index = lineBreak.getIndexWithinParent();
+            const parent = getParentOrThrow(lineBreak);
+            const index = getIndexWithinParent(lineBreak);
             parent.select(index, index);
         }
     }
@@ -1720,7 +1717,7 @@ export class RangeSelection implements BaseSelection {
      *
      * @returns The nodes in the Selection
      */
-    extract(): Array<LexicalNode> {
+    extract(): LexicalNode[] {
         const selectedNodes = this.getNodes();
         const selectedNodesLength = selectedNodes.length;
         const lastIndex = selectedNodesLength - 1;
@@ -1733,7 +1730,7 @@ export class RangeSelection implements BaseSelection {
         if (selectedNodesLength === 0) {
             return [];
         } else if (selectedNodesLength === 1) {
-            if ($isTextNode(firstNode) && !this.isCollapsed()) {
+            if ($isNode("Text", firstNode) && !this.isCollapsed()) {
                 const startOffset =
                     anchorOffset > focusOffset ? focusOffset : anchorOffset;
                 const endOffset =
@@ -1746,7 +1743,7 @@ export class RangeSelection implements BaseSelection {
         }
         const isBefore = anchor.isBefore(focus);
 
-        if ($isTextNode(firstNode)) {
+        if ($isNode("Text", firstNode)) {
             const startOffset = isBefore ? anchorOffset : focusOffset;
             if (startOffset === firstNode.getTextContentSize()) {
                 selectedNodes.shift();
@@ -1755,7 +1752,7 @@ export class RangeSelection implements BaseSelection {
                 selectedNodes[0] = firstNode;
             }
         }
-        if ($isTextNode(lastNode)) {
+        if ($isNode("Text", lastNode)) {
             const lastNodeText = lastNode.getTextContent();
             const lastNodeTextLength = lastNodeText.length;
             const endOffset = isBefore ? focusOffset : anchorOffset;
@@ -1789,7 +1786,7 @@ export class RangeSelection implements BaseSelection {
 
         // Handle the selection movement around decorators.
         const possibleNode = $getAdjacentNode(focus, isBackward);
-        if ($isDecoratorNode(possibleNode) && !possibleNode.isIsolated()) {
+        if ($isNode("Decorator", possibleNode) && !possibleNode.isIsolated()) {
             // Make it possible to move selection from range selection to
             // node selection on the node.
             if (collapse && possibleNode.isKeyboardSelectable()) {
@@ -1799,19 +1796,19 @@ export class RangeSelection implements BaseSelection {
                 return;
             }
             const sibling = isBackward
-                ? possibleNode.getPreviousSibling()
-                : possibleNode.getNextSibling();
+                ? getPreviousSibling(possibleNode)
+                : getNextSibling(possibleNode);
 
-            if (!$isTextNode(sibling)) {
-                const parent = possibleNode.getParentOrThrow();
+            if (!$isNode("Text", sibling)) {
+                const parent = getParentOrThrow(possibleNode);
                 let offset;
                 let elementKey;
 
-                if ($isElementNode(sibling)) {
+                if ($isNode("Element", sibling)) {
                     elementKey = sibling.__key;
                     offset = isBackward ? sibling.getChildrenSize() : 0;
                 } else {
-                    offset = possibleNode.getIndexWithinParent();
+                    offset = getIndexWithinParent(possibleNode);
                     elementKey = parent.__key;
                     if (!isBackward) {
                         offset++;
@@ -1846,7 +1843,7 @@ export class RangeSelection implements BaseSelection {
         if (
             rootElement !== null &&
             blockCursorElement !== null &&
-            $isElementNode(possibleNode) &&
+            $isNode("Element", possibleNode) &&
             !possibleNode.isInline() &&
             !possibleNode.canBeEmpty()
         ) {
@@ -1869,7 +1866,7 @@ export class RangeSelection implements BaseSelection {
             const range = domSelection.getRangeAt(0);
             // Apply the DOM selection to our Lexical selection.
             const anchorNode = this.anchor.getNode();
-            const root = $isRootNode(anchorNode)
+            const root = $isNode("Root", anchorNode)
                 ? anchorNode
                 : $getNearestRootOrShadowRoot(anchorNode);
             this.applyDOMRange(range);
@@ -1892,17 +1889,17 @@ export class RangeSelection implements BaseSelection {
                     // will return an empty array in this case
                     if (isBackward) {
                         const firstValidNode = validNodes[0];
-                        if ($isElementNode(firstValidNode)) {
+                        if ($isNode("Element", firstValidNode)) {
                             firstValidNode.selectStart();
                         } else {
-                            firstValidNode.getParentOrThrow().selectStart();
+                            getParentOrThrow(firstValidNode).selectStart();
                         }
                     } else {
                         const lastValidNode = validNodes[validNodes.length - 1];
-                        if ($isElementNode(lastValidNode)) {
+                        if ($isNode("Element", lastValidNode)) {
                             lastValidNode.selectEnd();
                         } else {
-                            lastValidNode.getParentOrThrow().selectEnd();
+                            getParentOrThrow(lastValidNode).selectEnd();
                         }
                     }
                 }
@@ -1936,17 +1933,17 @@ export class RangeSelection implements BaseSelection {
             !isBackward &&
             // Delete forward handle case
             ((anchor.type === "element" &&
-                $isElementNode(anchorNode) &&
+                $isNode("Element", anchorNode) &&
                 anchor.offset === anchorNode.getChildrenSize()) ||
                 (anchor.type === "text" &&
                     anchor.offset === anchorNode.getTextContentSize()))
         ) {
-            const parent = anchorNode.getParent();
+            const parent = getParent(anchorNode);
             const nextSibling =
-                anchorNode.getNextSibling() ||
-                (parent === null ? null : parent.getNextSibling());
+                getNextSibling(anchorNode) ||
+                (parent === null ? null : getNextSibling(parent));
 
-            if ($isElementNode(nextSibling) && nextSibling.isShadowRoot()) {
+            if ($isNode("Element", nextSibling) && nextSibling.isShadowRoot()) {
                 return true;
             }
         }
@@ -1971,12 +1968,12 @@ export class RangeSelection implements BaseSelection {
             // Handle the deletion around decorators.
             const focus = this.focus;
             const possibleNode = $getAdjacentNode(focus, isBackward);
-            if ($isDecoratorNode(possibleNode) && !possibleNode.isIsolated()) {
+            if ($isNode("Decorator", possibleNode) && !possibleNode.isIsolated()) {
                 // Make it possible to move selection from range selection to
                 // node selection on the node.
                 if (
                     possibleNode.isKeyboardSelectable() &&
-                    $isElementNode(anchorNode) &&
+                    $isNode("Element", anchorNode) &&
                     anchorNode.getChildrenSize() === 0
                 ) {
                     anchorNode.remove();
@@ -1991,8 +1988,8 @@ export class RangeSelection implements BaseSelection {
                 return;
             } else if (
                 !isBackward &&
-                $isElementNode(possibleNode) &&
-                $isElementNode(anchorNode) &&
+                $isNode("Element", possibleNode) &&
+                $isNode("Element", anchorNode) &&
                 anchorNode.isEmpty()
             ) {
                 anchorNode.remove();
@@ -2034,7 +2031,7 @@ export class RangeSelection implements BaseSelection {
                 const element =
                     anchor.type === "element"
                         ? anchor.getNode()
-                        : anchor.getNode().getParentOrThrow();
+                        : getParentOrThrow(anchor.getNode());
                 if (element.collapseAtStart(this)) {
                     return;
                 }
@@ -2051,8 +2048,8 @@ export class RangeSelection implements BaseSelection {
             const anchorNode = this.anchor.getNode();
             if (
                 anchorNode.isEmpty() &&
-                $isRootNode(anchorNode.getParent()) &&
-                anchorNode.getIndexWithinParent() === 0
+                $isNode("Root", getParent(anchorNode)) &&
+                getIndexWithinParent(anchorNode) === 0
             ) {
                 anchorNode.collapseAtStart(this);
             }
@@ -2120,7 +2117,7 @@ export const $createNodeSelection = (): NodeSelection => {
 
 export class NodeSelection implements BaseSelection {
     _nodes: Set<NodeKey>;
-    _cachedNodes: Array<LexicalNode> | null;
+    _cachedNodes: LexicalNode[] | null;
     dirty: boolean;
 
     constructor(objects: Set<NodeKey>) {
@@ -2184,7 +2181,7 @@ export class NodeSelection implements BaseSelection {
         return new NodeSelection(new Set(this._nodes));
     }
 
-    extract(): Array<LexicalNode> {
+    extract(): LexicalNode[] {
         return this.getNodes();
     }
 
@@ -2196,17 +2193,17 @@ export class NodeSelection implements BaseSelection {
         // Do nothing?
     }
 
-    insertNodes(nodes: Array<LexicalNode>) {
+    insertNodes(nodes: LexicalNode[]) {
         const selectedNodes = this.getNodes();
         const selectedNodesLength = selectedNodes.length;
         const lastSelectedNode = selectedNodes[selectedNodesLength - 1];
         let selectionAtEnd: RangeSelection;
         // Insert nodes
-        if ($isTextNode(lastSelectedNode)) {
+        if ($isNode("Text", lastSelectedNode)) {
             selectionAtEnd = lastSelectedNode.select();
         } else {
-            const index = lastSelectedNode.getIndexWithinParent() + 1;
-            selectionAtEnd = lastSelectedNode.getParentOrThrow().select(index, index);
+            const index = getIndexWithinParent(lastSelectedNode) + 1;
+            selectionAtEnd = getParentOrThrow(lastSelectedNode).select(index, index);
         }
         selectionAtEnd.insertNodes(nodes);
         // Remove selected nodes
@@ -2215,7 +2212,7 @@ export class NodeSelection implements BaseSelection {
         }
     }
 
-    getNodes(): Array<LexicalNode> {
+    getNodes(): LexicalNode[] {
         const cachedNodes = this._cachedNodes;
         if (cachedNodes !== null) {
             return cachedNodes;
@@ -2356,19 +2353,19 @@ export const moveSelectionPointToSibling = (
     let type: "text" | "element" | null = null;
     if (prevSibling !== null) {
         siblingKey = prevSibling.__key;
-        if ($isTextNode(prevSibling)) {
+        if ($isNode("Text", prevSibling)) {
             offset = prevSibling.getTextContentSize();
             type = "text";
-        } else if ($isElementNode(prevSibling)) {
+        } else if ($isNode("Element", prevSibling)) {
             offset = prevSibling.getChildrenSize();
             type = "element";
         }
     } else {
         if (nextSibling !== null) {
             siblingKey = nextSibling.__key;
-            if ($isTextNode(nextSibling)) {
+            if ($isNode("Text", nextSibling)) {
                 type = "text";
-            } else if ($isElementNode(nextSibling)) {
+            } else if ($isNode("Element", nextSibling)) {
                 type = "element";
             }
         }
@@ -2376,7 +2373,7 @@ export const moveSelectionPointToSibling = (
     if (siblingKey !== null && type !== null) {
         point.set(siblingKey, offset, type);
     } else {
-        offset = node.getIndexWithinParent();
+        offset = getIndexWithinParent(node);
         if (offset === -1) {
             // Move selection to end of parent
             offset = parent.getChildrenSize();
@@ -2427,7 +2424,7 @@ export const $setBlocksType = (
         if (!INTERNAL_$isBlock(node)) {
             continue;
         }
-        if (!$isElementNode(node)) {
+        if (!$isNode("Element", node)) {
             throw new Error("Expected block node to be an ElementNode");
         }
 
@@ -2458,27 +2455,27 @@ const splitNodeAtPoint = (
     node: LexicalNode,
     offset: number,
 ): [parent: ElementNode, offset: number] => {
-    const parent = node.getParent();
+    const parent = getParent(node);
     if (!parent) {
-        const paragraph = $createParagraphNode();
+        const paragraph = $createNode("Paragraph", {});
         $getRoot().append(paragraph);
         paragraph.select();
         return [$getRoot(), 0];
     }
 
-    if ($isTextNode(node)) {
+    if ($isNode("Text", node)) {
         const split = node.splitText(offset);
         if (split.length === 0) {
-            return [parent, node.getIndexWithinParent()];
+            return [parent, getIndexWithinParent(node)];
         }
         const x = offset === 0 ? 0 : 1;
-        const index = split[0].getIndexWithinParent() + x;
+        const index = getIndexWithinParent(split[0]) + x;
 
         return [parent, index];
     }
 
-    if (!$isElementNode(node) || offset === 0) {
-        return [parent, node.getIndexWithinParent()];
+    if (!$isNode("Element", node) || offset === 0) {
+        return [parent, getIndexWithinParent(node)];
     }
 
     const firstToAppend = node.getChildAtIndex(offset);
@@ -2491,28 +2488,28 @@ const splitNodeAtPoint = (
         );
         const newElement = node.insertNewAfter(insertPoint) as ElementNode | null;
         if (newElement) {
-            newElement.append(firstToAppend, ...firstToAppend.getNextSiblings());
+            newElement.append(firstToAppend, ...getNextSiblings(firstToAppend));
         }
     }
-    return [parent, node.getIndexWithinParent() + 1];
+    return [parent, getIndexWithinParent(node) + 1];
 };
 
 const $wrapInlineNodes = (nodes: LexicalNode[]) => {
     // We temporarily insert the topLevelNodes into an arbitrary ElementNode,
     // since insertAfter does not work on nodes that have no parent (TO-DO: fix that).
-    const virtualRoot = $createParagraphNode();
+    const virtualRoot = $createNode("Paragraph", {});
 
     let currentBlock: ElementNode | null = null;
     for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
 
-        const isLineBreakNode = $isLineBreakNode(node);
+        const isLineBreakNode = $isNode("LineBreak", node);
 
         if (
             isLineBreakNode ||
-            ($isDecoratorNode(node) && node.isInline()) ||
-            ($isElementNode(node) && node.isInline()) ||
-            $isTextNode(node) ||
+            ($isNode("Decorator", node) && node.isInline()) ||
+            ($isNode("Element", node) && node.isInline()) ||
+            $isNode("Text", node) ||
             node.isParentRequired()
         ) {
             if (currentBlock === null) {
@@ -2545,7 +2542,7 @@ const $updateSelectionResolveTextNodes = (selection: RangeSelection): void => {
     const anchorNode = anchor.getNode();
     const focusNode = focus.getNode();
     if (selection.isCollapsed()) {
-        if (!$isElementNode(anchorNode)) {
+        if (!$isNode("Element", anchorNode)) {
             return;
         }
         const childSize = anchorNode.getChildrenSize();
@@ -2553,7 +2550,7 @@ const $updateSelectionResolveTextNodes = (selection: RangeSelection): void => {
         const child = anchorOffsetAtEnd
             ? anchorNode.getChildAtIndex(childSize - 1)
             : anchorNode.getChildAtIndex(anchorOffset);
-        if ($isTextNode(child)) {
+        if ($isNode("Text", child)) {
             let newOffset = 0;
             if (anchorOffsetAtEnd) {
                 newOffset = child.getTextContentSize();
@@ -2563,13 +2560,13 @@ const $updateSelectionResolveTextNodes = (selection: RangeSelection): void => {
         }
         return;
     }
-    if ($isElementNode(anchorNode)) {
+    if ($isNode("Element", anchorNode)) {
         const childSize = anchorNode.getChildrenSize();
         const anchorOffsetAtEnd = anchorOffset >= childSize;
         const child = anchorOffsetAtEnd
             ? anchorNode.getChildAtIndex(childSize - 1)
             : anchorNode.getChildAtIndex(anchorOffset);
-        if ($isTextNode(child)) {
+        if ($isNode("Text", child)) {
             let newOffset = 0;
             if (anchorOffsetAtEnd) {
                 newOffset = child.getTextContentSize();
@@ -2577,13 +2574,13 @@ const $updateSelectionResolveTextNodes = (selection: RangeSelection): void => {
             anchor.set(child.__key, newOffset, "text");
         }
     }
-    if ($isElementNode(focusNode)) {
+    if ($isNode("Element", focusNode)) {
         const childSize = focusNode.getChildrenSize();
         const focusOffsetAtEnd = focusOffset >= childSize;
         const child = focusOffsetAtEnd
             ? focusNode.getChildAtIndex(childSize - 1)
             : focusNode.getChildAtIndex(focusOffset);
-        if ($isTextNode(child)) {
+        if ($isNode("Text", child)) {
             let newOffset = 0;
             if (focusOffsetAtEnd) {
                 newOffset = child.getTextContentSize();
@@ -2670,7 +2667,7 @@ export const adjustPointOffsetForMergedSibling = (
         if (!isBefore) {
             point.offset += textLength;
         }
-    } else if (point.offset > target.getIndexWithinParent()) {
+    } else if (point.offset > getIndexWithinParent(target)) {
         point.offset -= 1;
     }
 };
@@ -2679,23 +2676,23 @@ const selectPointOnNode = (point: PointType, node: LexicalNode): void => {
     let key = node.__key;
     let offset = point.offset;
     let type: "element" | "text" = "element";
-    if ($isTextNode(node)) {
+    if ($isNode("Text", node)) {
         type = "text";
         const textContentLength = node.getTextContentSize();
         if (offset > textContentLength) {
             offset = textContentLength;
         }
-    } else if (!$isElementNode(node)) {
-        const nextSibling = node.getNextSibling();
-        if ($isTextNode(nextSibling)) {
+    } else if (!$isNode("Element", node)) {
+        const nextSibling = getNextSibling(node);
+        if ($isNode("Text", nextSibling)) {
             key = nextSibling.__key;
             offset = 0;
             type = "text";
         } else {
-            const parentNode = node.getParent();
+            const parentNode = getParent(node);
             if (parentNode) {
                 key = parentNode.__key;
-                offset = node.getIndexWithinParent() + 1;
+                offset = getIndexWithinParent(node) + 1;
             }
         }
     }
@@ -2706,9 +2703,9 @@ export const $moveSelectionPointToEnd = (
     point: PointType,
     node: LexicalNode,
 ): void => {
-    if ($isElementNode(node)) {
+    if ($isNode("Element", node)) {
         const lastNode = node.getLastDescendant();
-        if ($isElementNode(lastNode) || $isTextNode(lastNode)) {
+        if ($isNode("Element", lastNode) || $isNode("Text", lastNode)) {
             selectPointOnNode(point, lastNode);
         } else {
             selectPointOnNode(point, node);
@@ -2724,7 +2721,7 @@ export const $createRangeSelection = (): RangeSelection => {
     return new RangeSelection(anchor, focus, 0, "");
 };
 
-export const $insertNodes = (nodes: Array<LexicalNode>) => {
+export const $insertNodes = (nodes: LexicalNode[]) => {
     let selection = $getSelection() || $getPreviousSelection();
 
     if (selection === null) {
@@ -2740,9 +2737,9 @@ export const $insertNodes = (nodes: Array<LexicalNode>) => {
  */
 export const $isParentElementRTL = (selection: RangeSelection): boolean => {
     const anchorNode = selection.anchor.getNode();
-    const parent = $isRootNode(anchorNode)
+    const parent = $isNode("Root", anchorNode)
         ? anchorNode
-        : anchorNode.getParentOrThrow();
+        : getParentOrThrow(anchorNode);
 
     return parent.getDirection() === "rtl";
 };
@@ -2780,8 +2777,8 @@ export const $shouldOverrideDefaultCharacterSelection = (
     const possibleNode = $getAdjacentNode(selection.focus, isBackward);
 
     return (
-        ($isDecoratorNode(possibleNode) && !possibleNode.isIsolated()) ||
-        ($isElementNode(possibleNode) &&
+        ($isNode("Decorator", possibleNode) && !possibleNode.isIsolated()) ||
+        ($isNode("Element", possibleNode) &&
             !possibleNode.isInline() &&
             !possibleNode.canBeEmpty())
     );
@@ -2900,7 +2897,7 @@ const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
             return false;
         }
 
-        return node.isSelected();
+        return isSelected(node);
     });
 };
 

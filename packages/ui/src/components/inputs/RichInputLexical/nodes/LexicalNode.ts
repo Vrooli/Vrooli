@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { type LexicalEditor } from "../editor";
 import { $moveSelectionPointToEnd, $updateElementSelectionOnCreateDeleteNode, RangeSelection, moveSelectionPointToSibling } from "../selection";
-import { BaseSelection, DOMConversionMap, DOMExportOutput, EditorConfig, Klass, KlassConstructor, NodeKey, SerializedLexicalNode } from "../types";
+import { BaseSelection, DOMConversionMap, DOMExportOutput, EditorConfig, LexicalNodeBase, LexicalNodeClass, NodeKey, NodeType, SerializedLexicalNode } from "../types";
 import { errorOnReadOnly, getActiveEditor, getActiveEditorState } from "../updates";
-import { $getCompositionKey, $getNodeByKey, $getSelection, $isElementNode, $isNodeSelection, $isRangeSelection, $isRootNode, $isRootOrShadowRoot, $isTextNode, $maybeMoveChildrenSelectionToParent, $setCompositionKey, $setNodeKey, $setSelection, errorOnInsertTextNodeOnRoot, internalMarkNodeAsDirty, removeFromParent } from "../utils";
+import { $createNode, $createNodeKey, $getCompositionKey, $getNodeByKey, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $maybeMoveChildrenSelectionToParent, $setCompositionKey, $setSelection, errorOnInsertTextNodeOnRoot, internalMarkNodeAsDirty, removeFromParent } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { $createParagraphNode, $isParagraphNode } from "./ParagraphNode";
 
 export const removeNode = (
     nodeToRemove: LexicalNode,
@@ -14,7 +13,7 @@ export const removeNode = (
 ) => {
     errorOnReadOnly();
     const key = nodeToRemove.__key;
-    const parent = nodeToRemove.getParent();
+    const parent = getParent(nodeToRemove);
     if (parent === null) {
         return;
     }
@@ -28,8 +27,8 @@ export const removeNode = (
                 anchor,
                 nodeToRemove,
                 parent,
-                nodeToRemove.getPreviousSibling(),
-                nodeToRemove.getNextSibling(),
+                getPreviousSibling(nodeToRemove),
+                getNextSibling(nodeToRemove),
             );
             selectionMoved = true;
         }
@@ -38,22 +37,21 @@ export const removeNode = (
                 focus,
                 nodeToRemove,
                 parent,
-                nodeToRemove.getPreviousSibling(),
-                nodeToRemove.getNextSibling(),
+                getPreviousSibling(nodeToRemove),
+                getNextSibling(nodeToRemove),
             );
             selectionMoved = true;
         }
     } else if (
         $isNodeSelection(selection) &&
         restoreSelection &&
-        nodeToRemove.isSelected()
+        isSelected(nodeToRemove)
     ) {
         nodeToRemove.selectPrevious();
     }
 
     if ($isRangeSelection(selection) && restoreSelection && !selectionMoved) {
-        // Doing this is O(n) so lets avoid it unless we need to do it
-        const index = nodeToRemove.getIndexWithinParent();
+        const index = getIndexWithinParent(nodeToRemove);
         removeFromParent(nodeToRemove);
         $updateElementSelectionOnCreateDeleteNode(selection, parent, index, -1);
     } else {
@@ -68,39 +66,273 @@ export const removeNode = (
     ) {
         removeNode(parent, restoreSelection);
     }
-    if (restoreSelection && $isRootNode(parent) && parent.isEmpty()) {
+    if (restoreSelection && $isNode("Root", parent) && parent.isEmpty()) {
         parent.selectEnd();
     }
 };
 
-export class LexicalNode {
-    // Allow us to look up the type including static props
-    ["constructor"]!: KlassConstructor<typeof LexicalNode>;
-    /** @internal */
-    __type: string;
-    /** @internal */
-    //@ts-ignore We set the key in the constructor.
+/**
+ * Returns true if there is a path between the provided node and the RootNode, false otherwise.
+ * This is a way of determining if the node is "attached" EditorState. Unattached nodes
+ * won't be reconciled and will ultimately be cleaned up by the Lexical GC.
+ */
+export const isAttachedToRoot = (node: LexicalNode): boolean => {
+    let nodeKey: string | null = node.__key;
+    while (nodeKey !== null) {
+        // Base case - root node
+        if (nodeKey === "root") {
+            return true;
+        }
+
+        // Traverse up parent chain
+        const node: LexicalNode | null = $getNodeByKey(nodeKey);
+        if (node === null) {
+            break;
+        }
+        nodeKey = node.__parent;
+    }
+    return false;
+};
+
+/**
+ * Returns true if the provided node is contained within the provided Selection, false otherwise.
+ * Relies on the algorithms implemented in {@link BaseSelection.getNodes} to determine
+ * what's included.
+ *
+ * @param selection - The selection that we want to determine if the node is in.
+ */
+export const isSelected = (node: LexicalNode, selection?: null | BaseSelection): boolean => {
+    const targetSelection = selection || $getSelection();
+    if (targetSelection == null) {
+        return false;
+    }
+
+    const isSelected = targetSelection
+        .getNodes()
+        .some((n) => n.__key === node.__key);
+
+    if ($isNode("Text", this)) {
+        return isSelected;
+    }
+    // For inline images inside of element nodes.
+    // Without this change the image will be selected if the cursor is before or after it.
+    if (
+        $isRangeSelection(targetSelection) &&
+        targetSelection.anchor.type === "element" &&
+        targetSelection.focus.type === "element" &&
+        targetSelection.anchor.key === targetSelection.focus.key &&
+        targetSelection.anchor.offset === targetSelection.focus.offset
+    ) {
+        return false;
+    }
+    return isSelected;
+};
+
+/**
+ * Returns the zero-based index of the provided node within the parent.
+ * TODO This is O(n) and can be improved.
+ */
+export const getIndexWithinParent = (node: LexicalNode): number => {
+    const parent = getParent(node);
+    if (parent === null) {
+        return -1;
+    }
+    let currChild = parent.getFirstChild();
+    let index = 0;
+    while (currChild !== null) {
+        if (node.__key === currChild.__key) {
+            return index;
+        }
+        index++;
+        currChild = getNextSibling(currChild);
+    }
+    return -1;
+};
+
+/**
+ * Returns the parent of the provided node, or null if none is found.
+ */
+export const getParent = <T extends ElementNode>(node: LexicalNode): T | null => {
+    const parent = node.getLatest().__parent;
+    if (parent === null) {
+        return null;
+    }
+    return $getNodeByKey<T>(parent);
+};
+
+/**
+ * Like `getParent`, but throws an error if no parent is found.
+ */
+export const getParentOrThrow = <T extends ElementNode>(node: LexicalNode): T => {
+    const parent = getParent<T>(node);
+    if (parent === null) {
+        throw new Error(`Expected node ${node.__key} to have a parent.`);
+    }
+    return parent;
+};
+
+/**
+ * Returns the highest (in the EditorState tree)
+ * non-root ancestor of the provided node, or null if none is found. See {@link lexical!$isRootOrShadowRoot}
+ * for more information on which Elements comprise "roots".
+ */
+export const getTopLevelElement = (node: LexicalNode): ElementNode | null => {
+    let currNode = getParent(node);
+    while (currNode !== null) {
+        if ($isRootOrShadowRoot(currNode)) {
+            return currNode;
+        }
+        currNode = getParent(currNode);
+    }
+    return null;
+};
+
+/**
+ * Like `getTopLevelElement`, but throws an error if no parent is found.
+ */
+export const getTopLevelElementOrThrow = (node: LexicalNode): ElementNode => {
+    const parent = getTopLevelElement(node);
+    if (parent === null) {
+        throw new Error(`Expected node ${node.__key} to have a top parent element.`);
+    }
+    return parent;
+};
+
+/**
+ * Returns a list of the every ancestor of the provided node,
+ * all the way up to the RootNode.
+ */
+export const getParents = (node: LexicalNode): ElementNode[] => {
+    const parents: ElementNode[] = [];
+    let currNode = getParent(node);
+    while (currNode !== null) {
+        parents.push(currNode);
+        currNode = getParent(node);
+    }
+    return parents;
+};
+
+/**
+ * Returns a list of the keys of every ancestor of this node,
+ * all the way up to the RootNode.
+ */
+export const getParentKeys = (node: LexicalNode): NodeKey[] => {
+    return getParents(node).map((parent) => parent.__key);
+};
+
+/**
+ * Returns the "previous" siblings - that is, the node that comes
+ * before this one in the same parent.
+ */
+export const getPreviousSibling = <T extends LexicalNode>(node: LexicalNode): T | null => {
+    const self = node.getLatest();
+    const prevKey = self.__prev;
+    return prevKey === null ? null : $getNodeByKey<T>(prevKey);
+};
+
+/**
+ * Returns the "previous" siblings - that is, the nodes that come between
+ * this one and the first child of it's parent, inclusive.
+ */
+export const getPreviousSiblings = <T extends LexicalNode>(node: LexicalNode): Array<T> => {
+    const siblings: T[] = [];
+    const parent = getParent(node);
+    if (parent === null) {
+        return siblings;
+    }
+    let currNode: null | T = parent.getFirstChild();
+    while (currNode !== null) {
+        if (currNode.is(this)) {
+            break;
+        }
+        siblings.push(currNode);
+        currNode = getNextSibling(currNode);
+    }
+    return siblings;
+};
+
+/**
+ * Returns the "next" siblings - that is, the node that comes
+ * after this one in the same parent
+ *
+ */
+export const getNextSibling = <T extends LexicalNode>(node: LexicalNode): T | null => {
+    const self = node.getLatest();
+    const nextKey = self.__next;
+    return nextKey === null ? null : $getNodeByKey<T>(nextKey);
+};
+
+/**
+ * Returns all "next" siblings - that is, the nodes that come between this
+ * one and the last child of it's parent, inclusive.
+ *
+ */
+export const getNextSiblings = <T extends LexicalNode>(node: LexicalNode): Array<T> => {
+    const siblings: Array<T> = [];
+    let currNode: null | T = getNextSibling(node);
+    while (currNode !== null) {
+        siblings.push(currNode);
+        currNode = getNextSibling(currNode);
+    }
+    return siblings;
+};
+
+/**
+ * Returns the closest common ancestor of the two nodes, or null if none is found.
+ *
+ * @param node - the other node to find the common ancestor of.
+ */
+const getCommonAncestor = <T extends ElementNode = ElementNode>(
+    nodeA: LexicalNode,
+    nodeB: LexicalNode,
+): T | null => {
+    const a = getParents(nodeA);
+    const b = getParents(nodeB);
+    if ($isNode("Element", nodeA)) {
+        a.unshift(nodeA);
+    }
+    if ($isNode("Element", nodeB)) {
+        b.unshift(nodeB);
+    }
+    const aLength = a.length;
+    const bLength = b.length;
+    if (aLength === 0 || bLength === 0 || a[aLength - 1] !== b[bLength - 1]) {
+        return null;
+    }
+    const bSet = new Set(b);
+    for (let i = 0; i < aLength; i++) {
+        const ancestor = a[i] as T;
+        if (bSet.has(ancestor)) {
+            return ancestor;
+        }
+    }
+    return null;
+};
+
+export class LexicalNode extends LexicalNodeBase {
+    static __type: NodeType = "Root";
+    /** A unique key for the node. */
     __key: string;
-    /** @internal */
+    /** The key of the parent node. */
     __parent: null | NodeKey;
-    /** @internal */
+    /** The key of the previous sibling node. */
     __prev: null | NodeKey;
-    /** @internal */
+    /** The key of the next sibling node. */
     __next: null | NodeKey;
 
-    // Flow doesn't support abstract classes unfortunately, so we can't _force_
-    // subclasses of Node to implement statics. All subclasses of Node should have
-    // a static getType and clone method though. We define getType and clone here so we can call it
-    // on any  Node, and we throw this error by default since the subclass should provide
-    // their own implementation.
-    /**
-     * Returns the string type of this node. Every node must
-     * implement this and it MUST BE UNIQUE amongst nodes registered
-     * on the editor.
-     *
-     */
-    static getType(): string {
-        throw new Error(`LexicalNode: Node ${this.name} does not implement .getType().`);
+    constructor(key?: NodeKey) {
+        super();
+        this.__key = $createNodeKey(this, key);
+        this.__parent = null;
+        this.__prev = null;
+        this.__next = null;
+    }
+
+    getType(): NodeType {
+        return (this.constructor as typeof LexicalNode).__type;
+    }
+    static getType(): NodeType {
+        return this.__type;
     }
 
     /**
@@ -113,287 +345,19 @@ export class LexicalNode {
         throw new Error(`LexicalNode: Node ${this.name} does not implement .clone().`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static importDOM?: () => DOMConversionMap<any> | null;
-
-    constructor(type: string, key?: NodeKey) {
-        this.__type = type;
-        this.__parent = null;
-        this.__prev = null;
-        this.__next = null;
-        $setNodeKey(this, key);
-    }
-    // Getters and Traversers
+    /**
+     * Provides a map of DOM elements to their conversion functions. This allows us to 
+     * turn HTML elements into lexical nodes
+     */
+    static importDOM: () => DOMConversionMap;
 
     /**
-     * Returns the string type of this node.
+     * True if this node is inline, false otherwise. Inline nodes are nodes that can be
+     * placed on the same line as other inline nodes, such as bold text or links. 
+     * Block nodes, like paragraphs or headings, are not inline.
      */
-    getType(): string {
-        return this.__type;
-    }
-
     isInline(): boolean {
         throw new Error(`LexicalNode: Node ${this.constructor.name} does not implement .isInline().`);
-    }
-
-    /**
-     * Returns true if there is a path between this node and the RootNode, false otherwise.
-     * This is a way of determining if the node is "attached" EditorState. Unattached nodes
-     * won't be reconciled and will ultimatelt be cleaned up by the Lexical GC.
-     */
-    isAttached(): boolean {
-        let nodeKey: string | null = this.__key;
-        while (nodeKey !== null) {
-            if (nodeKey === "root") {
-                return true;
-            }
-
-            const node: LexicalNode | null = $getNodeByKey(nodeKey);
-
-            if (node === null) {
-                break;
-            }
-            nodeKey = node.__parent;
-        }
-        return false;
-    }
-
-    /**
-     * Returns true if this node is contained within the provided Selection., false otherwise.
-     * Relies on the algorithms implemented in {@link BaseSelection.getNodes} to determine
-     * what's included.
-     *
-     * @param selection - The selection that we want to determine if the node is in.
-     */
-    isSelected(selection?: null | BaseSelection): boolean {
-        const targetSelection = selection || $getSelection();
-        if (targetSelection == null) {
-            return false;
-        }
-
-        const isSelected = targetSelection
-            .getNodes()
-            .some((n) => n.__key === this.__key);
-
-        if ($isTextNode(this)) {
-            return isSelected;
-        }
-        // For inline images inside of element nodes.
-        // Without this change the image will be selected if the cursor is before or after it.
-        if (
-            $isRangeSelection(targetSelection) &&
-            targetSelection.anchor.type === "element" &&
-            targetSelection.focus.type === "element" &&
-            targetSelection.anchor.key === targetSelection.focus.key &&
-            targetSelection.anchor.offset === targetSelection.focus.offset
-        ) {
-            return false;
-        }
-        return isSelected;
-    }
-
-    /**
-     * Returns this nodes key.
-     */
-    getKey(): NodeKey {
-        // Key is stable between copies
-        return this.__key;
-    }
-
-    /**
-     * Returns the zero-based index of this node within the parent.
-     */
-    getIndexWithinParent(): number {
-        const parent = this.getParent();
-        if (parent === null) {
-            return -1;
-        }
-        let node = parent.getFirstChild();
-        let index = 0;
-        while (node !== null) {
-            if (this.is(node)) {
-                return index;
-            }
-            index++;
-            node = node.getNextSibling();
-        }
-        return -1;
-    }
-
-    /**
-     * Returns the parent of this node, or null if none is found.
-     */
-    getParent<T extends ElementNode>(): T | null {
-        const parent = this.getLatest().__parent;
-        if (parent === null) {
-            return null;
-        }
-        return $getNodeByKey<T>(parent);
-    }
-
-    /**
-     * Returns the parent of this node, or throws if none is found.
-     */
-    getParentOrThrow<T extends ElementNode>(): T {
-        const parent = this.getParent<T>();
-        if (parent === null) {
-            throw new Error(`Expected node ${this.__key} to have a parent.`);
-        }
-        return parent;
-    }
-
-    /**
-     * Returns the highest (in the EditorState tree)
-     * non-root ancestor of this node, or null if none is found. See {@link lexical!$isRootOrShadowRoot}
-     * for more information on which Elements comprise "roots".
-     */
-    getTopLevelElement(): ElementNode | null {
-        let node: ElementNode | this | null = this;
-        while (node !== null) {
-            const parent: ElementNode | null = node.getParent();
-            if ($isRootOrShadowRoot(parent)) {
-                if (!$isElementNode(node)) {
-                    throw new Error("Children of root nodes must be elements");
-                }
-                return node;
-            }
-            node = parent;
-        }
-        return null;
-    }
-
-    /**
-     * Returns the highest (in the EditorState tree)
-     * non-root ancestor of this node, or throws if none is found. See {@link lexical!$isRootOrShadowRoot}
-     * for more information on which Elements comprise "roots".
-     */
-    getTopLevelElementOrThrow(): ElementNode {
-        const parent = this.getTopLevelElement();
-        if (parent === null) {
-            throw new Error(`Expected node ${this.__key} to have a top parent element.`);
-        }
-        return parent;
-    }
-
-    /**
-     * Returns a list of the every ancestor of this node,
-     * all the way up to the RootNode.
-     *
-     */
-    getParents(): Array<ElementNode> {
-        const parents: Array<ElementNode> = [];
-        let node = this.getParent();
-        while (node !== null) {
-            parents.push(node);
-            node = node.getParent();
-        }
-        return parents;
-    }
-
-    /**
-     * Returns a list of the keys of every ancestor of this node,
-     * all the way up to the RootNode.
-     *
-     */
-    getParentKeys(): Array<NodeKey> {
-        const parents: string[] = [];
-        let node = this.getParent();
-        while (node !== null) {
-            parents.push(node.__key);
-            node = node.getParent();
-        }
-        return parents;
-    }
-
-    /**
-     * Returns the "previous" siblings - that is, the node that comes
-     * before this one in the same parent.
-     *
-     */
-    getPreviousSibling<T extends LexicalNode>(): T | null {
-        const self = this.getLatest();
-        const prevKey = self.__prev;
-        return prevKey === null ? null : $getNodeByKey<T>(prevKey);
-    }
-
-    /**
-     * Returns the "previous" siblings - that is, the nodes that come between
-     * this one and the first child of it's parent, inclusive.
-     *
-     */
-    getPreviousSiblings<T extends LexicalNode>(): Array<T> {
-        const siblings: Array<T> = [];
-        const parent = this.getParent();
-        if (parent === null) {
-            return siblings;
-        }
-        let node: null | T = parent.getFirstChild();
-        while (node !== null) {
-            if (node.is(this)) {
-                break;
-            }
-            siblings.push(node);
-            node = node.getNextSibling();
-        }
-        return siblings;
-    }
-
-    /**
-     * Returns the "next" siblings - that is, the node that comes
-     * after this one in the same parent
-     *
-     */
-    getNextSibling<T extends LexicalNode>(): T | null {
-        const self = this.getLatest();
-        const nextKey = self.__next;
-        return nextKey === null ? null : $getNodeByKey<T>(nextKey);
-    }
-
-    /**
-     * Returns all "next" siblings - that is, the nodes that come between this
-     * one and the last child of it's parent, inclusive.
-     *
-     */
-    getNextSiblings<T extends LexicalNode>(): Array<T> {
-        const siblings: Array<T> = [];
-        let node: null | T = this.getNextSibling();
-        while (node !== null) {
-            siblings.push(node);
-            node = node.getNextSibling();
-        }
-        return siblings;
-    }
-
-    /**
-     * Returns the closest common ancestor of this node and the provided one or null
-     * if one cannot be found.
-     *
-     * @param node - the other node to find the common ancestor of.
-     */
-    getCommonAncestor<T extends ElementNode = ElementNode>(
-        node: LexicalNode,
-    ): T | null {
-        const a = this.getParents();
-        const b = node.getParents();
-        if ($isElementNode(this)) {
-            a.unshift(this);
-        }
-        if ($isElementNode(node)) {
-            b.unshift(node);
-        }
-        const aLength = a.length;
-        const bLength = b.length;
-        if (aLength === 0 || bLength === 0 || a[aLength - 1] !== b[bLength - 1]) {
-            return null;
-        }
-        const bSet = new Set(b);
-        for (let i = 0; i < aLength; i++) {
-            const ancestor = a[i] as T;
-            if (bSet.has(ancestor)) {
-                return ancestor;
-            }
-        }
-        return null;
     }
 
     /**
@@ -424,15 +388,15 @@ export class LexicalNode {
         if (this.isParentOf(targetNode)) {
             return false;
         }
-        const commonAncestor = this.getCommonAncestor(targetNode);
+        const commonAncestor = getCommonAncestor(this, targetNode);
         let indexA = 0;
         let indexB = 0;
         let node: this | ElementNode | LexicalNode = this;
         let loopCount = 0;
         while (loopCount < 100) {
-            const parent: ElementNode = node.getParentOrThrow();
+            const parent: ElementNode = getParentOrThrow(node);
             if (parent === commonAncestor) {
-                indexA = node.getIndexWithinParent();
+                indexA = getIndexWithinParent(node);
                 break;
             }
             node = parent;
@@ -440,9 +404,9 @@ export class LexicalNode {
         node = targetNode;
         loopCount = 0;
         while (loopCount < 100) {
-            const parent: ElementNode = node.getParentOrThrow();
+            const parent: ElementNode = getParentOrThrow(node);
             if (parent === commonAncestor) {
-                indexB = node.getIndexWithinParent();
+                indexB = getIndexWithinParent(node);
                 break;
             }
             node = parent;
@@ -465,7 +429,7 @@ export class LexicalNode {
             if (node.__key === key) {
                 return true;
             }
-            node = node.getParent();
+            node = getParent(node);
         }
         return false;
     }
@@ -495,7 +459,7 @@ export class LexicalNode {
             if (node === targetNode) {
                 break;
             }
-            const child: LexicalNode | null = $isElementNode(node)
+            const child: LexicalNode | null = $isNode("Element", node)
                 ? isBefore
                     ? node.getFirstChild()
                     : node.getLastChild()
@@ -505,13 +469,13 @@ export class LexicalNode {
                 continue;
             }
             const nextSibling: LexicalNode | null = isBefore
-                ? node.getNextSibling()
-                : node.getPreviousSibling();
+                ? getNextSibling(node)
+                : getPreviousSibling(node);
             if (nextSibling !== null) {
                 node = nextSibling;
                 continue;
             }
-            const parent: LexicalNode | null = node.getParentOrThrow();
+            const parent: LexicalNode | null = getParentOrThrow(node);
             if (!visited.has(parent.__key)) {
                 nodes.push(parent);
             }
@@ -525,9 +489,9 @@ export class LexicalNode {
                     throw new Error("getNodesBetween: ancestor is null");
                 }
                 parentSibling = isBefore
-                    ? ancestor.getNextSibling()
-                    : ancestor.getPreviousSibling();
-                ancestor = ancestor.getParent();
+                    ? getNextSibling(ancestor)
+                    : getPreviousSibling(ancestor);
+                ancestor = getParent(ancestor);
                 if (ancestor !== null) {
                     if (parentSibling === null && !visited.has(ancestor.__key)) {
                         nodes.push(ancestor);
@@ -569,7 +533,7 @@ export class LexicalNode {
 
     /**
      * Returns a mutable version of the node. Will throw an error if
-     * called outside of a Lexical Editor {@link LexicalEditor.update} callback.
+     * called outside of a Lexical Editor callback.
      *
      */
     getWritable(): this {
@@ -592,12 +556,12 @@ export class LexicalNode {
             return latestNode;
         }
         const constructor = latestNode.constructor;
-        const mutableNode = constructor.clone(latestNode);
+        const mutableNode = (constructor as LexicalNodeClass).clone(latestNode);
         mutableNode.__parent = parent;
         mutableNode.__next = latestNode.__next;
         mutableNode.__prev = latestNode.__prev;
-        if ($isElementNode(latestNode) && $isElementNode(mutableNode)) {
-            if ($isParagraphNode(latestNode) && $isParagraphNode(mutableNode)) {
+        if ($isNode("Element", latestNode) && $isNode("Element", mutableNode)) {
+            if ($isNode("Paragraph", latestNode) && $isNode("Paragraph", mutableNode)) {
                 mutableNode.__textFormat = latestNode.__textFormat;
             }
             mutableNode.__first = latestNode.__first;
@@ -606,7 +570,7 @@ export class LexicalNode {
             mutableNode.__indent = latestNode.__indent;
             mutableNode.__format = latestNode.__format;
             mutableNode.__dir = latestNode.__dir;
-        } else if ($isTextNode(latestNode) && $isTextNode(mutableNode)) {
+        } else if ($isNode("Text", latestNode) && $isNode("Text", mutableNode)) {
             mutableNode.__format = latestNode.__format;
             mutableNode.__style = latestNode.__style;
             mutableNode.__mode = latestNode.__mode;
@@ -618,7 +582,6 @@ export class LexicalNode {
         // Update reference in node map
         nodeMap.set(key, mutableNode);
 
-        // @ts-expect-error
         return mutableNode;
     }
 
@@ -710,18 +673,6 @@ export class LexicalNode {
     static importJSON(_serializedNode: SerializedLexicalNode): LexicalNode {
         throw new Error(`LexicalNode: Node ${this.name} does not implement .importJSON().`);
     }
-    /**
-     * @experimental
-     *
-     * Registers the returned function as a transform on the node during
-     * Editor initialization. Most such use cases should be addressed via
-     * the {@link LexicalEditor.registerNodeTransform} API.
-     *
-     * Experimental - use at your own risk.
-     */
-    static transform(): ((node: LexicalNode) => void) | null {
-        return null;
-    }
 
     // Setters and mutators
 
@@ -740,6 +691,9 @@ export class LexicalNode {
     /**
      * Replaces this LexicalNode with the provided node, optionally transferring the children
      * of the replaced node to the replacing node.
+     * 
+     * An example of when this is useful is switching text from italic to a code block. We have to 
+     * get the text from the italic node (TextNode), and use it to create a new code block node.
      *
      * @param replaceWith - The node to replace this one with.
      * @param includeChildren - Whether or not to transfer the children of this node to the replacing node.
@@ -755,11 +709,11 @@ export class LexicalNode {
         const toReplaceKey = this.__key;
         const key = replaceWith.__key;
         const writableReplaceWith = replaceWith.getWritable();
-        const writableParent = this.getParentOrThrow().getWritable();
+        const writableParent = getParentOrThrow(this).getWritable();
         const size = writableParent.__size;
         removeFromParent(writableReplaceWith);
-        const prevSibling = self.getPreviousSibling();
-        const nextSibling = self.getNextSibling();
+        const prevSibling = getPreviousSibling(self);
+        const nextSibling = getNextSibling(self);
         const prevKey = self.__prev;
         const nextKey = self.__next;
         const parentKey = self.__parent;
@@ -782,7 +736,7 @@ export class LexicalNode {
         writableReplaceWith.__parent = parentKey;
         writableParent.__size = size;
         if (includeChildren) {
-            if (!$isElementNode(this) || !$isElementNode(writableReplaceWith)) {
+            if (!$isNode("Element", this) || !$isNode("Element", writableReplaceWith)) {
                 throw new Error("includeChildren should only be true for ElementNodes");
             }
             this.getChildren().forEach((child: LexicalNode) => {
@@ -818,13 +772,12 @@ export class LexicalNode {
         errorOnInsertTextNodeOnRoot(this, nodeToInsert);
         const writableSelf = this.getWritable();
         const writableNodeToInsert = nodeToInsert.getWritable();
-        const oldParent = writableNodeToInsert.getParent();
+        const oldParent = getParent(writableNodeToInsert);
         const selection = $getSelection();
         let elementAnchorSelectionOnNode = false;
         let elementFocusSelectionOnNode = false;
         if (oldParent !== null) {
-            // TODO: this is O(n), can we improve?
-            const oldIndex = nodeToInsert.getIndexWithinParent();
+            const oldIndex = getIndexWithinParent(nodeToInsert);
             removeFromParent(writableNodeToInsert);
             if ($isRangeSelection(selection)) {
                 const oldParentKey = oldParent.__key;
@@ -840,8 +793,8 @@ export class LexicalNode {
                     focus.offset === oldIndex + 1;
             }
         }
-        const nextSibling = this.getNextSibling();
-        const writableParent = this.getParentOrThrow().getWritable();
+        const nextSibling = getNextSibling(this);
+        const writableParent = getParentOrThrow(this).getWritable();
         const insertKey = writableNodeToInsert.__key;
         const nextKey = writableSelf.__next;
         if (nextSibling === null) {
@@ -856,7 +809,7 @@ export class LexicalNode {
         writableNodeToInsert.__prev = writableSelf.__key;
         writableNodeToInsert.__parent = writableSelf.__parent;
         if (restoreSelection && $isRangeSelection(selection)) {
-            const index = this.getIndexWithinParent();
+            const index = getIndexWithinParent(this);
             $updateElementSelectionOnCreateDeleteNode(
                 selection,
                 writableParent,
@@ -890,11 +843,11 @@ export class LexicalNode {
         const writableNodeToInsert = nodeToInsert.getWritable();
         const insertKey = writableNodeToInsert.__key;
         removeFromParent(writableNodeToInsert);
-        const prevSibling = this.getPreviousSibling();
-        const writableParent = this.getParentOrThrow().getWritable();
+        const prevSibling = getPreviousSibling(this);
+        const writableParent = getParentOrThrow(this).getWritable();
         const prevKey = writableSelf.__prev;
         // TODO: this is O(n), can we improve?
-        const index = this.getIndexWithinParent();
+        const index = getIndexWithinParent(this);
         if (prevSibling === null) {
             writableParent.__first = insertKey;
         } else {
@@ -908,7 +861,7 @@ export class LexicalNode {
         writableNodeToInsert.__parent = writableSelf.__parent;
         const selection = $getSelection();
         if (restoreSelection && $isRangeSelection(selection)) {
-            const parent = this.getParentOrThrow();
+            const parent = getParentOrThrow(this);
             $updateElementSelectionOnCreateDeleteNode(selection, parent, index);
         }
         return nodeToInsert;
@@ -929,7 +882,7 @@ export class LexicalNode {
      *
      * */
     createParentElementNode(): ElementNode {
-        return $createParagraphNode();
+        return $createNode("Paragraph", {});
     }
 
     selectStart(): RangeSelection {
@@ -948,15 +901,15 @@ export class LexicalNode {
      * */
     selectPrevious(anchorOffset?: number, focusOffset?: number): RangeSelection {
         errorOnReadOnly();
-        const prevSibling = this.getPreviousSibling();
-        const parent = this.getParentOrThrow();
+        const prevSibling = getPreviousSibling(this);
+        const parent = getParentOrThrow(this);
         if (prevSibling === null) {
             return parent.select(0, 0);
         }
-        if ($isElementNode(prevSibling)) {
+        if ($isNode("Element", prevSibling)) {
             return prevSibling.select();
-        } else if (!$isTextNode(prevSibling)) {
-            const index = prevSibling.getIndexWithinParent() + 1;
+        } else if (!$isNode("Text", prevSibling)) {
+            const index = getIndexWithinParent(prevSibling) + 1;
             return parent.select(index, index);
         }
         return prevSibling.select(anchorOffset, focusOffset);
@@ -970,15 +923,15 @@ export class LexicalNode {
      * */
     selectNext(anchorOffset?: number, focusOffset?: number): RangeSelection {
         errorOnReadOnly();
-        const nextSibling = this.getNextSibling();
-        const parent = this.getParentOrThrow();
+        const nextSibling = getNextSibling(this);
+        const parent = getParentOrThrow(this);
         if (nextSibling === null) {
             return parent.select();
         }
-        if ($isElementNode(nextSibling)) {
+        if ($isNode("Element", nextSibling)) {
             return nextSibling.select(0, 0);
-        } else if (!$isTextNode(nextSibling)) {
-            const index = nextSibling.getIndexWithinParent();
+        } else if (!$isNode("Text", nextSibling)) {
+            const index = getIndexWithinParent(nextSibling);
             return parent.select(index, index);
         }
         return nextSibling.select(anchorOffset, focusOffset);
@@ -994,21 +947,6 @@ export class LexicalNode {
     }
 }
 
-const errorOnTypeKlassMismatch = (
-    type: string,
-    klass: Klass<LexicalNode>,
-) => {
-    const registeredNode = getActiveEditor()._nodes.get(type);
-    // Common error - split in its own invariant
-    if (registeredNode === undefined) {
-        throw new Error(`Create node: Attempted to create node ${klass.name} that was not configured to be used on the editor.`);
-    }
-    const editorKlass = registeredNode.klass;
-    if (editorKlass !== klass) {
-        throw new Error(`Create node: Type ${type} in node ${klass.name} does not match registered node ${editorKlass.name} with the same type`);
-    }
-};
-
 /**
  * Insert a series of nodes after this LexicalNode (as next siblings)
  *
@@ -1022,14 +960,14 @@ export const insertRangeAfter = (
     lastToInsert?: LexicalNode,
 ) => {
     const lastToInsert2 =
-        lastToInsert || firstToInsert.getParentOrThrow().getLastChild()!;
+        lastToInsert || getParentOrThrow(firstToInsert).getLastChild()!;
     let current = firstToInsert;
     const nodesToInsert = [firstToInsert];
     while (current !== lastToInsert2) {
-        if (!current.getNextSibling()) {
+        if (!getNextSibling(current)) {
             throw new Error("insertRangeAfter: lastToInsert must be a later sibling of firstToInsert");
         }
-        current = current.getNextSibling()!;
+        current = getNextSibling(current)!;
         nodesToInsert.push(current);
     }
 

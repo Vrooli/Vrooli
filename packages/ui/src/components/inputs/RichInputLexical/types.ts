@@ -1,29 +1,53 @@
-import { LEXICAL_ELEMENT_KEY } from "./consts";
+import { DECORATOR_NODES, ELEMENT_NODES, LEXICAL_ELEMENT_KEY, TEXT_NODES } from "./consts";
 import { type EditorState, type LexicalEditor } from "./editor";
+import { type DecoratorNode } from "./nodes/DecoratorNode";
 import { type ElementNode } from "./nodes/ElementNode";
+import { type HashtagNode } from "./nodes/HashtagNode";
+import { type HeadingNode } from "./nodes/HeadingNode";
+import { type HorizontalRuleNode } from "./nodes/HorizontalRuleNode";
 import { type LexicalNode } from "./nodes/LexicalNode";
+import { type LineBreakNode } from "./nodes/LineBreakNode";
+import { type LinkNode } from "./nodes/LinkNode";
+import { type ListItemNode } from "./nodes/ListItemNode";
+import { type ListNode } from "./nodes/ListNode";
+import { type ParagraphNode } from "./nodes/ParagraphNode";
+import { type QuoteNode } from "./nodes/QuoteNode";
+import { type RootNode } from "./nodes/RootNode";
+import { type TabNode } from "./nodes/TabNode";
 import { type TableCellNode } from "./nodes/TableCellNode";
+import { type TableNode } from "./nodes/TableNode";
+import { type TableRowNode } from "./nodes/TableRowNode";
 import { type TextNode } from "./nodes/TextNode";
+import { type CodeBlockNode } from "./plugins/CodePlugin";
 import { type TableObserver } from "./plugins/TablePlugin";
 
-type GenericConstructor<T> = new (...args: any[]) => T;
+export abstract class LexicalNodeBase {
+    static clone: (node: any) => any;
+    static getType: () => NodeType;
+    static importDOM: () => DOMConversionMap;
+}
 
-// https://github.com/microsoft/TypeScript/issues/3841
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type KlassConstructor<Cls extends GenericConstructor<any>> =
-    GenericConstructor<InstanceType<Cls>> & { [k in keyof Cls]: Cls[k] };
+/** A generic non-instance class */
+export type ObjectClass<T = object> = new (...args: any[]) => T;
 
-export type Klass<T extends LexicalNode> = InstanceType<T["constructor"]> extends T ? T["constructor"] : GenericConstructor<T> & T["constructor"];
+/**
+ * A non-instance (i.e. didn't use "new") class that defines the type of a LexicalNode.
+ */
+export type LexicalNodeClass<T extends LexicalNode = LexicalNode> = ObjectClass<T> & Omit<typeof LexicalNodeBase, "new">;
+
+export type RegisteredNode = {
+    klass: LexicalNodeClass;
+    transforms: Set<Transform<LexicalNode>>;
+};
+export type RegisteredNodes = Map<string, RegisteredNode>
 
 export type ElementTransformer = {
-    dependencies: Array<Klass<LexicalNode>>;
     export: (node: LexicalNode, traverseChildren: (node: ElementNode) => string) => string | null;
     regExp: RegExp;
-    replace: (parentNode: ElementNode, children: Array<LexicalNode>, match: Array<string>, isImport: boolean) => void;
+    replace: (parentNode: ElementNode, children: LexicalNode[], match: string[], isImport: boolean) => void;
     type: "element";
 };
 export type TextMatchTransformer = Readonly<{
-    dependencies: Array<Klass<LexicalNode>>;
     export: (node: LexicalNode, exportChildren: (node: ElementNode) => string, exportFormat: (node: TextNode, textContent: string) => string) => string | null;
     importRegExp: RegExp;
     regExp: RegExp;
@@ -32,6 +56,49 @@ export type TextMatchTransformer = Readonly<{
     type: "text-match";
 }>;
 export type LexicalTransformer = ElementTransformer | TextFormatTransformer | TextMatchTransformer;
+
+export type NodeConstructors = {
+    Code: typeof CodeBlockNode;
+    Decorator: typeof DecoratorNode;
+    Element: typeof ElementNode;
+    Hashtag: typeof HashtagNode;
+    Heading: typeof HeadingNode;
+    HorizontalRule: typeof HorizontalRuleNode;
+    LineBreak: typeof LineBreakNode;
+    Link: typeof LinkNode;
+    List: typeof ListNode;
+    ListItem: typeof ListItemNode;
+    Paragraph: typeof ParagraphNode;
+    Quote: typeof QuoteNode;
+    Root: typeof RootNode;
+    Tab: typeof TabNode;
+    Table: typeof TableNode;
+    TableCell: typeof TableCellNode;
+    TableRow: typeof TableRowNode;
+    Text: typeof TextNode;
+};
+
+export type NodeConstructorBase = { key?: NodeKey };
+export type NodeConstructorPayloads = {
+    Code: { language?: string } & NodeConstructorBase;
+    Decorator: NodeConstructorBase;
+    Element: NodeConstructorBase;
+    Hashtag: { text: string } & NodeConstructorBase;
+    Heading: { tag: HeadingTagType } & NodeConstructorBase;
+    HorizontalRule: NodeConstructorBase;
+    LineBreak: NodeConstructorBase;
+    Link: LinkAttributes & NodeConstructorBase;
+    List: { listType: ListType, start?: number } & NodeConstructorBase;
+    ListItem: { value?: number, checked?: boolean } & NodeConstructorBase;
+    Paragraph: NodeConstructorBase;
+    Quote: NodeConstructorBase;
+    Root: NodeConstructorBase;
+    Tab: NodeConstructorBase;
+    Table: NodeConstructorBase;
+    TableCell: { colSpan?: number, headerState?: TableCellHeaderState, width?: number } & NodeConstructorBase;
+    TableRow: { height?: number } & NodeConstructorBase;
+    Text: { text: string } & NodeConstructorBase;
+};
 
 export type NodeKey = string;
 
@@ -60,17 +127,17 @@ export type ElementPointType = {
 export type PointType = TextPointType | ElementPointType;
 
 export interface BaseSelection {
-    _cachedNodes: Array<LexicalNode> | null;
+    _cachedNodes: LexicalNode[] | null;
     dirty: boolean;
 
     clone(): BaseSelection;
-    extract(): Array<LexicalNode>;
-    getNodes(): Array<LexicalNode>;
+    extract(): LexicalNode[];
+    getNodes(): LexicalNode[];
     getTextContent(): string;
     insertText(text: string): void;
     insertRawText(text: string): void;
     is(selection: null | BaseSelection): boolean;
-    insertNodes(nodes: Array<LexicalNode>): void;
+    insertNodes(nodes: LexicalNode[]): void;
     getStartEndPoints(): null | [PointType, PointType];
     isCollapsed(): boolean;
     isBackward(): boolean;
@@ -104,15 +171,16 @@ export type DOMChildConversion = (
 ) => LexicalNode | null | undefined;
 
 export type DOMConversionMap<T extends HTMLElement = HTMLElement> = Record<
-    NodeName,
+    string,
     (node: T) => DOMConversion<T> | null
 >;
-type NodeName = string;
+
+export type DOMConversionCache = { [key in NodeType]?: ((element: HTMLElement) => DOMConversion)[] };
 
 export type DOMConversionOutput = {
-    after?: (childLexicalNodes: Array<LexicalNode>) => Array<LexicalNode>;
+    after?: (childLexicalNodes: LexicalNode[]) => LexicalNode[];
     forChild?: DOMChildConversion;
-    node: null | LexicalNode | Array<LexicalNode>;
+    node: null | LexicalNode | LexicalNode[];
 };
 
 export type DOMExportOutput = {
@@ -124,7 +192,7 @@ export type DOMExportOutput = {
 
 export type PasteCommandType = ClipboardEvent | InputEvent | KeyboardEvent;
 
-export type RootElementRemoveHandles = Array<() => void>;
+export type RootElementRemoveHandles = (() => void)[];
 export type RootElementEvents = Array<
     [
         string,
@@ -226,9 +294,7 @@ export type EditorThemeClasses = {
 };
 
 export type EditorConfig = {
-    disableEvents?: boolean;
     namespace: string;
-    theme: EditorThemeClasses;
 };
 
 export type InitialEditorStateType =
@@ -238,54 +304,35 @@ export type InitialEditorStateType =
     | ((editor: LexicalEditor) => void);
 
 export type LexicalNodeReplacement = {
-    replace: Klass<LexicalNode>;
+    replace: LexicalNodeClass;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     with: <T extends { new(...args: any): any }>(
         node: InstanceType<T>,
     ) => LexicalNode;
-    withKlass?: Klass<LexicalNode>;
+    withKlass?: LexicalNodeClass;
 };
 
 export type HTMLConfig = {
     export?: Map<
-        Klass<LexicalNode>,
+        LexicalNodeClass,
         (editor: LexicalEditor, target: LexicalNode) => DOMExportOutput
     >;
     import?: DOMConversionMap;
 };
 
 export type CreateEditorArgs = {
-    disableEvents?: boolean;
     editorState?: EditorState;
     namespace?: string;
-    nodes?: ReadonlyArray<Klass<LexicalNode> | LexicalNodeReplacement>;
-    onError?: ErrorHandler;
-    parentEditor?: LexicalEditor;
     editable?: boolean;
-    theme?: EditorThemeClasses;
-    html?: HTMLConfig;
-};
-
-export type RegisteredNodes = Map<string, RegisteredNode>;
-
-export type RegisteredNode = {
-    klass: Klass<LexicalNode>;
-    transforms: Set<Transform<LexicalNode>>;
-    replace: null | ((node: LexicalNode) => LexicalNode);
-    replaceWithKlass: null | Klass<LexicalNode>;
-    exportDOM?: (
-        editor: LexicalEditor,
-        targetNode: LexicalNode,
-    ) => DOMExportOutput;
 };
 
 export type Transform<T extends LexicalNode> = (node: T) => void;
 
 export type ErrorHandler = (error: Error) => void;
 
-export type MutationListeners = Map<MutationListener, Klass<LexicalNode>>;
+export type MutationListeners = Map<MutationListener, LexicalNodeClass>;
 
-export type MutatedNodes = Map<Klass<LexicalNode>, Map<NodeKey, NodeMutation>>;
+export type MutatedNodes = Map<LexicalNodeClass, Map<NodeKey, NodeMutation>>;
 
 export type NodeMap = Map<NodeKey, LexicalNode>;
 
@@ -394,14 +441,9 @@ export type ShadowRootNode = Spread<
     ElementNode
 >;
 
-export type DOMConversionCache = Map<
-    string,
-    Array<(node: Node) => DOMConversion | null>
->;
-
 export interface BaseSerializedNode {
+    __type: NodeType;
     children?: Array<BaseSerializedNode>;
-    type: string;
     version: number;
 }
 
@@ -421,8 +463,16 @@ export type SerializedRootNode<
     T extends SerializedLexicalNode = SerializedLexicalNode,
 > = SerializedElementNode<T>;
 
+/**
+ * A serialized (i.e. JSON) representation of a LexicalNode, 
+ * so that we can reconstruct it later.
+ */
 export type SerializedLexicalNode = {
-    type: string;
+    __type: NodeType;
+    /**
+     * The latest version of the node. If we change the structure of the node, we increment this number
+     * to indicate that it's incompatible
+     */
     version: number;
 };
 
@@ -495,12 +545,8 @@ export type SerializedTableRowNode = Spread<
     SerializedElementNode
 >;
 
-export type SerializedLinkNode = Spread<
-    {
-        url: string;
-    },
-    Spread<LinkAttributes, SerializedElementNode>
->;
+export type SerializedLinkNode = Spread<LinkAttributes, SerializedElementNode>;
+
 export type SerializedAutoLinkNode = SerializedLinkNode;
 
 export type SerializedListNode = Spread<
@@ -535,6 +581,10 @@ export type SerializedCodeNode = Spread<
     SerializedElementNode
 >;
 
+export type SerializedCodeBlockNode = SerializedElementNode & {
+    language: string;
+};
+
 export type SerializedCodeHighlightNode = Spread<
     {
         highlightType: string | null | undefined;
@@ -568,6 +618,13 @@ export type TextFormatType =
     | "UNDERLINE_LINES"
     | "UNDERLINE_TAGS";
 
+export type NodeType =
+    // | "AutoLink" TODO
+    | "LineBreak"
+    | typeof ELEMENT_NODES[number]
+    | typeof DECORATOR_NODES[number]
+    | typeof TEXT_NODES[number]
+
 export type TextFormatTransformer = Readonly<{
     /**
      * The type of format
@@ -584,6 +641,7 @@ export type LinkAttributes = {
     rel?: null | string;
     target?: null | string;
     title?: null | string;
+    url: string
 };
 
 export type TableSelectionShape = {
@@ -615,8 +673,6 @@ export type TableDOMTable = {
     columns: number;
     rows: number;
 };
-
-export type ObjectKlass<T> = new (...args: any[]) => T;
 
 export type InsertTableCommandPayloadHeaders =
     | Readonly<{

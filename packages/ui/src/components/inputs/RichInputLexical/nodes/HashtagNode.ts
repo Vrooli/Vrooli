@@ -1,36 +1,33 @@
-import { EditorConfig, SerializedTextNode } from "../types";
-import { $applyNodeReplacement, addClassNamesToElement } from "../utils";
-import { LexicalNode } from "./LexicalNode";
+import { EditorConfig, NodeType, SerializedTextNode } from "../types";
+import { $createNode } from "../utils";
 import { TextNode } from "./TextNode";
 
 export class HashtagNode extends TextNode {
-    static getType(): string {
-        return "hashtag";
-    }
+    static __type: NodeType = "Hashtag";
 
     static clone(node: HashtagNode): HashtagNode {
-        return new HashtagNode(node.__text, node.__key);
+        const { __text, __key } = node;
+        return $createNode("Hashtag", { text: __text, key: __key });
     }
 
     createDOM(config: EditorConfig): HTMLElement {
         const element = super.createDOM(config);
-        addClassNamesToElement(element, config.theme.hashtag);
         return element;
     }
 
-    static importJSON(serializedNode: SerializedTextNode): HashtagNode {
-        const node = $createHashtagNode(serializedNode.text);
-        node.setFormat(serializedNode.format);
-        node.setDetail(serializedNode.detail);
-        node.setMode(serializedNode.mode);
-        node.setStyle(serializedNode.style);
+    static importJSON({ detail, format, mode, style, text }: SerializedTextNode): HashtagNode {
+        const node = $createNode("Hashtag", { text });
+        node.setFormat(format);
+        node.setDetail(detail);
+        node.setMode(mode);
+        node.setStyle(style);
         return node;
     }
 
     exportJSON(): SerializedTextNode {
         return {
             ...super.exportJSON(),
-            type: "hashtag",
+            __type: "Hashtag",
         };
     }
 
@@ -42,23 +39,3 @@ export class HashtagNode extends TextNode {
         return true;
     }
 }
-
-/**
- * Generates a HashtagNode, which is a string following the format of a # followed by some text, eg. #lexical.
- * @param text - The text used inside the HashtagNode.
- * @returns - The HashtagNode with the embedded text.
- */
-export const $createHashtagNode = (text = ""): HashtagNode => {
-    return $applyNodeReplacement(new HashtagNode(text));
-};
-
-/**
- * Determines if node is a HashtagNode.
- * @param node - The node to be checked.
- * @returns true if node is a HashtagNode, false otherwise.
- */
-export const $isHashtagNode = (
-    node: LexicalNode | null | undefined,
-): node is HashtagNode => {
-    return node instanceof HashtagNode;
-};

@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DOM_TEXT_TYPE, IS_FIREFOX, TEXT_MUTATION_VARIANCE } from "./consts";
 import { LexicalEditor } from "./editor";
+import { isAttachedToRoot } from "./nodes/LexicalNode";
 import { type RootNode } from "./nodes/RootNode";
 import { type TextNode } from "./nodes/TextNode";
 import { BaseSelection } from "./types";
 import { updateEditor } from "./updates";
-import { $getNearestNodeFromDOMNode, $getSelection, $isDecoratorNode, $isElementNode, $isRangeSelection, $isTextNode, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isFirefoxClipboardEvents } from "./utils";
+import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isFirefoxClipboardEvents } from "./utils";
 
 let isProcessingMutations = false;
 let lastTextEntryTimeStamp = 0;
@@ -27,7 +28,7 @@ const initTextEntryListener = (editor: LexicalEditor) => {
 export const initMutationObserver = (editor: LexicalEditor) => {
     initTextEntryListener(editor);
     editor._observer = new MutationObserver(
-        (mutations: Array<MutationRecord>, observer: MutationObserver) => {
+        (mutations: MutationRecord[], observer: MutationObserver) => {
             $flushMutations(editor, mutations, observer);
         },
     );
@@ -61,13 +62,13 @@ const shouldUpdateTextNodeFromMutation = (
     if ($isRangeSelection(selection)) {
         const anchorNode = selection.anchor.getNode();
         if (
-            anchorNode.is(targetNode) &&
+            anchorNode.__key === targetNode.__key &&
             selection.format !== anchorNode.getFormat()
         ) {
             return false;
         }
     }
-    return targetDOM.nodeType === DOM_TEXT_TYPE && targetNode.isAttached();
+    return targetDOM.nodeType === DOM_TEXT_TYPE && isAttachedToRoot(targetNode);
 };
 
 const handleTextMutation = (
@@ -92,7 +93,7 @@ const handleTextMutation = (
 
 export const $flushMutations = (
     editor: LexicalEditor,
-    mutations: Array<MutationRecord>,
+    mutations: MutationRecord[],
     observer: MutationObserver,
 ): void => {
     isProcessingMutations = true;
@@ -121,7 +122,7 @@ export const $flushMutations = (
 
                 if (
                     (targetNode === null && targetDOM !== rootElement) ||
-                    $isDecoratorNode(targetNode)
+                    $isNode("Decorator", targetNode)
                 ) {
                     continue;
                 }
@@ -131,7 +132,7 @@ export const $flushMutations = (
                     // processed outside of the Lexical engine.
                     if (
                         shouldFlushTextMutations &&
-                        $isTextNode(targetNode) &&
+                        $isNode("Text", targetNode) &&
                         shouldUpdateTextNodeFromMutation(selection, targetDOM, targetNode)
                     ) {
                         handleTextMutation(
@@ -209,7 +210,7 @@ export const $flushMutations = (
             // an internal revert on the DOM.
             if (badDOMTargets.size > 0) {
                 for (const [targetDOM, targetNode] of badDOMTargets) {
-                    if ($isElementNode(targetNode)) {
+                    if ($isNode("Element", targetNode)) {
                         const childKeys = targetNode.getChildrenKeys();
                         let currentDOM = targetDOM.firstChild;
 
@@ -230,7 +231,7 @@ export const $flushMutations = (
 
                             currentDOM = currentDOM.nextSibling;
                         }
-                    } else if ($isTextNode(targetNode)) {
+                    } else if ($isNode("Text", targetNode)) {
                         targetNode.markDirty();
                     }
                 }

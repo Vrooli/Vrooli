@@ -1,22 +1,18 @@
+import { TEXT_FLAGS } from "../consts";
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { TEXT_FLAGS } from "../transformers/textFormatTransformers";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeKey, SerializedParagraphNode, TextFormatType } from "../types";
-import { $applyNodeReplacement, $isTextNode, getCachedClassNameArray, isHTMLElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedParagraphNode, TextFormatType } from "../types";
+import { $createNode, $isNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
+import { getNextSibling, getPreviousSibling } from "./LexicalNode";
 
 export class ParagraphNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "Paragraph";
     __textFormat: number;
 
-    constructor(key?: NodeKey) {
-        super(key);
+    constructor({ ...rest }: NodeConstructorPayloads["Paragraph"]) {
+        super(rest);
         this.__textFormat = 0;
-    }
-
-    static getType(): string {
-        return "paragraph";
     }
 
     getTextFormat(): number {
@@ -35,18 +31,14 @@ export class ParagraphNode extends ElementNode {
     }
 
     static clone(node: ParagraphNode): ParagraphNode {
-        return new ParagraphNode(node.__key);
+        const { __key } = node;
+        return $createNode("Paragraph", { key: __key });
     }
 
     // View
 
     createDOM(config: EditorConfig): HTMLElement {
         const dom = document.createElement("p");
-        const classNames = getCachedClassNameArray(config.theme, "paragraph");
-        if (classNames !== undefined) {
-            const domClassList = dom.classList;
-            domClassList.add(...classNames);
-        }
         return dom;
     }
     updateDOM(
@@ -57,7 +49,7 @@ export class ParagraphNode extends ElementNode {
         return false;
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             p: (node: Node) => ({
                 conversion: convertParagraphElement,
@@ -95,7 +87,7 @@ export class ParagraphNode extends ElementNode {
     }
 
     static importJSON(serializedNode: SerializedParagraphNode): ParagraphNode {
-        const node = $createParagraphNode();
+        const node = $createNode("Paragraph", {});
         node.setFormat(serializedNode.format);
         node.setIndent(serializedNode.indent);
         node.setDirection(serializedNode.direction);
@@ -106,8 +98,8 @@ export class ParagraphNode extends ElementNode {
     exportJSON(): SerializedParagraphNode {
         return {
             ...super.exportJSON(),
+            __type: "Paragraph",
             textFormat: this.getTextFormat(),
-            type: "paragraph",
             version: 1,
         };
     }
@@ -118,7 +110,7 @@ export class ParagraphNode extends ElementNode {
         rangeSelection: RangeSelection,
         restoreSelection: boolean,
     ): ParagraphNode {
-        const newElement = $createParagraphNode();
+        const newElement = $createNode("Paragraph", {});
         newElement.setTextFormat(rangeSelection.format);
         const direction = this.getDirection();
         newElement.setDirection(direction);
@@ -133,15 +125,15 @@ export class ParagraphNode extends ElementNode {
         // delete the paragraph as long as we have another sibling to go to
         if (
             children.length === 0 ||
-            ($isTextNode(children[0]) && children[0].getTextContent().trim() === "")
+            ($isNode("Text", children[0]) && children[0].getTextContent().trim() === "")
         ) {
-            const nextSibling = this.getNextSibling();
+            const nextSibling = getNextSibling(this);
             if (nextSibling !== null) {
                 this.selectNext();
                 this.remove();
                 return true;
             }
-            const prevSibling = this.getPreviousSibling();
+            const prevSibling = getPreviousSibling(this);
             if (prevSibling !== null) {
                 this.selectPrevious();
                 this.remove();
@@ -153,7 +145,7 @@ export class ParagraphNode extends ElementNode {
 }
 
 const convertParagraphElement = (element: HTMLElement): DOMConversionOutput => {
-    const node = $createParagraphNode();
+    const node = $createNode("Paragraph", {});
     if (element.style) {
         node.setFormat(element.style.textAlign as ElementFormatType);
         const indent = parseInt(element.style.textIndent, 10) / 20;
@@ -162,14 +154,4 @@ const convertParagraphElement = (element: HTMLElement): DOMConversionOutput => {
         }
     }
     return { node };
-};
-
-export const $createParagraphNode = (): ParagraphNode => {
-    return $applyNodeReplacement(new ParagraphNode());
-};
-
-export const $isParagraphNode = (
-    node: LexicalNode | null | undefined,
-): node is ParagraphNode => {
-    return node instanceof ParagraphNode;
 };

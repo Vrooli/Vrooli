@@ -1,13 +1,11 @@
 import { DOM_TEXT_TYPE } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, SerializedLexicalNode, SerializedLineBreakNode } from "../types";
-import { $applyNodeReplacement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, NodeType, SerializedLexicalNode, SerializedLineBreakNode } from "../types";
+import { $createNode } from "../utils";
 import { LexicalNode } from "./LexicalNode";
 
 
 export class LineBreakNode extends LexicalNode {
-    static getType(): string {
-        return "linebreak";
-    }
+    static __type: NodeType = "LineBreak";
 
     static clone(node: LineBreakNode): LineBreakNode {
         return new LineBreakNode(node.__key);
@@ -25,7 +23,7 @@ export class LineBreakNode extends LexicalNode {
         return false;
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             br: (node: Node) => {
                 if (isOnlyChild(node)) {
@@ -42,29 +40,19 @@ export class LineBreakNode extends LexicalNode {
     static importJSON(
         serializedLineBreakNode: SerializedLineBreakNode,
     ): LineBreakNode {
-        return $createLineBreakNode();
+        return $createNode("LineBreak", {});
     }
 
     exportJSON(): SerializedLexicalNode {
         return {
-            type: "linebreak",
+            __type: "LineBreak",
             version: 1,
         };
     }
 }
 
 const convertLineBreakElement = (node: Node): DOMConversionOutput => {
-    return { node: $createLineBreakNode() };
-};
-
-export const $createLineBreakNode = (): LineBreakNode => {
-    return $applyNodeReplacement(new LineBreakNode());
-};
-
-export const $isLineBreakNode = (
-    node: LexicalNode | null | undefined,
-): node is LineBreakNode => {
-    return node instanceof LineBreakNode;
+    return { node: $createNode("LineBreak", {}) };
 };
 
 const isOnlyChild = (node: Node): boolean => {

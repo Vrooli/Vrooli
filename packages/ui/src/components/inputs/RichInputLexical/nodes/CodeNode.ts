@@ -3,13 +3,13 @@
 
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeKey, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
-import { $applyNodeReplacement, $isTextNode, addClassNamesToElement, isHTMLElement, removeClassNamesFromElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
+import { $applyNodeReplacement, $createNode, $isNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $createLineBreakNode, LineBreakNode } from "./LineBreakNode";
-import { $createParagraphNode, ParagraphNode } from "./ParagraphNode";
-import { $createTabNode, $isTabNode, TabNode } from "./TabNode";
+import { getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, type LexicalNode } from "./LexicalNode";
+import { type LineBreakNode } from "./LineBreakNode";
+import { type ParagraphNode } from "./ParagraphNode";
+import { type TabNode } from "./TabNode";
 import { TextNode } from "./TextNode";
 
 /**
@@ -23,6 +23,7 @@ import { TextNode } from "./TextNode";
 const mapToPrismLanguage = (
     language: string | null | undefined,
 ): string | null | undefined => {
+    //TODO
     // return language != null && window.Prism.languages.hasOwnProperty(language)
     //     ? language
     //     : undefined;
@@ -42,26 +43,22 @@ function hasChildDOMNodeTag(node: Node, tagName: string) {
 const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
 
 export class CodeNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "Code";
     __language: string | null | undefined;
 
-    static getType(): string {
-        return "code";
-    }
-
     static clone(node: CodeNode): CodeNode {
+        const { __language, __key } = node;
         return new CodeNode(node.__language, node.__key);
     }
 
     constructor(language?: string | null | undefined, key?: NodeKey) {
-        super(key);
+        super({ key });
         this.__language = mapToPrismLanguage(language);
     }
 
     // View
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const element = document.createElement("code");
-        addClassNamesToElement(element, config.theme.code);
         element.setAttribute("spellcheck", "false");
         const language = this.getLanguage();
         if (language) {
@@ -72,7 +69,6 @@ export class CodeNode extends ElementNode {
     updateDOM(
         prevNode: CodeNode,
         dom: HTMLElement,
-        config: EditorConfig,
     ): boolean {
         const language = this.__language;
         const prevLanguage = prevNode.__language;
@@ -89,7 +85,6 @@ export class CodeNode extends ElementNode {
 
     exportDOM(editor: LexicalEditor): DOMExportOutput {
         const element = document.createElement("pre");
-        addClassNamesToElement(element, editor._config.theme.code);
         element.setAttribute("spellcheck", "false");
         const language = this.getLanguage();
         if (language) {
@@ -98,7 +93,7 @@ export class CodeNode extends ElementNode {
         return { element };
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             // Typically <pre> is used for code blocks, and <code> for inline code styles
             // but if it's a multi line <code> we'll create a block. Pass through to
@@ -182,8 +177,8 @@ export class CodeNode extends ElementNode {
     exportJSON(): SerializedCodeNode {
         return {
             ...super.exportJSON(),
+            __type: "Code",
             language: this.getLanguage(),
-            type: "code",
             version: 1,
         };
     }
@@ -206,7 +201,7 @@ export class CodeNode extends ElementNode {
         ) {
             children[childrenLength - 1].remove();
             children[childrenLength - 2].remove();
-            const newElement = $createParagraphNode();
+            const newElement = $createNode("Paragraph", {});
             this.insertAfter(newElement, restoreSelection);
             return newElement;
         }
@@ -217,14 +212,14 @@ export class CodeNode extends ElementNode {
         const { anchor, focus } = selection;
         const firstPoint = anchor.isBefore(focus) ? anchor : focus;
         const firstSelectionNode = firstPoint.getNode();
-        if ($isTextNode(firstSelectionNode)) {
+        if ($isNode("Text", firstSelectionNode)) {
             let node = getFirstCodeNodeOfLine(firstSelectionNode);
             const insertNodes: LexicalNode[] = [];
             // eslint-disable-next-line no-constant-condition
             while (true) {
-                if ($isTabNode(node)) {
-                    insertNodes.push($createTabNode());
-                    node = node.getNextSibling();
+                if ($isNode("Tab", node)) {
+                    insertNodes.push($createNode("Tab", {}));
+                    node = getNextSibling(node);
                 } else if ($isCodeHighlightNode(node)) {
                     let spaces = 0;
                     const text = node.getTextContent();
@@ -238,16 +233,16 @@ export class CodeNode extends ElementNode {
                     if (spaces !== textSize) {
                         break;
                     }
-                    node = node.getNextSibling();
+                    node = getNextSibling(node);
                 } else {
                     break;
                 }
             }
             const split = firstSelectionNode.splitText(anchor.offset)[0];
             const x = anchor.offset === 0 ? 0 : 1;
-            const index = split.getIndexWithinParent() + x;
-            const codeNode = firstSelectionNode.getParentOrThrow();
-            const nodesToInsert = [$createLineBreakNode(), ...insertNodes];
+            const index = getIndexWithinParent(split) + x;
+            const codeNode = getParentOrThrow(firstSelectionNode);
+            const nodesToInsert = [$createNode("LineBreak", {}), ...insertNodes];
             codeNode.splice(index, 0, nodesToInsert);
             const last = insertNodes[insertNodes.length - 1];
             if (last) {
@@ -256,12 +251,12 @@ export class CodeNode extends ElementNode {
             } else if (anchor.offset === 0) {
                 split.selectPrevious();
             } else {
-                split.getNextSibling()!.selectNext(0, 0);
+                getNextSibling(split)!.selectNext(0, 0);
             }
         }
-        if ($isCodeNode(firstSelectionNode)) {
+        if ($isNode("Code", firstSelectionNode)) {
             const { offset } = selection.anchor;
-            firstSelectionNode.splice(offset, 0, [$createLineBreakNode()]);
+            firstSelectionNode.splice(offset, 0, [$createNode("LineBreak", {})]);
             firstSelectionNode.select(offset + 1, offset + 1);
         }
 
@@ -273,7 +268,7 @@ export class CodeNode extends ElementNode {
     }
 
     collapseAtStart(): boolean {
-        const paragraph = $createParagraphNode();
+        const paragraph = $createNode("Paragraph", {});
         const children = this.getChildren();
         children.forEach((child) => paragraph.append(child));
         this.replace(paragraph);
@@ -286,12 +281,12 @@ export class CodeNode extends ElementNode {
     }
 
     getLanguage(): string | null | undefined {
-        return this.getLatest().__language;
+        return this.__language;
     }
 }
 
 export class CodeHighlightNode extends TextNode {
-    /** @internal */
+    static type: NodeType = "Code";
     __highlightType: string | null | undefined;
 
     constructor(
@@ -303,10 +298,6 @@ export class CodeHighlightNode extends TextNode {
         this.__highlightType = highlightType;
     }
 
-    static getType(): string {
-        return "code-highlight";
-    }
-
     static clone(node: CodeHighlightNode): CodeHighlightNode {
         return new CodeHighlightNode(
             node.__text,
@@ -316,8 +307,7 @@ export class CodeHighlightNode extends TextNode {
     }
 
     getHighlightType(): string | null | undefined {
-        const self = this.getLatest();
-        return self.__highlightType;
+        return this.getLatest().__highlightType;
     }
 
     canHaveFormat(): boolean {
@@ -326,11 +316,6 @@ export class CodeHighlightNode extends TextNode {
 
     createDOM(config: EditorConfig): HTMLElement {
         const element = super.createDOM(config);
-        const className = getHighlightThemeClass(
-            config.theme,
-            this.__highlightType,
-        );
-        addClassNamesToElement(element, className);
         return element;
     }
 
@@ -340,22 +325,6 @@ export class CodeHighlightNode extends TextNode {
         config: EditorConfig,
     ): boolean {
         const update = super.updateDOM(prevNode, dom, config);
-        const prevClassName = getHighlightThemeClass(
-            config.theme,
-            prevNode.__highlightType,
-        );
-        const nextClassName = getHighlightThemeClass(
-            config.theme,
-            this.__highlightType,
-        );
-        if (prevClassName !== nextClassName) {
-            if (prevClassName) {
-                removeClassNamesFromElement(dom, prevClassName);
-            }
-            if (nextClassName) {
-                addClassNamesToElement(dom, nextClassName);
-            }
-        }
         return update;
     }
 
@@ -376,8 +345,8 @@ export class CodeHighlightNode extends TextNode {
     exportJSON(): SerializedCodeHighlightNode {
         return {
             ...super.exportJSON(),
-            highlightType: this.getHighlightType(),
-            type: "code-highlight",
+            __type: "Code",
+            highlightType: this.getLatest().__highlightType,
             version: 1,
         };
     }
@@ -402,12 +371,6 @@ export function $createCodeNode(
     return $applyNodeReplacement(new CodeNode(language));
 }
 
-export function $isCodeNode(
-    node: LexicalNode | null | undefined,
-): node is CodeNode {
-    return node instanceof CodeNode;
-}
-
 function convertPreElement(domNode: Node): DOMConversionOutput {
     let language;
     if (isHTMLElement(domNode)) {
@@ -429,7 +392,7 @@ function convertDivElement(domNode: Node): DOMConversionOutput {
         after: (childLexicalNodes) => {
             const domParent = domNode.parentNode;
             if (domParent != null && domNode !== domParent.lastChild) {
-                childLexicalNodes.push($createLineBreakNode());
+                childLexicalNodes.push($createNode("LineBreak", {}));
             }
             return childLexicalNodes;
         },
@@ -453,7 +416,7 @@ function convertTableCellElement(domNode: Node): DOMConversionOutput {
         after: (childLexicalNodes) => {
             if (cell.parentNode && cell.parentNode.nextSibling) {
                 // Append newline between code lines
-                childLexicalNodes.push($createLineBreakNode());
+                childLexicalNodes.push($createNode("LineBreak", {}));
             }
             return childLexicalNodes;
         },
@@ -504,9 +467,9 @@ export function getFirstCodeNodeOfLine(
 ): null | CodeHighlightNode | TabNode | LineBreakNode {
     let previousNode = anchor;
     let node: null | LexicalNode = anchor;
-    while ($isCodeHighlightNode(node) || $isTabNode(node)) {
+    while ($isCodeHighlightNode(node) || $isNode("Tab", node)) {
         previousNode = node;
-        node = node.getPreviousSibling();
+        node = getPreviousSibling(node);
     }
     return previousNode;
 }
@@ -516,21 +479,9 @@ export function getLastCodeNodeOfLine(
 ): CodeHighlightNode | TabNode | LineBreakNode {
     let nextNode = anchor;
     let node: null | LexicalNode = anchor;
-    while ($isCodeHighlightNode(node) || $isTabNode(node)) {
+    while ($isCodeHighlightNode(node) || $isNode("Tab", node)) {
         nextNode = node;
-        node = node.getNextSibling();
+        node = getNextSibling(node);
     }
     return nextNode;
-}
-
-function getHighlightThemeClass(
-    theme: EditorThemeClasses,
-    highlightType: string | null | undefined,
-): string | null | undefined {
-    return (
-        highlightType &&
-        theme &&
-        theme.codeHighlight &&
-        theme.codeHighlight[highlightType]
-    );
 }

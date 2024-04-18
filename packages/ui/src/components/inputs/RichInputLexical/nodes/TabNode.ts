@@ -1,12 +1,14 @@
 import { IS_UNMERGEABLE } from "../consts";
-import { DOMConversionMap, NodeKey, SerializedTabNode, TextDetailType, TextModeType } from "../types";
-import { $applyNodeReplacement } from "../utils";
-import { LexicalNode } from "./LexicalNode";
+import { DOMConversionMap, NodeKey, NodeType, SerializedTabNode, TextDetailType, TextModeType } from "../types";
+import { $createNode } from "../utils";
 import { TextNode } from "./TextNode";
 
 export class TabNode extends TextNode {
-    static getType(): string {
-        return "tab";
+    static __type: NodeType = "Tab";
+
+    constructor(key?: NodeKey) {
+        super("\t", key);
+        this.__detail = IS_UNMERGEABLE;
     }
 
     static clone(node: TabNode): TabNode {
@@ -18,17 +20,12 @@ export class TabNode extends TextNode {
         return newNode;
     }
 
-    constructor(key?: NodeKey) {
-        super("\t", key);
-        this.__detail = IS_UNMERGEABLE;
-    }
-
-    static importDOM(): DOMConversionMap | null {
-        return null;
+    static importDOM(): DOMConversionMap {
+        return {};
     }
 
     static importJSON(serializedTabNode: SerializedTabNode): TabNode {
-        const node = $createTabNode();
+        const node = $createNode("Tab", {});
         node.setFormat(serializedTabNode.format);
         node.setStyle(serializedTabNode.style);
         return node;
@@ -37,7 +34,7 @@ export class TabNode extends TextNode {
     exportJSON(): SerializedTabNode {
         return {
             ...super.exportJSON(),
-            type: "tab",
+            __type: "Tab",
             version: 1,
         };
     }
@@ -62,13 +59,3 @@ export class TabNode extends TextNode {
         return false;
     }
 }
-
-export const $createTabNode = (): TabNode => {
-    return $applyNodeReplacement(new TabNode());
-};
-
-export const $isTabNode = (
-    node: LexicalNode | null | undefined,
-): node is TabNode => {
-    return node instanceof TabNode;
-};

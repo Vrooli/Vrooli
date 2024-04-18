@@ -4,15 +4,14 @@ import { COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HI
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
 import { ElementNode } from "../nodes/ElementNode";
-import { LexicalNode } from "../nodes/LexicalNode";
-import { $createParagraphNode } from "../nodes/ParagraphNode";
-import { $createTableCellNode, $isTableCellNode, TableCellNode } from "../nodes/TableCellNode";
-import { $createTableNodeWithDimensions, $isTableNode, TableNode } from "../nodes/TableNode";
-import { $isTableRowNode, TableRowNode } from "../nodes/TableRowNode";
+import { LexicalNode, getIndexWithinParent, getNextSibling, getParent, getParentOrThrow, getParents, getPreviousSibling, isSelected } from "../nodes/LexicalNode";
+import { type TableCellNode } from "../nodes/TableCellNode";
+import { $createTableNodeWithDimensions, TableNode } from "../nodes/TableNode";
+import { type TableRowNode } from "../nodes/TableRowNode";
 import { $createPoint, $createRangeSelection, $createRangeSelectionFromDom, $getPreviousSelection, RangeSelection, getTable } from "../selection";
 import { BaseSelection, ElementFormatType, HTMLTableElementWithWithTableSelectionState, InsertTableCommandPayload, LexicalCommand, NodeKey, PointType, TableDOMCell, TableDOMTable, TableMapType, TableMapValueType, TableSelectionShape, TextFormatType } from "../types";
 import { isCurrentlyReadOnlyMode } from "../updates";
-import { $computeTableMap, $createTextNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isElementNode, $isRangeSelection, $isTextNode, $nodesOfType, $normalizeSelection, $setSelection, addClassNamesToElement, getDOMSelection, removeClassNamesFromElement } from "../utils";
+import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection } from "../utils";
 
 export const TablePlugin = ({
     hasCellMerge = true,
@@ -26,10 +25,6 @@ export const TablePlugin = ({
     const [editor] = useLexicalComposerContext();
 
     useEffect(() => {
-        if (!editor.hasNodes([TableNode, TableCellNode, TableRowNode])) {
-            throw new Error("TablePlugin: TableNode, TableCellNode or TableRowNode not registered");
-        }
-
         return editor.registerCommand<InsertTableCommandPayload>(
             INSERT_TABLE_COMMAND,
             ({ columns, rows, includeHeaders }) => {
@@ -41,7 +36,7 @@ export const TablePlugin = ({
                 $insertNodeToNearestRoot(tableNode);
 
                 const firstDescendant = tableNode.getFirstDescendant();
-                if ($isTextNode(firstDescendant)) {
+                if ($isNode("Text", firstDescendant)) {
                     firstDescendant.select();
                 }
 
@@ -55,7 +50,7 @@ export const TablePlugin = ({
         const tableSelections = new Map<NodeKey, TableObserver>();
 
         const initializeTableNode = (tableNode: TableNode) => {
-            const nodeKey = tableNode.getKey();
+            const nodeKey = tableNode.__key;
             const tableElement = editor.getElementByKey(
                 nodeKey,
             ) as HTMLTableElementWithWithTableSelectionState;
@@ -73,9 +68,9 @@ export const TablePlugin = ({
         // Plugins might be loaded _after_ initial content is set, hence existing table nodes
         // won't be initialized from mutation[create] listener. Instead doing it here,
         editor.getEditorState().read(() => {
-            const tableNodes = $nodesOfType(TableNode);
+            const tableNodes = $nodesOfType("Table");
             for (const tableNode of tableNodes) {
-                if ($isTableNode(tableNode)) {
+                if ($isNode("Table", tableNode)) {
                     initializeTableNode(tableNode);
                 }
             }
@@ -88,7 +83,7 @@ export const TablePlugin = ({
                     if (mutation === "created") {
                         editor.getEditorState().read(() => {
                             const tableNode = $getNodeByKey<TableNode>(nodeKey);
-                            if ($isTableNode(tableNode)) {
+                            if ($isNode("Table", tableNode)) {
                                 initializeTableNode(tableNode);
                             }
                         });
@@ -119,7 +114,7 @@ export const TablePlugin = ({
         if (hasCellMerge) {
             return;
         }
-        return editor.registerNodeTransform(TableCellNode, (node) => {
+        return editor.registerNodeTransform<TableCellNode>("TableCell", (node) => {
             if (node.getColSpan() > 1 || node.getRowSpan() > 1) {
                 // When we have rowSpan we have to map the entire Table to understand where the new Cells
                 // fit best; let's analyze all Cells at once to save us from further transform iterations
@@ -129,14 +124,14 @@ export const TablePlugin = ({
                 const rowsCount = gridMap.length;
                 const columnsCount = gridMap[0].length;
                 let row = gridNode.getFirstChild();
-                if (!$isTableRowNode(row)) {
+                if (!$isNode("TableRow", row)) {
                     throw new Error("Expected TableNode first child to be a RowNode");
                 }
                 const unmerged: TableCellNode[] = [];
                 for (let i = 0; i < rowsCount; i++) {
                     if (i !== 0) {
-                        row = row.getNextSibling();
-                        if (!$isTableRowNode(row)) {
+                        row = getNextSibling(row);
+                        if (!$isNode("TableRow", row)) {
                             throw new Error("Expected TableNode first child to be a RowNode");
                         }
                     }
@@ -148,10 +143,10 @@ export const TablePlugin = ({
                             lastRowCell = cell;
                             unmerged.push(cell);
                         } else if (cell.getColSpan() > 1 || cell.getRowSpan() > 1) {
-                            if (!$isTableCellNode(cell)) {
+                            if (!$isNode("TableCell", cell)) {
                                 throw new Error("Expected TableNode cell to be a TableCellNode");
                             }
-                            const newCell = $createTableCellNode(cell.__headerState);
+                            const newCell = $createNode("TableCell", { headerState: cell.__headerState });
                             if (lastRowCell !== null) {
                                 lastRowCell.insertAfter(newCell);
                             } else {
@@ -173,7 +168,7 @@ export const TablePlugin = ({
         if (hasCellBackgroundColor) {
             return;
         }
-        return editor.registerNodeTransform(TableCellNode, (node) => {
+        return editor.registerNodeTransform<TableCellNode>("TableCell", (node) => {
             if (node.getBackgroundColor() !== null) {
                 node.setBackgroundColor(null);
             }
@@ -196,27 +191,29 @@ export const $getNodeTriplet = (
     source: PointType | LexicalNode | TableCellNode,
 ): [TableCellNode, TableRowNode, TableNode] => {
     let cell: TableCellNode;
-    if (source instanceof TableCellNode) {
-        cell = source;
-    } else if ("__type" in source) {
-        const cell_ = $findMatchingParent(source, $isTableCellNode);
-        if (!$isTableCellNode(cell_)) {
+    if ($isNode("TableCell", source as LexicalNode)) {
+        cell = source as TableCellNode;
+    }
+    // Check if it's a Lexical by checking for a `getType` method 
+    else if (Object.prototype.hasOwnProperty.call(source, "getType")) {
+        const cell_ = $findMatchingParent(source as LexicalNode, (node): node is TableCellNode => $isNode("TableCell", node));
+        if (!$isNode("TableCell", cell_)) {
             throw new Error("Expected to find a parent TableCellNode");
         }
         cell = cell_;
     } else {
-        const cell_ = $findMatchingParent(source.getNode(), $isTableCellNode);
-        if (!$isTableCellNode(cell_)) {
+        const cell_ = $findMatchingParent((source as PointType).getNode(), (node): node is TableCellNode => $isNode("TableCell", node));
+        if (!$isNode("TableCell", cell_)) {
             throw new Error("Expected to find a parent TableCellNode");
         }
         cell = cell_;
     }
-    const row = cell.getParent();
-    if (!$isTableRowNode(row)) {
+    const row = getParent(cell);
+    if (!$isNode("TableRow", row)) {
         throw new Error("Expected TableCellNode to have a parent TableRowNode");
     }
-    const grid = row.getParent();
-    if (!$isTableNode(grid)) {
+    const grid = getParent(row);
+    if (!$isNode("Table", grid)) {
         throw new Error("Expected TableRowNode to have a parent GridNode");
     }
     return [cell, row, grid];
@@ -337,7 +334,7 @@ export class TableObserver {
         editor.update(() => {
             const tableNode = $getNodeByKey(this.tableNodeKey);
 
-            if (!$isTableNode(tableNode)) {
+            if (!$isNode("Table", tableNode)) {
                 throw new Error("Expected TableNode.");
             }
 
@@ -363,10 +360,6 @@ export class TableObserver {
                 throw new Error("Expected to find TableElement in DOM");
             }
 
-            removeClassNamesFromElement(
-                tableElement,
-                editor._config.theme.tableSelection,
-            );
             tableElement.classList.remove("disable-selection");
             this.hasHijackedSelectionStyles = false;
         });
@@ -381,7 +374,6 @@ export class TableObserver {
                 throw new Error("Expected to find TableElement in DOM");
             }
 
-            addClassNamesToElement(tableElement, editor._config.theme.tableSelection);
             this.hasHijackedSelectionStyles = true;
         });
     }
@@ -406,7 +398,7 @@ export class TableObserver {
         editor.update(() => {
             const tableNode = $getNodeByKey(this.tableNodeKey);
 
-            if (!$isTableNode(tableNode)) {
+            if (!$isNode("Table", tableNode)) {
                 throw new Error("Expected TableNode.");
             }
 
@@ -452,10 +444,10 @@ export class TableObserver {
                 if (
                     this.tableSelection != null &&
                     this.anchorCellNodeKey != null &&
-                    $isTableCellNode(focusTableCellNode) &&
-                    tableNode.is($findTableNode(focusTableCellNode))
+                    $isNode("TableCell", focusTableCellNode) &&
+                    tableNode.__key !== $findTableNode(focusTableCellNode)?.__key
                 ) {
-                    const focusNodeKey = focusTableCellNode.getKey();
+                    const focusNodeKey = focusTableCellNode.__key;
 
                     this.tableSelection =
                         this.tableSelection.clone() || $createTableSelection();
@@ -486,8 +478,8 @@ export class TableObserver {
         this.editor.update(() => {
             const anchorTableCellNode = $getNearestNodeFromDOMNode(cell.elem);
 
-            if ($isTableCellNode(anchorTableCellNode)) {
-                const anchorNodeKey = anchorTableCellNode.getKey();
+            if ($isNode("TableCell", anchorTableCellNode)) {
+                const anchorNodeKey = anchorTableCellNode.__key;
                 this.tableSelection =
                     this.tableSelection != null
                         ? this.tableSelection.clone()
@@ -511,9 +503,9 @@ export class TableObserver {
             const focus = formatSelection.focus;
 
             selection.getNodes().forEach((cellNode) => {
-                if ($isTableCellNode(cellNode) && cellNode.getTextContentSize() !== 0) {
-                    anchor.set(cellNode.getKey(), 0, "element");
-                    focus.set(cellNode.getKey(), cellNode.getChildrenSize(), "element");
+                if ($isNode("TableCell", cellNode) && cellNode.getTextContentSize() !== 0) {
+                    anchor.set(cellNode.__key, 0, "element");
+                    focus.set(cellNode.__key, cellNode.getChildrenSize(), "element");
                     formatSelection.formatText(type);
                 }
             });
@@ -529,7 +521,7 @@ export class TableObserver {
         editor.update(() => {
             const tableNode = $getNodeByKey(this.tableNodeKey);
 
-            if (!$isTableNode(tableNode)) {
+            if (!$isNode("Table", tableNode)) {
                 throw new Error("Expected TableNode.");
             }
 
@@ -539,7 +531,7 @@ export class TableObserver {
                 throw new Error("Expected grid selection");
             }
 
-            const selectedNodes = selection.getNodes().filter($isTableCellNode);
+            const selectedNodes = selection.getNodes().filter((node): node is TableCellNode => $isNode("TableCell", node));
 
             if (selectedNodes.length === this.table.columns * this.table.rows) {
                 tableNode.selectPrevious();
@@ -551,9 +543,9 @@ export class TableObserver {
             }
 
             selectedNodes.forEach((cellNode) => {
-                if ($isElementNode(cellNode)) {
-                    const paragraphNode = $createParagraphNode();
-                    const textNode = $createTextNode();
+                if ($isNode("Element", cellNode)) {
+                    const paragraphNode = $createNode("Paragraph", {});
+                    const textNode = $createNode("Text", { text: "" });
                     paragraphNode.append(textNode);
                     cellNode.append(paragraphNode);
                     cellNode.getChildren().forEach((child) => {
@@ -652,7 +644,7 @@ export class TableSelection implements BaseSelection {
 
     insertNodes(nodes: Array<LexicalNode>) {
         const focusNode = this.focus.getNode();
-        if (!$isElementNode(focusNode)) {
+        if (!$isNode("Element", focusNode)) {
             throw new Error("Expected TableSelection focus to be an ElementNode");
         }
         const selection = $normalizeSelection(
@@ -664,7 +656,7 @@ export class TableSelection implements BaseSelection {
     // TODO Deprecate this method. It's confusing when used with colspan|rowspan
     getShape(): TableSelectionShape {
         const anchorCellNode = $getNodeByKey(this.anchor.key);
-        if (!$isTableCellNode(anchorCellNode)) {
+        if (!$isNode("TableCell", anchorCellNode)) {
             throw new Error("Expected TableSelection anchor to be (or a child of) TableCellNode");
         }
         const anchorCellNodeRect = $getTableCellNodeRect(anchorCellNode);
@@ -673,7 +665,7 @@ export class TableSelection implements BaseSelection {
         }
 
         const focusCellNode = $getNodeByKey(this.focus.key);
-        if (!$isTableCellNode(focusCellNode)) {
+        if (!$isNode("TableCell", focusCellNode)) {
             throw new Error("Expected TableSelection focus to be (or a child of) TableCellNode");
         }
         const focusCellNodeRect = $getTableCellNodeRect(focusCellNode);
@@ -715,40 +707,40 @@ export class TableSelection implements BaseSelection {
 
         const anchorNode = this.anchor.getNode();
         const focusNode = this.focus.getNode();
-        const anchorCell = $findMatchingParent(anchorNode, $isTableCellNode);
+        const anchorCell = $findMatchingParent(anchorNode, (node): node is TableCellNode => $isNode("TableCell", node));
         // todo replace with triplet
-        const focusCell = $findMatchingParent(focusNode, $isTableCellNode);
-        if (!$isTableCellNode(anchorCell)) {
+        const focusCell = $findMatchingParent(focusNode, (node): node is TableCellNode => $isNode("TableCell", node));
+        if (!$isNode("TableCell", anchorCell)) {
             throw new Error("Expected TableSelection anchor to be (or a child of) TableCellNode");
         }
-        if (!$isTableCellNode(focusCell)) {
+        if (!$isNode("TableCell", focusCell)) {
             throw new Error("Expected TableSelection focus to be (or a child of) TableCellNode");
         }
-        const anchorRow = anchorCell.getParent();
-        if (!$isTableRowNode(anchorRow)) {
+        const anchorRow = getParent(anchorCell);
+        if (!$isNode("TableRow", anchorRow)) {
             throw new Error("Expected anchorCell to have a parent TableRowNode");
         }
-        const tableNode = anchorRow.getParent();
-        if (!$isTableNode(tableNode)) {
+        const tableNode = getParent(anchorRow);
+        if (!$isNode("Table", tableNode)) {
             throw new Error("Expected anchorRow to have a parent TableNode");
         }
 
-        const focusCellGrid = focusCell.getParents()[1];
+        const focusCellGrid = getParents(focusCell)[1];
         if (focusCellGrid !== tableNode) {
             if (!tableNode.isParentOf(focusCell)) {
                 // focus is on higher Grid level than anchor
-                const gridParent = tableNode.getParent();
+                const gridParent = getParent(tableNode);
                 if (gridParent === null) {
                     throw new Error("Expected gridParent to have a parent");
                 }
-                this.set(this.tableKey, gridParent.getKey(), focusCell.getKey());
+                this.set(this.tableKey, gridParent.__key, focusCell.__key);
             } else {
                 // anchor is on higher Grid level than focus
-                const focusCellParent = focusCellGrid.getParent();
+                const focusCellParent = getParent(focusCellGrid);
                 if (focusCellParent === null) {
                     throw new Error("Expected focusCellParent to have a parent");
                 }
-                this.set(this.tableKey, focusCell.getKey(), focusCellParent.getKey());
+                this.set(this.tableKey, focusCell.__key, focusCellParent.__key);
             }
             return this.getNodes();
         }
@@ -837,8 +829,8 @@ export class TableSelection implements BaseSelection {
         for (let i = minRow; i <= maxRow; i++) {
             for (let j = minColumn; j <= maxColumn; j++) {
                 const { cell } = map[i][j];
-                const currentRow = cell.getParent();
-                if (!$isTableRowNode(currentRow)) {
+                const currentRow = getParent(cell);
+                if (!$isNode("TableRow", currentRow)) {
                     throw new Error("Expected TableCellNode parent to be a TableRowNode");
                 }
                 if (currentRow !== lastRow) {
@@ -883,7 +875,7 @@ export function $getChildrenRecursively(node: LexicalNode): Array<LexicalNode> {
         if (currentNode === undefined) {
             throw new Error("Stack.length > 0; can't be undefined");
         }
-        if ($isElementNode(currentNode)) {
+        if ($isNode("Element", currentNode)) {
             stack.unshift(...currentNode.getChildren());
         }
         if (currentNode !== node) {
@@ -905,7 +897,7 @@ export function applyTableHandlers(
         throw new Error("No root element.");
     }
 
-    const tableObserver = new TableObserver(editor, tableNode.getKey());
+    const tableObserver = new TableObserver(editor, tableNode.__key);
     const editorWindow = editor._window || window;
 
     // Attach table observer to table element
@@ -1023,9 +1015,9 @@ export function applyTableHandlers(
                 if ($isTableSelection(selection)) {
                     const focusCellNode = $findMatchingParent(
                         selection.focus.getNode(),
-                        $isTableCellNode,
+                        (node): node is TableCellNode => $isNode("TableCell", node),
                     );
-                    if ($isTableCellNode(focusCellNode)) {
+                    if ($isNode("TableCell", focusCellNode)) {
                         stopEvent(event);
                         focusCellNode.selectEnd();
                         return true;
@@ -1052,10 +1044,10 @@ export function applyTableHandlers(
         } else if ($isRangeSelection(selection)) {
             const tableCellNode = $findMatchingParent(
                 selection.anchor.getNode(),
-                (n) => $isTableCellNode(n),
+                (n) => $isNode("TableCell", n),
             );
 
-            if (!$isTableCellNode(tableCellNode)) {
+            if (!$isNode("TableCell", tableCellNode)) {
                 return false;
             }
 
@@ -1075,26 +1067,26 @@ export function applyTableHandlers(
 
             const nearestElementNode = $findMatchingParent(
                 selection.anchor.getNode(),
-                (n) => $isElementNode(n),
+                (n) => $isNode("Element", n),
             );
 
             const topLevelCellElementNode =
                 nearestElementNode &&
                 $findMatchingParent(
                     nearestElementNode,
-                    (n) => $isElementNode(n) && $isTableCellNode(n.getParent()),
+                    (n) => $isNode("Element", n) && $isNode("TableCell", getParent(n)),
                 );
 
             if (
-                !$isElementNode(topLevelCellElementNode) ||
-                !$isElementNode(nearestElementNode)
+                !$isNode("Element", topLevelCellElementNode) ||
+                !$isNode("Element", nearestElementNode)
             ) {
                 return false;
             }
 
             if (
                 command === DELETE_LINE_COMMAND &&
-                topLevelCellElementNode.getPreviousSibling() === null
+                getPreviousSibling(topLevelCellElementNode) === null
             ) {
                 // TODO: Fix Delete Line in Table Cells.
                 return true;
@@ -1107,10 +1099,10 @@ export function applyTableHandlers(
                 if (selection.isCollapsed() && selection.anchor.offset === 0) {
                     if (nearestElementNode !== topLevelCellElementNode) {
                         const children = nearestElementNode.getChildren();
-                        const newParagraphNode = $createParagraphNode();
+                        const newParagraphNode = $createNode("Paragraph", {});
                         children.forEach((child) => newParagraphNode.append(child));
                         nearestElementNode.replace(newParagraphNode);
-                        nearestElementNode.getWritable().__parent = tableCellNode.getKey();
+                        nearestElementNode.getWritable().__parent = tableCellNode.__key;
                         return true;
                     }
                 }
@@ -1148,10 +1140,10 @@ export function applyTableHandlers(
         } else if ($isRangeSelection(selection)) {
             const tableCellNode = $findMatchingParent(
                 selection.anchor.getNode(),
-                (n) => $isTableCellNode(n),
+                (n) => $isNode("TableCell", n),
             );
 
-            if (!$isTableCellNode(tableCellNode)) {
+            if (!$isNode("TableCell", tableCellNode)) {
                 return false;
             }
         }
@@ -1192,10 +1184,10 @@ export function applyTableHandlers(
                 } else if ($isRangeSelection(selection)) {
                     const tableCellNode = $findMatchingParent(
                         selection.anchor.getNode(),
-                        (n) => $isTableCellNode(n),
+                        (n) => $isNode("TableCell", n),
                     );
 
-                    if (!$isTableCellNode(tableCellNode)) {
+                    if (!$isNode("TableCell", tableCellNode)) {
                         return false;
                     }
                 }
@@ -1220,7 +1212,7 @@ export function applyTableHandlers(
 
                 const anchorNode = selection.anchor.getNode();
                 const focusNode = selection.focus.getNode();
-                if (!$isTableCellNode(anchorNode) || !$isTableCellNode(focusNode)) {
+                if (!$isNode("TableCell", anchorNode) || !$isNode("TableCell", focusNode)) {
                     return false;
                 }
 
@@ -1247,7 +1239,7 @@ export function applyTableHandlers(
                         const cellChildren = cell.getChildren();
                         for (let k = 0; k < cellChildren.length; k++) {
                             const child = cellChildren[k];
-                            if ($isElementNode(child) && !child.isInline()) {
+                            if ($isNode("Element", child) && !child.isInline()) {
                                 child.setFormat(formatType);
                             }
                         }
@@ -1276,10 +1268,10 @@ export function applyTableHandlers(
                 } else if ($isRangeSelection(selection)) {
                     const tableCellNode = $findMatchingParent(
                         selection.anchor.getNode(),
-                        (n) => $isTableCellNode(n),
+                        (n) => $isNode("TableCell", n),
                     );
 
-                    if (!$isTableCellNode(tableCellNode)) {
+                    if (!$isNode("TableCell", tableCellNode)) {
                         return false;
                     }
 
@@ -1291,7 +1283,7 @@ export function applyTableHandlers(
                         );
                         if (edgePosition) {
                             $insertParagraphAtTableEdge(edgePosition, tableNode, [
-                                $createTextNode(payload),
+                                $createNode("Text", { text: payload }),
                             ]);
                             return true;
                         }
@@ -1349,7 +1341,7 @@ export function applyTableHandlers(
         editor.registerCommand(
             FOCUS_COMMAND,
             (payload) => {
-                return tableNode.isSelected();
+                return isSelected(tableNode);
             },
             COMMAND_PRIORITY_HIGH,
         ),
@@ -1380,16 +1372,16 @@ export function applyTableHandlers(
                 const isSelectionInsideOfGrid =
                     (isRangeSelection &&
                         $findMatchingParent(selection.anchor.getNode(), (n) =>
-                            $isTableCellNode(n),
+                            $isNode("TableCell", n),
                         ) !== null &&
                         $findMatchingParent(selection.focus.getNode(), (n) =>
-                            $isTableCellNode(n),
+                            $isNode("TableCell", n),
                         ) !== null) ||
                     isTableSelection;
 
                 if (
                     nodes.length !== 1 ||
-                    !$isTableNode(nodes[0]) ||
+                    !$isNode("Table", nodes[0]) ||
                     !isSelectionInsideOfGrid ||
                     anchorAndFocus === null
                 ) {
@@ -1404,29 +1396,29 @@ export function applyTableHandlers(
                     .getChildrenSize();
                 const newRowCount = newGrid.getChildrenSize();
                 const gridCellNode = $findMatchingParent(anchor.getNode(), (n) =>
-                    $isTableCellNode(n),
+                    $isNode("TableCell", n),
                 );
                 const gridRowNode =
                     gridCellNode &&
-                    $findMatchingParent(gridCellNode, (n) => $isTableRowNode(n));
+                    $findMatchingParent(gridCellNode, (n) => $isNode("TableRow", n));
                 const gridNode =
                     gridRowNode &&
-                    $findMatchingParent(gridRowNode, (n) => $isTableNode(n));
+                    $findMatchingParent(gridRowNode, (n) => $isNode("Table", n));
 
                 if (
-                    !$isTableCellNode(gridCellNode) ||
-                    !$isTableRowNode(gridRowNode) ||
-                    !$isTableNode(gridNode)
+                    !$isNode("TableCell", gridCellNode) ||
+                    !$isNode("TableRow", gridRowNode) ||
+                    !$isNode("Table", gridNode)
                 ) {
                     return false;
                 }
 
-                const startY = gridRowNode.getIndexWithinParent();
+                const startY = getIndexWithinParent(gridRowNode);
                 const stopY = Math.min(
                     gridNode.getChildrenSize() - 1,
                     startY + newRowCount - 1,
                 );
-                const startX = gridCellNode.getIndexWithinParent();
+                const startX = getIndexWithinParent(gridCellNode);
                 const stopX = Math.min(
                     gridRowNode.getChildrenSize() - 1,
                     startX + newColumnCount - 1,
@@ -1443,13 +1435,13 @@ export function applyTableHandlers(
                 for (let r = fromY; r <= toY; r++) {
                     const currentGridRowNode = gridRowNodes[r];
 
-                    if (!$isTableRowNode(currentGridRowNode)) {
+                    if (!$isNode("TableRow", currentGridRowNode)) {
                         return false;
                     }
 
                     const newGridRowNode = newGridRows[newRowIdx];
 
-                    if (!$isTableRowNode(newGridRowNode)) {
+                    if (!$isNode("TableRow", newGridRowNode)) {
                         return false;
                     }
 
@@ -1460,26 +1452,26 @@ export function applyTableHandlers(
                     for (let c = fromX; c <= toX; c++) {
                         const currentGridCellNode = gridCellNodes[c];
 
-                        if (!$isTableCellNode(currentGridCellNode)) {
+                        if (!$isNode("TableCell", currentGridCellNode)) {
                             return false;
                         }
 
                         const newGridCellNode = newGridCellNodes[newColumnIdx];
 
-                        if (!$isTableCellNode(newGridCellNode)) {
+                        if (!$isNode("TableCell", newGridCellNode)) {
                             return false;
                         }
 
                         if (r === fromY && c === fromX) {
-                            newAnchorCellKey = currentGridCellNode.getKey();
+                            newAnchorCellKey = currentGridCellNode.__key;
                         } else if (r === toY && c === toX) {
-                            newFocusCellKey = currentGridCellNode.getKey();
+                            newFocusCellKey = currentGridCellNode.__key;
                         }
 
                         const originalChildren = currentGridCellNode.getChildren();
                         newGridCellNode.getChildren().forEach((child) => {
-                            if ($isTextNode(child)) {
-                                const paragraphNode = $createParagraphNode();
+                            if ($isNode("Text", child)) {
+                                const paragraphNode = $createNode("Paragraph", {});
                                 paragraphNode.append(child);
                                 currentGridCellNode.append(child);
                             } else {
@@ -1495,7 +1487,7 @@ export function applyTableHandlers(
                 if (newAnchorCellKey && newFocusCellKey) {
                     const newTableSelection = $createTableSelection();
                     newTableSelection.set(
-                        nodes[0].getKey(),
+                        nodes[0].__key,
                         newAnchorCellKey,
                         newFocusCellKey,
                     );
@@ -1523,10 +1515,10 @@ export function applyTableHandlers(
                     const anchorCellNode = $findCellNode(anchorNode);
                     const focusCellNode = $findCellNode(focusNode);
                     const isAnchorInside = !!(
-                        anchorCellNode && tableNode.is($findTableNode(anchorCellNode))
+                        anchorCellNode && tableNode.__key !== $findTableNode(anchorCellNode)?.__key
                     );
                     const isFocusInside = !!(
-                        focusCellNode && tableNode.is($findTableNode(focusCellNode))
+                        focusCellNode && tableNode.__key !== $findTableNode(focusCellNode)?.__key
                     );
                     const isPartialyWithinTable = isAnchorInside !== isFocusInside;
                     const isWithinTable = isAnchorInside && isFocusInside;
@@ -1536,18 +1528,18 @@ export function applyTableHandlers(
                         const newSelection = selection.clone();
                         if (isFocusInside) {
                             newSelection.focus.set(
-                                tableNode.getParentOrThrow().getKey(),
+                                getParentOrThrow(tableNode).__key,
                                 isBackward
-                                    ? tableNode.getIndexWithinParent()
-                                    : tableNode.getIndexWithinParent() + 1,
+                                    ? getIndexWithinParent(tableNode)
+                                    : getIndexWithinParent(tableNode) + 1,
                                 "element",
                             );
                         } else {
                             newSelection.anchor.set(
-                                tableNode.getParentOrThrow().getKey(),
+                                getParentOrThrow(tableNode).__key,
                                 isBackward
-                                    ? tableNode.getIndexWithinParent() + 1
-                                    : tableNode.getIndexWithinParent(),
+                                    ? getIndexWithinParent(tableNode) + 1
+                                    : getIndexWithinParent(tableNode),
                                 "element",
                             );
                         }
@@ -1556,7 +1548,7 @@ export function applyTableHandlers(
                     } else if (isWithinTable) {
                         // Handle case when selection spans across multiple cells but still
                         // has range selection, then we convert it into grid selection
-                        if (!anchorCellNode.is(focusCellNode)) {
+                        if (anchorCellNode.__key !== focusCellNode.__key) {
                             tableObserver.setAnchorCellForSelection(
                                 getObserverCellFromCellNode(anchorCellNode),
                             );
@@ -1578,7 +1570,7 @@ export function applyTableHandlers(
                     selection &&
                     $isTableSelection(selection) &&
                     selection.is(prevSelection) &&
-                    selection.tableKey === tableNode.getKey()
+                    selection.tableKey === tableNode.__key
                 ) {
                     // if selection goes outside of the table we need to change it to Range selection
                     const domSelection = getDOMSelection(editor._window);
@@ -1610,7 +1602,7 @@ export function applyTableHandlers(
                             );
                             if (newSelection) {
                                 newSelection.anchor.set(
-                                    tableNode.getKey(),
+                                    tableNode.__key,
                                     selection.isBackward() ? tableNode.getChildrenSize() : 0,
                                     "element",
                                 );
@@ -1645,12 +1637,12 @@ export function applyTableHandlers(
 
                 if (
                     tableObserver.hasHijackedSelectionStyles &&
-                    !tableNode.isSelected()
+                    !isSelected(tableNode)
                 ) {
                     $removeHighlightStyleToTable(editor, tableObserver);
                 } else if (
                     !tableObserver.hasHijackedSelectionStyles &&
-                    tableNode.isSelected()
+                    isSelected(tableNode)
                 ) {
                     $addHighlightStyleToTable(editor, tableObserver);
                 }
@@ -1692,13 +1684,13 @@ export function applyTableHandlers(
 }
 
 function $findCellNode(node: LexicalNode): null | TableCellNode {
-    const cellNode = $findMatchingParent(node, $isTableCellNode);
-    return $isTableCellNode(cellNode) ? cellNode : null;
+    const cellNode = $findMatchingParent(node, (node): node is TableCellNode => $isNode("TableCell", node));
+    return $isNode("TableCell", cellNode) ? cellNode : null;
 }
 
 export function $findTableNode(node: LexicalNode): null | TableNode {
-    const tableNode = $findMatchingParent(node, $isTableNode);
-    return $isTableNode(tableNode) ? tableNode : null;
+    const tableNode = $findMatchingParent(node, (node): node is TableNode => $isNode("Table", node));
+    return $isNode("Table", tableNode) ? tableNode : null;
 }
 
 function $isSelectionInTable(
@@ -1720,7 +1712,7 @@ function $insertParagraphAtTableEdge(
     tableNode: TableNode,
     children?: LexicalNode[],
 ) {
-    const paragraphNode = $createParagraphNode();
+    const paragraphNode = $createNode("Paragraph", {});
     if (edgePosition === "first") {
         tableNode.insertBefore(paragraphNode);
     } else {
@@ -1742,16 +1734,16 @@ function $getTableEdgeCursorPosition(
     }
 
     const anchorCellNode = $findMatchingParent(selection.anchor.getNode(), (n) =>
-        $isTableCellNode(n),
+        $isNode("TableCell", n),
     ) as TableCellNode | null;
     if (!anchorCellNode) {
         return undefined;
     }
 
     const parentTable = $findMatchingParent(anchorCellNode, (n) =>
-        $isTableNode(n),
+        $isNode("Table", n),
     );
-    if (!$isTableNode(parentTable) || !parentTable.is(tableNode)) {
+    if (!$isNode("Table", parentTable) || !parentTable.is(tableNode)) {
         return undefined;
     }
 
@@ -1845,7 +1837,7 @@ const BROWSER_BLUE_RGB = "172,206,247";
 function $addHighlightToDOM(editor: LexicalEditor, cell: TableDOMCell): void {
     const element = cell.elem;
     const node = $getNearestNodeFromDOMNode(element);
-    if (!$isTableCellNode(node)) {
+    if (!$isNode("TableCell", node)) {
         throw new Error("Expected to find LexicalNode from Table Cell DOMNode");
     }
     const backgroundColor = node.getBackgroundColor();
@@ -1866,7 +1858,7 @@ function $removeHighlightFromDOM(
 ): void {
     const element = cell.elem;
     const node = $getNearestNodeFromDOMNode(element);
-    if (!$isTableCellNode(node)) {
+    if (!$isNode("TableCell", node)) {
         throw new Error("Expected to find LexicalNode from Table Cell DOMNode");
     }
     const backgroundColor = node.getBackgroundColor();
@@ -2032,13 +2024,13 @@ function $handleArrowKey(
             }
             const parentNode = $findMatchingParent(
                 anchorNode,
-                (n) => $isElementNode(n) && !n.isInline(),
+                (n) => $isNode("Element", n) && !n.isInline(),
             );
             if (!parentNode) {
                 return false;
             }
-            const siblingNode = parentNode.getPreviousSibling();
-            if (!siblingNode || !$isTableNode(siblingNode)) {
+            const siblingNode = getPreviousSibling(parentNode);
+            if (!siblingNode || !$isNode("Table", siblingNode)) {
                 return false;
             }
             stopEvent(event);
@@ -2052,22 +2044,23 @@ function $handleArrowKey(
         const { anchor, focus } = selection;
         const anchorCellNode = $findMatchingParent(
             anchor.getNode(),
-            $isTableCellNode,
+            (node): node is TableCellNode => $isNode("TableCell", node),
         );
         const focusCellNode = $findMatchingParent(
             focus.getNode(),
-            $isTableCellNode,
+            (node): node is TableCellNode => $isNode("TableCell", node),
         );
         if (
-            !$isTableCellNode(anchorCellNode) ||
-            !anchorCellNode.is(focusCellNode)
+            !$isNode("TableCell", anchorCellNode) ||
+            !focusCellNode ||
+            anchorCellNode.__key !== focusCellNode.__key
         ) {
             return false;
         }
         const anchorCellTable = $findTableNode(anchorCellNode);
         if (anchorCellTable !== tableNode && anchorCellTable != null) {
             const anchorCellTableElement = editor.getElementByKey(
-                anchorCellTable.getKey(),
+                anchorCellTable.__key,
             );
             if (anchorCellTableElement != null) {
                 tableObserver.table = getTable(anchorCellTableElement);
@@ -2169,21 +2162,21 @@ function $handleArrowKey(
         const { anchor, focus } = selection;
         const anchorCellNode = $findMatchingParent(
             anchor.getNode(),
-            $isTableCellNode,
+            (node): node is TableCellNode => $isNode("TableCell", node),
         );
         const focusCellNode = $findMatchingParent(
             focus.getNode(),
-            $isTableCellNode,
+            (node): node is TableCellNode => $isNode("TableCell", node),
         );
 
         const [tableNodeFromSelection] = selection.getNodes();
         const tableElement = editor.getElementByKey(
-            tableNodeFromSelection.getKey(),
+            tableNodeFromSelection.__key,
         );
         if (
-            !$isTableCellNode(anchorCellNode) ||
-            !$isTableCellNode(focusCellNode) ||
-            !$isTableNode(tableNodeFromSelection) ||
+            !$isNode("TableCell", anchorCellNode) ||
+            !$isNode("TableCell", focusCellNode) ||
+            !$isNode("Table", tableNodeFromSelection) ||
             tableElement == null
         ) {
             return false;
@@ -2244,8 +2237,8 @@ function $handleTableExit(
     tableNode: TableNode,
     direction: "backward" | "forward",
 ) {
-    const anchorCellNode = $findMatchingParent(anchorNode, $isTableCellNode);
-    if (!$isTableCellNode(anchorCellNode)) {
+    const anchorCellNode = $findMatchingParent(anchorNode, (node): node is TableCellNode => $isNode("TableCell", node));
+    if (!$isNode("TableCell", anchorCellNode)) {
         return false;
     }
     const [tableMap, cellValue] = $computeTableMap(
@@ -2258,7 +2251,7 @@ function $handleTableExit(
     }
 
     const toNode = getExitingToNode(anchorNode, direction, tableNode);
-    if (!toNode || $isTableNode(toNode)) {
+    if (!toNode || $isNode("Table", toNode)) {
         return false;
     }
 
@@ -2279,8 +2272,8 @@ function isExitingTableElementAnchor(
     return (
         type === "element" &&
         (direction === "backward"
-            ? anchorNode.getPreviousSibling() === null
-            : anchorNode.getNextSibling() === null)
+            ? getPreviousSibling(anchorNode) === null
+            : getNextSibling(anchorNode) === null)
     );
 }
 
@@ -2292,7 +2285,7 @@ function isExitingTableTextAnchor(
 ) {
     const parentNode = $findMatchingParent(
         anchorNode,
-        (n) => $isElementNode(n) && !n.isInline(),
+        (n) => $isNode("Element", n) && !n.isInline(),
     );
     if (!parentNode) {
         return false;
@@ -2305,8 +2298,8 @@ function isExitingTableTextAnchor(
         type === "text" &&
         hasValidOffset &&
         (direction === "backward"
-            ? parentNode.getPreviousSibling() === null
-            : parentNode.getNextSibling() === null)
+            ? getPreviousSibling(parentNode) === null
+            : getNextSibling(parentNode) === null)
     );
 }
 
@@ -2317,20 +2310,20 @@ function getExitingToNode(
 ) {
     const parentNode = $findMatchingParent(
         anchorNode,
-        (n) => $isElementNode(n) && !n.isInline(),
+        (n) => $isNode("Element", n) && !n.isInline(),
     );
     if (!parentNode) {
         return undefined;
     }
     const anchorSibling =
         direction === "backward"
-            ? parentNode.getPreviousSibling()
-            : parentNode.getNextSibling();
-    return anchorSibling && $isTableNode(anchorSibling)
+            ? getPreviousSibling(parentNode)
+            : getNextSibling(parentNode);
+    return anchorSibling && $isNode("Table", anchorSibling)
         ? anchorSibling
         : direction === "backward"
-            ? tableNode.getPreviousSibling()
-            : tableNode.getNextSibling();
+            ? getPreviousSibling(tableNode)
+            : getNextSibling(tableNode);
 }
 
 function isExitingCell(

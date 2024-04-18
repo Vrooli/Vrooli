@@ -3,8 +3,7 @@ import { INSERT_ORDERED_LIST_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_UNORDERED
 import { COMMAND_PRIORITY_LOW } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
-import { ListItemNode } from "../nodes/ListItemNode";
-import { $handleListInsertParagraph, ListNode, insertList, removeList } from "../nodes/ListNode";
+import { $handleListInsertParagraph, insertList, removeList } from "../nodes/ListNode";
 import { mergeRegister } from "../utils";
 
 export const useList = (editor: LexicalEditor) => {
@@ -53,14 +52,6 @@ export const useList = (editor: LexicalEditor) => {
 
 export const ListPlugin = (): null => {
     const [editor] = useLexicalComposerContext();
-
-    useEffect(() => {
-        if (!editor.hasNodes([ListNode, ListItemNode])) {
-            throw new Error(
-                "ListPlugin: ListNode and/or ListItemNode not registered on editor",
-            );
-        }
-    }, [editor]);
 
     useList(editor);
 

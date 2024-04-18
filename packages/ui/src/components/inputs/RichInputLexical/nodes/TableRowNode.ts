@@ -1,22 +1,18 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeKey, SerializedTableRowNode } from "../types";
-import { $applyNodeReplacement, addClassNamesToElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTableRowNode } from "../types";
+import { $createNode } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
 
 export class TableRowNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "TableRow";
     __height?: number;
 
-    static getType(): string {
-        return "tablerow";
-    }
-
     static clone(node: TableRowNode): TableRowNode {
-        return new TableRowNode(node.__height, node.__key);
+        const { __height, __key } = node;
+        return $createNode("TableRow", { height: __height, key: __key });
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             tr: (node: Node) => ({
                 conversion: convertTableRowElement,
@@ -25,12 +21,12 @@ export class TableRowNode extends ElementNode {
         };
     }
 
-    static importJSON(serializedNode: SerializedTableRowNode): TableRowNode {
-        return $createTableRowNode(serializedNode.height);
+    static importJSON({ height }: SerializedTableRowNode): TableRowNode {
+        return $createNode("TableRow", { height });
     }
 
-    constructor(height?: number, key?: NodeKey) {
-        super(key);
+    constructor({ height, ...rest }: NodeConstructorPayloads["TableRow"]) {
+        super(rest);
         this.__height = height;
     }
 
@@ -38,7 +34,7 @@ export class TableRowNode extends ElementNode {
         return {
             ...super.exportJSON(),
             ...(this.getHeight() && { height: this.getHeight() }),
-            type: "tablerow",
+            __type: "TableRow",
             version: 1,
         };
     }
@@ -49,8 +45,6 @@ export class TableRowNode extends ElementNode {
         if (this.__height) {
             element.style.height = `${this.__height}px`;
         }
-
-        addClassNamesToElement(element, config.theme.tableRow);
 
         return element;
     }
@@ -90,15 +84,5 @@ export function convertTableRowElement(domNode: Node): DOMConversionOutput {
         height = parseFloat(domNode_.style.height);
     }
 
-    return { node: $createTableRowNode(height) };
-}
-
-export function $createTableRowNode(height?: number): TableRowNode {
-    return $applyNodeReplacement(new TableRowNode(height));
-}
-
-export function $isTableRowNode(
-    node: LexicalNode | null | undefined,
-): node is TableRowNode {
-    return node instanceof TableRowNode;
+    return { node: $createNode("TableRow", { height }) };
 }

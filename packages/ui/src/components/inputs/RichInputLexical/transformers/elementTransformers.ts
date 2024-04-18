@@ -1,12 +1,9 @@
-import { $createCodeNode, $isCodeNode, CodeNode } from "../nodes/CodeNode";
-import { ElementNode } from "../nodes/ElementNode";
-import { $createHeadingNode, $isHeadingNode, HeadingNode } from "../nodes/HeadingNode";
-import { LexicalNode } from "../nodes/LexicalNode";
-import { $createLineBreakNode } from "../nodes/LineBreakNode";
-import { ListItemNode } from "../nodes/ListItemNode";
-import { $isListNode, ListNode, listExport, listReplace } from "../nodes/ListNode";
-import { $createQuoteNode, $isQuoteNode, QuoteNode } from "../nodes/QuoteNode";
+import { $createCodeNode } from "../nodes/CodeNode";
+import { type ElementNode } from "../nodes/ElementNode";
+import { getPreviousSibling, type LexicalNode } from "../nodes/LexicalNode";
+import { listExport, listReplace } from "../nodes/ListNode";
 import { ElementTransformer, HeadingTagType } from "../types";
+import { $createNode, $isNode } from "../utils";
 
 const createBlockNode = (
     createNode: (match: Array<string>) => ElementNode,
@@ -20,9 +17,8 @@ const createBlockNode = (
 };
 
 export const HEADING: ElementTransformer = {
-    dependencies: [HeadingNode],
     export: (node, exportChildren) => {
-        if (!$isHeadingNode(node)) {
+        if (!$isNode("Heading", node)) {
             return null;
         }
         const level = Number(node.getTag().slice(1));
@@ -31,15 +27,14 @@ export const HEADING: ElementTransformer = {
     regExp: /^(#{1,6})\s/,
     replace: createBlockNode((match) => {
         const tag = ("h" + match[1].length) as HeadingTagType;
-        return $createHeadingNode(tag);
+        return $createNode("Heading", { tag });
     }),
     type: "element",
 };
 
 export const QUOTE: ElementTransformer = {
-    dependencies: [QuoteNode],
     export: (node, exportChildren) => {
-        if (!$isQuoteNode(node)) {
+        if (!$isNode("Quote", node)) {
             return null;
         }
 
@@ -53,10 +48,10 @@ export const QUOTE: ElementTransformer = {
     regExp: /^>\s/,
     replace: (parentNode, children, _match, isImport) => {
         if (isImport) {
-            const previousNode = parentNode.getPreviousSibling();
-            if ($isQuoteNode(previousNode)) {
+            const previousNode = getPreviousSibling(parentNode);
+            if ($isNode("Quote", previousNode)) {
                 previousNode.splice(previousNode.getChildrenSize(), 0, [
-                    $createLineBreakNode(),
+                    $createNode("LineBreak", {}),
                     ...children,
                 ]);
                 previousNode.select(0, 0);
@@ -65,7 +60,7 @@ export const QUOTE: ElementTransformer = {
             }
         }
 
-        const node = $createQuoteNode();
+        const node = $createNode("Quote", {});
         node.append(...children);
         parentNode.replace(node);
         node.select(0, 0);
@@ -74,15 +69,14 @@ export const QUOTE: ElementTransformer = {
 };
 
 export const CODE: ElementTransformer = {
-    dependencies: [CodeNode],
     export: (node: LexicalNode) => {
-        if (!$isCodeNode(node)) {
+        if (!$isNode("Code", node)) {
             return null;
         }
         const textContent = node.getTextContent();
         return (
             "```" +
-            (node.getLanguage() || "") +
+            (node.__language || "") +
             (textContent ? "\n" + textContent : "") +
             "\n" +
             "```"
@@ -96,9 +90,8 @@ export const CODE: ElementTransformer = {
 };
 
 export const UNORDERED_LIST: ElementTransformer = {
-    dependencies: [ListNode, ListItemNode],
     export: (node, exportChildren) => {
-        return $isListNode(node) ? listExport(node, exportChildren, 0) : null;
+        return $isNode("List", node) ? listExport(node, exportChildren, 0) : null;
     },
     regExp: /^(\s*)[-*+]\s/,
     replace: listReplace("bullet"),
@@ -106,9 +99,8 @@ export const UNORDERED_LIST: ElementTransformer = {
 };
 
 export const CHECK_LIST: ElementTransformer = {
-    dependencies: [ListNode, ListItemNode],
     export: (node, exportChildren) => {
-        return $isListNode(node) ? listExport(node, exportChildren, 0) : null;
+        return $isNode("List", node) ? listExport(node, exportChildren, 0) : null;
     },
     regExp: /^(\s*)(?:-\s)?\s?(\[(\s|x)?\])\s/i,
     replace: listReplace("check"),
@@ -116,9 +108,8 @@ export const CHECK_LIST: ElementTransformer = {
 };
 
 export const ORDERED_LIST: ElementTransformer = {
-    dependencies: [ListNode, ListItemNode],
     export: (node, exportChildren) => {
-        return $isListNode(node) ? listExport(node, exportChildren, 0) : null;
+        return $isNode("List", node) ? listExport(node, exportChildren, 0) : null;
     },
     regExp: /^(\s*)(\d{1,})\.\s/,
     replace: listReplace("number"),

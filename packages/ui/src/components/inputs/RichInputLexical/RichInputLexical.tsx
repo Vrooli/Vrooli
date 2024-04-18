@@ -11,23 +11,12 @@ import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INS
 import { CAN_USE_DOM, COMMAND_PRIORITY_CRITICAL } from "./consts";
 import { LexicalComposerContext, LexicalComposerContextType, createLexicalComposerContext, useLexicalComposerContext } from "./context";
 import { EditorState, LexicalEditor, createEditor } from "./editor";
-import { ElementNode } from "./nodes/ElementNode";
-import { HashtagNode } from "./nodes/HashtagNode";
-import { $isHeadingNode, HeadingNode } from "./nodes/HeadingNode";
-import { HorizontalRuleNode } from "./nodes/HorizontalRuleNode";
-import { LexicalNode } from "./nodes/LexicalNode";
-import { LineBreakNode } from "./nodes/LineBreakNode";
-import { $isLinkNode, AutoLinkNode, LinkNode } from "./nodes/LinkNode";
-import { ListItemNode } from "./nodes/ListItemNode";
-import { ListNode } from "./nodes/ListNode";
-import { $createParagraphNode, ParagraphNode } from "./nodes/ParagraphNode";
-import { QuoteNode } from "./nodes/QuoteNode";
-import { TableCellNode } from "./nodes/TableCellNode";
-import { $isTableNode, TableNode } from "./nodes/TableNode";
-import { TableRowNode } from "./nodes/TableRowNode";
-import { TextNode } from "./nodes/TextNode";
+import { type ElementNode } from "./nodes/ElementNode";
+import { type HeadingNode } from "./nodes/HeadingNode";
+import { getParent, getTopLevelElementOrThrow, type LexicalNode } from "./nodes/LexicalNode";
+import { type TextNode } from "./nodes/TextNode";
 import { CheckListPlugin } from "./plugins/CheckListPlugin";
-import { CodeBlockNode, CodeBlockPlugin } from "./plugins/CodePlugin";
+import { CodeBlockPlugin } from "./plugins/CodePlugin";
 import { LinkPlugin } from "./plugins/LinkPlugin";
 import { ListPlugin } from "./plugins/ListPlugin";
 import { OnChangePlugin } from "./plugins/OnChangePlugin";
@@ -40,7 +29,7 @@ import { ELEMENT_TRANSFORMERS } from "./transformers/elementTransformers";
 import { TEXT_TRANSFORMERS, applyTextTransformers } from "./transformers/textFormatTransformers";
 import { TEXT_MATCH_TRANSFORMERS } from "./transformers/textMatchTransformers";
 import { EditorThemeClasses, HeadingTagType, InitialEditorStateType, LexicalTransformer, NodeKey } from "./types";
-import { $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isListNode, $isRangeSelection, $isRootOrShadowRoot } from "./utils";
+import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot } from "./utils";
 
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
@@ -187,7 +176,7 @@ function initializeEditor(
         editor.update(() => {
             const root = $getRoot();
             if (root.isEmpty()) {
-                const paragraph = $createParagraphNode();
+                const paragraph = $createNode("Paragraph", {});
                 root.append(paragraph);
                 const activeElement = CAN_USE_DOM ? document.activeElement : null;
                 if (
@@ -283,7 +272,7 @@ const applyStyles = (
     if (!parentNode) return text;
 
     // If the parent node is a heading, add the appropriate number of "#" characters
-    if (parentNode.__type === "heading" && canApplyHeader) {
+    if (parentNode?.getType() === "Heading" && canApplyHeader) {
         text = "#".repeat((parentNode as HeadingNode).__size) + " " + text;
     }
 
@@ -293,7 +282,7 @@ const applyStyles = (
 export const MarkdownShortcutPlugin = ({
     transformers,
 }: Readonly<{
-    transformers: Array<LexicalTransformer>;
+    transformers: LexicalTransformer[];
 }>): null => {
     const [editor] = useLexicalComposerContext();
 
@@ -444,18 +433,18 @@ const RichInputLexicalComponents = ({
         if ($isRangeSelection(selection)) {
             const anchorNode = selection.anchor.getNode();
             let element =
-                anchorNode.getKey() === "root"
+                anchorNode.__key === "root"
                     ? anchorNode
                     : $findMatchingParent(anchorNode, (e) => {
-                        const parent = e.getParent();
+                        const parent = getParent(e);
                         return parent !== null && $isRootOrShadowRoot(parent);
                     });
 
             if (element === null) {
-                element = anchorNode.getTopLevelElementOrThrow();
+                element = getTopLevelElementOrThrow(anchorNode);
             }
 
-            const elementKey = element.getKey();
+            const elementKey = element.__key;
             const elementDOM = activeEditor.getElementByKey(elementKey);
 
             // Find text formats
@@ -467,23 +456,20 @@ const RichInputLexicalComponents = ({
             updatedStates.Strikethrough = selection.hasFormat("STRIKETHROUGH");
             // Check if link
             const node = getSelectedNode(selection);
-            const parent = node.getParent();
-            if ($isLinkNode(parent) || $isLinkNode(node)) {
+            const parent = getParent(node);
+            if ($isNode("Link", parent) || $isNode("Link", node)) {
                 updatedStates.Link = true;
             }
             // Check if table
-            const tableNode = $findMatchingParent(node, $isTableNode);
-            if ($isTableNode(tableNode)) {
+            const tableNode = $findMatchingParent(node, (node) => $isNode("Table", node));
+            if ($isNode("Table", tableNode)) {
                 updatedStates.Table = true;
             }
 
             if (elementDOM !== null) {
                 setSelectedElementKey(elementKey);
-                if ($isListNode(element)) {
-                    const parentList = $getNearestNodeOfType<ListNode>(
-                        anchorNode,
-                        ListNode,
-                    );
+                if ($isNode("List", element)) {
+                    const parentList = $getNearestNodeOfType("List", anchorNode);
                     const type = parentList
                         ? parentList.getListType()
                         : element.getListType();
@@ -492,7 +478,7 @@ const RichInputLexicalComponents = ({
                         updatedStates[blockTypeToActionName[type as keyof typeof blockTypeToActionName]] = true;
                     }
                 } else {
-                    const type = $isHeadingNode(element)
+                    const type = $isNode("Heading", element)
                         ? element.getTag()
                         : element.getType();
                     if (type in blockTypeToActionName) {
@@ -539,9 +525,9 @@ const RichInputLexicalComponents = ({
     const toggleHeading = useCallback((headingSize: HeadingTagType) => {
         editor.update(() => {
             const selection = $getSelection();
-            //TODO
+            //TODO fix this or replace it. If replacing, you can also remove $setBlocksType
             // if (selection && $INTERNAL_isPointSelection(selection)) {
-            //     $setBlocksType(selection as INTERNAL_PointSelection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createParagraphNode() : $createHeadingNode(headingSize));
+            //     $setBlocksType(selection as INTERNAL_PointSelection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createNode("Paragraph", {}) : $createNode("Heading", { headingSize }));
             // }
         });
     }, [activeStates, editor]);
@@ -566,16 +552,16 @@ const RichInputLexicalComponents = ({
                                 // Concatenate the text from these nodes
                                 selectedText = nodes.map((node) => {
                                     // If normal or stylized text
-                                    if (node.__type === "text") {
+                                    if (node.getType() === "Text") {
                                         const parentNode = node.__parent ? $getNodeByKey(node.__parent) : null;
                                         const formattedText = applyStyles(node.getTextContent(), (node as TextNode).__format, parentNode, canApplyHeader);
-                                        if (parentNode?.__type === "heading") {
+                                        if (parentNode?.getType() === "Heading") {
                                             canApplyHeader = false;
                                         }
                                         return formattedText;
                                     }
                                     // If a newline (this node type might be used in other cases, but we're not sure yet)
-                                    else if (node.__type === "paragraph") {
+                                    else if (node.getType() === "Paragraph") {
                                         canApplyHeader = true;
                                         return "\n";
                                     }
@@ -699,44 +685,32 @@ const RichInputLexicalComponents = ({
 
 /** TextInput for entering WYSIWYG text */
 export const RichInputLexical = ({
+    disabled,
     value,
     ...props
 }: RichInputLexicalProps) => {
 
-    const onError = (error: Error) => {
-        console.error(error);
-    };
-
     /** Configuration for lexical editor */
     const initialConfig = useMemo(() => ({
-        editable: true,
+        editable: disabled !== false,
         // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
         editorState: () => {
             console.log("calling convertfrommarkdownstring in initialconfig.editorState function");
             $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         },
         namespace: "RichInputEditor",
-        nodes: [AutoLinkNode, CodeBlockNode, HashtagNode, HeadingNode, HorizontalRuleNode, LineBreakNode, LinkNode, ListNode, ListItemNode, ParagraphNode, QuoteNode, TableNode, TableCellNode, TableRowNode],
-        onError,
-        theme,
-    }), [value]);
+    }), [disabled, value]);
 
     /** Lexical editor context, for finding and manipulating state */
     const composerContext: [LexicalEditor, LexicalComposerContextType] = useMemo(() => {
         const {
             editorState: initialEditorState,
             namespace,
-            nodes,
-            onError,
-            theme,
         } = initialConfig;
         const context = createLexicalComposerContext(null, theme);
         const newEditor = createEditor({
             editable: initialConfig.editable,
             namespace,
-            nodes,
-            onError: (error) => onError(error),
-            theme,
         });
         initializeEditor(newEditor, initialEditorState);
         const editor = newEditor;

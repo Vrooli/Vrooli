@@ -1,41 +1,36 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts";
 import { LexicalEditor } from "../editor";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeKey, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
-import { $applyNodeReplacement, $isElementNode, $isTextNode, addClassNamesToElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
+import { $createNode, $isNode } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $isLineBreakNode } from "./LineBreakNode";
-import { $createParagraphNode } from "./ParagraphNode";
+import { getParentOrThrow } from "./LexicalNode";
 
 export class TableCellNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "TableCell";
     __colSpan: number;
-    /** @internal */
     __rowSpan: number;
-    /** @internal */
     __headerState: TableCellHeaderState;
-    /** @internal */
     __width?: number;
-    /** @internal */
     __backgroundColor: null | string;
 
-    static getType(): string {
-        return "tablecell";
+    constructor({ colSpan, headerState, width, ...rest }: NodeConstructorPayloads["TableCell"]) {
+        super(rest);
+        this.__colSpan = colSpan !== undefined ? colSpan : 1;
+        this.__rowSpan = 1;
+        this.__headerState = headerState || TableCellHeaderStates.NO_STATUS;
+        this.__width = width;
+        this.__backgroundColor = null;
     }
 
     static clone(node: TableCellNode): TableCellNode {
-        const cellNode = new TableCellNode(
-            node.__headerState,
-            node.__colSpan,
-            node.__width,
-            node.__key,
-        );
+        const { __colSpan, __headerState, __width, __key } = node;
+        const cellNode = $createNode("TableCell", { colSpan: __colSpan, headerState: __headerState, width: __width, key: __key });
         cellNode.__rowSpan = node.__rowSpan;
         cellNode.__backgroundColor = node.__backgroundColor;
         return cellNode;
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             td: (node: Node) => ({
                 conversion: convertTableCellNodeElement,
@@ -48,31 +43,15 @@ export class TableCellNode extends ElementNode {
         };
     }
 
-    static importJSON(serializedNode: SerializedTableCellNode): TableCellNode {
-        const colSpan = serializedNode.colSpan || 1;
-        const rowSpan = serializedNode.rowSpan || 1;
-        const cellNode = $createTableCellNode(
-            serializedNode.headerState,
-            colSpan,
-            serializedNode.width || undefined,
-        );
-        cellNode.__rowSpan = rowSpan;
-        cellNode.__backgroundColor = serializedNode.backgroundColor || null;
+    static importJSON({ backgroundColor, colSpan, headerState, rowSpan, width }: SerializedTableCellNode): TableCellNode {
+        const cellNode = $createNode("TableCell", {
+            colSpan: colSpan !== undefined ? colSpan : 1,
+            headerState,
+            width,
+        });
+        cellNode.__rowSpan = rowSpan !== undefined ? rowSpan : 1;
+        cellNode.__backgroundColor = backgroundColor || null;
         return cellNode;
-    }
-
-    constructor(
-        headerState = TableCellHeaderStates.NO_STATUS,
-        colSpan = 1,
-        width?: number,
-        key?: NodeKey,
-    ) {
-        super(key);
-        this.__colSpan = colSpan;
-        this.__rowSpan = 1;
-        this.__headerState = headerState;
-        this.__width = width;
-        this.__backgroundColor = null;
     }
 
     createDOM(config: EditorConfig): HTMLElement {
@@ -92,13 +71,6 @@ export class TableCellNode extends ElementNode {
         if (this.__backgroundColor !== null) {
             element.style.backgroundColor = this.__backgroundColor;
         }
-
-        addClassNamesToElement(
-            element,
-            config.theme.tableCell,
-            this.hasHeader() && config.theme.tableCellHeader,
-        );
-
         return element;
     }
 
@@ -108,7 +80,7 @@ export class TableCellNode extends ElementNode {
         if (element) {
             const element_ = element as HTMLTableCellElement;
             const maxWidth = 700;
-            const colCount = this.getParentOrThrow().getChildrenSize();
+            const colCount = getParentOrThrow(this).getChildrenSize();
             element_.style.border = "1px solid black";
             if (this.__colSpan > 1) {
                 element_.colSpan = this.__colSpan;
@@ -138,11 +110,11 @@ export class TableCellNode extends ElementNode {
     exportJSON(): SerializedTableCellNode {
         return {
             ...super.exportJSON(),
+            __type: "ListItem",
             backgroundColor: this.getBackgroundColor(),
             colSpan: this.__colSpan,
             headerState: this.__headerState,
             rowSpan: this.__rowSpan,
-            type: "tablecell",
             width: this.getWidth(),
         };
     }
@@ -256,13 +228,13 @@ export function convertTableCellNodeElement(
         width = parseFloat(domNode_.style.width);
     }
 
-    const tableCellNode = $createTableCellNode(
-        nodeName === "th"
+    const tableCellNode = $createNode("TableCell", {
+        colSpan: domNode_.colSpan,
+        headerState: nodeName === "th"
             ? TableCellHeaderStates.ROW
             : TableCellHeaderStates.NO_STATUS,
-        domNode_.colSpan,
         width,
-    );
+    });
 
     tableCellNode.__rowSpan = domNode_.rowSpan;
     const backgroundColor = domNode_.style.backgroundColor;
@@ -280,20 +252,20 @@ export function convertTableCellNodeElement(
     return {
         after: (childLexicalNodes) => {
             if (childLexicalNodes.length === 0) {
-                childLexicalNodes.push($createParagraphNode());
+                childLexicalNodes.push($createNode("Paragraph", {}));
             }
             return childLexicalNodes;
         },
         forChild: (lexicalNode, parentLexicalNode) => {
-            if ($isTableCellNode(parentLexicalNode) && !$isElementNode(lexicalNode)) {
-                const paragraphNode = $createParagraphNode();
+            if ($isNode("TableCell", parentLexicalNode) && !$isNode("Element", lexicalNode)) {
+                const paragraphNode = $createNode("Paragraph", {});
                 if (
-                    $isLineBreakNode(lexicalNode) &&
+                    $isNode("LineBreak", lexicalNode) &&
                     lexicalNode.getTextContent() === "\n"
                 ) {
                     return null;
                 }
-                if ($isTextNode(lexicalNode)) {
+                if ($isNode("Text", lexicalNode)) {
                     if (hasBoldFontWeight) {
                         lexicalNode.toggleFormat("BOLD");
                     }
@@ -315,18 +287,4 @@ export function convertTableCellNodeElement(
         },
         node: tableCellNode,
     };
-}
-
-export function $createTableCellNode(
-    headerState: TableCellHeaderState,
-    colSpan = 1,
-    width?: number,
-): TableCellNode {
-    return $applyNodeReplacement(new TableCellNode(headerState, colSpan, width));
-}
-
-export function $isTableCellNode(
-    node: LexicalNode | null | undefined,
-): node is TableCellNode {
-    return node instanceof TableCellNode;
 }

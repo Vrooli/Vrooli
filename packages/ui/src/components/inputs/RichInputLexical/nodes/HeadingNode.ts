@@ -1,26 +1,22 @@
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, HeadingTagType, NodeKey, SerializedHeadingNode } from "../types";
-import { $applyNodeReplacement, addClassNamesToElement, isHTMLElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, HeadingTagType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types";
+import { $createNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $createParagraphNode, ParagraphNode } from "./ParagraphNode";
+import { type ParagraphNode } from "./ParagraphNode";
 
 export class HeadingNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "Heading";
     __tag: HeadingTagType;
 
-    static getType(): string {
-        return "heading";
+    constructor({ tag, ...rest }: NodeConstructorPayloads["Heading"]) {
+        super(rest);
+        this.__tag = tag;
     }
 
     static clone(node: HeadingNode): HeadingNode {
-        return new HeadingNode(node.__tag, node.__key);
-    }
-
-    constructor(tag: HeadingTagType, key?: NodeKey) {
-        super(key);
-        this.__tag = tag;
+        const { __tag, __key } = node;
+        return $createNode("Heading", { tag: __tag, key: __key });
     }
 
     getTag(): HeadingTagType {
@@ -32,12 +28,6 @@ export class HeadingNode extends ElementNode {
     createDOM(config: EditorConfig): HTMLElement {
         const tag = this.__tag;
         const element = document.createElement(tag);
-        const theme = config.theme;
-        const classNames = theme.heading;
-        if (classNames !== undefined) {
-            const className = classNames[tag];
-            addClassNamesToElement(element, className);
-        }
         return element;
     }
 
@@ -45,7 +35,7 @@ export class HeadingNode extends ElementNode {
         return false;
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             h1: (node: Node) => ({
                 conversion: convertHeadingElement,
@@ -102,19 +92,19 @@ export class HeadingNode extends ElementNode {
         };
     }
 
-    static importJSON(serializedNode: SerializedHeadingNode): HeadingNode {
-        const node = $createHeadingNode(serializedNode.tag);
-        node.setFormat(serializedNode.format);
-        node.setIndent(serializedNode.indent);
-        node.setDirection(serializedNode.direction);
+    static importJSON({ direction, format, indent, tag }: SerializedHeadingNode): HeadingNode {
+        const node = $createNode("Heading", { tag });
+        node.setFormat(format);
+        node.setIndent(indent);
+        node.setDirection(direction);
         return node;
     }
 
     exportJSON(): SerializedHeadingNode {
         return {
             ...super.exportJSON(),
+            __type: "Heading",
             tag: this.getTag(),
-            type: "heading",
             version: 1,
         };
     }
@@ -127,13 +117,13 @@ export class HeadingNode extends ElementNode {
         const anchorOffet = selection ? selection.anchor.offset : 0;
         const newElement =
             anchorOffet === this.getTextContentSize() || !selection
-                ? $createParagraphNode()
-                : $createHeadingNode(this.getTag());
+                ? $createNode("Paragraph", {})
+                : $createNode("Heading", { tag: this.getTag() });
         const direction = this.getDirection();
         newElement.setDirection(direction);
         this.insertAfter(newElement, restoreSelection);
         if (anchorOffet === 0 && !this.isEmpty() && selection) {
-            const paragraph = $createParagraphNode();
+            const paragraph = $createNode("Paragraph", {});
             paragraph.select();
             this.replace(paragraph, true);
         }
@@ -142,8 +132,8 @@ export class HeadingNode extends ElementNode {
 
     collapseAtStart(): true {
         const newElement = !this.isEmpty()
-            ? $createHeadingNode(this.getTag())
-            : $createParagraphNode();
+            ? $createNode("Heading", { tag: this.getTag() })
+            : $createNode("Paragraph", {});
         const children = this.getChildren();
         children.forEach((child) => newElement.append(child));
         this.replace(newElement);
@@ -166,21 +156,10 @@ const convertHeadingElement = (element: HTMLElement): DOMConversionOutput => {
         nodeName === "h5" ||
         nodeName === "h6"
     ) {
-        node = $createHeadingNode(nodeName);
+        node = $createNode("Heading", { tag: nodeName });
         if (element.style !== null) {
             node.setFormat(element.style.textAlign as ElementFormatType);
         }
     }
     return { node };
-};
-
-
-export const $createHeadingNode = (headingTag: HeadingTagType): HeadingNode => {
-    return $applyNodeReplacement(new HeadingNode(headingTag));
-};
-
-export const $isHeadingNode = (
-    node: LexicalNode | null | undefined,
-): node is HeadingNode => {
-    return node instanceof HeadingNode;
 };

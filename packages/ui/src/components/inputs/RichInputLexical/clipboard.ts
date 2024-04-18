@@ -1,11 +1,10 @@
 import { COPY_COMMAND, SELECTION_INSERT_CLIPBOARD_NODES_COMMAND } from "./commands";
 import { CAN_USE_DOM, COMMAND_PRIORITY_CRITICAL } from "./consts";
 import { LexicalEditor } from "./editor";
-import { LexicalNode } from "./nodes/LexicalNode";
-import { $createTabNode } from "./nodes/TabNode";
+import { isSelected, type LexicalNode } from "./nodes/LexicalNode";
 import { BaseSelection, BaseSerializedNode, SerializedElementNode, SerializedTextNode } from "./types";
 import { $addNodeStyle, $parseSerializedNode } from "./updates";
-import { $cloneWithProperties, $generateNodesFromDOM, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isTextNode, $sliceSelectedTextNodeContent, isSelectionWithinEditor, objectKlassEquals } from "./utils";
+import { $cloneWithProperties, $createNode, $generateNodesFromDOM, $getRoot, $getSelection, $isNode, $isRangeSelection, $sliceSelectedTextNodeContent, isSelectionWithinEditor, objectKlassEquals } from "./utils";
 
 const getDOMSelection = (targetWindow: Window | null): Selection | null =>
     CAN_USE_DOM ? (targetWindow || window).getSelection() : null;
@@ -116,7 +115,7 @@ export const $insertDataTransferForRichText = (
                 if (part === "\n" || part === "\r\n") {
                     selection.insertParagraph();
                 } else if (part === "\t") {
-                    selection.insertNodes([$createTabNode()]);
+                    selection.insertNodes([$createNode("Tab", {})]);
                 } else {
                     selection.insertText(part);
                 }
@@ -139,7 +138,7 @@ export const $insertDataTransferForRichText = (
  */
 export const $insertGeneratedNodes = (
     editor: LexicalEditor,
-    nodes: Array<LexicalNode>,
+    nodes: LexicalNode[],
     selection: BaseSelection,
 ): void => {
     if (
@@ -155,17 +154,16 @@ export const $insertGeneratedNodes = (
 
 function exportNodeToJSON<T extends LexicalNode>(node: T): BaseSerializedNode {
     const serializedNode = node.exportJSON();
-    const nodeClass = node.constructor;
 
-    if (serializedNode.type !== nodeClass.getType()) {
-        throw new Error(`LexicalNode: Node ${nodeClass.name} does not implement .exportJSON().`);
+    if (serializedNode.__type !== node.getType()) {
+        throw new Error(`LexicalNode: Node ${node.getType()} does not implement .exportJSON().`);
     }
 
-    if ($isElementNode(node)) {
+    if ($isNode("Element", node)) {
         const serializedChildren = (serializedNode as SerializedElementNode)
             .children;
         if (!Array.isArray(serializedChildren)) {
-            throw new Error(`LexicalNode: Node ${nodeClass.name} is an element but .exportJSON() does not have a children array.`);
+            throw new Error(`LexicalNode: Node ${node.getType()} is an element but .exportJSON() does not have a children array.`);
         }
     }
 
@@ -176,23 +174,23 @@ const $appendNodesToJSON = (
     editor: LexicalEditor,
     selection: BaseSelection | null,
     currentNode: LexicalNode,
-    targetArray: Array<BaseSerializedNode> = [],
+    targetArray: BaseSerializedNode[] = [],
 ): boolean => {
     let shouldInclude =
-        selection !== null ? currentNode.isSelected(selection) : true;
+        selection !== null ? isSelected(currentNode, selection) : true;
     const shouldExclude =
-        $isElementNode(currentNode) && currentNode.excludeFromCopy("html");
+        $isNode("Element", currentNode) && currentNode.excludeFromCopy("html");
     let target = currentNode;
 
     if (selection !== null) {
         let clone = $cloneWithProperties<LexicalNode>(currentNode);
         clone =
-            $isTextNode(clone) && selection !== null
+            $isNode("Text", clone) && selection !== null
                 ? $sliceSelectedTextNodeContent(selection, clone)
                 : clone;
         target = clone;
     }
-    const children = $isElementNode(target) ? target.getChildren() : [];
+    const children = $isNode("Element", target) ? target.getChildren() : [];
 
     const serializedNode = exportNodeToJSON(target);
 
@@ -202,7 +200,7 @@ const $appendNodesToJSON = (
     // same node as far as the LexicalEditor is concerned since it shares a key.
     // We need a way to create a clone of a Node in memory with it's own key, but
     // until then this hack will work for the selected text extract use case.
-    if ($isTextNode(target)) {
+    if ($isNode("Text", target)) {
         const text = target.__text;
         // If an uncollapsed selection ends or starts at the end of a line of specialized,
         // TextNodes, such as code tokens, we will get a 'blank' TextNode here, i.e., one
@@ -225,7 +223,7 @@ const $appendNodesToJSON = (
 
         if (
             !shouldInclude &&
-            $isElementNode(currentNode) &&
+            $isNode("Element", currentNode) &&
             shouldIncludeChild &&
             currentNode.extractWithChild(childNode, selection, "clone")
         ) {
@@ -260,9 +258,9 @@ export function $generateJSONFromSelectedNodes<
     selection: BaseSelection | null,
 ): {
     namespace: string;
-    nodes: Array<SerializedNode>;
+    nodes: SerializedNode[];
 } {
-    const nodes: Array<SerializedNode> = [];
+    const nodes: SerializedNode[] = [];
     const root = $getRoot();
     const topLevelChildren = root.getChildren();
     for (let i = 0; i < topLevelChildren.length; i++) {
@@ -284,13 +282,13 @@ export function $generateJSONFromSelectedNodes<
  * @returns an Array of Lexical Node objects.
  */
 export function $generateNodesFromSerializedNodes(
-    serializedNodes: Array<BaseSerializedNode>,
-): Array<LexicalNode> {
+    serializedNodes: BaseSerializedNode[],
+): LexicalNode[] {
     const nodes: LexicalNode[] = [];
     for (let i = 0; i < serializedNodes.length; i++) {
         const serializedNode = serializedNodes[i];
         const node = $parseSerializedNode(serializedNode);
-        if ($isTextNode(node)) {
+        if ($isNode("Text", node)) {
             $addNodeStyle(node);
         }
         nodes.push(node);

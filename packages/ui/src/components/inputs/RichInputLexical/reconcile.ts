@@ -2,10 +2,8 @@
 import { DOUBLE_LINE_BREAK, FULL_RECONCILE, IS_ALIGN_CENTER, IS_ALIGN_END, IS_ALIGN_JUSTIFY, IS_ALIGN_LEFT, IS_ALIGN_RIGHT, IS_ALIGN_START } from "./consts";
 import { EditorState, LexicalEditor } from "./editor";
 import { ElementNode } from "./nodes/ElementNode";
-import { $isLineBreakNode } from "./nodes/LineBreakNode";
-import { $isParagraphNode } from "./nodes/ParagraphNode";
 import { EditorConfig, IntentionallyMarkedAsDirtyElement, MutatedNodes, MutationListeners, NodeKey, NodeMap, RegisteredNodes } from "./types";
-import { $isDecoratorNode, $isElementNode, $isRootNode, $isTextNode, $textContentRequiresDoubleLinebreakAtEnd, cloneDecorators, getElementByKeyOrThrow, getTextDirection, normalizeClassNames, setMutatedNode } from "./utils";
+import { $isNode, $textContentRequiresDoubleLinebreakAtEnd, cloneDecorators, getElementByKeyOrThrow, getTextDirection, setMutatedNode } from "./utils";
 
 
 let subTreeTextContent = "";
@@ -42,7 +40,7 @@ function destroyNode(key: NodeKey, parentDOM: null | HTMLElement): void {
         activeEditor._keyToDOMMap.delete(key);
     }
 
-    if ($isElementNode(node)) {
+    if ($isNode("Element", node)) {
         const children = createChildrenArray(node, activePrevNodeMap);
         destroyChildren(children, 0, children.length - 1, null);
     }
@@ -59,7 +57,7 @@ function destroyNode(key: NodeKey, parentDOM: null | HTMLElement): void {
 }
 
 function destroyChildren(
-    children: Array<NodeKey>,
+    children: NodeKey[],
     _startIndex: number,
     endIndex: number,
     dom: null | HTMLElement,
@@ -82,18 +80,6 @@ function setTextAlign(domStyle: CSSStyleDeclaration, value: string): void {
 const DEFAULT_INDENT_VALUE = "40px";
 
 function setElementIndent(dom: HTMLElement, indent: number): void {
-    const indentClassName = activeEditorConfig.theme.indent;
-
-    if (typeof indentClassName === "string") {
-        const elementHasClassName = dom.classList.contains(indentClassName);
-
-        if (indent > 0 && !elementHasClassName) {
-            dom.classList.add(indentClassName);
-        } else if (indent < 1 && elementHasClassName) {
-            dom.classList.remove(indentClassName);
-        }
-    }
-
     const indentationBaseValue =
         getComputedStyle(dom).getPropertyValue("--lexical-indent-base-value") ||
         DEFAULT_INDENT_VALUE;
@@ -140,13 +126,13 @@ function createNode(
     // This helps preserve the text, and stops spell check tools from
     // merging or break the spans (which happens if they are missing
     // this attribute).
-    if ($isTextNode(node)) {
+    if ($isNode("Text", node)) {
         dom.setAttribute("data-lexical-text", "true");
-    } else if ($isDecoratorNode(node)) {
+    } else if ($isNode("Decorator", node)) {
         dom.setAttribute("data-lexical-decorator", "true");
     }
 
-    if ($isElementNode(node)) {
+    if ($isNode("Element", node)) {
         const indent = node.__indent;
         const childrenSize = node.__size;
 
@@ -173,7 +159,7 @@ function createNode(
     } else {
         const text = node.getTextContent();
 
-        if ($isDecoratorNode(node)) {
+        if ($isNode("Decorator", node)) {
             const decorator = node.decorate(activeEditor, activeEditorConfig);
 
             if (decorator !== null) {
@@ -181,7 +167,7 @@ function createNode(
             }
             // Decorators are always non editable
             dom.contentEditable = "false";
-        } else if ($isTextNode(node)) {
+        } else if ($isNode("Text", node)) {
             if (!node.isDirectionless()) {
                 subTreeDirectionedTextContent += text;
             }
@@ -216,7 +202,7 @@ function createNode(
 }
 
 function createChildrenWithDirection(
-    children: Array<NodeKey>,
+    children: NodeKey[],
     endIndex: number,
     element: ElementNode,
     dom: HTMLElement,
@@ -229,7 +215,7 @@ function createChildrenWithDirection(
 }
 
 function createChildren(
-    children: Array<NodeKey>,
+    children: NodeKey[],
     element: ElementNode,
     _startIndex: number,
     endIndex: number,
@@ -243,7 +229,7 @@ function createChildren(
     for (; startIndex <= endIndex; ++startIndex) {
         createNode(children[startIndex], dom, insertDOM);
         const node = activeNextNodeMap.get(children[startIndex]);
-        if (node !== null && subTreeTextFormat === null && $isTextNode(node)) {
+        if (node !== null && subTreeTextFormat === null && $isNode("Text", node)) {
             subTreeTextFormat = node.getFormat();
         }
     }
@@ -260,7 +246,7 @@ function isLastChildLineBreakOrDecorator(
     nodeMap: NodeMap,
 ): boolean {
     const node = nodeMap.get(childKey);
-    return $isLineBreakNode(node) || ($isDecoratorNode(node) && node.isInline());
+    return $isNode("LineBreak", node) || ($isNode("Decorator", node) && node.isInline());
 }
 
 // If we end an element with a LineBreakNode, then we need to add an additional <br>
@@ -305,7 +291,7 @@ function reconcileElementTerminatingLineBreak(
 
 const reconcileParagraphFormat = (element: ElementNode): void => {
     if (
-        $isParagraphNode(element) &&
+        $isNode("Paragraph", element) &&
         subTreeTextFormat != null &&
         subTreeTextFormat !== element.__textFormat
     ) {
@@ -330,24 +316,6 @@ const reconcileBlockDirection = (element: ElementNode, dom: HTMLElement): void =
             : getTextDirection(subTreeDirectionedTextContent);
 
         if (direction !== previousDirection) {
-            const classList = dom.classList;
-            const theme = activeEditorConfig.theme;
-            let previousDirectionTheme =
-                previousDirection !== null ? theme[previousDirection] : undefined;
-            let nextDirectionTheme =
-                direction !== null ? theme[direction] : undefined;
-
-            // Remove the old theme classes if they exist
-            if (previousDirectionTheme !== undefined) {
-                if (typeof previousDirectionTheme === "string") {
-                    const classNamesArr = normalizeClassNames(previousDirectionTheme);
-                    previousDirectionTheme = theme[previousDirection] = classNamesArr;
-                }
-
-                // @ts-ignore: intentional
-                classList.remove(...previousDirectionTheme);
-            }
-
             if (
                 direction === null ||
                 (hasEmptyDirectionedTextContent && direction === "ltr")
@@ -355,19 +323,6 @@ const reconcileBlockDirection = (element: ElementNode, dom: HTMLElement): void =
                 // Remove direction
                 dom.removeAttribute("dir");
             } else {
-                // Apply the new theme classes if they exist
-                if (nextDirectionTheme !== undefined) {
-                    if (typeof nextDirectionTheme === "string") {
-                        const classNamesArr = normalizeClassNames(nextDirectionTheme);
-                        // @ts-expect-error: intentional
-                        nextDirectionTheme = theme[direction] = classNamesArr;
-                    }
-
-                    if (nextDirectionTheme !== undefined) {
-                        classList.add(...nextDirectionTheme);
-                    }
-                }
-
                 // Update direction
                 dom.dir = direction;
             }
@@ -440,7 +395,7 @@ const reconcileChildren = (
             destroyNode(prevFirstChildKey, null);
         }
         const nextChildNode = activeNextNodeMap.get(nextFrstChildKey);
-        if (subTreeTextFormat === null && $isTextNode(nextChildNode)) {
+        if (subTreeTextFormat === null && $isNode("Text", nextChildNode)) {
             subTreeTextFormat = nextChildNode.getFormat();
         }
     } else {
@@ -517,7 +472,7 @@ function reconcileNode(
     // and isn't dirty, we just update the text content cache
     // and return the existing DOM Node.
     if (prevNode === nextNode && !isDirty) {
-        if ($isElementNode(prevNode)) {
+        if ($isNode("Element", prevNode)) {
             // @ts-expect-error: internal field
             const previousSubTreeTextContent = dom.__lexicalTextContent;
 
@@ -535,7 +490,7 @@ function reconcileNode(
         } else {
             const text = prevNode.getTextContent();
 
-            if ($isTextNode(prevNode) && !prevNode.isDirectionless()) {
+            if ($isNode("Text", prevNode) && !prevNode.isDirectionless()) {
                 subTreeDirectionedTextContent += text;
             }
 
@@ -570,7 +525,7 @@ function reconcileNode(
         return replacementDOM;
     }
 
-    if ($isElementNode(prevNode) && $isElementNode(nextNode)) {
+    if ($isNode("Element", prevNode) && $isNode("Element", nextNode)) {
         // Reconcile element children
         const nextIndent = nextNode.__indent;
 
@@ -585,7 +540,7 @@ function reconcileNode(
         }
         if (isDirty) {
             reconcileChildrenWithDirection(prevNode, nextNode, dom);
-            if (!$isRootNode(nextNode) && !nextNode.isInline()) {
+            if (!$isNode("Root", nextNode) && !nextNode.isInline()) {
                 reconcileElementTerminatingLineBreak(prevNode, nextNode, dom);
             }
         }
@@ -597,13 +552,13 @@ function reconcileNode(
     } else {
         const text = nextNode.getTextContent();
 
-        if ($isDecoratorNode(nextNode)) {
+        if ($isNode("Decorator", nextNode)) {
             const decorator = nextNode.decorate(activeEditor, activeEditorConfig);
 
             if (decorator !== null) {
                 reconcileDecorator(key, decorator);
             }
-        } else if ($isTextNode(nextNode) && !nextNode.isDirectionless()) {
+        } else if ($isNode("Text", nextNode) && !nextNode.isDirectionless()) {
             // Handle text content, for LTR, LTR cases.
             subTreeDirectionedTextContent += text;
         }
@@ -614,7 +569,7 @@ function reconcileNode(
 
     if (
         !activeEditorStateReadOnly &&
-        $isRootNode(nextNode) &&
+        $isNode("Root", nextNode) &&
         nextNode.__cachedText !== editorTextContent
     ) {
         // Cache the latest text content.
@@ -658,8 +613,8 @@ const getNextSibling = (element: HTMLElement): Node | null => {
 
 const reconcileNodeChildren = (
     nextElement: ElementNode,
-    prevChildren: Array<NodeKey>,
-    nextChildren: Array<NodeKey>,
+    prevChildren: NodeKey[],
+    nextChildren: NodeKey[],
     prevChildrenLength: number,
     nextChildrenLength: number,
     dom: HTMLElement,
@@ -723,7 +678,7 @@ const reconcileNodeChildren = (
         }
 
         const node = activeNextNodeMap.get(nextKey);
-        if (node !== null && subTreeTextFormat === null && $isTextNode(node)) {
+        if (node !== null && subTreeTextFormat === null && $isNode("Text", node)) {
             subTreeTextFormat = node.getFormat();
         }
     }
@@ -769,7 +724,6 @@ export function reconcileRoot(
     activeTextDirection = null;
     activeEditor = editor;
     activeEditorConfig = editor._config;
-    activeEditorNodes = editor._nodes;
     activeMutationListeners = activeEditor._listeners.mutation;
     activeDirtyElements = dirtyElements;
     activeDirtyLeaves = dirtyLeaves;

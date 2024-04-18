@@ -4,12 +4,12 @@ import { CSS_TO_STYLES, FULL_RECONCILE, NO_DIRTY_NODES } from "./consts";
 import { EditorState, LexicalEditor, cloneEditorState, createEmptyEditorState, editorStateHasDirtySelection, resetEditor } from "./editor";
 import { $garbageCollectDetachedDecorators, $garbageCollectDetachedNodes } from "./garbageCollector";
 import { initMutationObserver } from "./mutations";
-import { type LexicalNode } from "./nodes/LexicalNode";
+import { getNextSibling, getPreviousSibling, isAttachedToRoot, type LexicalNode } from "./nodes/LexicalNode";
 import { type TextNode } from "./nodes/TextNode";
 import { reconcileRoot } from "./reconcile";
 import { applySelectionTransforms, internalCreateSelection, updateDOMSelection } from "./selection";
-import { CommandPayloadType, EditorUpdateOptions, LexicalCommand, Listener, MutatedNodes, RegisteredNode, RegisteredNodes, SerializedEditorState, SerializedLexicalNode, Transform } from "./types";
-import { $getCompositionKey, $isElementNode, $isNodeSelection, $isRangeSelection, $isTextNode, getDOMSelection, getEditorStateTextContent, getEditorsToPropagate, getStyleObjectFromRawCSS, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils";
+import { CommandPayloadType, EditorUpdateOptions, LexicalCommand, Listener, MutatedNodes, NodeType, RegisteredNode, RegisteredNodes, SerializedEditorState, SerializedLexicalNode, Transform } from "./types";
+import { $getCompositionKey, $isNode, $isNodeSelection, $isRangeSelection, getDOMSelection, getEditorStateTextContent, getStyleObjectFromRawCSS, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils";
 
 let activeEditorState: null | EditorState = null;
 let activeEditor: null | LexicalEditor = null;
@@ -46,10 +46,6 @@ export const getActiveEditor = (): LexicalEditor => {
     return activeEditor;
 };
 
-export const internalGetActiveEditor = (): LexicalEditor | null => {
-    return activeEditor;
-};
-
 export const triggerCommandListeners = <
     TCommand extends LexicalCommand<unknown>,
 >(
@@ -65,25 +61,20 @@ export const triggerCommandListeners = <
         return returnVal;
     }
 
-    const editors = getEditorsToPropagate(editor);
-
     for (let i = 4; i >= 0; i--) {
-        for (let e = 0; e < editors.length; e++) {
-            const currentEditor = editors[e];
-            const commandListeners = currentEditor._commands;
-            const listenerInPriorityOrder = commandListeners.get(type);
+        const commandListeners = editor._commands;
+        const listenerInPriorityOrder = commandListeners.get(type);
 
-            if (listenerInPriorityOrder !== undefined) {
-                const listenersSet = listenerInPriorityOrder[i];
+        if (listenerInPriorityOrder !== undefined) {
+            const listenersSet = listenerInPriorityOrder[i];
 
-                if (listenersSet !== undefined) {
-                    const listeners = Array.from(listenersSet);
-                    const listenersLength = listeners.length;
+            if (listenersSet !== undefined) {
+                const listeners = Array.from(listenersSet);
+                const listenersLength = listeners.length;
 
-                    for (let j = 0; j < listenersLength; j++) {
-                        if (listeners[j](payload, editor) === true) {
-                            return true;
-                        }
+                for (let j = 0; j < listenersLength; j++) {
+                    if (listeners[j](payload, editor) === true) {
+                        return true;
                     }
                 }
             }
@@ -182,7 +173,7 @@ export const $addNodeStyle = (node: TextNode): void => {
 
 type InternalSerializedNode = {
     children?: Array<InternalSerializedNode>;
-    type: string;
+    __type: NodeType;
     version: number;
 };
 
@@ -202,8 +193,8 @@ const $parseSerializedNodeImpl = <
     serializedNode: SerializedNode,
     registeredNodes: RegisteredNodes,
 ): LexicalNode => {
-    const type = serializedNode.type;
-    const registeredNode = registeredNodes.get(type);
+    const type = serializedNode.__type;
+    const registeredNode = registeredNodes[type];
 
     if (registeredNode === undefined) {
         throw new Error(`parseEditorState: type "${type}" not found`);
@@ -211,14 +202,10 @@ const $parseSerializedNodeImpl = <
 
     const nodeClass = registeredNode.klass;
 
-    if (serializedNode.type !== nodeClass.getType()) {
-        throw new Error(`LexicalNode: Node ${nodeClass.name} does not implement .importJSON().`);
-    }
-
     const node = nodeClass.importJSON(serializedNode);
     const children = serializedNode.children;
 
-    if ($isElementNode(node) && Array.isArray(children)) {
+    if ($isNode("Element", node) && Array.isArray(children)) {
         for (let i = 0; i < children.length; i++) {
             const serializedJSONChildNode = children[i];
             const childNode = $parseSerializedNodeImpl(
@@ -319,7 +306,7 @@ export const commitPendingUpdates = (
 ) => {
     const pendingEditorState = editor._pendingEditorState;
     const rootElement = editor._rootElement;
-    const shouldSkipDOM = editor._headless || rootElement === null;
+    const shouldSkipDOM = rootElement === null;
 
     if (pendingEditorState === null) {
         return;
@@ -557,9 +544,9 @@ const processNestedUpdates = (
 
 export const getRegisteredNodeOrThrow = (
     editor: LexicalEditor,
-    nodeType: string,
+    nodeType: NodeType,
 ): RegisteredNode => {
-    const registeredNode = editor._nodes.get(nodeType);
+    const registeredNode = editor._nodes[nodeType];
     if (registeredNode === undefined) {
         throw new Error("registeredNode: Type not found");
     }
@@ -571,7 +558,7 @@ export const $applyTransforms = (
     node: LexicalNode,
     transformsCache: Map<string, Array<Transform<LexicalNode>>>,
 ) => {
-    const type = node.__type;
+    const type = node.getType();
     const registeredNode = getRegisteredNodeOrThrow(editor, type);
     let transformsArr = transformsCache.get(type);
 
@@ -585,7 +572,7 @@ export const $applyTransforms = (
     for (let i = 0; i < transformsArrLength; i++) {
         transformsArr[i](node);
 
-        if (!node.isAttached()) {
+        if (!isAttachedToRoot(node)) {
             break;
         }
     }
@@ -599,7 +586,7 @@ const $isNodeValidForTransform = (
         node !== undefined &&
         // We don't want to transform nodes being composed
         node.__key !== compositionKey &&
-        node.isAttached()
+        isAttachedToRoot(node)
     );
 };
 
@@ -640,8 +627,8 @@ const $applyAllTransforms = (
                 const node = nodeMap.get(nodeKey);
 
                 if (
-                    $isTextNode(node) &&
-                    node.isAttached() &&
+                    $isNode("Text", node) &&
+                    isAttachedToRoot(node) &&
                     node.isSimpleText() &&
                     !node.isUnmergeable()
                 ) {
@@ -743,8 +730,8 @@ export const $normalizeTextNode = (textNode: TextNode) => {
     let previousNode;
 
     while (
-        (previousNode = node.getPreviousSibling()) !== null &&
-        $isTextNode(previousNode) &&
+        (previousNode = getPreviousSibling(node)) !== null &&
+        $isNode("Text", previousNode) &&
         previousNode.isSimpleText() &&
         !previousNode.isUnmergeable()
     ) {
@@ -762,8 +749,8 @@ export const $normalizeTextNode = (textNode: TextNode) => {
     let nextNode;
 
     while (
-        (nextNode = node.getNextSibling()) !== null &&
-        $isTextNode(nextNode) &&
+        (nextNode = getNextSibling(node)) !== null &&
+        $isNode("Text", nextNode) &&
         nextNode.isSimpleText() &&
         !nextNode.isUnmergeable()
     ) {
@@ -789,8 +776,8 @@ const $normalizeAllDirtyTextNodes = (
         const node = nodeMap.get(nodeKey);
 
         if (
-            $isTextNode(node) &&
-            node.isAttached() &&
+            $isNode("Text", node) &&
+            isAttachedToRoot(node) &&
             node.isSimpleText() &&
             !node.isUnmergeable()
         ) {
@@ -841,10 +828,6 @@ const beginUpdate = (
     }
     pendingEditorState._flushSync = discrete;
 
-    const previousActiveEditorState = activeEditorState;
-    const previousReadOnlyMode = isReadOnlyMode;
-    const previousActiveEditor = activeEditor;
-    const previouslyUpdating = editor._updating;
     activeEditorState = pendingEditorState;
     isReadOnlyMode = false;
     editor._updating = true;
@@ -852,13 +835,7 @@ const beginUpdate = (
 
     try {
         if (editorStateWasCloned) {
-            if (editor._headless) {
-                if (currentEditorState._selection !== null) {
-                    pendingEditorState._selection = currentEditorState._selection.clone();
-                }
-            } else {
-                pendingEditorState._selection = internalCreateSelection(editor);
-            }
+            pendingEditorState._selection = internalCreateSelection(editor);
         }
 
         const startingCompositionKey = editor._compositionKey;
@@ -926,10 +903,6 @@ const beginUpdate = (
         commitPendingUpdates(editor);
         return;
     } finally {
-        activeEditorState = previousActiveEditorState;
-        isReadOnlyMode = previousReadOnlyMode;
-        activeEditor = previousActiveEditor;
-        editor._updating = previouslyUpdating;
         infiniteTransformCount = 0;
     }
 

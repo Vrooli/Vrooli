@@ -1,40 +1,35 @@
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeKey, SerializedListItemNode } from "../types";
-import { $applyNodeReplacement, $isElementNode, $isRangeSelection, addClassNamesToElement, append, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
+import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $createListNode, $isListNode, ListNode, mergeLists } from "./ListNode";
-import { $createParagraphNode, $isParagraphNode, ParagraphNode } from "./ParagraphNode";
+import { getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, getPreviousSiblings, type LexicalNode } from "./LexicalNode";
+import { mergeLists, type ListNode } from "./ListNode";
+import { type ParagraphNode } from "./ParagraphNode";
 
 export class ListItemNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "ListItem";
     __value: number;
-    /** @internal */
     __checked?: boolean;
 
-    static getType(): string {
-        return "listitem";
-    }
-
     static clone(node: ListItemNode): ListItemNode {
-        return new ListItemNode(node.__value, node.__checked, node.__key);
+        const { __value, __checked, __key } = node;
+        return $createNode("ListItem", { value: __value, checked: __checked, key: __key });
     }
 
-    constructor(value?: number, checked?: boolean, key?: NodeKey) {
-        super(key);
+    constructor({ value, checked, ...rest }: NodeConstructorPayloads["ListItem"]) {
+        super(rest);
         this.__value = value === undefined ? 1 : value;
         this.__checked = checked;
     }
 
     createDOM(config: EditorConfig): HTMLElement {
         const element = document.createElement("li");
-        const parent = this.getParent();
-        if ($isListNode(parent) && parent.getListType() === "check") {
+        const parent = getParent(this);
+        if ($isNode("List", parent) && parent.getListType() === "check") {
             updateListItemChecked(element, this, null, parent);
         }
         element.value = this.__value;
-        $setListItemThemeClassNames(element, config.theme, this);
         return element;
     }
 
@@ -43,27 +38,26 @@ export class ListItemNode extends ElementNode {
         dom: HTMLElement,
         config: EditorConfig,
     ): boolean {
-        const parent = this.getParent();
-        if ($isListNode(parent) && parent.getListType() === "check") {
+        const parent = getParent(this);
+        if ($isNode("List", parent) && parent.getListType() === "check") {
             updateListItemChecked(dom, this, prevNode, parent);
         }
         // @ts-expect-error - this is always HTMLListItemElement
         dom.value = this.__value;
-        $setListItemThemeClassNames(dom, config.theme, this);
 
         return false;
     }
 
     static transform(): (node: LexicalNode) => void {
         return (node: LexicalNode) => {
-            if (!$isListItemNode(node)) {
+            if (!$isNode("ListItem", node)) {
                 throw new Error("node is not a ListItemNode");
             }
             if (node.__checked == null) {
                 return;
             }
-            const parent = node.getParent();
-            if ($isListNode(parent)) {
+            const parent = getParent(node);
+            if ($isNode("List", parent)) {
                 if (parent.getListType() !== "check" && node.getChecked() != null) {
                     node.setChecked(undefined);
                 }
@@ -71,7 +65,7 @@ export class ListItemNode extends ElementNode {
         };
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             li: (node: Node) => ({
                 conversion: convertListItemElement,
@@ -80,12 +74,12 @@ export class ListItemNode extends ElementNode {
         };
     }
 
-    static importJSON(serializedNode: SerializedListItemNode): ListItemNode {
-        const node = $createListItemNode();
-        node.setChecked(serializedNode.checked);
-        node.setValue(serializedNode.value);
-        node.setFormat(serializedNode.format);
-        node.setDirection(serializedNode.direction);
+    static importJSON({ checked, direction, format, value }: SerializedListItemNode): ListItemNode {
+        const node = $createNode("ListItem", {});
+        node.setChecked(checked);
+        node.setValue(value);
+        node.setFormat(format);
+        node.setDirection(direction);
         return node;
     }
 
@@ -100,8 +94,8 @@ export class ListItemNode extends ElementNode {
     exportJSON(): SerializedListItemNode {
         return {
             ...super.exportJSON(),
+            __type: "ListItem",
             checked: this.getChecked(),
-            type: "listitem",
             value: this.getValue(),
             version: 1,
         };
@@ -111,7 +105,7 @@ export class ListItemNode extends ElementNode {
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
 
-            if ($isElementNode(node) && this.canMergeWith(node)) {
+            if ($isNode("Element", node) && this.canMergeWith(node)) {
                 const children = node.getChildren();
                 this.append(...children);
                 node.remove();
@@ -127,32 +121,32 @@ export class ListItemNode extends ElementNode {
         replaceWithNode: N,
         includeChildren?: boolean,
     ): N {
-        if ($isListItemNode(replaceWithNode)) {
+        if ($isNode("ListItem", replaceWithNode)) {
             return super.replace(replaceWithNode);
         }
         this.setIndent(0);
-        const list = this.getParentOrThrow();
-        if (!$isListNode(list)) {
+        const list = getParentOrThrow(this);
+        if (!$isNode("List", list)) {
             return replaceWithNode;
         }
-        if (list.__first === this.getKey()) {
+        if (list.__first === this.__key) {
             list.insertBefore(replaceWithNode);
-        } else if (list.__last === this.getKey()) {
+        } else if (list.__last === this.__key) {
             list.insertAfter(replaceWithNode);
         } else {
             // Split the list
-            const newList = $createListNode(list.getListType());
-            let nextSibling = this.getNextSibling();
+            const newList = $createNode("List", { listType: list.getListType() });
+            let nextSibling = getNextSibling(this);
             while (nextSibling) {
                 const nodeToAppend = nextSibling;
-                nextSibling = nextSibling.getNextSibling();
+                nextSibling = getNextSibling(nextSibling);
                 newList.append(nodeToAppend);
             }
             list.insertAfter(replaceWithNode);
             replaceWithNode.insertAfter(newList);
         }
         if (includeChildren) {
-            if (!$isElementNode(replaceWithNode)) {
+            if (!$isNode("Element", replaceWithNode)) {
                 throw new Error("includeChildren should only be true for ElementNodes");
             }
             this.getChildren().forEach((child: LexicalNode) => {
@@ -167,23 +161,23 @@ export class ListItemNode extends ElementNode {
     }
 
     insertAfter(node: LexicalNode, restoreSelection = true): LexicalNode {
-        const listNode = this.getParentOrThrow();
+        const listNode = getParentOrThrow(this);
 
-        if (!$isListNode(listNode)) {
+        if (!$isNode("List", listNode)) {
             throw new Error("insertAfter: list node is not parent of list item node");
         }
 
-        if ($isListItemNode(node)) {
+        if ($isNode("ListItem", node)) {
             return super.insertAfter(node, restoreSelection);
         }
 
-        const siblings = this.getNextSiblings();
+        const siblings = getNextSiblings(this);
 
         // Split the lists and insert the node in between them
         listNode.insertAfter(node, restoreSelection);
 
         if (siblings.length !== 0) {
-            const newListNode = $createListNode(listNode.getListType());
+            const newListNode = $createNode("List", { listType: listNode.getListType() });
 
             siblings.forEach((sibling) => newListNode.append(sibling));
 
@@ -194,8 +188,8 @@ export class ListItemNode extends ElementNode {
     }
 
     remove(preserveEmptyParent?: boolean): void {
-        const prevSibling = this.getPreviousSibling();
-        const nextSibling = this.getNextSibling();
+        const prevSibling = getPreviousSibling(this);
+        const nextSibling = getNextSibling(this);
         super.remove(preserveEmptyParent);
 
         if (
@@ -213,21 +207,20 @@ export class ListItemNode extends ElementNode {
         _: RangeSelection,
         restoreSelection = true,
     ): ListItemNode | ParagraphNode {
-        const newElement = $createListItemNode(
-            this.__checked == null ? undefined : false,
-        );
+        const checked = this.__checked == null ? undefined : false;
+        const newElement = $createNode("ListItem", { checked });
         this.insertAfter(newElement, restoreSelection);
 
         return newElement;
     }
 
     collapseAtStart(selection: RangeSelection): true {
-        const paragraph = $createParagraphNode();
+        const paragraph = $createNode("Paragraph", {});
         const children = this.getChildren();
         children.forEach((child) => paragraph.append(child));
-        const listNode = this.getParentOrThrow();
-        const listNodeParent = listNode.getParentOrThrow();
-        const isIndented = $isListItemNode(listNodeParent);
+        const listNode = getParentOrThrow(this);
+        const listNodeParent = getParentOrThrow(listNode);
+        const isIndented = $isNode("ListItem", listNodeParent);
 
         if (listNode.getChildrenSize() === 1) {
             if (isIndented) {
@@ -242,7 +235,7 @@ export class ListItemNode extends ElementNode {
                 // to the paragraph
                 const anchor = selection.anchor;
                 const focus = selection.focus;
-                const key = paragraph.getKey();
+                const key = paragraph.__key;
 
                 if (anchor.type === "element" && anchor.getNode().is(this)) {
                     anchor.set(key, anchor.offset, "element");
@@ -288,15 +281,15 @@ export class ListItemNode extends ElementNode {
 
     getIndent(): number {
         // If we don't have a parent, we are likely serializing
-        const parent = this.getParent();
+        const parent = getParent(this);
         if (parent === null) {
             return this.getLatest().__indent;
         }
         // ListItemNode should always have a ListNode for a parent.
-        let listNodeParent = parent.getParentOrThrow();
+        let listNodeParent = getParentOrThrow(parent);
         let indentLevel = 0;
-        while ($isListItemNode(listNodeParent)) {
-            listNodeParent = listNodeParent.getParentOrThrow().getParentOrThrow();
+        while ($isNode("ListItem", listNodeParent)) {
+            listNodeParent = getParentOrThrow(getParentOrThrow(listNodeParent));
             indentLevel++;
         }
 
@@ -322,15 +315,15 @@ export class ListItemNode extends ElementNode {
     }
 
     canInsertAfter(node: LexicalNode): boolean {
-        return $isListItemNode(node);
+        return $isNode("ListItem", node);
     }
 
     canReplaceWith(replacement: LexicalNode): boolean {
-        return $isListItemNode(replacement);
+        return $isNode("ListItem", replacement);
     }
 
     canMergeWith(node: LexicalNode): boolean {
-        return $isParagraphNode(node) || $isListItemNode(node);
+        return $isNode("Paragraph", node) || $isNode("ListItem", node);
     }
 
     extractWithChild(child: LexicalNode, selection: BaseSelection): boolean {
@@ -353,7 +346,7 @@ export class ListItemNode extends ElementNode {
     }
 
     createParentElementNode(): ElementNode {
-        return $createListNode("bullet");
+        return $createNode("List", { listType: "bullet" });
     }
 }
 
@@ -377,9 +370,9 @@ const $setListItemThemeClassNames = (
     }
 
     if (listTheme) {
-        const parentNode = node.getParent();
+        const parentNode = getParent(node);
         const isCheckList =
-            $isListNode(parentNode) && parentNode.getListType() === "check";
+            $isNode("List", parentNode) && parentNode.getListType() === "check";
         const checked = node.getChecked();
 
         if (!isCheckList || checked) {
@@ -400,7 +393,7 @@ const $setListItemThemeClassNames = (
     if (nestedListItemClassName !== undefined) {
         const nestedListItemClasses = normalizeClassNames(nestedListItemClassName);
 
-        if (node.getChildren().some((child) => $isListNode(child))) {
+        if (node.getChildren().some((child) => $isNode("List", child))) {
             classesToAdd.push(...nestedListItemClasses);
         } else {
             classesToRemove.push(...nestedListItemClasses);
@@ -423,7 +416,7 @@ function updateListItemChecked(
     listNode: ListNode,
 ): void {
     // Only add attributes for leaf list items
-    if ($isListNode(listItemNode.getFirstChild())) {
+    if ($isNode("List", listItemNode.getFirstChild())) {
         dom.removeAttribute("role");
         dom.removeAttribute("tabIndex");
         dom.removeAttribute("aria-checked");
@@ -446,27 +439,7 @@ function updateListItemChecked(
 const convertListItemElement = (domNode: Node): DOMConversionOutput => {
     const checked =
         isHTMLElement(domNode) && domNode.getAttribute("aria-checked") === "true";
-    return { node: $createListItemNode(checked) };
-};
-
-/**
- * Creates a new List Item node, passing true/false will convert it to a checkbox input.
- * @param checked - Is the List Item a checkbox and, if so, is it checked? undefined/null: not a checkbox, true/false is a checkbox and checked/unchecked, respectively.
- * @returns The new List Item.
- */
-export const $createListItemNode = (checked?: boolean): ListItemNode => {
-    return $applyNodeReplacement(new ListItemNode(undefined, checked));
-};
-
-/**
- * Checks to see if the node is a ListItemNode.
- * @param node - The node to be checked.
- * @returns true if the node is a ListItemNode, false otherwise.
- */
-export const $isListItemNode = (
-    node: LexicalNode | null | undefined,
-): node is ListItemNode => {
-    return node instanceof ListItemNode;
+    return { node: $createNode("ListItem", { checked }) };
 };
 
 /**
@@ -479,38 +452,38 @@ export const $handleIndent = (listItemNode: ListItemNode): void => {
     // go through each node and decide where to move it.
     const removed = new Set<NodeKey>();
 
-    if (isNestedListNode(listItemNode) || removed.has(listItemNode.getKey())) {
+    if (isNestedListNode(listItemNode) || removed.has(listItemNode.__key)) {
         return;
     }
 
-    const parent = listItemNode.getParent();
+    const parent = getParent(listItemNode);
 
     // We can cast both of the below `isNestedListNode` only returns a boolean type instead of a user-defined type guards
     const nextSibling =
-        listItemNode.getNextSibling<ListItemNode>() as ListItemNode;
+        getNextSibling<ListItemNode>(listItemNode) as ListItemNode;
     const previousSibling =
-        listItemNode.getPreviousSibling<ListItemNode>() as ListItemNode;
+        getPreviousSibling<ListItemNode>(listItemNode) as ListItemNode;
     // if there are nested lists on either side, merge them all together.
 
     if (isNestedListNode(nextSibling) && isNestedListNode(previousSibling)) {
         const innerList = previousSibling.getFirstChild();
 
-        if ($isListNode(innerList)) {
+        if ($isNode("List", innerList)) {
             innerList.append(listItemNode);
             const nextInnerList = nextSibling.getFirstChild();
 
-            if ($isListNode(nextInnerList)) {
+            if ($isNode("List", nextInnerList)) {
                 const children = nextInnerList.getChildren();
                 append(innerList, children);
                 nextSibling.remove();
-                removed.add(nextSibling.getKey());
+                removed.add(nextSibling.__key);
             }
         }
     } else if (isNestedListNode(nextSibling)) {
         // if the ListItemNode is next to a nested ListNode, merge them
         const innerList = nextSibling.getFirstChild();
 
-        if ($isListNode(innerList)) {
+        if ($isNode("List", innerList)) {
             const firstChild = innerList.getFirstChild();
 
             if (firstChild !== null) {
@@ -520,15 +493,15 @@ export const $handleIndent = (listItemNode: ListItemNode): void => {
     } else if (isNestedListNode(previousSibling)) {
         const innerList = previousSibling.getFirstChild();
 
-        if ($isListNode(innerList)) {
+        if ($isNode("List", innerList)) {
             innerList.append(listItemNode);
         }
     } else {
         // otherwise, we need to create a new nested ListNode
 
-        if ($isListNode(parent)) {
-            const newListItem = $createListItemNode();
-            const newList = $createListNode(parent.getListType());
+        if ($isNode("List", parent)) {
+            const newListItem = $createNode("ListItem", {});
+            const newList = $createNode("List", { listType: parent.getListType() });
             newListItem.append(newList);
             newList.append(listItemNode);
 
@@ -555,17 +528,17 @@ export function $handleOutdent(listItemNode: ListItemNode): void {
     if (isNestedListNode(listItemNode)) {
         return;
     }
-    const parentList = listItemNode.getParent();
-    const grandparentListItem = parentList ? parentList.getParent() : undefined;
+    const parentList = getParent(listItemNode);
+    const grandparentListItem = parentList ? getParent(parentList) : undefined;
     const greatGrandparentList = grandparentListItem
-        ? grandparentListItem.getParent()
+        ? getParent(grandparentListItem)
         : undefined;
     // If it doesn't have these ancestors, it's not indented.
 
     if (
-        $isListNode(greatGrandparentList) &&
-        $isListItemNode(grandparentListItem) &&
-        $isListNode(parentList)
+        $isNode("List", greatGrandparentList) &&
+        $isNode("ListItem", grandparentListItem) &&
+        $isNode("List", parentList)
     ) {
         // if it's the first child in it's parent list, insert it into the
         // great grandparent list before the grandparent
@@ -589,16 +562,14 @@ export function $handleOutdent(listItemNode: ListItemNode): void {
         } else {
             // otherwise, we need to split the siblings into two new nested lists
             const listType = parentList.getListType();
-            const previousSiblingsListItem = $createListItemNode();
-            const previousSiblingsList = $createListNode(listType);
+            const previousSiblingsListItem = $createNode("ListItem", {});
+            const previousSiblingsList = $createNode("List", { listType });
             previousSiblingsListItem.append(previousSiblingsList);
-            listItemNode
-                .getPreviousSiblings()
-                .forEach((sibling) => previousSiblingsList.append(sibling));
-            const nextSiblingsListItem = $createListItemNode();
-            const nextSiblingsList = $createListNode(listType);
+            getPreviousSiblings(listItemNode).forEach((sibling) => previousSiblingsList.append(sibling));
+            const nextSiblingsListItem = $createNode("ListItem", {});
+            const nextSiblingsList = $createNode("List", { listType });
             nextSiblingsListItem.append(nextSiblingsList);
-            append(nextSiblingsList, listItemNode.getNextSiblings());
+            append(nextSiblingsList, getNextSiblings(listItemNode));
             // put the sibling nested lists on either side of the grandparent list item in the great grandparent.
             grandparentListItem.insertBefore(previousSiblingsListItem);
             grandparentListItem.insertAfter(nextSiblingsListItem);

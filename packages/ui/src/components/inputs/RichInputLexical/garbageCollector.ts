@@ -1,7 +1,8 @@
 import { EditorState, LexicalEditor } from "./editor";
 import { ElementNode } from "./nodes/ElementNode";
+import { getNextSibling, isAttachedToRoot } from "./nodes/LexicalNode";
 import { IntentionallyMarkedAsDirtyElement, NodeKey, NodeMap } from "./types";
-import { $isElementNode, cloneDecorators } from "./utils";
+import { $isNode, cloneDecorators } from "./utils";
 
 export const $garbageCollectDetachedDecorators = (
     editor: LexicalEditor,
@@ -29,7 +30,7 @@ const $garbageCollectDetachedDeepChildNodes = (
     parentKey: NodeKey,
     prevNodeMap: NodeMap,
     nodeMap: NodeMap,
-    nodeMapDelete: Array<NodeKey>,
+    nodeMapDelete: NodeKey[],
     dirtyNodes: Map<NodeKey, IntentionallyMarkedAsDirtyElement>,
 ): void => {
     let child = node.getFirstChild();
@@ -38,7 +39,7 @@ const $garbageCollectDetachedDeepChildNodes = (
         const childKey = child.__key;
         // TODO Revise condition below, redundant? LexicalNode already cleans up children when moving Nodes
         if (child.__parent === parentKey) {
-            if ($isElementNode(child)) {
+            if ($isNode("Element", child)) {
                 $garbageCollectDetachedDeepChildNodes(
                     child,
                     childKey,
@@ -56,7 +57,7 @@ const $garbageCollectDetachedDeepChildNodes = (
             }
             nodeMapDelete.push(childKey);
         }
-        child = child.getNextSibling();
+        child = getNextSibling(child);
     }
 };
 
@@ -70,14 +71,14 @@ export function $garbageCollectDetachedNodes(
     const nodeMap = editorState._nodeMap;
     // Store dirtyElements in a queue for later deletion; deleting dirty subtrees too early will
     // hinder accessing .__next on child nodes
-    const nodeMapDelete: Array<NodeKey> = [];
+    const nodeMapDelete: NodeKey[] = [];
 
     for (const [nodeKey] of dirtyElements) {
         const node = nodeMap.get(nodeKey);
         if (node !== undefined) {
             // Garbage collect node and its children if they exist
-            if (!node.isAttached()) {
-                if ($isElementNode(node)) {
+            if (!isAttachedToRoot(node)) {
+                if ($isNode("Element", node)) {
                     $garbageCollectDetachedDeepChildNodes(
                         node,
                         nodeKey,
@@ -102,7 +103,7 @@ export function $garbageCollectDetachedNodes(
 
     for (const nodeKey of dirtyLeaves) {
         const node = nodeMap.get(nodeKey);
-        if (node !== undefined && !node.isAttached()) {
+        if (node !== undefined && !isAttachedToRoot(node)) {
             if (!prevNodeMap.has(nodeKey)) {
                 dirtyLeaves.delete(nodeKey);
             }

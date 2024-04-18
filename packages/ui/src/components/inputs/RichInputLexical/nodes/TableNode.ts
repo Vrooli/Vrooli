@@ -1,23 +1,19 @@
 import { LexicalEditor } from "../editor";
 import { getTable } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, InsertTableCommandPayloadHeaders, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types";
-import { $applyNodeReplacement, $createTextNode, $getNearestNodeFromDOMNode, addClassNamesToElement, isHTMLElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, InsertTableCommandPayloadHeaders, NodeType, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types";
+import { $createNode, $getNearestNodeFromDOMNode, $isNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $createParagraphNode } from "./ParagraphNode";
-import { $createTableCellNode, $isTableCellNode, TableCellNode } from "./TableCellNode";
-import { $createTableRowNode, $isTableRowNode, TableRowNode } from "./TableRowNode";
+import { type TableCellNode } from "./TableCellNode";
+import { type TableRowNode } from "./TableRowNode";
 
 export class TableNode extends ElementNode {
-    static getType(): string {
-        return "table";
-    }
+    static __type: NodeType = "Table";
 
     static clone(node: TableNode): TableNode {
-        return new TableNode(node.__key);
+        return new TableNode({ key: node.__key });
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             table: (_node: Node) => ({
                 conversion: convertTableElement,
@@ -27,21 +23,19 @@ export class TableNode extends ElementNode {
     }
 
     static importJSON(_serializedNode: SerializedTableNode): TableNode {
-        return $createTableNode();
+        return $createNode("Table", {});
     }
 
     exportJSON(): SerializedElementNode {
         return {
             ...super.exportJSON(),
-            type: "table",
+            __type: "Table",
             version: 1,
         };
     }
 
     createDOM(config: EditorConfig, editor?: LexicalEditor): HTMLElement {
         const tableElement = document.createElement("table");
-
-        addClassNamesToElement(tableElement, config.theme.table);
 
         return tableElement;
     }
@@ -63,7 +57,7 @@ export class TableNode extends ElementNode {
                     }
                     const firstRow = this.getFirstChildOrThrow<TableRowNode>();
 
-                    if (!$isTableRowNode(firstRow)) {
+                    if (!$isNode("TableRow", firstRow)) {
                         throw new Error("Expected to find row node.");
                     }
 
@@ -169,7 +163,7 @@ export class TableNode extends ElementNode {
 
         const node = $getNearestNodeFromDOMNode(cell.elem);
 
-        if ($isTableCellNode(node)) {
+        if ($isNode("TableCell", node)) {
             return node;
         }
 
@@ -203,7 +197,7 @@ export function $getElementForTableNode(
     editor: LexicalEditor,
     tableNode: TableNode,
 ): TableDOMTable {
-    const tableElement = editor.getElementByKey(tableNode.getKey());
+    const tableElement = editor.getElementByKey(tableNode.__key);
 
     if (tableElement == null) {
         throw new Error("Table Element Not Found");
@@ -213,28 +207,18 @@ export function $getElementForTableNode(
 }
 
 export function convertTableElement(_domNode: Node): DOMConversionOutput {
-    return { node: $createTableNode() };
+    return { node: $createNode("Table", {}) };
 }
-
-export function $createTableNode(): TableNode {
-    return $applyNodeReplacement(new TableNode());
-}
-
-export const $isTableNode = (
-    node: LexicalNode | null | undefined,
-): node is TableNode => {
-    return node instanceof TableNode;
-};
 
 export const $createTableNodeWithDimensions = (
     rowCount: number,
     columnCount: number,
     includeHeaders: InsertTableCommandPayloadHeaders = true,
 ): TableNode => {
-    const tableNode = $createTableNode();
+    const tableNode = $createNode("Table", {});
 
     for (let iRow = 0; iRow < rowCount; iRow++) {
-        const tableRowNode = $createTableRowNode();
+        const tableRowNode = $createNode("TableRow", {});
 
         for (let iColumn = 0; iColumn < columnCount; iColumn++) {
             let headerState = TableCellHeaderStates.NO_STATUS;
@@ -255,9 +239,9 @@ export const $createTableNodeWithDimensions = (
                 }
             }
 
-            const tableCellNode = $createTableCellNode(headerState);
-            const paragraphNode = $createParagraphNode();
-            paragraphNode.append($createTextNode());
+            const tableCellNode = $createNode("TableCell", { headerState });
+            const paragraphNode = $createNode("Paragraph", {});
+            paragraphNode.append($createNode("Text", { text: "" }));
             tableCellNode.append(paragraphNode);
             tableRowNode.append(tableCellNode);
         }

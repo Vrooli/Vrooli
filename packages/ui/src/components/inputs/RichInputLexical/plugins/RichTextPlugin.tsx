@@ -6,10 +6,10 @@ import { CAN_USE_BEFORE_INPUT, COMMAND_PRIORITY_EDITOR, IS_APPLE_WEBKIT, IS_IOS,
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
 import { ElementNode } from "../nodes/ElementNode";
-import { $createTabNode } from "../nodes/TabNode";
+import { getIndexWithinParent, getParentOrThrow } from "../nodes/LexicalNode";
 import { $createRangeSelection, $insertNodes, $moveCharacter, $shouldOverrideDefaultCharacterSelection, caretFromPoint } from "../selection";
 import { ElementFormatType, TextFormatType } from "../types";
-import { $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isDecoratorNode, $isElementNode, $isNodeSelection, $isRangeSelection, $isRootNode, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $isTextNode, $normalizeSelection, $selectAll, $setSelection, eventFiles, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils";
+import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $normalizeSelection, $selectAll, $setSelection, eventFiles, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils";
 
 //TODO this file is a good place to store markdown string and selection positions. Then we can edit this in real-time instead of exporting everything to markdown on every change
 
@@ -128,7 +128,7 @@ function registerRichText(editor: LexicalEditor): () => void {
                     const element = $findMatchingParent(
                         node,
                         (parentNode): parentNode is ElementNode =>
-                            $isElementNode(parentNode) && !parentNode.isInline(),
+                            $isNode("Element", parentNode) && !parentNode.isInline(),
                     );
                     if (element !== null) {
                         element.setFormat(format);
@@ -165,7 +165,7 @@ function registerRichText(editor: LexicalEditor): () => void {
         editor.registerCommand(
             INSERT_TAB_COMMAND,
             () => {
-                $insertNodes([$createTabNode()]);
+                $insertNodes([$createNode("Tab", {})]);
                 return true;
             },
             COMMAND_PRIORITY_EDITOR,
@@ -211,7 +211,7 @@ function registerRichText(editor: LexicalEditor): () => void {
                     const possibleNode = $getAdjacentNode(selection.focus, true);
                     if (
                         !event.shiftKey &&
-                        $isDecoratorNode(possibleNode) &&
+                        $isNode("Decorator", possibleNode) &&
                         !possibleNode.isIsolated() &&
                         !possibleNode.isInline()
                     ) {
@@ -244,7 +244,7 @@ function registerRichText(editor: LexicalEditor): () => void {
                     const possibleNode = $getAdjacentNode(selection.focus, false);
                     if (
                         !event.shiftKey &&
-                        $isDecoratorNode(possibleNode) &&
+                        $isNode("Decorator", possibleNode) &&
                         !possibleNode.isIsolated() &&
                         !possibleNode.isInline()
                     ) {
@@ -331,7 +331,7 @@ function registerRichText(editor: LexicalEditor): () => void {
                 if (
                     selection.isCollapsed() &&
                     anchor.offset === 0 &&
-                    !$isRootNode(anchorNode)
+                    !$isNode("Root", anchorNode)
                 ) {
                     const element = $getNearestBlockElementAncestorOrThrow(anchorNode);
                     if (element.getIndent() > 0) {
@@ -412,12 +412,12 @@ function registerRichText(editor: LexicalEditor): () => void {
                         const node = $getNearestNodeFromDOMNode(domNode);
                         if (node !== null) {
                             const selection = $createRangeSelection();
-                            if ($isTextNode(node)) {
-                                selection.anchor.set(node.getKey(), domOffset, "text");
-                                selection.focus.set(node.getKey(), domOffset, "text");
+                            if ($isNode("Text", node)) {
+                                selection.anchor.set(node.__key, domOffset, "text");
+                                selection.focus.set(node.__key, domOffset, "text");
                             } else {
-                                const parentKey = node.getParentOrThrow().getKey();
-                                const offset = node.getIndexWithinParent() + 1;
+                                const parentKey = getParentOrThrow(node).__key;
+                                const offset = getIndexWithinParent(node) + 1;
                                 selection.anchor.set(parentKey, offset, "element");
                                 selection.focus.set(parentKey, offset, "element");
                             }
@@ -465,7 +465,7 @@ function registerRichText(editor: LexicalEditor): () => void {
                 const eventRange = caretFromPoint(x, y);
                 if (eventRange !== null) {
                     const node = $getNearestNodeFromDOMNode(eventRange.node);
-                    if ($isDecoratorNode(node)) {
+                    if ($isNode("Decorator", node)) {
                         // Show browser caret as the user is dragging the media across the screen. Won't work
                         // for DecoratorNode nor it's relevant.
                         event.preventDefault();
@@ -590,7 +590,7 @@ const registerDragonSupport = (editor: LexicalEditor): () => void => {
                                 let setSelStart = 0;
                                 let setSelEnd = 0;
 
-                                if ($isTextNode(anchorNode)) {
+                                if ($isNode("Text", anchorNode)) {
                                     // set initial selection
                                     if (elementStart >= 0 && elementLength >= 0) {
                                         setSelStart = elementStart;
@@ -610,7 +610,7 @@ const registerDragonSupport = (editor: LexicalEditor): () => void => {
                                     anchorNode = anchor.getNode();
                                 }
 
-                                if ($isTextNode(anchorNode)) {
+                                if ($isNode("Text", anchorNode)) {
                                     // set final selection
                                     setSelStart = selStart;
                                     setSelEnd = selStart + selLength;

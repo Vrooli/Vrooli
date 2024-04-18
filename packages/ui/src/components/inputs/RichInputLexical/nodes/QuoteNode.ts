@@ -1,32 +1,29 @@
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, SerializedElementNode, SerializedQuoteNode } from "../types";
-import { $applyNodeReplacement, addClassNamesToElement, isHTMLElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeType, SerializedElementNode, SerializedQuoteNode } from "../types";
+import { $createNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
-import { $createParagraphNode, ParagraphNode } from "./ParagraphNode";
+import { ParagraphNode } from "./ParagraphNode";
 
 export class QuoteNode extends ElementNode {
-    static getType(): string {
-        return "quote";
-    }
+    static __type: NodeType = "Quote";
 
     static clone(node: QuoteNode): QuoteNode {
-        return new QuoteNode(node.__key);
+        const { __key } = node;
+        return new QuoteNode({ key: __key });
     }
 
     // View
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const element = document.createElement("blockquote");
-        addClassNamesToElement(element, config.theme.quote);
         return element;
     }
-    updateDOM(prevNode: QuoteNode, dom: HTMLElement): boolean {
+    updateDOM(): boolean {
         return false;
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             blockquote: (node: Node) => ({
                 conversion: convertBlockquoteElement,
@@ -58,7 +55,7 @@ export class QuoteNode extends ElementNode {
     }
 
     static importJSON(serializedNode: SerializedQuoteNode): QuoteNode {
-        const node = $createQuoteNode();
+        const node = $createNode("Quote", {});
         node.setFormat(serializedNode.format);
         node.setIndent(serializedNode.indent);
         node.setDirection(serializedNode.direction);
@@ -68,14 +65,14 @@ export class QuoteNode extends ElementNode {
     exportJSON(): SerializedElementNode {
         return {
             ...super.exportJSON(),
-            type: "quote",
+            __type: "Quote",
         };
     }
 
     // Mutation
 
     insertNewAfter(_: RangeSelection, restoreSelection?: boolean): ParagraphNode {
-        const newBlock = $createParagraphNode();
+        const newBlock = $createNode("Paragraph", {});
         const direction = this.getDirection();
         newBlock.setDirection(direction);
         this.insertAfter(newBlock, restoreSelection);
@@ -83,7 +80,7 @@ export class QuoteNode extends ElementNode {
     }
 
     collapseAtStart(): true {
-        const paragraph = $createParagraphNode();
+        const paragraph = $createNode("Paragraph", {});
         const children = this.getChildren();
         children.forEach((child) => paragraph.append(child));
         this.replace(paragraph);
@@ -91,18 +88,8 @@ export class QuoteNode extends ElementNode {
     }
 }
 
-export const $createQuoteNode = (): QuoteNode => {
-    return $applyNodeReplacement(new QuoteNode());
-};
-
-export const $isQuoteNode = (
-    node: LexicalNode | null | undefined,
-): node is QuoteNode => {
-    return node instanceof QuoteNode;
-};
-
 const convertBlockquoteElement = (element: HTMLElement): DOMConversionOutput => {
-    const node = $createQuoteNode();
+    const node = $createNode("Quote", {});
     if (element.style !== null) {
         node.setFormat(element.style.textAlign as ElementFormatType);
     }

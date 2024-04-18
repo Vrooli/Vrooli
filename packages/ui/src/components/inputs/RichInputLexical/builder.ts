@@ -2,16 +2,14 @@
 // We have copied the code here for customization purposes, such as replacing the default code block component
 import "highlight.js/styles/monokai-sublime.css";
 import { LexicalEditor } from "./editor";
-import { ElementNode } from "./nodes/ElementNode";
-import { type LexicalNode } from "./nodes/LexicalNode";
-import { $createLineBreakNode, $isLineBreakNode } from "./nodes/LineBreakNode";
-import { $createParagraphNode, $isParagraphNode } from "./nodes/ParagraphNode";
-import { TextNode } from "./nodes/TextNode";
-import { $createCodeBlockNode, $isCodeBlockNode, CodeBlockNode } from "./plugins/CodePlugin";
+import { type ElementNode } from "./nodes/ElementNode";
+import { getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, isAttachedToRoot, type LexicalNode } from "./nodes/LexicalNode";
+import { type TextNode } from "./nodes/TextNode";
+import { type CodeBlockNode } from "./plugins/CodePlugin";
 import { $createRangeSelection } from "./selection";
 import { hasFormat } from "./transformers/textFormatTransformers";
 import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatchTransformer } from "./types";
-import { $createTextNode, $findMatchingParent, $getRoot, $getSelection, $isDecoratorNode, $isElementNode, $isListItemNode, $isListNode, $isQuoteNode, $isRangeSelection, $isRootOrShadowRoot, $isTextNode, $setSelection } from "./utils";
+import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection } from "./utils";
 
 /**
  * Matches any punctuation or whitespace character.
@@ -196,8 +194,8 @@ const importBlocks = (
 ) => {
     console.time("importBlocks beginning");
     const lineTextTrimmed = lineText.trim();
-    const textNode = $createTextNode(lineTextTrimmed);
-    const elementNode = $createParagraphNode();
+    const textNode = $createNode("Text", { text: "lineTextTrimmed" });
+    const elementNode = $createNode("Paragraph", {});
     elementNode.append(textNode);
     rootNode.append(elementNode);
     for (const {
@@ -220,20 +218,20 @@ const importBlocks = (
     // can check if its content can be appended to the previous node
     // if it's a paragraph, quote or list
     console.time("importBlocks end");
-    if (elementNode.isAttached() && lineTextTrimmed.length > 0) {
-        const previousNode = elementNode.getPreviousSibling();
-        if ($isParagraphNode(previousNode) || $isQuoteNode(previousNode) || $isListNode(previousNode)) {
+    if (isAttachedToRoot(elementNode) && lineTextTrimmed.length > 0) {
+        const previousNode = getPreviousSibling(elementNode);
+        if ($isNode("Paragraph", previousNode) || $isNode("Quote", previousNode) || $isNode("List", previousNode)) {
             let targetNode: ElementNode | null = previousNode;
-            if ($isListNode(previousNode)) {
+            if ($isNode("List", previousNode)) {
                 const lastDescendant = previousNode.getLastDescendant();
                 if (lastDescendant === null) {
                     targetNode = null;
                 } else {
-                    targetNode = $findMatchingParent(lastDescendant, $isListItemNode);
+                    targetNode = $findMatchingParent(lastDescendant, (node) => $isNode("ListItem", node)) as ElementNode;
                 }
             }
             if (targetNode != null && targetNode.getTextContentSize() > 0) {
-                targetNode.splice(targetNode.getChildrenSize(), 0, [$createLineBreakNode(), ...elementNode.getChildren()]);
+                targetNode.splice(targetNode.getChildrenSize(), 0, [$createNode("LineBreak", {}), ...elementNode.getChildren()]);
                 elementNode.remove();
             }
         }
@@ -268,8 +266,8 @@ const importCodeBlock = (
         while (++endLineIndex < linesLength) {
             const closeMatch = lines[endLineIndex].match(CODE_BLOCK_REG_EXP);
             if (closeMatch) {
-                const codeBlockNode = $createCodeBlockNode(openMatch[1]);
-                const textNode = $createTextNode(lines.slice(startLineIndex + 1, endLineIndex).join("\n"));
+                const codeBlockNode = $createNode("Code", { language: openMatch[1] });
+                const textNode = $createNode("Text", { text: lines.slice(startLineIndex + 1, endLineIndex).join("\n") });
                 codeBlockNode.append(textNode);
                 rootNode.append(codeBlockNode);
                 return [codeBlockNode, endLineIndex];
@@ -313,14 +311,6 @@ const transformersByType = (transformers: LexicalTransformer[]) => {
         textFormat: TextFormatTransformer[];
         textMatch: TextMatchTransformer[];
     };
-};
-
-const isEmptyParagraph = (node) => {
-    if (!$isParagraphNode(node)) {
-        return false;
-    }
-    const firstChild = node.getFirstChild();
-    return firstChild == null || node.getChildrenSize() === 1 && $isTextNode(firstChild) && MARKDOWN_EMPTY_LINE_REG_EXP.test(firstChild.getTextContent());
 };
 
 type TextMatchTransformersIndex = {
@@ -450,30 +440,30 @@ const createMarkdownImport = (
  * Get next or previous text sibling a text node, including cases 
  * when it's a child of inline element (e.g. link)
  */
-const getTextSibling = (node, backward) => {
-    let sibling = backward ? node.getPreviousSibling() : node.getNextSibling();
+const getTextSibling = (node: LexicalNode, backward: boolean) => {
+    let sibling = backward ? getPreviousSibling(node) : getNextSibling(node);
     if (!sibling) {
-        const parent = node.getParentOrThrow();
+        const parent = getParentOrThrow(node);
         if (parent.isInline()) {
-            sibling = backward ? parent.getPreviousSibling() : parent.getNextSibling();
+            sibling = backward ? getPreviousSibling(parent) : getNextSibling(parent);
         }
     }
     while (sibling) {
-        if ($isElementNode(sibling)) {
+        if ($isNode("Element", sibling)) {
             if (!sibling.isInline()) {
                 break;
             }
             const descendant = backward ? sibling.getLastDescendant() : sibling.getFirstDescendant();
-            if ($isTextNode(descendant)) {
+            if ($isNode("Text", descendant)) {
                 return descendant;
             } else {
-                sibling = backward ? sibling.getPreviousSibling() : sibling.getNextSibling();
+                sibling = backward ? getPreviousSibling(sibling) : getNextSibling(sibling);
             }
         }
-        if ($isTextNode(sibling)) {
+        if ($isNode("Text", sibling)) {
             return sibling;
         }
-        if (!$isElementNode(sibling)) {
+        if (!$isNode("Element", sibling)) {
             return null;
         }
     }
@@ -525,20 +515,16 @@ const exportChildren = (node: ElementNode, textFormatTransformers: TextFormatTra
                 continue mainLoop;
             }
         }
-        if ($isLineBreakNode(child)) {
-            console.log("is line break node");
+        if ($isNode("LineBreak", child)) {
             output.push("\n");
-        } else if ($isTextNode(child)) {
-            console.log("is text node");
+        } else if ($isNode("Text", child)) {
             output.push(exportTextFormat(child, child.getTextContent(), textFormatTransformers));
-        } else if ($isElementNode(child)) {
-            console.log("is element node");
+        } else if ($isNode("Element", child)) {
             output.push(exportChildren(child, textFormatTransformers, textMatchTransformers));
-        } else if ($isDecoratorNode(child)) {
-            console.log("is decorator node");
+        } else if ($isNode("Decorator", child)) {
             output.push(child.getTextContent());
         } else {
-            console.log("child did not match any node type");
+            console.error("child did not match any node type");
         }
     }
     return output.join("");
@@ -556,9 +542,9 @@ const exportTopLevelElements = (
             return result;
         }
     }
-    if ($isElementNode(node)) {
+    if ($isNode("Element", node)) {
         return exportChildren(node, textFormatTransformers, textMatchTransformers);
-    } else if ($isDecoratorNode(node)) {
+    } else if ($isNode("Decorator", node)) {
         return node.getTextContent();
     } else {
         return null;
@@ -697,7 +683,7 @@ const runElementTransformers = (
     anchorOffset: number,
     elementTransformers: ReadonlyArray<ElementTransformer>,
 ): boolean => {
-    const grandParentNode = parentNode.getParent();
+    const grandParentNode = getParent(parentNode);
 
     if (
         !$isRootOrShadowRoot(grandParentNode) ||
@@ -722,7 +708,7 @@ const runElementTransformers = (
         const match = textContent.match(regExp);
 
         if (match && match[0].length === anchorOffset) {
-            const nextSiblings = anchorNode.getNextSiblings();
+            const nextSiblings = getNextSiblings(anchorNode);
             const [leadingNode, remainderNode] = anchorNode.splitText(anchorOffset);
             leadingNode.remove();
             const siblings = remainderNode
@@ -739,7 +725,7 @@ const runElementTransformers = (
 const runTextMatchTransformers = (
     anchorNode: TextNode,
     anchorOffset: number,
-    transformersByTrigger: Readonly<Record<string, Array<TextMatchTransformer>>>,
+    transformersByTrigger: Readonly<Record<string, TextMatchTransformer[]>>,
 ): boolean => {
     let textContent = anchorNode.getTextContent();
     const lastChar = textContent[anchorOffset - 1];
@@ -831,13 +817,13 @@ const runTextFormatTransformers = (
 
         while (
             openTagStartIndex < 0 &&
-            (sibling = sibling.getPreviousSibling<TextNode>())
+            (sibling = getPreviousSibling<TextNode>(sibling))
         ) {
-            if ($isLineBreakNode(sibling)) {
+            if ($isNode("LineBreak", sibling)) {
                 break;
             }
 
-            if ($isTextNode(sibling)) {
+            if ($isNode("Text", sibling)) {
                 const siblingTextContent = sibling.getTextContent();
                 openNode = sibling;
                 openTagStartIndex = getOpenTagStartIndex(
@@ -922,7 +908,7 @@ const runTextFormatTransformers = (
 
 export const registerMarkdownShortcuts = (
     editor: LexicalEditor,
-    transformers: Array<LexicalTransformer>,
+    transformers: LexicalTransformer[],
 ): (() => void) => {
     const byType = transformersByType(transformers);
     const textFormatTransformersIndex = indexBy(
@@ -933,18 +919,6 @@ export const registerMarkdownShortcuts = (
         byType.textMatch,
         ({ trigger }) => trigger,
     );
-
-    for (const transformer of transformers) {
-        const type = transformer.type;
-        if (type === "element" || type === "text-match") {
-            const dependencies = transformer.dependencies;
-            for (const node of dependencies) {
-                if (!editor.hasNode(node)) {
-                    throw new Error(`MarkdownShortcuts: missing dependency ${node.getType()} for transformer. Ensure node dependency is included in editor initial config.`);
-                }
-            }
-        }
-    }
 
     const transform = (
         parentNode: ElementNode,
@@ -1008,7 +982,7 @@ export const registerMarkdownShortcuts = (
             const anchorNode = editorState._nodeMap.get(anchorKey);
 
             if (
-                !$isTextNode(anchorNode) ||
+                !$isNode("Text", anchorNode) ||
                 !dirtyLeaves.has(anchorKey) ||
                 (anchorOffset !== 1 && anchorOffset > prevSelection.anchor.offset + 1)
             ) {
@@ -1021,9 +995,9 @@ export const registerMarkdownShortcuts = (
                     return;
                 }
 
-                const parentNode = anchorNode.getParent();
+                const parentNode = getParent(anchorNode);
 
-                if (parentNode === null || $isCodeBlockNode(parentNode)) {
+                if (parentNode === null || $isNode("Code", parentNode)) {
                     return;
                 }
 

@@ -5,34 +5,24 @@ import { CODE_BLOCK_COMMAND } from "../commands";
 import { COMMAND_PRIORITY_HIGH } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { ElementNode } from "../nodes/ElementNode";
-import { type LexicalNode } from "../nodes/LexicalNode";
-import { $createParagraphNode } from "../nodes/ParagraphNode";
-import { TextNode } from "../nodes/TextNode";
-import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeKey, SerializedElementNode } from "../types";
-import { $applyNodeReplacement, $getSelection, $isRangeSelection } from "../utils";
-
-export type SerializedCodeBlockNode = SerializedElementNode & {
-    type: "codeblock";
-    language: string;
-};
+import { getParent } from "../nodes/LexicalNode";
+import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
+import { $createNode, $getSelection, $isNode, $isRangeSelection } from "../utils";
 
 const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
 
 export class CodeBlockNode extends ElementNode {
+    static __type: NodeType = "Code";
     __language: string;
 
-    constructor(language = "", key?: NodeKey) {
-        console.log("creating code block node");
-        super(key);
-        this.__language = language;
-    }
-
-    static getType(): string {
-        return "codeblock";
+    constructor({ language, ...rest }: NodeConstructorPayloads["Code"]) {
+        super(rest);
+        this.__language = language || "";
     }
 
     static clone(node: CodeBlockNode): CodeBlockNode {
-        return new CodeBlockNode(node.__language, node.__key);
+        const { __language, __key } = node;
+        return new CodeBlockNode({ language: __language, key: __key });
     }
 
     createDOM(config: EditorConfig): HTMLElement {
@@ -56,7 +46,6 @@ export class CodeBlockNode extends ElementNode {
         topElement.setAttribute("autocomplete", "off"); // Disable autocomplete
         topElement.setAttribute("autocorrect", "off"); // Disable autocorrect
         topElement.setAttribute("autocapitalize", "off"); // Disable autocapitalize
-        // addClassNamesToElement(element, config.theme.code);
 
         // Create the top bar
         const topBar = document.createElement("div");
@@ -160,18 +149,18 @@ export class CodeBlockNode extends ElementNode {
 
     static importJSON(serializedNode: SerializedCodeBlockNode): CodeBlockNode {
         const { language } = serializedNode;
-        return new CodeBlockNode(language);
+        return new CodeBlockNode({ language });
     }
 
     exportJSON(): SerializedCodeBlockNode {
         return {
             ...super.exportJSON(),
-            type: "codeblock",
+            __type: "Code",
             language: this.__language,
         };
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             pre: (node: Node) => {
                 const codeElement = node.firstChild;
@@ -201,10 +190,10 @@ export class CodeBlockNode extends ElementNode {
         }
 
         // Create a new CodeBlockNode with the extracted language and the text content
-        const node = new CodeBlockNode(language);
+        const node = $createNode("Code", { language });
         // Assuming you have a way to set the text content for the code block, e.g., by appending a TextNode
         if (codeElement) {
-            const textNode = new TextNode(codeElement.textContent || "");
+            const textNode = $createNode("Text", { text: codeElement.textContent || "" });
             node.append(textNode);
         }
 
@@ -216,7 +205,7 @@ export class CodeBlockNode extends ElementNode {
     }
 
     collapseAtStart() {
-        const paragraph = $createParagraphNode();
+        const paragraph = $createNode("Paragraph", {});
         const children = this.getChildren();
         children.forEach(child => paragraph.append(child));
         this.replace(paragraph);
@@ -233,22 +222,12 @@ export class CodeBlockNode extends ElementNode {
     //     _selection: RangeSelection,
     //     restoreSelection?: boolean | undefined
     // ): LexicalNode | null {
-    //     const newBlock = $createParagraphNode();
+    //     const newBlock = $createNode("Paragraph", {});
     //     const direction = this.getDirection();
     //     newBlock.setDirection(direction);
     //     this.insertAfter(newBlock, restoreSelection);
     //     return newBlock;
     // }
-}
-
-export function $createCodeBlockNode(language = ""): CodeBlockNode {
-    console.log("creating code block node", language);
-    // return new CodeBlockNode(language);
-    return $applyNodeReplacement(new CodeBlockNode(language));
-}
-
-export function $isCodeBlockNode(node: LexicalNode): node is CodeBlockNode {
-    return node instanceof CodeBlockNode;
 }
 
 const codeBlockCommandListener = () => {
@@ -259,23 +238,23 @@ const codeBlockCommandListener = () => {
     const nodes = selection.getNodes();
 
     // Check if there is a code block node in the selection
-    const isInCodeBlock = nodes.some(node => node instanceof CodeBlockNode || node.getParent() !== null);
+    const isInCodeBlock = nodes.some(node => $isNode("Code", node) || getParent(node) !== null);
 
     if (isInCodeBlock) {
         // Logic to unwrap the selected text from the CodeBlockNode
         nodes.forEach(node => {
-            const codeBlockNode = node instanceof CodeBlockNode ? node : node.getParent();
+            const codeBlockNode = $isNode("Code", node) ? node : getParent(node);
             if (codeBlockNode) {
                 const textContent = codeBlockNode.getTextContent();
-                const newTextNode = new TextNode(textContent);
+                const newTextNode = $createNode("Text", { text: textContent });
                 codeBlockNode.replace(newTextNode);
             }
         });
     } else {
         // Logic to wrap the selected text in a new CodeBlockNode
         const textContent = selection.getTextContent();
-        const codeBlockNode = $createCodeBlockNode(); // Optionally pass a language identifier
-        const textNode = new TextNode(textContent);
+        const codeBlockNode = $createNode("Code", {}); // Optionally pass a language identifier
+        const textNode = $createNode("Text", { text: textContent });
         codeBlockNode.append(textNode);
 
         // $wrapNodes([codeBlockNode], selection);
@@ -286,9 +265,6 @@ const codeBlockCommandListener = () => {
 
 export function CodeBlockPlugin(): null {
     const [editor] = useLexicalComposerContext();
-    if (!editor.hasNodes([CodeBlockNode])) {
-        throw new Error("CodeBlockPlugin: CodeBlockNode not registered on editor");
-    }
     editor.registerCommand(
         CODE_BLOCK_COMMAND,
         codeBlockCommandListener,

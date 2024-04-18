@@ -8,7 +8,7 @@ export const createCommand = <T>(type?: string): LC<T> => {
 // All available commands (e.g. key commands, text formatting, etc.). 
 // Commands can be registered, which allows you to listen for them and execute custom logic when they are triggered.
 export const SELECTION_CHANGE_COMMAND: LC<void> = createCommand("SELECTION_CHANGE_COMMAND");
-export const SELECTION_INSERT_CLIPBOARD_NODES_COMMAND: LC<{ nodes: Array<LexicalNode>; selection: BaseSelection }> = createCommand("SELECTION_INSERT_CLIPBOARD_NODES_COMMAND");
+export const SELECTION_INSERT_CLIPBOARD_NODES_COMMAND: LC<{ nodes: LexicalNode[]; selection: BaseSelection }> = createCommand("SELECTION_INSERT_CLIPBOARD_NODES_COMMAND");
 export const CLICK_COMMAND: LC<MouseEvent> = createCommand("CLICK_COMMAND");
 export const DELETE_CHARACTER_COMMAND: LC<boolean> = createCommand("DELETE_CHARACTER_COMMAND");
 export const INSERT_LINE_BREAK_COMMAND: LC<boolean> = createCommand("INSERT_LINE_BREAK_COMMAND");
@@ -54,7 +54,7 @@ export const BLUR_COMMAND: LC<FocusEvent> = createCommand("BLUR_COMMAND");
 export const KEY_MODIFIER_COMMAND: LC<KeyboardEvent> = createCommand("KEY_MODIFIER_COMMAND");
 export const CODE_BLOCK_COMMAND = createCommand("CODE_BLOCK_COMMAND");
 export const SPOILER_COMMAND = createCommand("SPOILER_COMMAND");
-export const TOGGLE_LINK_COMMAND: LC<string | ({ url: string } & LinkAttributes) | null> = createCommand("TOGGLE_LINK_COMMAND");
+export const TOGGLE_LINK_COMMAND: LC<string | LinkAttributes | null> = createCommand("TOGGLE_LINK_COMMAND");
 export const INSERT_UNORDERED_LIST_COMMAND: LC<void> = createCommand("INSERT_UNORDERED_LIST_COMMAND");
 export const INSERT_CHECK_LIST_COMMAND: LC<void> = createCommand("INSERT_CHECK_LIST_COMMAND");
 export const INSERT_ORDERED_LIST_COMMAND: LC<void> = createCommand("INSERT_ORDERED_LIST_COMMAND");

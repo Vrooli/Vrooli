@@ -1,24 +1,20 @@
 import { NO_DIRTY_NODES } from "../consts";
-import { SerializedRootNode } from "../types";
+import { NodeConstructorPayloads, NodeType, SerializedRootNode } from "../types";
 import { getActiveEditor, isCurrentlyReadOnlyMode } from "../updates";
-import { $getRoot, $isDecoratorNode, $isElementNode } from "../utils";
+import { $createNode, $getRoot, $isNode } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
+import { type LexicalNode } from "./LexicalNode";
 
 export class RootNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "Root";
     __cachedText: null | string;
 
-    static getType(): string {
-        return "root";
-    }
-
     static clone(): RootNode {
-        return new RootNode();
+        return $createNode("Root", {});
     }
 
-    constructor() {
-        super("root");
+    constructor({ ...rest }: NodeConstructorPayloads["Root"]) {
+        super(rest);
         this.__cachedText = null;
     }
 
@@ -66,7 +62,7 @@ export class RootNode extends ElementNode {
     append(...nodesToAppend: LexicalNode[]): this {
         for (let i = 0; i < nodesToAppend.length; i++) {
             const node = nodesToAppend[i];
-            if (!$isElementNode(node) && !$isDecoratorNode(node)) {
+            if (!$isNode("Element", node) && !$isNode("Decorator", node)) {
                 throw new Error("rootNode.append: Only element or decorator nodes can be appended to the root node");
             }
         }
@@ -84,11 +80,11 @@ export class RootNode extends ElementNode {
 
     exportJSON(): SerializedRootNode {
         return {
+            __type: "Root",
             children: [],
             direction: this.getDirection(),
             format: this.getFormatType(),
             indent: this.getIndent(),
-            type: "root",
             version: 1,
         };
     }
@@ -97,13 +93,3 @@ export class RootNode extends ElementNode {
         return true;
     }
 }
-
-export const $createRootNode = (): RootNode => {
-    return new RootNode();
-};
-
-export const $isRootNode = (
-    node: RootNode | LexicalNode | null | undefined,
-): node is RootNode => {
-    return node instanceof RootNode;
-};

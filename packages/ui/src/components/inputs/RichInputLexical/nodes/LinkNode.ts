@@ -1,8 +1,8 @@
 import { RangeSelection } from "../selection";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, EditorConfig, LinkAttributes, NodeKey, SerializedAutoLinkNode, SerializedLinkNode } from "../types";
-import { $applyNodeReplacement, $getAncestor, $getSelection, $isElementNode, $isRangeSelection, addClassNamesToElement, isHTMLAnchorElement } from "../utils";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, LinkAttributes, NodeConstructorPayloads, NodeType, SerializedAutoLinkNode, SerializedLinkNode } from "../types";
+import { $applyNodeReplacement, $createNode, $isNode, $isRangeSelection, isHTMLAnchorElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode } from "./LexicalNode";
+import { LexicalNode, getParentOrThrow } from "./LexicalNode";
 
 const SUPPORTED_URL_PROTOCOLS = new Set([
     "http:",
@@ -13,37 +13,26 @@ const SUPPORTED_URL_PROTOCOLS = new Set([
 ]);
 
 export class LinkNode extends ElementNode {
-    /** @internal */
+    static __type: NodeType = "Link";
     __url: string;
-    /** @internal */
     __target: null | string;
-    /** @internal */
     __rel: null | string;
-    /** @internal */
     __title: null | string;
 
-    static getType(): string {
-        return "link";
+    constructor({ rel, target, title, url, ...rest }: NodeConstructorPayloads["Link"]) {
+        super(rest);
+        this.__url = url;
+        this.__target = target || null;
+        this.__rel = rel || null;
+        this.__title = title || null;
     }
 
     static clone(node: LinkNode): LinkNode {
-        return new LinkNode(
-            node.__url,
-            { rel: node.__rel, target: node.__target, title: node.__title },
-            node.__key,
-        );
+        const { __rel, __target, __title, __url, __key } = node;
+        return $createNode("Link", { rel: __rel, target: __target, title: __title, url: __url, key: __key });
     }
 
-    constructor(url: string, attributes: LinkAttributes = {}, key?: NodeKey) {
-        super(key);
-        const { target = null, rel = null, title = null } = attributes;
-        this.__url = url;
-        this.__target = target;
-        this.__rel = rel;
-        this.__title = title;
-    }
-
-    createDOM(config: EditorConfig): HTMLAnchorElement {
+    createDOM(): HTMLAnchorElement {
         const element = document.createElement("a");
         element.href = this.sanitizeUrl(this.__url);
         if (this.__target !== null) {
@@ -55,14 +44,12 @@ export class LinkNode extends ElementNode {
         if (this.__title !== null) {
             element.title = this.__title;
         }
-        addClassNamesToElement(element, config.theme.link);
         return element;
     }
 
     updateDOM(
         prevNode: LinkNode,
         anchor: HTMLAnchorElement,
-        config: EditorConfig,
     ): boolean {
         const url = this.__url;
         const target = this.__target;
@@ -98,7 +85,7 @@ export class LinkNode extends ElementNode {
         return false;
     }
 
-    static importDOM(): DOMConversionMap | null {
+    static importDOM(): DOMConversionMap {
         return {
             a: (node: Node) => ({
                 conversion: convertAnchorElement,
@@ -107,17 +94,19 @@ export class LinkNode extends ElementNode {
         };
     }
 
-    static importJSON(
-        serializedNode: SerializedLinkNode | SerializedAutoLinkNode,
-    ): LinkNode {
-        const node = $createLinkNode(serializedNode.url, {
-            rel: serializedNode.rel,
-            target: serializedNode.target,
-            title: serializedNode.title,
-        });
-        node.setFormat(serializedNode.format);
-        node.setIndent(serializedNode.indent);
-        node.setDirection(serializedNode.direction);
+    static importJSON({
+        direction,
+        format,
+        indent,
+        rel,
+        target,
+        title,
+        url,
+    }: SerializedLinkNode): LinkNode {
+        const node = $createNode("Link", { rel, target, title, url });
+        node.setFormat(format);
+        node.setIndent(indent);
+        node.setDirection(direction);
         return node;
     }
 
@@ -137,10 +126,10 @@ export class LinkNode extends ElementNode {
     exportJSON(): SerializedLinkNode | SerializedAutoLinkNode {
         return {
             ...super.exportJSON(),
+            __type: "Link",
             rel: this.getRel(),
             target: this.getTarget(),
             title: this.getTitle(),
-            type: "link",
             url: this.getURL(),
             version: 1,
         };
@@ -186,10 +175,11 @@ export class LinkNode extends ElementNode {
         _: RangeSelection,
         restoreSelection = true,
     ): null | ElementNode {
-        const linkNode = $createLinkNode(this.__url, {
+        const linkNode = $createNode("Link", {
             rel: this.__rel,
             target: this.__target,
             title: this.__title,
+            url: this.__url,
         });
         this.insertAfter(linkNode, restoreSelection);
         return linkNode;
@@ -236,61 +226,32 @@ function convertAnchorElement(domNode: Node): DOMConversionOutput {
     if (isHTMLAnchorElement(domNode)) {
         const content = domNode.textContent;
         if ((content !== null && content !== "") || domNode.children.length > 0) {
-            node = $createLinkNode(domNode.getAttribute("href") || "", {
+            node = $createNode("Link", {
                 rel: domNode.getAttribute("rel"),
                 target: domNode.getAttribute("target"),
                 title: domNode.getAttribute("title"),
+                url: domNode.getAttribute("href") || "",
             });
         }
     }
     return { node };
 }
 
-/**
- * Takes a URL and creates a LinkNode.
- * @param url - The URL the LinkNode should direct to.
- * @param attributes - Optional HTML a tag attributes { target, rel, title }
- * @returns The LinkNode.
- */
-export function $createLinkNode(
-    url: string,
-    attributes?: LinkAttributes,
-): LinkNode {
-    return $applyNodeReplacement(new LinkNode(url, attributes));
-}
-
-/**
- * Determines if node is a LinkNode.
- * @param node - The node to be checked.
- * @returns true if node is a LinkNode, false otherwise.
- */
-export function $isLinkNode(
-    node: LexicalNode | null | undefined,
-): node is LinkNode {
-    return node instanceof LinkNode;
-}
-
-
 // Custom node type to override `canInsertTextAfter` that will
 // allow typing within the link
-export class AutoLinkNode extends LinkNode {
-    static getType(): string {
-        return "autolink";
-    }
+export class AutoLinkNode extends LinkNode { //TODO might need to set this.__type
 
     static clone(node: AutoLinkNode): AutoLinkNode {
-        return new AutoLinkNode(
-            node.__url,
-            { rel: node.__rel, target: node.__target, title: node.__title },
-            node.__key,
-        );
+        const { __rel, __target, __title, __url, __key } = node;
+        return new AutoLinkNode({ rel: __rel, target: __target, title: __title, url: __url, key: __key });
     }
 
     static importJSON(serializedNode: SerializedAutoLinkNode): AutoLinkNode {
-        const node = $createAutoLinkNode(serializedNode.url, {
+        const node = $createAutoLinkNode({
             rel: serializedNode.rel,
             target: serializedNode.target,
             title: serializedNode.title,
+            url: serializedNode.url,
         });
         node.setFormat(serializedNode.format);
         node.setIndent(serializedNode.indent);
@@ -298,15 +259,14 @@ export class AutoLinkNode extends LinkNode {
         return node;
     }
 
-    static importDOM(): null {
-        // TODO: Should link node should handle the import over autolink?
-        return null;
+    static importDOM(): DOMConversionMap {
+        return {};
     }
 
     exportJSON(): SerializedAutoLinkNode {
         return {
             ...super.exportJSON(),
-            type: "autolink",
+            __type: "Link",
             version: 1,
         };
     }
@@ -315,15 +275,16 @@ export class AutoLinkNode extends LinkNode {
         selection: RangeSelection,
         restoreSelection = true,
     ): null | ElementNode {
-        const element = this.getParentOrThrow().insertNewAfter(
+        const element = getParentOrThrow(this).insertNewAfter(
             selection,
             restoreSelection,
         );
-        if ($isElementNode(element)) {
-            const linkNode = $createAutoLinkNode(this.__url, {
+        if ($isNode("Element", element)) {
+            const linkNode = $createAutoLinkNode({
                 rel: this.__rel,
                 target: this.__target,
                 title: this.__title,
+                url: this.__url,
             });
             element.append(linkNode);
             return linkNode;
@@ -339,143 +300,6 @@ export class AutoLinkNode extends LinkNode {
  * @param attributes - Optional HTML a tag attributes. { target, rel, title }
  * @returns The LinkNode.
  */
-export const $createAutoLinkNode = (
-    url: string,
-    attributes?: LinkAttributes,
-): AutoLinkNode => {
-    return $applyNodeReplacement(new AutoLinkNode(url, attributes));
+export const $createAutoLinkNode = (attributes: LinkAttributes): AutoLinkNode => {
+    return $applyNodeReplacement(new AutoLinkNode(attributes));
 };
-
-/**
- * Determines if node is an AutoLinkNode.
- * @param node - The node to be checked.
- * @returns true if node is an AutoLinkNode, false otherwise.
- */
-export const $isAutoLinkNode = (
-    node: LexicalNode | null | undefined,
-): node is AutoLinkNode => {
-    return node instanceof AutoLinkNode;
-};
-
-/**
- * Generates or updates a LinkNode. It can also delete a LinkNode if the URL is null,
- * but saves any children and brings them up to the parent node.
- * @param url - The URL the link directs to.
- * @param attributes - Optional HTML a tag attributes. { target, rel, title }
- */
-export function toggleLink(
-    url: null | string,
-    attributes: LinkAttributes = {},
-): void {
-    const { target, title } = attributes;
-    const rel = attributes.rel === undefined ? "noreferrer" : attributes.rel;
-    const selection = $getSelection();
-
-    if (!$isRangeSelection(selection)) {
-        return;
-    }
-    const nodes = selection.extract();
-
-    if (url === null) {
-        // Remove LinkNodes
-        nodes.forEach((node) => {
-            const parent = node.getParent();
-
-            if ($isLinkNode(parent)) {
-                const children = parent.getChildren();
-
-                for (let i = 0; i < children.length; i++) {
-                    parent.insertBefore(children[i]);
-                }
-
-                parent.remove();
-            }
-        });
-    } else {
-        // Add or merge LinkNodes
-        if (nodes.length === 1) {
-            const firstNode = nodes[0];
-            // if the first node is a LinkNode or if its
-            // parent is a LinkNode, we update the URL, target and rel.
-            const linkNode = $getAncestor(firstNode, $isLinkNode);
-            if (linkNode !== null) {
-                linkNode.setURL(url);
-                if (target !== undefined) {
-                    linkNode.setTarget(target);
-                }
-                if (rel !== null) {
-                    linkNode.setRel(rel);
-                }
-                if (title !== undefined) {
-                    linkNode.setTitle(title);
-                }
-                return;
-            }
-        }
-
-        let prevParent: ElementNode | LinkNode | null = null;
-        let linkNode: LinkNode | null = null;
-
-        nodes.forEach((node) => {
-            const parent = node.getParent();
-
-            if (
-                parent === linkNode ||
-                parent === null ||
-                ($isElementNode(node) && !node.isInline())
-            ) {
-                return;
-            }
-
-            if ($isLinkNode(parent)) {
-                linkNode = parent;
-                parent.setURL(url);
-                if (target !== undefined) {
-                    parent.setTarget(target);
-                }
-                if (rel !== null) {
-                    linkNode.setRel(rel);
-                }
-                if (title !== undefined) {
-                    linkNode.setTitle(title);
-                }
-                return;
-            }
-
-            if (!parent.is(prevParent)) {
-                prevParent = parent;
-                linkNode = $createLinkNode(url, { rel, target, title });
-
-                if ($isLinkNode(parent)) {
-                    if (node.getPreviousSibling() === null) {
-                        parent.insertBefore(linkNode);
-                    } else {
-                        parent.insertAfter(linkNode);
-                    }
-                } else {
-                    node.insertBefore(linkNode);
-                }
-            }
-
-            if ($isLinkNode(node)) {
-                if (node.is(linkNode)) {
-                    return;
-                }
-                if (linkNode !== null) {
-                    const children = node.getChildren();
-
-                    for (let i = 0; i < children.length; i++) {
-                        linkNode.append(children[i]);
-                    }
-                }
-
-                node.remove();
-                return;
-            }
-
-            if (linkNode !== null) {
-                linkNode.append(node);
-            }
-        });
-    }
-}

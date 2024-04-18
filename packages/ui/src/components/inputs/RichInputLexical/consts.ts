@@ -1,4 +1,4 @@
-import { ElementFormatType, TextDetailType, TextModeType } from "./types";
+import { ElementFormatType, TextDetailType, TextFormatType, TextModeType } from "./types";
 
 export const NO_DIRTY_NODES = 0;
 export const HAS_DIRTY_NODES = 1;
@@ -62,6 +62,53 @@ export const ELEMENT_FORMAT_TO_TYPE: Record<number, ElementFormatType> = {
     [IS_ALIGN_RIGHT]: "right",
     [IS_ALIGN_START]: "start",
 };
+
+export const ELEMENT_NODES = [
+    "Code",
+    "Element",
+    "Heading",
+    "Link",
+    "List",
+    "ListItem",
+    "Paragraph",
+    "Quote",
+    "Root",
+    "Table",
+    "TableCell",
+    "TableRow",
+] as const;
+export const DECORATOR_NODES = [
+    "Decorator",
+    "HorizontalRule",
+] as const;
+export const TEXT_NODES = [
+    "Hashtag",
+    "Tab",
+    "Text",
+] as const;
+
+/**
+ * Bit flags representing the type of text formatting. This is useful because
+ * text nodes can have multiple types of formatting.
+ */
+export const TEXT_FLAGS: Record<TextFormatType, number> = {
+    BOLD: 1 << 0,
+    CODE_BLOCK: 1 << 1,
+    CODE_INLINE: 1 << 2,
+    HEADING: 1 << 3,
+    HIGHLIGHT: 1 << 4,
+    ITALIC: 1 << 5,
+    LIST_ORDERED: 1 << 6,
+    LIST_UNORDERED: 1 << 7,
+    QUOTE: 1 << 8,
+    SPOILER_LINES: 1 << 9,
+    SPOILER_TAGS: 1 << 10,
+    STRIKETHROUGH: 1 << 11,
+    SUBSCRIPT: 1 << 12,
+    SUPERSCRIPT: 1 << 13,
+    UNDERLINE_LINES: 1 << 14,
+    UNDERLINE_TAGS: 1 << 15,
+} as const;
 
 export const DOUBLE_LINE_BREAK = "\n\n";
 
