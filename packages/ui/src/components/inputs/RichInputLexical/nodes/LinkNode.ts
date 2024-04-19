@@ -1,8 +1,8 @@
 import { RangeSelection } from "../selection";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, LinkAttributes, NodeConstructorPayloads, NodeType, SerializedAutoLinkNode, SerializedLinkNode } from "../types";
-import { $applyNodeReplacement, $createNode, $isNode, $isRangeSelection, isHTMLAnchorElement } from "../utils";
+import { $applyNodeReplacement, $createNode, $isNode, $isRangeSelection, getParentOrThrow, isHTMLAnchorElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { LexicalNode, getParentOrThrow } from "./LexicalNode";
+import { type LexicalNode } from "./LexicalNode";
 
 const SUPPORTED_URL_PROTOCOLS = new Set([
     "http:",

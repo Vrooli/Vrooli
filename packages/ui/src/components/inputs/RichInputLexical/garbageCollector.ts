@@ -1,8 +1,7 @@
 import { EditorState, LexicalEditor } from "./editor";
 import { ElementNode } from "./nodes/ElementNode";
-import { getNextSibling, isAttachedToRoot } from "./nodes/LexicalNode";
 import { IntentionallyMarkedAsDirtyElement, NodeKey, NodeMap } from "./types";
-import { $isNode, cloneDecorators } from "./utils";
+import { $isNode, cloneDecorators, getNextSibling, isAttachedToRoot } from "./utils";
 
 export const $garbageCollectDetachedDecorators = (
     editor: LexicalEditor,

@@ -1,9 +1,9 @@
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
-import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
+import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, getPreviousSiblings, type LexicalNode } from "./LexicalNode";
+import { type LexicalNode } from "./LexicalNode";
 import { mergeLists, type ListNode } from "./ListNode";
 import { type ParagraphNode } from "./ParagraphNode";
 
@@ -459,10 +459,8 @@ export const $handleIndent = (listItemNode: ListItemNode): void => {
     const parent = getParent(listItemNode);
 
     // We can cast both of the below `isNestedListNode` only returns a boolean type instead of a user-defined type guards
-    const nextSibling =
-        getNextSibling<ListItemNode>(listItemNode) as ListItemNode;
-    const previousSibling =
-        getPreviousSibling<ListItemNode>(listItemNode) as ListItemNode;
+    const nextSibling = getNextSibling<ListItemNode>(listItemNode);
+    const previousSibling = getPreviousSibling<ListItemNode>(listItemNode);
     // if there are nested lists on either side, merge them all together.
 
     if (isNestedListNode(nextSibling) && isNestedListNode(previousSibling)) {

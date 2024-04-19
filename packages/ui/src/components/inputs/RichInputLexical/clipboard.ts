@@ -1,10 +1,10 @@
 import { COPY_COMMAND, SELECTION_INSERT_CLIPBOARD_NODES_COMMAND } from "./commands";
 import { CAN_USE_DOM, COMMAND_PRIORITY_CRITICAL } from "./consts";
 import { LexicalEditor } from "./editor";
-import { isSelected, type LexicalNode } from "./nodes/LexicalNode";
+import { type LexicalNode } from "./nodes/LexicalNode";
 import { BaseSelection, BaseSerializedNode, SerializedElementNode, SerializedTextNode } from "./types";
 import { $addNodeStyle, $parseSerializedNode } from "./updates";
-import { $cloneWithProperties, $createNode, $generateNodesFromDOM, $getRoot, $getSelection, $isNode, $isRangeSelection, $sliceSelectedTextNodeContent, isSelectionWithinEditor, objectKlassEquals } from "./utils";
+import { $cloneWithProperties, $createNode, $generateNodesFromDOM, $getRoot, $getSelection, $isNode, $isRangeSelection, $sliceSelectedTextNodeContent, isSelected, isSelectionWithinEditor, objectKlassEquals } from "./utils";
 
 const getDOMSelection = (targetWindow: Window | null): Selection | null =>
     CAN_USE_DOM ? (targetWindow || window).getSelection() : null;
@@ -92,7 +92,7 @@ export const $insertDataTransferForRichText = (
         try {
             const parser = new DOMParser();
             const dom = parser.parseFromString(htmlString, "text/html");
-            const nodes = $generateNodesFromDOM(editor, dom);
+            const nodes = $generateNodesFromDOM(dom);
             return $insertGeneratedNodes(editor, nodes, selection);
         } catch {
             // Fail silently.

@@ -9,11 +9,11 @@ import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from ".
 import { $convertFromMarkdownString, $convertToMarkdownString, registerMarkdownShortcuts } from "./builder";
 import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands";
 import { CAN_USE_DOM, COMMAND_PRIORITY_CRITICAL } from "./consts";
-import { LexicalComposerContext, LexicalComposerContextType, createLexicalComposerContext, useLexicalComposerContext } from "./context";
+import { LexicalComposerContext, useLexicalComposerContext } from "./context";
 import { EditorState, LexicalEditor, createEditor } from "./editor";
 import { type ElementNode } from "./nodes/ElementNode";
 import { type HeadingNode } from "./nodes/HeadingNode";
-import { getParent, getTopLevelElementOrThrow, type LexicalNode } from "./nodes/LexicalNode";
+import { type LexicalNode } from "./nodes/LexicalNode";
 import { type TextNode } from "./nodes/TextNode";
 import { CheckListPlugin } from "./plugins/CheckListPlugin";
 import { CodeBlockPlugin } from "./plugins/CodePlugin";
@@ -29,7 +29,7 @@ import { ELEMENT_TRANSFORMERS } from "./transformers/elementTransformers";
 import { TEXT_TRANSFORMERS, applyTextTransformers } from "./transformers/textFormatTransformers";
 import { TEXT_MATCH_TRANSFORMERS } from "./transformers/textMatchTransformers";
 import { EditorThemeClasses, HeadingTagType, InitialEditorStateType, LexicalTransformer, NodeKey } from "./types";
-import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot } from "./utils";
+import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot, getParent, getTopLevelElementOrThrow } from "./utils";
 
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
@@ -166,10 +166,10 @@ const theme: EditorThemeClasses = {
  * which can be a string (plain text or serialized state), an object (editor state), or a function
  * (custom initialization logic).
  */
-function initializeEditor(
+const initializeEditor = (
     editor: LexicalEditor,
     initialEditorState?: InitialEditorStateType,
-): void {
+): void => {
     if (initialEditorState === null) {
         return;
     } else if (initialEditorState === undefined) {
@@ -209,7 +209,7 @@ function initializeEditor(
             }
         }
     }
-}
+};
 
 /**
  * Retrieves the most relevant node from a given range selection within the Lexical editor.
@@ -284,7 +284,7 @@ export const MarkdownShortcutPlugin = ({
 }: Readonly<{
     transformers: LexicalTransformer[];
 }>): null => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useEffect(() => {
         return registerMarkdownShortcuts(editor, transformers);
@@ -329,7 +329,7 @@ export function ContentEditable({
     "data-testid": testid,
     ...rest
 }: ContentEditableProps): JSX.Element {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
     const [isEditable, setEditable] = useState(false);
 
     const ref = useCallback(
@@ -388,8 +388,8 @@ export function ContentEditable({
     );
 }
 
-/** Actual components of RichInputLexical. Needed so that we can use the lexical provider */
-const RichInputLexicalComponents = ({
+/** TextInput for entering WYSIWYG text */
+export const RichInputLexicalComponents = ({
     autoFocus = false,
     disabled = false,
     error = false,
@@ -412,8 +412,31 @@ const RichInputLexicalComponents = ({
     value,
     sxs,
 }: RichInputLexicalProps) => {
+
+    // Set up Lexical editor
+    const [editor, setEditor] = useState<LexicalEditor | null>(null);
+    useEffect(() => {
+        const initializeAsync = async () => {
+            // Asynchronously create the editor instance
+            const newEditor = await createEditor({ namespace: "RichInputEditor" });
+
+            // Initialize editor with current value
+            initializeEditor(newEditor, () => { $convertFromMarkdownString(value, ALL_TRANSFORMERS); });
+
+            setEditor(newEditor);
+        };
+
+        initializeAsync();
+        // Purposefully only run once
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    useLayoutEffect(() => {
+        if (!editor) return;
+        const isEditable = typeof disabled === "boolean" ? !disabled : true;
+        editor.setEditable(isEditable !== undefined ? isEditable : true);
+    }, [disabled, editor]);
+
     const { palette, spacing, typography } = useTheme();
-    const [editor] = useLexicalComposerContext();
 
     const tagData = useTagDropdown({ getTaggableItems });
     const selectDropdownItem = useCallback((item: ListObject) => {
@@ -426,8 +449,8 @@ const RichInputLexicalComponents = ({
     const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
     const [isLink, setIsLink] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
-    const [isEditable, setIsEditable] = useState(() => editor.isEditable());
     const $updateToolbar = useCallback(() => {
+        if (!activeEditor) return;
         const updatedStates = { ...defaultActiveStates };
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
@@ -494,7 +517,7 @@ const RichInputLexicalComponents = ({
         }
     }, [activeEditor, onActiveStatesChange]);
     useEffect(() => {
-        return editor.registerCommand(
+        return editor?.registerCommand(
             SELECTION_CHANGE_COMMAND,
             (_payload, newEditor) => {
                 $updateToolbar();
@@ -507,7 +530,7 @@ const RichInputLexicalComponents = ({
 
     const triggerEditorChange = useCallback(() => {
         console.log("updating editor value", value);
-        editor.update(() => {
+        editor?.update(() => {
             console.log("calling convertfrommarkdownstring in triggereditrochange");
             $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         }, HISTORY_MERGE_OPTIONS);
@@ -523,7 +546,7 @@ const RichInputLexicalComponents = ({
 
     // Toolbar actions
     const toggleHeading = useCallback((headingSize: HeadingTagType) => {
-        editor.update(() => {
+        editor?.update(() => {
             const selection = $getSelection();
             //TODO fix this or replace it. If replacing, you can also remove $setBlocksType
             // if (selection && $INTERNAL_isPointSelection(selection)) {
@@ -533,7 +556,7 @@ const RichInputLexicalComponents = ({
     }, [activeStates, editor]);
 
     useEffect(() => {
-        if (!setHandleAction) return;
+        if (!setHandleAction || !editor) return;
         setHandleAction((action, data) => {
             const actionMap = {
                 "Assistant": () => {
@@ -690,44 +713,34 @@ export const RichInputLexical = ({
     ...props
 }: RichInputLexicalProps) => {
 
-    /** Configuration for lexical editor */
-    const initialConfig = useMemo(() => ({
-        editable: disabled !== false,
-        // Will need custom transformers if we want to support custom markdown syntax (e.g. underline, spoiler)
-        editorState: () => {
-            console.log("calling convertfrommarkdownstring in initialconfig.editorState function");
-            $convertFromMarkdownString(value, ALL_TRANSFORMERS);
-        },
-        namespace: "RichInputEditor",
-    }), [disabled, value]);
+    // Set up Lexical editor
+    const [editor, setEditor] = useState<LexicalEditor | null>(null);
+    useEffect(() => {
+        const initializeAsync = async () => {
+            // Asynchronously create the editor instance
+            const newEditor = await createEditor({ namespace: "RichInputEditor" });
 
-    /** Lexical editor context, for finding and manipulating state */
-    const composerContext: [LexicalEditor, LexicalComposerContextType] = useMemo(() => {
-        const {
-            editorState: initialEditorState,
-            namespace,
-        } = initialConfig;
-        const context = createLexicalComposerContext(null, theme);
-        const newEditor = createEditor({
-            editable: initialConfig.editable,
-            namespace,
-        });
-        initializeEditor(newEditor, initialEditorState);
-        const editor = newEditor;
-        return [editor, context];
-        // We only do this for init
+            // Initialize editor with current value
+            initializeEditor(newEditor, () => { $convertFromMarkdownString(value, ALL_TRANSFORMERS); });
+
+            setEditor(newEditor);
+        };
+
+        initializeAsync();
+        // Purposely only run once
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     useLayoutEffect(() => {
-        const isEditable = initialConfig.editable;
-        const [editor] = composerContext;
+        if (!editor) return;
+        const isEditable = typeof disabled === "boolean" ? !disabled : true;
         editor.setEditable(isEditable !== undefined ? isEditable : true);
-        // We only do this for init
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [disabled, editor]);
 
+    if (!editor) {
+        return <div>Loading editor...</div>; // TODO improve
+    }
     return (
-        <LexicalComposerContext.Provider value={composerContext}>
+        <LexicalComposerContext.Provider value={editor}>
             <RichInputLexicalComponents value={value} {...props} />
         </LexicalComposerContext.Provider>
     );

@@ -8,7 +8,7 @@ import { $createNode, $getNodeByKey, $getSelection, $isNode, $isNodeSelection, m
 import { DecoratorNode } from "./DecoratorNode";
 
 const HorizontalRuleComponent = ({ nodeKey }: { nodeKey: NodeKey }) => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
     const [isSelected, setSelected, clearSelection] =
         useLexicalNodeSelection(nodeKey);
 

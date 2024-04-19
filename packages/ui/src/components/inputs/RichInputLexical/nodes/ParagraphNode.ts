@@ -2,9 +2,8 @@ import { TEXT_FLAGS } from "../consts";
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedParagraphNode, TextFormatType } from "../types";
-import { $createNode, $isNode, isHTMLElement } from "../utils";
+import { $createNode, $isNode, getNextSibling, getPreviousSibling, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { getNextSibling, getPreviousSibling } from "./LexicalNode";
 
 export class ParagraphNode extends ElementNode {
     static __type: NodeType = "Paragraph";

@@ -4,14 +4,14 @@ import { COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HI
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
 import { ElementNode } from "../nodes/ElementNode";
-import { LexicalNode, getIndexWithinParent, getNextSibling, getParent, getParentOrThrow, getParents, getPreviousSibling, isSelected } from "../nodes/LexicalNode";
+import { type LexicalNode } from "../nodes/LexicalNode";
 import { type TableCellNode } from "../nodes/TableCellNode";
 import { $createTableNodeWithDimensions, TableNode } from "../nodes/TableNode";
 import { type TableRowNode } from "../nodes/TableRowNode";
 import { $createPoint, $createRangeSelection, $createRangeSelectionFromDom, $getPreviousSelection, RangeSelection, getTable } from "../selection";
 import { BaseSelection, ElementFormatType, HTMLTableElementWithWithTableSelectionState, InsertTableCommandPayload, LexicalCommand, NodeKey, PointType, TableDOMCell, TableDOMTable, TableMapType, TableMapValueType, TableSelectionShape, TextFormatType } from "../types";
 import { isCurrentlyReadOnlyMode } from "../updates";
-import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection } from "../utils";
+import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection, getIndexWithinParent, getNextSibling, getParent, getParentOrThrow, getParents, getPreviousSibling, isSelected } from "../utils";
 
 export const TablePlugin = ({
     hasCellMerge = true,
@@ -22,7 +22,7 @@ export const TablePlugin = ({
     hasCellBackgroundColor?: boolean;
     hasTabHandler?: boolean;
 }): JSX.Element | null => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useEffect(() => {
         return editor.registerCommand<InsertTableCommandPayload>(

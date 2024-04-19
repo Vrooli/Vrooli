@@ -4,13 +4,12 @@ import { INSERT_CHECK_LIST_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMA
 import { COMMAND_PRIORITY_LOW } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
-import { getNextSibling, getParent, getParentOrThrow, getPreviousSibling } from "../nodes/LexicalNode";
 import { ListItemNode } from "../nodes/ListItemNode";
 import { insertList } from "../nodes/ListNode";
-import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, isHTMLElement, mergeRegister } from "../utils";
+import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, getNextSibling, getParent, getParentOrThrow, getPreviousSibling, isHTMLElement, mergeRegister } from "../utils";
 
 export const CheckListPlugin = (): null => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useEffect(() => {
         return mergeRegister(

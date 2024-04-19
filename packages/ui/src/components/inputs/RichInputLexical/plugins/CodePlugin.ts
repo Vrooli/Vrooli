@@ -5,9 +5,8 @@ import { CODE_BLOCK_COMMAND } from "../commands";
 import { COMMAND_PRIORITY_HIGH } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { ElementNode } from "../nodes/ElementNode";
-import { getParent } from "../nodes/LexicalNode";
 import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
-import { $createNode, $getSelection, $isNode, $isRangeSelection } from "../utils";
+import { $createNode, $getSelection, $isNode, $isRangeSelection, getParent } from "../utils";
 
 const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
 
@@ -264,7 +263,7 @@ const codeBlockCommandListener = () => {
 };
 
 export function CodeBlockPlugin(): null {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
     editor.registerCommand(
         CODE_BLOCK_COMMAND,
         codeBlockCommandListener,

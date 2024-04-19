@@ -3,13 +3,13 @@
 import "highlight.js/styles/monokai-sublime.css";
 import { LexicalEditor } from "./editor";
 import { type ElementNode } from "./nodes/ElementNode";
-import { getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, isAttachedToRoot, type LexicalNode } from "./nodes/LexicalNode";
+import { type LexicalNode } from "./nodes/LexicalNode";
 import { type TextNode } from "./nodes/TextNode";
 import { type CodeBlockNode } from "./plugins/CodePlugin";
 import { $createRangeSelection } from "./selection";
 import { hasFormat } from "./transformers/textFormatTransformers";
 import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatchTransformer } from "./types";
-import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection } from "./utils";
+import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, isAttachedToRoot } from "./utils";
 
 /**
  * Matches any punctuation or whitespace character.

@@ -7,40 +7,10 @@ import { FULL_RECONCILE, NO_DIRTY_NODES } from "./consts";
 import { addRootElementEvents, removeRootElementEvents } from "./events";
 import { flushRootMutations, initMutationObserver } from "./mutations";
 import { LexicalNodes } from "./nodes";
-import { LexicalNode } from "./nodes/LexicalNode";
-import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, DOMConversionCache, DecoratorListener, EditableListener, EditorConfig, EditorFocusOptions, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, Listeners, MutationListener, NodeKey, NodeMap, NodeType, RegisteredNodes, RootListener, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, TextContentListener, Transform, UpdateListener } from "./types";
+import { type LexicalNode } from "./nodes/LexicalNode";
+import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, DecoratorListener, EditableListener, EditorConfig, EditorFocusOptions, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, Listeners, MutationListener, NodeKey, NodeMap, NodeType, RegisteredNodes, RootListener, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, TextContentListener, Transform, UpdateListener } from "./types";
 import { commitPendingUpdates, parseEditorState, readEditorState, triggerListeners, updateEditor } from "./updates";
 import { $createNode, $getRoot, $getSelection, $isNode, dispatchCommand, getCachedClassNameArray, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
-
-/**
- * Map of HTML -> LexicalNode conversions. Used to convert DOM elements to LexicalNodes.
- */
-export const IMPORT_DOM_MAP: DOMConversionCache = {};
-
-/**
- * Combines all node-specific importDOM mappings into a single global mapping.
- */
-const createImportDOMMap = () => {
-    // Iterate over each node
-    for (const nodeType in LexicalNodes.getAll()) {
-        const NodeClass = LexicalNodes.get(nodeType as NodeType);
-        if (NodeClass) {
-            const importDOM = NodeClass.importDOM();
-            // Iterate over keys returned by the importDOM function of the class
-            for (const tag in importDOM) {
-                const convertFunction = importDOM[tag];
-                // Check if this tag already has a conversion function array
-                if (!IMPORT_DOM_MAP[tag]) {
-                    IMPORT_DOM_MAP[tag] = [];
-                }
-                // Push the new conversion function to the array for this tag
-                IMPORT_DOM_MAP[tag].push(convertFunction);
-            }
-        }
-    }
-};
-// Create the importDOMMap right away
-createImportDOMMap();
 
 export const cloneEditorState = (current: EditorState): EditorState => {
     return new EditorState(new Map(current._nodeMap));
@@ -56,8 +26,7 @@ const exportNodeToJSON = <SerializedNode extends SerializedLexicalNode>(
     }
 
     if ($isNode("Element", node)) {
-        const serializedChildren = (serializedNode as SerializedElementNode)
-            .children;
+        const serializedChildren = (serializedNode as SerializedElementNode).children;
         if (!Array.isArray(serializedChildren)) {
             throw new Error(`LexicalNode: Node ${node.getType()} is an element but .exportJSON() does not have a children array.`);
         }
@@ -160,7 +129,10 @@ export const resetEditor = (
  * @param editorConfig - the editor configuration.
  * @returns a LexicalEditor instance
  */
-export const createEditor = (editorConfig?: CreateEditorArgs): LexicalEditor => {
+export const createEditor = async (editorConfig?: CreateEditorArgs): Promise<LexicalEditor> => {
+    // Make sure node information is loaded before creating the editor
+    await LexicalNodes.init();
+
     const config = editorConfig || {};
     const editorState = createEmptyEditorState();
     const namespace = config.namespace || uuid();

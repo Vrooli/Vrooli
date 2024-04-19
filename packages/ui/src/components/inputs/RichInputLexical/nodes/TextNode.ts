@@ -5,8 +5,8 @@ import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointO
 import { hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeKey, NodeType, SerializedTextNode, TextDetailType, TextFormatType, TextModeType, TextNodeThemeClasses } from "../types";
 import { errorOnReadOnly } from "../updates";
-import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getCachedClassNameArray, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
-import { LexicalNode, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling } from "./LexicalNode";
+import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getCachedClassNameArray, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
+import { LexicalNode } from "./LexicalNode";
 
 const OUTER_TAGS = {
     [TEXT_FLAGS.CODE_INLINE]: "code",

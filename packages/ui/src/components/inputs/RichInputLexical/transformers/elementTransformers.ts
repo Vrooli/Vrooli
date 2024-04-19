@@ -1,9 +1,9 @@
 import { $createCodeNode } from "../nodes/CodeNode";
 import { type ElementNode } from "../nodes/ElementNode";
-import { getPreviousSibling, type LexicalNode } from "../nodes/LexicalNode";
+import { type LexicalNode } from "../nodes/LexicalNode";
 import { listExport, listReplace } from "../nodes/ListNode";
 import { ElementTransformer, HeadingTagType } from "../types";
-import { $createNode, $isNode } from "../utils";
+import { $createNode, $isNode, getPreviousSibling } from "../utils";
 
 const createBlockNode = (
     createNode: (match: Array<string>) => ElementNode,

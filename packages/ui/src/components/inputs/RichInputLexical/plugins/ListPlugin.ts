@@ -51,7 +51,7 @@ export const useList = (editor: LexicalEditor) => {
 };
 
 export const ListPlugin = (): null => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useList(editor);
 

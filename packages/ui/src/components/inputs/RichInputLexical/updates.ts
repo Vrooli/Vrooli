@@ -4,12 +4,12 @@ import { CSS_TO_STYLES, FULL_RECONCILE, NO_DIRTY_NODES } from "./consts";
 import { EditorState, LexicalEditor, cloneEditorState, createEmptyEditorState, editorStateHasDirtySelection, resetEditor } from "./editor";
 import { $garbageCollectDetachedDecorators, $garbageCollectDetachedNodes } from "./garbageCollector";
 import { initMutationObserver } from "./mutations";
-import { getNextSibling, getPreviousSibling, isAttachedToRoot, type LexicalNode } from "./nodes/LexicalNode";
+import { type LexicalNode } from "./nodes/LexicalNode";
 import { type TextNode } from "./nodes/TextNode";
 import { reconcileRoot } from "./reconcile";
 import { applySelectionTransforms, internalCreateSelection, updateDOMSelection } from "./selection";
 import { CommandPayloadType, EditorUpdateOptions, LexicalCommand, Listener, MutatedNodes, NodeType, RegisteredNode, RegisteredNodes, SerializedEditorState, SerializedLexicalNode, Transform } from "./types";
-import { $getCompositionKey, $isNode, $isNodeSelection, $isRangeSelection, getDOMSelection, getEditorStateTextContent, getStyleObjectFromRawCSS, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils";
+import { $getCompositionKey, $isNode, $isNodeSelection, $isRangeSelection, getDOMSelection, getEditorStateTextContent, getNextSibling, getPreviousSibling, getStyleObjectFromRawCSS, isAttachedToRoot, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils";
 
 let activeEditorState: null | EditorState = null;
 let activeEditor: null | LexicalEditor = null;

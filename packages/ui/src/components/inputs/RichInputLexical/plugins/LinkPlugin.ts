@@ -3,10 +3,9 @@ import { PASTE_COMMAND, TOGGLE_LINK_COMMAND } from "../commands";
 import { COMMAND_PRIORITY_LOW } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { ElementNode } from "../nodes/ElementNode";
-import { getParent, getPreviousSibling } from "../nodes/LexicalNode";
 import { type LinkNode } from "../nodes/LinkNode";
 import { LinkAttributes } from "../types";
-import { $createNode, $getAncestor, $getSelection, $isNode, $isRangeSelection, mergeRegister, objectKlassEquals } from "../utils";
+import { $createNode, $getAncestor, $getSelection, $isNode, $isRangeSelection, getParent, getPreviousSibling, mergeRegister, objectKlassEquals } from "../utils";
 
 type Props = {
     validateUrl?: (url: string) => boolean;
@@ -140,7 +139,7 @@ export const removeLink = (): void => {
 };
 
 export const LinkPlugin = ({ validateUrl }: Props) => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useEffect(() => {
         return mergeRegister(

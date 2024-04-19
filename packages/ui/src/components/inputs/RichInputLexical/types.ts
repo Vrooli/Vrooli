@@ -172,10 +172,10 @@ export type DOMChildConversion = (
 
 export type DOMConversionMap<T extends HTMLElement = HTMLElement> = Record<
     string,
-    (node: T) => DOMConversion<T> | null
+    (element: T) => DOMConversion<T> | null
 >;
 
-export type DOMConversionCache = { [key in NodeType]?: ((element: HTMLElement) => DOMConversion)[] };
+export type DOMConversionCache = Record<string, ((element: HTMLElement) => DOMConversion | null)[]>;
 
 export type DOMConversionOutput = {
     after?: (childLexicalNodes: LexicalNode[]) => LexicalNode[];

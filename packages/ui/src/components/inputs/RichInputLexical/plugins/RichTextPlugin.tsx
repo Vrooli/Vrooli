@@ -6,14 +6,13 @@ import { CAN_USE_BEFORE_INPUT, COMMAND_PRIORITY_EDITOR, IS_APPLE_WEBKIT, IS_IOS,
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
 import { ElementNode } from "../nodes/ElementNode";
-import { getIndexWithinParent, getParentOrThrow } from "../nodes/LexicalNode";
 import { $createRangeSelection, $insertNodes, $moveCharacter, $shouldOverrideDefaultCharacterSelection, caretFromPoint } from "../selection";
 import { ElementFormatType, TextFormatType } from "../types";
-import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $normalizeSelection, $selectAll, $setSelection, eventFiles, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils";
+import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $normalizeSelection, $selectAll, $setSelection, eventFiles, getIndexWithinParent, getParentOrThrow, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils";
 
 //TODO this file is a good place to store markdown string and selection positions. Then we can edit this in real-time instead of exporting everything to markdown on every change
 
-function registerRichText(editor: LexicalEditor): () => void {
+const registerRichText = (editor: LexicalEditor): () => void => {
     const removeListener = mergeRegister(
         editor.registerCommand(
             CLICK_COMMAND,
@@ -531,7 +530,7 @@ function registerRichText(editor: LexicalEditor): () => void {
         ),
     );
     return removeListener;
-}
+};
 
 /**
  * Adds support for Dragon, which is an extension that allows users to dictate text.
@@ -653,7 +652,7 @@ export const RichTextPlugin = ({
 }: {
     contentEditable: JSX.Element;
 }): JSX.Element => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useLayoutEffect(() => {
         return mergeRegister(

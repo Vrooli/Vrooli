@@ -2,9 +2,9 @@
 import { LIST_INDENT_SIZE } from "../consts";
 import { type LexicalEditor } from "../editor";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
-import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
+import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, type LexicalNode } from "./LexicalNode";
+import { type LexicalNode } from "./LexicalNode";
 import { type ListItemNode } from "./ListItemNode";
 import { type ParagraphNode } from "./ParagraphNode";
 

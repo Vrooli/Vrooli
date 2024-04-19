@@ -1,4 +1,4 @@
-import { LexicalNode } from "./nodes/LexicalNode";
+import { type LexicalNode } from "./nodes/LexicalNode";
 import { BaseSelection, ElementFormatType, InsertTableCommandPayload, LexicalCommand as LC, LinkAttributes, PasteCommandType, TextFormatType } from "./types";
 
 export const createCommand = <T>(type?: string): LC<T> => {

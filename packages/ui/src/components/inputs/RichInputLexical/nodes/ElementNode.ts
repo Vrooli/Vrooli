@@ -2,8 +2,8 @@ import { DOUBLE_LINE_BREAK, ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } fro
 import { RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection";
 import { BaseSelection, ElementFormatType, NodeConstructorPayloads, NodeKey, NodeType, PointType, SerializedElementNode } from "../types";
 import { errorOnReadOnly, getActiveEditor } from "../updates";
-import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, removeFromParent } from "../utils";
-import { LexicalNode, getNextSibling, getParent, getParentOrThrow, getPreviousSibling } from "./LexicalNode";
+import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, getNextSibling, getParent, getParentOrThrow, getPreviousSibling, removeFromParent } from "../utils";
+import { LexicalNode } from "./LexicalNode";
 import { type TextNode } from "./TextNode";
 
 /** @noInheritDoc */

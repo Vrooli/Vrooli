@@ -7,12 +7,12 @@ import { EditorState, LexicalEditor } from "./editor";
 import { markCollapsedSelectionFormat, markSelectionChangeFromDOMUpdate } from "./events";
 import { getIsProcessingMutations } from "./mutations";
 import { type ElementNode } from "./nodes/ElementNode";
-import { getIndexWithinParent, getNextSibling, getNextSiblings, getParent, getParentKeys, getParentOrThrow, getPreviousSibling, insertRangeAfter, isAttachedToRoot, isSelected, type LexicalNode } from "./nodes/LexicalNode";
+import { insertRangeAfter, type LexicalNode } from "./nodes/LexicalNode";
 import { type TextNode } from "./nodes/TextNode";
 import { toggleTextFormatType } from "./transformers/textFormatTransformers";
 import { BaseSelection, ElementPointType, NodeKey, PointType, TableDOMRows, TableDOMTable, TextFormatType, TextPointType } from "./types";
 import { getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode } from "./updates";
-import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getNodeFromDOM, getTextNodeOffset, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
+import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getIndexWithinParent, getNextSibling, getNextSiblings, getNodeFromDOM, getParent, getParentKeys, getParentOrThrow, getPreviousSibling, getTextNodeOffset, isAttachedToRoot, isSelected, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
 
 export const $createPoint = (
     key: NodeKey,
@@ -2904,7 +2904,7 @@ const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
 export const useLexicalNodeSelection = (
     key: NodeKey,
 ): [boolean, (arg0: boolean) => void, () => void] => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     const [isSelected, setIsSelected] = useState(() =>
         isNodeSelected(editor, key),

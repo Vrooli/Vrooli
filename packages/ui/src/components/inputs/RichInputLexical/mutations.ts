@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DOM_TEXT_TYPE, IS_FIREFOX, TEXT_MUTATION_VARIANCE } from "./consts";
 import { LexicalEditor } from "./editor";
-import { isAttachedToRoot } from "./nodes/LexicalNode";
 import { type RootNode } from "./nodes/RootNode";
 import { type TextNode } from "./nodes/TextNode";
 import { BaseSelection } from "./types";
 import { updateEditor } from "./updates";
-import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isFirefoxClipboardEvents } from "./utils";
+import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isAttachedToRoot, isFirefoxClipboardEvents } from "./utils";
 
 let isProcessingMutations = false;
 let lastTextEntryTimeStamp = 0;

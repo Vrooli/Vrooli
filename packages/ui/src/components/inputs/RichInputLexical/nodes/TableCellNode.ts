@@ -1,9 +1,8 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts";
 import { LexicalEditor } from "../editor";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
-import { $createNode, $isNode } from "../utils";
+import { $createNode, $isNode, getParentOrThrow } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { getParentOrThrow } from "./LexicalNode";
 
 export class TableCellNode extends ElementNode {
     static __type: NodeType = "TableCell";

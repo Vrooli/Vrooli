@@ -15,7 +15,7 @@ export const OnChangePlugin = ({
         tags: Set<string>,
     ) => void;
 }): null => {
-    const [editor] = useLexicalComposerContext();
+    const editor = useLexicalComposerContext();
 
     useLayoutEffect(() => {
         if (onChange) {

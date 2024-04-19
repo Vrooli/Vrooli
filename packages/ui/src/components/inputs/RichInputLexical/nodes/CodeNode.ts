@@ -3,10 +3,10 @@
 
 import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
-import { $applyNodeReplacement, $createNode, $isNode, isHTMLElement } from "../utils";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
+import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
-import { getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, type LexicalNode } from "./LexicalNode";
+import { type LexicalNode } from "./LexicalNode";
 import { type LineBreakNode } from "./LineBreakNode";
 import { type ParagraphNode } from "./ParagraphNode";
 import { type TabNode } from "./TabNode";
@@ -48,10 +48,10 @@ export class CodeNode extends ElementNode {
 
     static clone(node: CodeNode): CodeNode {
         const { __language, __key } = node;
-        return new CodeNode(node.__language, node.__key);
+        return new CodeNode({ language: __language ?? undefined, key: __key });
     }
 
-    constructor(language?: string | null | undefined, key?: NodeKey) {
+    constructor({ language, key }: NodeConstructorPayloads["Code"]) {
         super({ key });
         this.__language = mapToPrismLanguage(language);
     }
@@ -368,7 +368,7 @@ export class CodeHighlightNode extends TextNode {
 export function $createCodeNode(
     language?: string | null | undefined,
 ): CodeNode {
-    return $applyNodeReplacement(new CodeNode(language));
+    return $applyNodeReplacement(new CodeNode({ language: language ?? undefined }));
 }
 
 function convertPreElement(domNode: Node): DOMConversionOutput {
