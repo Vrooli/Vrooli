@@ -1,4 +1,3 @@
-import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
 import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
@@ -23,7 +22,7 @@ export class ListItemNode extends ElementNode {
         this.__checked = checked;
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const element = document.createElement("li");
         const parent = getParent(this);
         if ($isNode("List", parent) && parent.getListType() === "check") {
@@ -53,12 +52,12 @@ export class ListItemNode extends ElementNode {
             if (!$isNode("ListItem", node)) {
                 throw new Error("node is not a ListItemNode");
             }
-            if (node.__checked == null) {
+            if (node.__checked === null) {
                 return;
             }
             const parent = getParent(node);
             if ($isNode("List", parent)) {
-                if (parent.getListType() !== "check" && node.getChecked() != null) {
+                if (parent.getListType() !== "check" && node.getChecked() !== null) {
                     node.setChecked(undefined);
                 }
             }
@@ -83,8 +82,8 @@ export class ListItemNode extends ElementNode {
         return node;
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const element = this.createDOM(editor._config);
+    exportDOM(): DOMExportOutput {
+        const element = this.createDOM();
         element.style.textAlign = this.getFormatType();
         return {
             element,
@@ -207,7 +206,7 @@ export class ListItemNode extends ElementNode {
         _: RangeSelection,
         restoreSelection = true,
     ): ListItemNode | ParagraphNode {
-        const checked = this.__checked == null ? undefined : false;
+        const checked = this.__checked === null ? undefined : false;
         const newElement = $createNode("ListItem", { checked });
         this.insertAfter(newElement, restoreSelection);
 

@@ -25,6 +25,7 @@ export abstract class LexicalNodeBase {
     static clone: (node: any) => any;
     static getType: () => NodeType;
     static importDOM: () => DOMConversionMap;
+    static importJSON: (serializedNode: any) => any;
 }
 
 /** A generic non-instance class */
@@ -39,7 +40,7 @@ export type RegisteredNode = {
     klass: LexicalNodeClass;
     transforms: Set<Transform<LexicalNode>>;
 };
-export type RegisteredNodes = Map<string, RegisteredNode>
+export type RegisteredNodes = Record<string, RegisteredNode>
 
 export type ElementTransformer = {
     export: (node: LexicalNode, traverseChildren: (node: ElementNode) => string) => string | null;
@@ -297,12 +298,6 @@ export type EditorConfig = {
     namespace: string;
 };
 
-export type InitialEditorStateType =
-    | null
-    | string
-    | EditorState
-    | ((editor: LexicalEditor) => void);
-
 export type LexicalNodeReplacement = {
     replace: LexicalNodeClass;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -321,9 +316,7 @@ export type HTMLConfig = {
 };
 
 export type CreateEditorArgs = {
-    editorState?: EditorState;
     namespace?: string;
-    editable?: boolean;
 };
 
 export type Transform<T extends LexicalNode> = (node: T) => void;

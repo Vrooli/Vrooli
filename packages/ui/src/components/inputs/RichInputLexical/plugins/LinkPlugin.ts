@@ -142,6 +142,7 @@ export const LinkPlugin = ({ validateUrl }: Props) => {
     const editor = useLexicalComposerContext();
 
     useEffect(() => {
+        if (!editor) return;
         return mergeRegister(
             editor.registerCommand(
                 TOGGLE_LINK_COMMAND,

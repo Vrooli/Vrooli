@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { type LexicalEditor } from "../editor";
 import { $moveSelectionPointToEnd, $updateElementSelectionOnCreateDeleteNode, RangeSelection } from "../selection";
 import { DOMConversionMap, DOMExportOutput, EditorConfig, LexicalNodeBase, LexicalNodeClass, NodeKey, NodeType, SerializedLexicalNode } from "../types";
 import { errorOnReadOnly, getActiveEditor, getActiveEditorState } from "../updates";
@@ -64,7 +63,7 @@ export class LexicalNode extends LexicalNodeBase {
      * @param object - the node to perform the equality comparison on.
      */
     is(object: LexicalNode | null | undefined): boolean {
-        if (object == null) {
+        if (object === null || object === undefined) {
             return false;
         }
         return this.__key === object.__key;
@@ -314,7 +313,7 @@ export class LexicalNode extends LexicalNodeBase {
      * @param _editor - allows access to the editor for context during reconciliation.
      *
      * */
-    createDOM(_config: EditorConfig, _editor: LexicalEditor): HTMLElement {
+    createDOM(): HTMLElement {
         throw new Error("createDOM: base method not extended");
     }
 
@@ -344,8 +343,8 @@ export class LexicalNode extends LexicalNodeBase {
      * also use this method to build your own HTML renderer.
      *
      * */
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const element = this.createDOM(editor._config, editor);
+    exportDOM(): DOMExportOutput {
+        const element = this.createDOM();
         return { element };
     }
 

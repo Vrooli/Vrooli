@@ -46,6 +46,14 @@ export const getActiveEditor = (): LexicalEditor => {
     return activeEditor;
 };
 
+export const internalGetActiveEditor = (): LexicalEditor | null => {
+    return activeEditor;
+};
+
+export const setActiveEditor = (editor: LexicalEditor): void => {
+    activeEditor = editor;
+};
+
 export const triggerCommandListeners = <
     TCommand extends LexicalCommand<unknown>,
 >(
@@ -289,6 +297,7 @@ const triggerDeferredUpdateCallbacks = (
 };
 
 const triggerEnqueuedUpdates = (editor: LexicalEditor): void => {
+    console.log("triggering enqueued editor updates");
     const queuedUpdates = editor._updates;
 
     if (queuedUpdates.length !== 0) {
@@ -302,8 +311,9 @@ const triggerEnqueuedUpdates = (editor: LexicalEditor): void => {
 
 export const commitPendingUpdates = (
     editor: LexicalEditor,
-    recoveryEditorState?: EditorState,
+    recoveryEditorState?: EditorState | null,
 ) => {
+    console.log("in commitPendingUpdates", editor);
     const pendingEditorState = editor._pendingEditorState;
     const rootElement = editor._rootElement;
     const shouldSkipDOM = rootElement === null;
@@ -317,7 +327,7 @@ export const commitPendingUpdates = (
     // ======
 
     const currentEditorState = editor._editorState;
-    const currentSelection = currentEditorState._selection;
+    const currentSelection = currentEditorState?._selection;
     const pendingSelection = pendingEditorState._selection;
     const needsUpdate = editor._dirtyType !== NO_DIRTY_NODES;
     const previousActiveEditorState = activeEditorState;
@@ -329,7 +339,7 @@ export const commitPendingUpdates = (
     editor._pendingEditorState = null;
     editor._editorState = pendingEditorState;
 
-    if (!shouldSkipDOM && needsUpdate && observer !== null) {
+    if (!shouldSkipDOM && needsUpdate && observer !== null && currentEditorState) {
         activeEditor = editor;
         activeEditorState = pendingEditorState;
         isReadOnlyMode = false;
@@ -452,7 +462,7 @@ export const commitPendingUpdates = (
         }
     }
 
-    if (mutatedNodes !== null) {
+    if (mutatedNodes !== null && currentEditorState) {
         triggerMutationListeners(
             editor,
             mutatedNodes,
@@ -464,7 +474,7 @@ export const commitPendingUpdates = (
     if (
         !$isRangeSelection(pendingSelection) &&
         pendingSelection !== null &&
-        (currentSelection === null || !currentSelection.is(pendingSelection))
+        (currentSelection === null || currentSelection === undefined || !currentSelection.is(pendingSelection))
     ) {
         editor.dispatchCommand(SELECTION_CHANGE_COMMAND, undefined);
     }
@@ -483,11 +493,13 @@ export const commitPendingUpdates = (
     // listeners, but instead use recoverEditorState which is current editor state before reset
     // This specifically important for collab that relies on prevEditorState from update
     // listener to calculate delta of changed nodes/properties
-    triggerTextContentListeners(
-        editor,
-        recoveryEditorState || currentEditorState,
-        pendingEditorState,
-    );
+    if (recoveryEditorState || currentEditorState) {
+        triggerTextContentListeners(
+            editor,
+            (recoveryEditorState || currentEditorState) as EditorState,
+            pendingEditorState,
+        );
+    }
     triggerListeners("update", editor, true, {
         dirtyElements,
         dirtyLeaves,
@@ -791,6 +803,7 @@ const beginUpdate = (
     updateFn: () => void,
     options?: EditorUpdateOptions,
 ) => {
+    console.log("in beginUpdate");
     const updateTags = editor._updateTags;
     let onUpdate;
     let tag;
@@ -801,7 +814,7 @@ const beginUpdate = (
         onUpdate = options.onUpdate;
         tag = options.tag;
 
-        if (tag != null) {
+        if (tag !== null) {
             updateTags.add(tag);
         }
 
@@ -817,7 +830,7 @@ const beginUpdate = (
     let pendingEditorState = editor._pendingEditorState;
     let editorStateWasCloned = false;
 
-    if (pendingEditorState === null || pendingEditorState._readOnly) {
+    if ((pendingEditorState === null || pendingEditorState._readOnly) && currentEditorState) {
         pendingEditorState = editor._pendingEditorState = cloneEditorState(
             pendingEditorState || currentEditorState,
         );
@@ -851,12 +864,14 @@ const beginUpdate = (
             }
 
             processNestedUpdates(editor);
-            $garbageCollectDetachedNodes(
-                currentEditorState,
-                pendingEditorState,
-                editor._dirtyLeaves,
-                editor._dirtyElements,
-            );
+            if (currentEditorState) {
+                $garbageCollectDetachedNodes(
+                    currentEditorState,
+                    pendingEditorState,
+                    editor._dirtyLeaves,
+                    editor._dirtyElements,
+                );
+            }
         }
 
         const endingCompositionKey = editor._compositionKey;
@@ -935,6 +950,7 @@ export const updateEditor = (
     updateFn: () => void,
     options?: EditorUpdateOptions,
 ) => {
+    console.log("in updateEditor, but not yet the callback passed into updateEditor", editor._updating);
     if (editor._updating) {
         editor._updates.push([updateFn, options]);
     } else {

@@ -12,6 +12,7 @@ export const CheckListPlugin = (): null => {
     const editor = useLexicalComposerContext();
 
     useEffect(() => {
+        if (!editor) return;
         return mergeRegister(
             editor.registerCommand(
                 INSERT_CHECK_LIST_COMMAND,
@@ -40,10 +41,10 @@ export const CheckListPlugin = (): null => {
                 (event) => {
                     const activeItem = getActiveCheckListItem();
 
-                    if (activeItem != null) {
+                    if (activeItem !== null) {
                         const rootElement = editor.getRootElement();
 
-                        if (rootElement != null) {
+                        if (rootElement !== null) {
                             rootElement.focus();
                         }
 
@@ -59,7 +60,7 @@ export const CheckListPlugin = (): null => {
                 (event) => {
                     const activeItem = getActiveCheckListItem();
 
-                    if (activeItem != null && editor.isEditable()) {
+                    if (activeItem !== null && editor.isEditable()) {
                         editor.update(() => {
                             const listItemNode = $getNearestNodeFromDOMNode(activeItem);
 
@@ -78,7 +79,7 @@ export const CheckListPlugin = (): null => {
             editor.registerCommand<KeyboardEvent>(
                 KEY_ARROW_LEFT_COMMAND,
                 (event) => {
-                    return editor.getEditorState().read(() => {
+                    return editor.getEditorState()?.read(() => {
                         const selection = $getSelection();
 
                         if ($isRangeSelection(selection) && selection.isCollapsed()) {
@@ -101,7 +102,7 @@ export const CheckListPlugin = (): null => {
                                     ) {
                                         const domNode = editor.getElementByKey(elementNode.__key);
 
-                                        if (domNode != null && document.activeElement !== domNode) {
+                                        if (domNode !== null && document.activeElement !== domNode) {
                                             domNode.focus();
                                             event.preventDefault();
                                             return true;
@@ -112,7 +113,7 @@ export const CheckListPlugin = (): null => {
                         }
 
                         return false;
-                    });
+                    }) ?? false;
                 },
                 COMMAND_PRIORITY_LOW,
             ),
@@ -144,7 +145,7 @@ const handleCheckItemEvent = (event: PointerEvent, callback: () => void) => {
     const firstChild = target.firstChild;
 
     if (
-        firstChild != null &&
+        firstChild !== null &&
         isHTMLElement(firstChild) &&
         (firstChild.tagName === "UL" || firstChild.tagName === "OL")
     ) {
@@ -174,7 +175,7 @@ const handleClick = (event: Event) => {
         const domNode = event.target as HTMLElement;
         const editor = findEditor(domNode);
 
-        if (editor != null && editor.isEditable()) {
+        if (editor !== null && editor.isEditable()) {
             editor.update(() => {
                 if (event.target) {
                     const node = $getNearestNodeFromDOMNode(domNode);
@@ -215,9 +216,9 @@ const findEditor = (target: Node) => {
 const getActiveCheckListItem = (): HTMLElement | null => {
     const activeElement = document.activeElement as HTMLElement;
 
-    return activeElement != null &&
+    return activeElement !== null &&
         activeElement.tagName === "LI" &&
-        activeElement.parentNode != null &&
+        activeElement.parentNode !== null &&
         // @ts-ignore internal field
         activeElement.parentNode.__lexicalListType === "check"
         ? activeElement
@@ -232,11 +233,11 @@ const findCheckListItemSibling = (
     let parent: ListItemNode | null = node;
 
     // Going up in a tree to get non-null sibling
-    while (sibling == null && $isNode("ListItem", parent)) {
+    while (sibling === null && $isNode("ListItem", parent)) {
         // Get li -> parent ul/ol -> parent li
         parent = getParent(getParentOrThrow(parent));
 
-        if (parent != null) {
+        if (parent !== null) {
             sibling = backward
                 ? getPreviousSibling(parent)
                 : getNextSibling(parent);
@@ -266,7 +267,7 @@ const handleArrownUpOrDown = (
 ) => {
     const activeItem = getActiveCheckListItem();
 
-    if (activeItem != null) {
+    if (activeItem !== null) {
         editor.update(() => {
             const listItem = $getNearestNodeFromDOMNode(activeItem);
 
@@ -276,11 +277,11 @@ const handleArrownUpOrDown = (
 
             const nextListItem = findCheckListItemSibling(listItem, backward);
 
-            if (nextListItem != null) {
+            if (nextListItem !== null) {
                 nextListItem.selectStart();
                 const dom = editor.getElementByKey(nextListItem.__key);
 
-                if (dom != null) {
+                if (dom !== null) {
                     event.preventDefault();
                     setTimeout(() => {
                         dom.focus();

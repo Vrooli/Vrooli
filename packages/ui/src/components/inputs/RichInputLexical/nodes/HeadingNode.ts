@@ -1,6 +1,5 @@
-import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, HeadingTagType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, HeadingTagType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types";
 import { $createNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type ParagraphNode } from "./ParagraphNode";
@@ -25,7 +24,7 @@ export class HeadingNode extends ElementNode {
 
     // View
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const tag = this.__tag;
         const element = document.createElement(tag);
         return element;
@@ -70,8 +69,8 @@ export class HeadingNode extends ElementNode {
         };
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const { element } = super.exportDOM(editor);
+    exportDOM(): DOMExportOutput {
+        const { element } = super.exportDOM();
 
         if (element && isHTMLElement(element)) {
             if (this.isEmpty()) {

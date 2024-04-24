@@ -1,4 +1,4 @@
-import { EditorConfig, NodeType, SerializedTextNode } from "../types";
+import { NodeType, SerializedTextNode } from "../types";
 import { $createNode } from "../utils";
 import { TextNode } from "./TextNode";
 
@@ -10,8 +10,8 @@ export class HashtagNode extends TextNode {
         return $createNode("Hashtag", { text: __text, key: __key });
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
-        const element = super.createDOM(config);
+    createDOM(): HTMLElement {
+        const element = super.createDOM();
         return element;
     }
 

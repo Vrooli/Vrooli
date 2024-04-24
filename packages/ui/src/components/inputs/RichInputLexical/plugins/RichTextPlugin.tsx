@@ -77,7 +77,7 @@ const registerRichText = (editor: LexicalEditor): () => void => {
                     }
 
                     const dataTransfer = eventOrText.dataTransfer;
-                    if (dataTransfer != null) {
+                    if (dataTransfer !== null) {
                         $insertDataTransferForRichText(dataTransfer, selection, editor);
                     } else if ($isRangeSelection(selection)) {
                         const data = eventOrText.data;
@@ -655,11 +655,14 @@ export const RichTextPlugin = ({
     const editor = useLexicalComposerContext();
 
     useLayoutEffect(() => {
+        console.log("in richtextplugin uselayouteffect", editor);
+        if (!editor) return;
         return mergeRegister(
             registerRichText(editor),
             registerDragonSupport(editor),
         );
     }, [editor]);
+    console.log("got contentEditable:", contentEditable);
 
     return (
         <LexicalErrorBoundary>

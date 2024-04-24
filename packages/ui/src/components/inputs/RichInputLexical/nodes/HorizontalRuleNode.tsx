@@ -28,6 +28,7 @@ const HorizontalRuleComponent = ({ nodeKey }: { nodeKey: NodeKey }) => {
     );
 
     useEffect(() => {
+        if (!editor) return;
         return mergeRegister(
             editor.registerCommand(
                 CLICK_COMMAND,
@@ -60,6 +61,7 @@ const HorizontalRuleComponent = ({ nodeKey }: { nodeKey: NodeKey }) => {
     }, [clearSelection, editor, isSelected, nodeKey, onDelete, setSelected]);
 
     useEffect(() => {
+        if (!editor) return;
         const hrElem = editor.getElementByKey(nodeKey);
         if (hrElem !== null) {
             hrElem.className = isSelected ? "selected" : "";

@@ -7,7 +7,7 @@ import { type LexicalNode } from "./LexicalNode";
 
 export class RootNode extends ElementNode {
     static __type: NodeType = "Root";
-    __cachedText: null | string;
+    __cachedText: null | string; //TODO could use this to get markdown text
 
     static clone(): RootNode {
         return $createNode("Root", {});

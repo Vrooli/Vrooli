@@ -110,17 +110,17 @@ const setElementFormat = (dom: HTMLElement, format: number): void => {
     }
 };
 
-function createNode(
+const createNode = (
     key: NodeKey,
     parentDOM: null | HTMLElement,
     insertDOM: null | Node,
-): HTMLElement {
+): HTMLElement => {
     const node = activeNextNodeMap.get(key);
 
     if (node === undefined) {
         throw new Error("createNode: node does not exist in nodeMap");
     }
-    const dom = node.createDOM(activeEditorConfig, activeEditor);
+    const dom = node.createDOM();
     storeDOMWithKey(key, dom, activeEditor);
 
     // This helps preserve the text, and stops spell check tools from
@@ -177,13 +177,13 @@ function createNode(
     }
 
     if (parentDOM !== null) {
-        if (insertDOM != null) {
+        if (insertDOM !== null) {
             parentDOM.insertBefore(dom, insertDOM);
         } else {
             // @ts-expect-error: internal field
             const possibleLineBreak = parentDOM.__lexicalLineBreak;
 
-            if (possibleLineBreak != null) {
+            if (possibleLineBreak !== null) {
                 parentDOM.insertBefore(dom, possibleLineBreak);
             } else {
                 parentDOM.appendChild(dom);
@@ -199,7 +199,7 @@ function createNode(
         "created",
     );
     return dom;
-}
+};
 
 function createChildrenWithDirection(
     children: NodeKey[],
@@ -274,7 +274,7 @@ function reconcileElementTerminatingLineBreak(
             // @ts-expect-error: internal field
             const element = dom.__lexicalLineBreak;
 
-            if (element != null) {
+            if (element !== null) {
                 dom.removeChild(element);
             }
 
@@ -292,7 +292,7 @@ function reconcileElementTerminatingLineBreak(
 const reconcileParagraphFormat = (element: ElementNode): void => {
     if (
         $isNode("Paragraph", element) &&
-        subTreeTextFormat != null &&
+        subTreeTextFormat !== null &&
         subTreeTextFormat !== element.__textFormat
     ) {
         element.setTextFormat(subTreeTextFormat);
@@ -417,7 +417,7 @@ const reconcileChildren = (
             if (prevChildrenSize !== 0) {
                 // @ts-expect-error: internal field
                 const lexicalLineBreak = dom.__lexicalLineBreak;
-                const canUseFastPath = lexicalLineBreak == null;
+                const canUseFastPath = lexicalLineBreak === null;
                 destroyChildren(
                     prevChildren,
                     0,
@@ -663,7 +663,7 @@ const reconcileNodeChildren = (
                 if (childDOM === siblingDOM) {
                     siblingDOM = getNextSibling(reconcileNode(nextKey, dom));
                 } else {
-                    if (siblingDOM != null) {
+                    if (siblingDOM !== null) {
                         dom.insertBefore(childDOM, siblingDOM);
                     } else {
                         dom.appendChild(childDOM);

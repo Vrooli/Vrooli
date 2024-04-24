@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { COMPOSITION_SUFFIX, DETAIL_TYPE_TO_DETAIL, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_DIRECTIONLESS, IS_FIREFOX, IS_SEGMENTED, IS_TOKEN, IS_UNMERGEABLE, TEXT_FLAGS, TEXT_MODE_TO_TYPE, TEXT_TYPE_TO_MODE } from "../consts";
-import { LexicalEditor } from "../editor";
 import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointOffsetForMergedSibling, internalMakeRangeSelection } from "../selection";
 import { hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeKey, NodeType, SerializedTextNode, TextDetailType, TextFormatType, TextModeType, TextNodeThemeClasses } from "../types";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatType, TextModeType, TextNodeThemeClasses } from "../types";
 import { errorOnReadOnly } from "../updates";
 import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getCachedClassNameArray, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
 import { LexicalNode } from "./LexicalNode";
@@ -136,7 +135,7 @@ const setTextContent = (
     const suffix = isComposing ? COMPOSITION_SUFFIX : "";
     const text: string = nextText + suffix;
 
-    if (firstChild == null) {
+    if (firstChild === null) {
         dom.textContent = text;
     } else {
         const nodeValue = firstChild.nodeValue;
@@ -167,7 +166,6 @@ const createTextInnerDOM = (
     innerTag: string,
     format: number,
     text: string,
-    config: EditorConfig,
 ) => {
     setTextContent(text, innerDOM, node);
 };
@@ -191,10 +189,11 @@ export class TextNode extends LexicalNode {
     __detail: number;
 
     static clone(node: TextNode): TextNode {
-        return new TextNode(node.__text, node.__key);
+        const { __text, __key } = node;
+        return $createNode("Text", { text: __text, key: __key });
     }
 
-    constructor(text: string, key?: NodeKey) {
+    constructor({ text, key }: NodeConstructorPayloads["Text"]) {
         super(key);
         this.__text = text;
         this.__format = 0;
@@ -337,7 +336,7 @@ export class TextNode extends LexicalNode {
 
     // View
 
-    createDOM(config: EditorConfig, editor?: LexicalEditor): HTMLElement {
+    createDOM(): HTMLElement {
         const format = this.__format;
         const outerTag = getElementOuterTag(format);
         const innerTag = getElementInnerTag(format);
@@ -352,7 +351,7 @@ export class TextNode extends LexicalNode {
             dom.appendChild(innerDOM);
         }
         const text = this.__text;
-        createTextInnerDOM(innerDOM, this, innerTag, format, text, config);
+        createTextInnerDOM(innerDOM, this, innerTag, format, text);
         const style = this.__style;
         if (style !== "") {
             dom.style.cssText = style;
@@ -381,7 +380,7 @@ export class TextNode extends LexicalNode {
         if (prevOuterTag === nextOuterTag && prevInnerTag !== nextInnerTag) {
             // should always be an element
             const prevInnerDOM: HTMLElement = dom.firstChild as HTMLElement;
-            if (prevInnerDOM == null) {
+            if (prevInnerDOM === null) {
                 throw new Error("updateDOM: prevInnerDOM is null or undefined");
             }
             const nextInnerDOM = document.createElement(nextInnerTag);
@@ -391,7 +390,6 @@ export class TextNode extends LexicalNode {
                 nextInnerTag,
                 nextFormat,
                 nextText,
-                config,
             );
             dom.replaceChild(nextInnerDOM, prevInnerDOM);
             return false;
@@ -400,7 +398,7 @@ export class TextNode extends LexicalNode {
         if (nextOuterTag !== null) {
             if (prevOuterTag !== null) {
                 innerDOM = dom.firstChild as HTMLElement;
-                if (innerDOM == null) {
+                if (innerDOM === null) {
                     throw new Error("updateDOM: innerDOM is null or undefined");
                 }
             }
@@ -475,8 +473,8 @@ export class TextNode extends LexicalNode {
     // This improves Lexical's basic text output in copy+paste plus
     // for headless mode where people might use Lexical to generate
     // HTML content and not have the ability to use CSS classes.
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        let { element } = super.exportDOM(editor);
+    exportDOM(): DOMExportOutput {
+        let { element } = super.exportDOM();
         if (element === null || !isHTMLElement(element)) {
             throw new Error("Expected TextNode createDOM to always return a HTMLElement");
         }
@@ -516,7 +514,7 @@ export class TextNode extends LexicalNode {
 
     // Mutators
     selectionTransform(
-        prevSelection: null | BaseSelection,
+        prevSelection: BaseSelection | null | undefined,
         nextSelection: RangeSelection,
     ): void {
         return;

@@ -53,7 +53,7 @@ const spoilerCommandListener = () => {
 
 export function SpoilerPlugin(): null {
     const editor = useLexicalComposerContext();
-    editor.registerCommand(
+    editor?.registerCommand(
         SPOILER_COMMAND,
         spoilerCommandListener,
         COMMAND_PRIORITY_LOW,

@@ -1,5 +1,5 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTableRowNode } from "../types";
+import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedTableRowNode } from "../types";
 import { $createNode } from "../utils";
 import { ElementNode } from "./ElementNode";
 
@@ -39,7 +39,7 @@ export class TableRowNode extends ElementNode {
         };
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const element = document.createElement("tr");
 
         if (this.__height) {

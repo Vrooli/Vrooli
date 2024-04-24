@@ -1,5 +1,4 @@
 import { TEXT_FLAGS } from "../consts";
-import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedParagraphNode, TextFormatType } from "../types";
 import { $createNode, $isNode, getNextSibling, getPreviousSibling, isHTMLElement } from "../utils";
@@ -36,8 +35,9 @@ export class ParagraphNode extends ElementNode {
 
     // View
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const dom = document.createElement("p");
+        dom.classList.add("RichInput__paragraph");
         return dom;
     }
     updateDOM(
@@ -57,8 +57,8 @@ export class ParagraphNode extends ElementNode {
         };
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const { element } = super.exportDOM(editor);
+    exportDOM(): DOMExportOutput {
+        const { element } = super.exportDOM();
 
         if (element && isHTMLElement(element)) {
             if (this.isEmpty()) {

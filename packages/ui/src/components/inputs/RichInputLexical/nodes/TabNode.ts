@@ -1,18 +1,19 @@
 import { IS_UNMERGEABLE } from "../consts";
-import { DOMConversionMap, NodeKey, NodeType, SerializedTabNode, TextDetailType, TextModeType } from "../types";
+import { DOMConversionMap, NodeConstructorPayloads, NodeType, SerializedTabNode, TextDetailType, TextModeType } from "../types";
 import { $createNode } from "../utils";
 import { TextNode } from "./TextNode";
 
 export class TabNode extends TextNode {
     static __type: NodeType = "Tab";
 
-    constructor(key?: NodeKey) {
-        super("\t", key);
+    constructor({ ...rest }: NodeConstructorPayloads["Tab"]) {
+        super({ text: "\t", ...rest });
         this.__detail = IS_UNMERGEABLE;
     }
 
     static clone(node: TabNode): TabNode {
-        const newNode = new TabNode(node.__key);
+        const { __key } = node;
+        const newNode = new TabNode({ key: __key });
         // TabNode __text can be either '\t' or ''. insertText will remove the empty Node
         newNode.__text = node.__text;
         newNode.__format = node.__format;

@@ -47,7 +47,7 @@ export class ListNode extends ElementNode {
 
     // View
 
-    createDOM(config: EditorConfig, _editor?: LexicalEditor): HTMLElement {
+    createDOM(): HTMLElement {
         const tag = this.__tag;
         const dom = document.createElement(tag);
 
@@ -103,8 +103,8 @@ export class ListNode extends ElementNode {
         return node;
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const { element } = super.exportDOM(editor);
+    exportDOM(): DOMExportOutput {
+        const { element } = super.exportDOM();
         if (element && isHTMLElement(element)) {
             if (this.__start !== 1) {
                 element.setAttribute("start", String(this.__start));
@@ -179,7 +179,7 @@ export const updateChildrenListItemValue = (list: ListNode): void => {
             if (child.getValue() !== value) {
                 child.setValue(value);
             }
-            if (isNotChecklist && child.getChecked() != null) {
+            if (isNotChecklist && child.getChecked() !== null) {
                 child.setChecked(undefined);
             }
             if (!$isNode("List", child.getFirstChild())) {
@@ -406,7 +406,7 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
 
                 if ($isLeafNode(node)) {
                     let parent = getParent(node);
-                    while (parent != null) {
+                    while (parent !== null) {
                         const parentKey = parent.__key;
 
                         if ($isNode("List", parent)) {
@@ -528,7 +528,7 @@ export const removeList = (editor: LexicalEditor): void => {
                     if ($isLeafNode(node)) {
                         const listItemNode = $getNearestNodeOfType("ListItem", node);
 
-                        if (listItemNode != null) {
+                        if (listItemNode !== null) {
                             listNodes.add($getTopListNode(listItemNode));
                         }
                     }

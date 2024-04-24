@@ -111,7 +111,7 @@ const onKeyDown = (event: KeyboardEvent, editor: LexicalEditor): void => {
         event.preventDefault();
         dispatchCommand(editor, REDO_COMMAND, undefined);
     } else {
-        const prevSelection = editor._editorState._selection;
+        const prevSelection = editor._editorState?._selection;
         if ($isNodeSelection(prevSelection)) {
             if (isCopy(event)) {
                 event.preventDefault();
@@ -151,6 +151,7 @@ const onPointerDown = (event: PointerEvent, editor: LexicalEditor) => {
 };
 
 const onInput = (event: InputEvent, editor: LexicalEditor): void => {
+    console.log("onInput start", event, editor);
     // We don't want the onInput to bubble, in the case of nested editors.
     event.stopPropagation();
     updateEditor(editor, () => {
@@ -159,7 +160,7 @@ const onInput = (event: InputEvent, editor: LexicalEditor): void => {
         const targetRange = getTargetRange(event);
 
         if (
-            data != null &&
+            data !== null &&
             $isRangeSelection(selection) &&
             $shouldPreventDefaultAndInsertText(
                 selection,
@@ -280,7 +281,7 @@ const onCompositionEndImpl = (editor: LexicalEditor, data?: string): void => {
     $setCompositionKey(null);
 
     // Handle termination of composition.
-    if (compositionKey !== null && data != null) {
+    if (compositionKey !== null && data !== null && data !== undefined) {
         // Composition can sometimes move to an adjacent DOM node when backspacing.
         // So check for the empty case.
         if (data === "") {
@@ -525,9 +526,10 @@ const getRootElementRemoveHandles = (
 };
 
 function onDocumentSelectionChange(event: Event): void {
+    console.log("in onDocumentSelectionChange", event);
     const target = event.target as null | Element | Document;
     const targetWindow =
-        target == null
+        target === null
             ? null
             : target.nodeType === 9
                 ? (target as Document).defaultView
@@ -537,7 +539,7 @@ function onDocumentSelectionChange(event: Event): void {
         return;
     }
     const nextActiveEditor = getNearestEditorFromDOMNode(domSelection.anchorNode);
-    if (nextActiveEditor === null) {
+    if (!nextActiveEditor) {
         return;
     }
 
@@ -572,6 +574,7 @@ function onDocumentSelectionChange(event: Event): void {
     // before, and trigger selection change on it to nullify selection.
     const editors = [nextActiveEditor];
     const rootEditor = editors[editors.length - 1];
+    console.log("rootEditor", rootEditor);
     const rootEditorKey = rootEditor._key;
     const activeNestedEditor = activeNestedEditorsMap.get(rootEditorKey);
     const prevActiveEditor = activeNestedEditor || rootEditor;
@@ -607,6 +610,7 @@ export const addRootElementEvents = (
     rootElement: HTMLElement,
     editor: LexicalEditor,
 ) => {
+    console.log("adding root element events", rootElement, editor);
     // We only want to have a single global selectionchange event handler, shared
     // between all editor instances.
     const doc = rootElement.ownerDocument;
@@ -615,49 +619,56 @@ export const addRootElementEvents = (
         documentRootElementsCount === undefined ||
         documentRootElementsCount < 1
     ) {
+        console.log("adding selection change event to doc", doc);
         doc.addEventListener("selectionchange", onDocumentSelectionChange);
     }
     rootElementsRegistered.set(doc, documentRootElementsCount || 0 + 1);
 
     // @ts-expect-error: internal field
     rootElement.__lexicalEditor = editor;
+    console.log("set __lexicalEditor to rootElement", rootElement, editor);
     const removeHandles = getRootElementRemoveHandles(rootElement);
 
     for (let i = 0; i < rootElementEvents.length; i++) {
         const [eventName, onEvent] = rootElementEvents[i];
-        const eventHandler =
-            typeof onEvent === "function"
-                ? (event: Event) => {
-                    if (hasStoppedLexicalPropagation(event)) {
-                        return;
-                    }
-                    stopLexicalPropagation(event);
-                    if (editor.isEditable() || eventName === "click") {
-                        onEvent(event, editor);
+        console.log("in loop for rootElementEvents", eventName, onEvent, typeof onEvent);
+        let eventHandler: (event: Event) => void;
+        if (typeof onEvent === "function") {
+            eventHandler = (event: Event) => {
+                if (hasStoppedLexicalPropagation(event)) {
+                    return;
+                }
+                stopLexicalPropagation(event);
+                if (editor.isEditable() || eventName === "click") {
+                    onEvent(event, editor);
+                }
+            };
+        } else {
+            eventHandler = (event: Event) => {
+                console.log("in event handler", event, hasStoppedLexicalPropagation(event));
+                if (hasStoppedLexicalPropagation(event)) {
+                    return;
+                }
+                stopLexicalPropagation(event);
+                if (editor.isEditable()) {
+                    const handlers = {
+                        blur: () => { dispatchCommand(editor, BLUR_COMMAND, event as FocusEvent); },
+                        cut: () => { dispatchCommand(editor, CUT_COMMAND, event as ClipboardEvent); },
+                        copy: () => { dispatchCommand(editor, COPY_COMMAND, event as ClipboardEvent); },
+                        paste: () => { dispatchCommand(editor, PASTE_COMMAND, event as ClipboardEvent); },
+                        dragstart: () => { dispatchCommand(editor, DRAGSTART_COMMAND, event as DragEvent); },
+                        dragover: () => { dispatchCommand(editor, DRAGOVER_COMMAND, event as DragEvent); },
+                        dragend: () => { dispatchCommand(editor, DRAGEND_COMMAND, event as DragEvent); },
+                        drop: () => { dispatchCommand(editor, DROP_COMMAND, event as DragEvent); },
+                        focus: () => { dispatchCommand(editor, FOCUS_COMMAND, event as FocusEvent); },
+                    } as const;
+                    if (handlers[eventName]) {
+                        return handlers[eventName]();
                     }
                 }
-                : (event: Event) => {
-                    if (hasStoppedLexicalPropagation(event)) {
-                        return;
-                    }
-                    stopLexicalPropagation(event);
-                    if (editor.isEditable()) {
-                        const handlers = {
-                            blur: () => { dispatchCommand(editor, BLUR_COMMAND, event as FocusEvent); },
-                            cut: () => { dispatchCommand(editor, CUT_COMMAND, event as ClipboardEvent); },
-                            copy: () => { dispatchCommand(editor, COPY_COMMAND, event as ClipboardEvent); },
-                            paste: () => { dispatchCommand(editor, PASTE_COMMAND, event as ClipboardEvent); },
-                            dragstart: () => { dispatchCommand(editor, DRAGSTART_COMMAND, event as DragEvent); },
-                            dragover: () => { dispatchCommand(editor, DRAGOVER_COMMAND, event as DragEvent); },
-                            dragend: () => { dispatchCommand(editor, DRAGEND_COMMAND, event as DragEvent); },
-                            drop: () => { dispatchCommand(editor, DROP_COMMAND, event as DragEvent); },
-                            focus: () => { dispatchCommand(editor, FOCUS_COMMAND, event as FocusEvent); },
-                        } as const;
-                        if (handlers[eventName]) {
-                            return handlers[eventName]();
-                        }
-                    }
-                };
+            };
+        }
+        console.log("adding event listener", eventName, eventHandler);
         rootElement.addEventListener(eventName, eventHandler);
         removeHandles.push(() => {
             rootElement.removeEventListener(eventName, eventHandler);
@@ -724,6 +735,7 @@ const onSelectionChange = (
     editor: LexicalEditor,
     isActive: boolean,
 ): void => {
+    console.log("in onSelectionChange", domSelection, editor, isActive);
     const {
         anchorNode: anchorDOM,
         anchorOffset,
@@ -745,10 +757,12 @@ const onSelectionChange = (
             shouldSkipSelectionChange(anchorDOM, anchorOffset) &&
             shouldSkipSelectionChange(focusDOM, focusOffset)
         ) {
+            console.log("skipping selection change due to DOM element being text node");
             return;
         }
     }
     updateEditor(editor, () => {
+        console.log("in onSelectionChange updateEditor start", isActive, isSelectionWithinEditor(editor, anchorDOM, focusDOM));
         // Non-active editor don't need any extra logic for selection, it only needs update
         // to reconcile selection (set it to null) to ensure that only one editor has non-null selection.
         if (!isActive) {
@@ -857,6 +871,7 @@ const onSelectionChange = (
             }
         }
 
+        console.log("triggering editor selection_change_command");
         dispatchCommand(editor, SELECTION_CHANGE_COMMAND, undefined);
     });
 };

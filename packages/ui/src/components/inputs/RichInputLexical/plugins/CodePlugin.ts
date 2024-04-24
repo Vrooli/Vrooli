@@ -5,7 +5,7 @@ import { CODE_BLOCK_COMMAND } from "../commands";
 import { COMMAND_PRIORITY_HIGH } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { ElementNode } from "../nodes/ElementNode";
-import { DOMConversionMap, DOMConversionOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
+import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
 import { $createNode, $getSelection, $isNode, $isRangeSelection, getParent } from "../utils";
 
 const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
@@ -24,7 +24,7 @@ export class CodeBlockNode extends ElementNode {
         return new CodeBlockNode({ language: __language, key: __key });
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         // Create the outer div to position the copy button relative to it
         const topElement = document.createElement("div");
         topElement.style.backgroundColor = "#23241f";
@@ -264,7 +264,7 @@ const codeBlockCommandListener = () => {
 
 export function CodeBlockPlugin(): null {
     const editor = useLexicalComposerContext();
-    editor.registerCommand(
+    editor?.registerCommand(
         CODE_BLOCK_COMMAND,
         codeBlockCommandListener,
         COMMAND_PRIORITY_HIGH, // Higher priority than built-in code block command

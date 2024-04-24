@@ -26,6 +26,8 @@ export class LexicalNodes {
     private static async loadNodes() {
         LexicalNodes.instance.nodes = {
             "Code": (await import("../plugins/CodePlugin")).CodeBlockNode,
+            "Decorator": (await import("./DecoratorNode")).DecoratorNode,
+            "Element": (await import("./ElementNode")).ElementNode,
             "Hashtag": (await import("./HashtagNode")).HashtagNode,
             "Heading": (await import("./HeadingNode")).HeadingNode,
             "HorizontalRule": (await import("./HorizontalRuleNode")).HorizontalRuleNode,

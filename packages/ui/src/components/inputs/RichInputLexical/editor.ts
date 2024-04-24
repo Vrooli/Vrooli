@@ -9,7 +9,7 @@ import { flushRootMutations, initMutationObserver } from "./mutations";
 import { LexicalNodes } from "./nodes";
 import { type LexicalNode } from "./nodes/LexicalNode";
 import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, DecoratorListener, EditableListener, EditorConfig, EditorFocusOptions, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, Listeners, MutationListener, NodeKey, NodeMap, NodeType, RegisteredNodes, RootListener, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, TextContentListener, Transform, UpdateListener } from "./types";
-import { commitPendingUpdates, parseEditorState, readEditorState, triggerListeners, updateEditor } from "./updates";
+import { commitPendingUpdates, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
 import { $createNode, $getRoot, $getSelection, $isNode, dispatchCommand, getCachedClassNameArray, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
 
 export const cloneEditorState = (current: EditorState): EditorState => {
@@ -50,6 +50,7 @@ export class EditorState {
     _readOnly: boolean;
 
     constructor(nodeMap: NodeMap, selection?: null | BaseSelection) {
+        console.log("in editorstate constructor", nodeMap);
         this._nodeMap = nodeMap;
         this._selection = selection || null;
         this._flushSync = false;
@@ -57,7 +58,7 @@ export class EditorState {
     }
 
     isEmpty(): boolean {
-        return this._nodeMap.size === 1 && this._selection === null;
+        return this._nodeMap.size === 0;
     }
 
     read<V>(callbackFn: () => V): V {
@@ -80,8 +81,12 @@ export class EditorState {
     }
 }
 
+/**
+ * Creates a new EditorState with a single root node.
+ */
 export const createEmptyEditorState = (): EditorState => {
-    return new EditorState(new Map([["root", $createNode("Root", {})]]));
+    const rootKey = "root" as const;
+    return new EditorState(new Map([[rootKey, $createNode("Root", { key: rootKey })]]));
 };
 
 export const resetEditor = (
@@ -133,23 +138,18 @@ export const createEditor = async (editorConfig?: CreateEditorArgs): Promise<Lex
     // Make sure node information is loaded before creating the editor
     await LexicalNodes.init();
 
+    // Return active editor if it exists
     const config = editorConfig || {};
-    const editorState = createEmptyEditorState();
     const namespace = config.namespace || uuid();
-    const initialEditorState = config.editorState;
-    const isEditable = config.editable !== undefined ? config.editable : true;
 
     const editor = new LexicalEditor(
-        editorState,
         { namespace },
         console.error,
-        isEditable,
     );
-
-    if (initialEditorState !== undefined) {
-        editor._pendingEditorState = initialEditorState;
-        editor._dirtyType = FULL_RECONCILE;
-    }
+    setActiveEditor(editor);
+    const editorState = createEmptyEditorState();
+    editor.setEditorState(editorState);
+    console.log("set editor state!");
 
     return editor;
 };
@@ -161,7 +161,7 @@ export class LexicalEditor {
      */
     _rootElement: null | HTMLElement;
     /** The state of the editor */
-    _editorState: EditorState;
+    _editorState: EditorState | null;
     /**
      * Map of registered nodes, by node type. Allows you to attach additional logic to nodes,
      * such as triggering a transform when a node is marked dirty.
@@ -196,13 +196,11 @@ export class LexicalEditor {
 
     /** @internal */
     constructor(
-        editorState: EditorState,
         config: EditorConfig,
         onError: ErrorHandler,
-        editable: boolean,
     ) {
         this._rootElement = null;
-        this._editorState = editorState;
+        this._editorState = null;
         this._nodes = Object.fromEntries(Object.entries(LexicalNodes.getAll() ?? {}).map(([key, klass]) => [key, { klass, transforms: new Set() }])) as unknown as RegisteredNodes;
         this._pendingEditorState = null;
         this._compositionKey = null;
@@ -239,7 +237,7 @@ export class LexicalEditor {
         this._key = uuid();
 
         this._onError = onError;
-        this._editable = editable;
+        this._editable = true;
         this._window = null;
         this._blockCursorElement = null;
     }
@@ -250,7 +248,7 @@ export class LexicalEditor {
      * through an IME, or 3P extension, for example. Returns false otherwise.
      */
     isComposing(): boolean {
-        return this._compositionKey != null;
+        return this._compositionKey !== null;
     }
     /**
      * Registers a listener for Editor update event. Will trigger the provided callback
@@ -350,10 +348,6 @@ export class LexicalEditor {
         listener: CommandListener<P>,
         priority: CommandListenerPriority,
     ): () => void {
-        if (priority === undefined) {
-            throw new Error("Listener for type \"command\" requires a \"priority\".");
-        }
-
         const commandsMap = this._commands;
 
         if (!commandsMap.has(command)) {
@@ -449,6 +443,7 @@ export class LexicalEditor {
         type: TCommand,
         payload: CommandPayloadType<TCommand>,
     ): boolean {
+        console.log("in editor dispatchCommand", type, payload);
         return dispatchCommand(this, type, payload);
     }
 
@@ -480,6 +475,9 @@ export class LexicalEditor {
         if (nextRootElement !== prevRootElement) {
             const classNames = getCachedClassNameArray({}, "root");
             const pendingEditorState = this._pendingEditorState || this._editorState;
+            if (pendingEditorState === null) {
+                throw new Error("setRootElement: editor state is null. Ensure the editor has been initialized.");
+            }
             this._rootElement = nextRootElement;
             resetEditor(this, prevRootElement, nextRootElement, pendingEditorState);
 
@@ -487,7 +485,7 @@ export class LexicalEditor {
                 if (this._editable) {
                     removeRootElementEvents(prevRootElement);
                 }
-                if (classNames != null) {
+                if (classNames !== null) {
                     prevRootElement.classList.remove(...classNames);
                 }
             }
@@ -510,7 +508,7 @@ export class LexicalEditor {
                 if (this._editable) {
                     addRootElementEvents(nextRootElement, this);
                 }
-                if (classNames != null) {
+                if (Array.isArray(classNames)) {
                     nextRootElement.classList.add(...classNames);
                 }
             } else {
@@ -538,7 +536,7 @@ export class LexicalEditor {
      * Gets the active editor state.
      * @returns The editor state
      */
-    getEditorState(): EditorState {
+    getEditorState(): EditorState | null {
         return this._editorState;
     }
 
@@ -548,8 +546,9 @@ export class LexicalEditor {
      * @param options - options for the update.
      */
     setEditorState(editorState: EditorState, options?: EditorSetOptions): void {
+        console.log("setting editor state", editorState);
         if (editorState.isEmpty()) {
-            throw new Error("setEditorState: the editor state is empty. Ensure the editor state's root node never becomes empty.");
+            throw new Error("setEditorState: the editor state is empty. It should at least contain a root node.");
         }
 
         flushRootMutations(this);
@@ -558,7 +557,7 @@ export class LexicalEditor {
         const tag = options !== undefined ? options.tag : null;
 
         if (pendingEditorState !== null && !pendingEditorState.isEmpty()) {
-            if (tag != null) {
+            if (tag !== null && tag !== undefined) {
                 tags.add(tag);
             }
 
@@ -570,7 +569,7 @@ export class LexicalEditor {
         this._dirtyElements.set("root", false);
         this._compositionKey = null;
 
-        if (tag != null) {
+        if (tag !== null && tag !== undefined) {
             tags.add(tag);
         }
 
@@ -707,7 +706,7 @@ export class LexicalEditor {
      */
     toJSON(): SerializedEditor {
         return {
-            editorState: this._editorState.toJSON(),
+            editorState: this._editorState?.toJSON() ?? { root: { __type: "Root", version: 1, children: [], direction: null, format: "", indent: 0 } },
         };
     }
 }
@@ -716,13 +715,13 @@ export const editorStateHasDirtySelection = (
     editorState: EditorState,
     editor: LexicalEditor,
 ): boolean => {
-    const currentSelection = editor.getEditorState()._selection;
+    const currentSelection = editor.getEditorState()?._selection;
 
     const pendingSelection = editorState._selection;
 
     // Check if we need to update because of changes in selection
     if (pendingSelection !== null) {
-        if (pendingSelection.dirty || !pendingSelection.is(currentSelection)) {
+        if (pendingSelection.dirty || !currentSelection || !pendingSelection.is(currentSelection)) {
             return true;
         }
     } else if (currentSelection !== null) {

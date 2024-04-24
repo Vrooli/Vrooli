@@ -1,4 +1,3 @@
-import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeType, SerializedElementNode, SerializedQuoteNode } from "../types";
 import { $createNode, isHTMLElement } from "../utils";
@@ -32,8 +31,8 @@ export class QuoteNode extends ElementNode {
         };
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const { element } = super.exportDOM(editor);
+    exportDOM(): DOMExportOutput {
+        const { element } = super.exportDOM();
 
         if (element && isHTMLElement(element)) {
             if (this.isEmpty()) {

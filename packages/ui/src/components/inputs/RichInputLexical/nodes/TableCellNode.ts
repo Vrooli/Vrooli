@@ -1,6 +1,5 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts";
-import { LexicalEditor } from "../editor";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
 import { $createNode, $isNode, getParentOrThrow } from "../utils";
 import { ElementNode } from "./ElementNode";
 
@@ -53,7 +52,7 @@ export class TableCellNode extends ElementNode {
         return cellNode;
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const element = document.createElement(
             this.getTag(),
         ) as HTMLTableCellElement;
@@ -73,8 +72,8 @@ export class TableCellNode extends ElementNode {
         return element;
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
-        const { element } = super.exportDOM(editor);
+    exportDOM(): DOMExportOutput {
+        const { element } = super.exportDOM();
 
         if (element) {
             const element_ = element as HTMLTableCellElement;

@@ -47,10 +47,10 @@ const isManagedLineBreak = (
 };
 
 const getLastSelection = (editor: LexicalEditor): null | BaseSelection => {
-    return editor.getEditorState().read(() => {
+    return editor.getEditorState()?.read(() => {
         const selection = $getSelection();
         return selection !== null ? selection.clone() : null;
-    });
+    }) ?? null;
 };
 
 const shouldUpdateTextNodeFromMutation = (
@@ -154,7 +154,7 @@ export const $flushMutations = (
                         const parentDOM = addedDOM.parentNode;
 
                         if (
-                            parentDOM != null &&
+                            parentDOM !== null &&
                             addedDOM !== blockCursorElement &&
                             node === null &&
                             (addedDOM.nodeName !== "BR" ||
@@ -194,7 +194,7 @@ export const $flushMutations = (
 
                         if (removedDOMsLength !== unremovedBRs) {
                             if (targetDOM === rootElement) {
-                                targetNode = currentEditorState._nodeMap.get("root") as RootNode;
+                                targetNode = (currentEditorState?._nodeMap.get("root") ?? null) as RootNode | null;
                             }
 
                             badDOMTargets.set(targetDOM, targetNode);
@@ -221,7 +221,7 @@ export const $flushMutations = (
                                 continue;
                             }
 
-                            if (currentDOM == null) {
+                            if (currentDOM === null) {
                                 targetDOM.appendChild(correctDOM);
                                 currentDOM = correctDOM;
                             } else if (currentDOM !== correctDOM) {
@@ -255,7 +255,7 @@ export const $flushMutations = (
                         const parentDOM = addedDOM.parentNode;
 
                         if (
-                            parentDOM != null &&
+                            parentDOM !== null &&
                             addedDOM.nodeName === "BR" &&
                             !isManagedLineBreak(addedDOM, target, editor)
                         ) {

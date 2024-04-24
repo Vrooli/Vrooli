@@ -51,8 +51,9 @@ const findOutermostMatch = (
     textContent: string,
     textTransformersIndex: TextMatchTransformersIndex,
 ): [string, RegExpMatchArray] | null => {
+    console.log("in findOutermostmatch", textContent);
     const openTagsMatch = textContent.match(textTransformersIndex.openTagsRegExp);
-    if (openTagsMatch == null) {
+    if (openTagsMatch === null) {
         return null;
     }
     for (const match of openTagsMatch) {
@@ -69,7 +70,7 @@ const findOutermostMatch = (
             continue;
         }
         const transformer = textTransformersIndex.transformersByTag[tag];
-        if (fullMatch != null && transformer != null) {
+        if (fullMatch !== null && transformer !== null) {
             return [tag, fullMatch];
         }
     }
@@ -103,6 +104,7 @@ const importTextFormatTransformers = (
             continue;
         }
         textContent = currentNode.getTextContent();
+        console.log("im importtextformatransformers. got textcontent", currentNode, textContent);
         outerMatch = findOutermostMatch(textContent, textFormatTransformersIndex);
 
         if (!outerMatch) {
@@ -194,10 +196,13 @@ const importBlocks = (
 ) => {
     console.time("importBlocks beginning");
     const lineTextTrimmed = lineText.trim();
-    const textNode = $createNode("Text", { text: "lineTextTrimmed" });
+    console.log("importBlocks beginning", lineText, lineTextTrimmed);
+    const textNode = $createNode("Text", { text: lineTextTrimmed });
+    console.log("created text node", textNode, lineTextTrimmed);
     const elementNode = $createNode("Paragraph", {});
     elementNode.append(textNode);
     rootNode.append(elementNode);
+    console.log("appended element node to root node", rootNode, rootNode.getTextContent());
     for (const {
         regExp,
         replace,
@@ -230,12 +235,13 @@ const importBlocks = (
                     targetNode = $findMatchingParent(lastDescendant, (node) => $isNode("ListItem", node)) as ElementNode;
                 }
             }
-            if (targetNode != null && targetNode.getTextContentSize() > 0) {
+            if (targetNode !== null && targetNode.getTextContentSize() > 0) {
                 targetNode.splice(targetNode.getChildrenSize(), 0, [$createNode("LineBreak", {}), ...elementNode.getChildren()]);
                 elementNode.remove();
             }
         }
     }
+    console.log("end of importBlocks", rootNode.getTextContent());
     console.timeEnd("importBlocks end");
 };
 
@@ -419,7 +425,7 @@ const createMarkdownImport = (
             console.time("importCodeBlock");
             const [codeBlockNode, shiftedIndex] = importCodeBlock(lines, i, root);
             console.timeEnd("importCodeBlock");
-            if (codeBlockNode != null) {
+            if (codeBlockNode !== null) {
                 console.log("skipping because code block found");
                 i = shiftedIndex;
                 continue;
@@ -432,6 +438,7 @@ const createMarkdownImport = (
         if ($getSelection() !== null) {
             root.selectEnd();
         }
+        console.log("end of createMarkdownImport", root.getTextContent());
         console.log("createMarkdownImport end");
     };
 };
@@ -509,7 +516,7 @@ const exportChildren = (node: ElementNode, textFormatTransformers: TextFormatTra
         console.log("in exportChildren loop", node, child);
         for (const transformer of textMatchTransformers) {
             const result = transformer.export(child, parentNode => exportChildren(parentNode, textFormatTransformers, textMatchTransformers), (textNode, textContent) => exportTextFormat(textNode, textContent, textFormatTransformers));
-            if (result != null) {
+            if (result !== null) {
                 console.log("transformer export not null", result);
                 output.push(result);
                 continue mainLoop;
@@ -538,7 +545,7 @@ const exportTopLevelElements = (
 ): string | null => {
     for (const transformer of elementTransformers) {
         const result = transformer.export(node, _node => exportChildren(_node, textFormatTransformers, textMatchTransformers));
-        if (result != null) {
+        if (result !== null) {
             return result;
         }
     }
@@ -584,7 +591,7 @@ const createMarkdownExport = (transformers: LexicalTransformer[]): ((node?: Elem
         for (const child of children) {
             // Recursively process children
             const result = exportTopLevelElements(child, byType.element, byType.textFormat, byType.textMatch);
-            if (result != null) {
+            if (result !== null) {
                 output.push(result);
             }
         }
@@ -608,6 +615,7 @@ const createMarkdownExport = (transformers: LexicalTransformer[]): ((node?: Elem
  *                               be inserted. If not provided, the nodes will be created at the root level.
  */
 export const $convertFromMarkdownString = (markdown: string, transformers: LexicalTransformer[], node?: ElementNode) => {
+    console.log("in $convertFromMarkdownString", markdown);
     const importMarkdown = createMarkdownImport(transformers);
     importMarkdown(markdown, node);
 };
@@ -731,7 +739,7 @@ const runTextMatchTransformers = (
     const lastChar = textContent[anchorOffset - 1];
     const transformers = transformersByTrigger[lastChar];
 
-    if (transformers == null) {
+    if (transformers === null) {
         return false;
     }
 

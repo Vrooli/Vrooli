@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 //TODO replace this with custom styling in CodePlugin, then remove CodePlugin
 
-import { LexicalEditor } from "../editor";
 import { RangeSelection } from "../selection";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
 import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, isHTMLElement } from "../utils";
@@ -24,7 +23,7 @@ const mapToPrismLanguage = (
     language: string | null | undefined,
 ): string | null | undefined => {
     //TODO
-    // return language != null && window.Prism.languages.hasOwnProperty(language)
+    // return language !== null && window.Prism.languages.hasOwnProperty(language)
     //     ? language
     //     : undefined;
     return undefined;
@@ -83,7 +82,7 @@ export class CodeNode extends ElementNode {
         return false;
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
+    exportDOM(): DOMExportOutput {
         const element = document.createElement("pre");
         element.setAttribute("spellcheck", "false");
         const language = this.getLanguage();
@@ -100,7 +99,7 @@ export class CodeNode extends ElementNode {
             // inline format handled by TextNode otherwise.
             code: (node: Node) => {
                 const isMultiLine =
-                    node.textContent != null &&
+                    node.textContent !== null &&
                     (/\r?\n/.test(node.textContent) || hasChildDOMNodeTag(node, "BR"));
 
                 return isMultiLine
@@ -294,7 +293,7 @@ export class CodeHighlightNode extends TextNode {
         highlightType?: string | null | undefined,
         key?: NodeKey,
     ) {
-        super(text, key);
+        super({ text, key });
         this.__highlightType = highlightType;
     }
 
@@ -314,8 +313,8 @@ export class CodeHighlightNode extends TextNode {
         return false;
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
-        const element = super.createDOM(config);
+    createDOM(): HTMLElement {
+        const element = super.createDOM();
         return element;
     }
 
@@ -391,7 +390,7 @@ function convertDivElement(domNode: Node): DOMConversionOutput {
     return {
         after: (childLexicalNodes) => {
             const domParent = domNode.parentNode;
-            if (domParent != null && domNode !== domParent.lastChild) {
+            if (domParent !== null && domNode !== domParent.lastChild) {
                 childLexicalNodes.push($createNode("LineBreak", {}));
             }
             return childLexicalNodes;

@@ -52,11 +52,11 @@ export class Point {
 
         if ($isNode("Element", aNode)) {
             const aNodeDescendant = aNode.getDescendantByIndex<ElementNode>(aOffset);
-            aNode = aNodeDescendant != null ? aNodeDescendant : aNode;
+            aNode = aNodeDescendant !== null ? aNodeDescendant : aNode;
         }
         if ($isNode("Element", bNode)) {
             const bNodeDescendant = bNode.getDescendantByIndex<ElementNode>(bOffset);
-            bNode = bNodeDescendant != null ? bNodeDescendant : bNode;
+            bNode = bNodeDescendant !== null ? bNodeDescendant : bNode;
         }
         if (aNode === bNode) {
             return aOffset < bOffset;
@@ -325,7 +325,7 @@ const resolveSelectionPointOnBoundary = (
 const normalizeSelectionPointsForBoundaries = (
     anchor: PointType,
     focus: PointType,
-    lastSelection: null | BaseSelection,
+    lastSelection: BaseSelection | null | undefined,
 ) => {
     if (anchor.type === "text" && focus.type === "text") {
         const isBackward = anchor.isBefore(focus);
@@ -362,13 +362,13 @@ const normalizeSelectionPointsForBoundaries = (
 };
 
 const internalResolveSelectionPoints = (
-    anchorDOM: null | Node,
+    anchorDOM: Node | null,
     anchorOffset: number,
-    focusDOM: null | Node,
+    focusDOM: Node | null,
     focusOffset: number,
     editor: LexicalEditor,
-    lastSelection: null | BaseSelection,
-): null | [PointType, PointType] => {
+    lastSelection: BaseSelection | null | undefined,
+): [PointType, PointType] | null => {
     if (
         anchorDOM === null ||
         focusDOM === null ||
@@ -419,11 +419,11 @@ const internalResolveSelectionPoints = (
 };
 
 export const internalCreateRangeSelection = (
-    lastSelection: null | BaseSelection,
+    lastSelection: BaseSelection | null | undefined,
     domSelection: Selection | null,
     editor: LexicalEditor,
     event: UIEvent | Event | null,
-): null | RangeSelection => {
+): RangeSelection | null => {
     const windowObj = editor._window;
     if (windowObj === null) {
         return null;
@@ -502,10 +502,10 @@ export const internalCreateSelection = (
     editor: LexicalEditor,
 ): null | BaseSelection => {
     const currentEditorState = editor.getEditorState();
-    const lastSelection = currentEditorState._selection;
+    const lastSelection = currentEditorState?._selection;
     const domSelection = getDOMSelection(editor._window);
 
-    if ($isRangeSelection(lastSelection) || lastSelection == null) {
+    if ($isRangeSelection(lastSelection) || lastSelection === null || lastSelection === undefined) {
         return internalCreateRangeSelection(
             lastSelection,
             domSelection,
@@ -517,8 +517,8 @@ export const internalCreateSelection = (
 };
 
 export const updateDOMSelection = (
-    prevSelection: BaseSelection | null,
-    nextSelection: BaseSelection | null,
+    prevSelection: BaseSelection | null | undefined,
+    nextSelection: BaseSelection | null | undefined,
     editor: LexicalEditor,
     domSelection: Selection,
     tags: Set<string>,
@@ -530,14 +530,9 @@ export const updateDOMSelection = (
     const anchorOffset = domSelection.anchorOffset;
     const focusOffset = domSelection.focusOffset;
     const activeElement = document.activeElement;
+    console.log("active element in updateDOMSelection", activeElement, tags);
 
-    // TODO: make this not hard-coded, and add another config option
-    // that makes this configurable.
-    if (
-        (tags.has("collaboration") && activeElement !== rootElement) ||
-        (activeElement !== null &&
-            isSelectionCapturedInDecoratorInput(activeElement))
-    ) {
+    if (activeElement !== null && isSelectionCapturedInDecoratorInput(activeElement)) {
         return;
     }
 
@@ -677,9 +672,9 @@ export const updateDOMSelection = (
     markSelectionChangeFromDOMUpdate();
 };
 
-export const $getPreviousSelection = (): null | BaseSelection => {
+export const $getPreviousSelection = (): BaseSelection | null => {
     const editor = getActiveEditor();
-    return editor._editorState._selection;
+    return editor._editorState?._selection ?? null;
 };
 
 export const applySelectionTransforms = (
@@ -687,7 +682,7 @@ export const applySelectionTransforms = (
     editor: LexicalEditor,
 ) => {
     const prevEditorState = editor.getEditorState();
-    const prevSelection = prevEditorState._selection;
+    const prevSelection = prevEditorState?._selection;
     const nextSelection = nextEditorState._selection;
     if ($isRangeSelection(nextSelection)) {
         const anchor = nextSelection.anchor;
@@ -859,7 +854,7 @@ export class RangeSelection implements BaseSelection {
         if ($isNode("Element", firstNode)) {
             const firstNodeDescendant =
                 firstNode.getDescendantByIndex<ElementNode>(startOffset);
-            firstNode = firstNodeDescendant != null ? firstNodeDescendant : firstNode;
+            firstNode = firstNodeDescendant !== null ? firstNodeDescendant : firstNode;
         }
         if ($isNode("Element", lastNode)) {
             let lastNodeDescendant =
@@ -873,7 +868,7 @@ export class RangeSelection implements BaseSelection {
             ) {
                 lastNodeDescendant = getPreviousSibling(lastNodeDescendant);
             }
-            lastNode = lastNodeDescendant != null ? lastNodeDescendant : lastNode;
+            lastNode = lastNodeDescendant !== null ? lastNodeDescendant : lastNode;
         }
 
         let nodes: LexicalNode[];
@@ -989,7 +984,7 @@ export class RangeSelection implements BaseSelection {
     applyDOMRange(range: StaticRange): void {
         const editor = getActiveEditor();
         const currentEditorState = editor.getEditorState();
-        const lastSelection = currentEditorState._selection;
+        const lastSelection = currentEditorState?._selection;
         const resolvedSelectionPoints = internalResolveSelectionPoints(
             range.startContainer,
             range.startOffset,
@@ -1482,7 +1477,7 @@ export class RangeSelection implements BaseSelection {
             startOffset = 0;
         }
 
-        if (firstNode == null) {
+        if (firstNode === null) {
             return;
         }
 
@@ -1737,7 +1732,7 @@ export class RangeSelection implements BaseSelection {
                     anchorOffset > focusOffset ? anchorOffset : focusOffset;
                 const splitNodes = firstNode.splitText(startOffset, endOffset);
                 const node = startOffset === 0 ? splitNodes[0] : splitNodes[1];
-                return node != null ? [node] : [];
+                return node !== null ? [node] : [];
             }
             return [firstNode];
         }
@@ -2796,7 +2791,7 @@ export const getTable = (tableElement: HTMLElement): TableDOMTable => {
     let y = 0;
     domRows.length = 0;
 
-    while (currentNode != null) {
+    while (currentNode !== null) {
         const nodeMame = currentNode.nodeName;
 
         if (nodeMame === "TD" || nodeMame === "TH") {
@@ -2821,7 +2816,7 @@ export const getTable = (tableElement: HTMLElement): TableDOMTable => {
         } else {
             const child = currentNode.firstChild;
 
-            if (child != null) {
+            if (child !== null) {
                 currentNode = child;
                 continue;
             }
@@ -2829,7 +2824,7 @@ export const getTable = (tableElement: HTMLElement): TableDOMTable => {
 
         const sibling = currentNode.nextSibling;
 
-        if (sibling != null) {
+        if (sibling !== null) {
             x++;
             currentNode = sibling;
             continue;
@@ -2837,10 +2832,10 @@ export const getTable = (tableElement: HTMLElement): TableDOMTable => {
 
         const parent = currentNode.parentNode;
 
-        if (parent != null) {
+        if (parent !== null) {
             const parentSibling = parent.nextSibling;
 
-            if (parentSibling == null) {
+            if (parentSibling === null) {
                 break;
             }
 
@@ -2890,7 +2885,7 @@ export const caretFromPoint = (
 };
 
 const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
-    return editor.getEditorState().read(() => {
+    return editor.getEditorState()?.read(() => {
         const node = $getNodeByKey(key);
 
         if (node === null) {
@@ -2898,7 +2893,7 @@ const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
         }
 
         return isSelected(node);
-    });
+    }) ?? false;
 };
 
 export const useLexicalNodeSelection = (
@@ -2906,11 +2901,10 @@ export const useLexicalNodeSelection = (
 ): [boolean, (arg0: boolean) => void, () => void] => {
     const editor = useLexicalComposerContext();
 
-    const [isSelected, setIsSelected] = useState(() =>
-        isNodeSelected(editor, key),
-    );
+    const [isSelected, setIsSelected] = useState(() => Boolean(editor && isNodeSelected(editor, key)));
 
     useEffect(() => {
+        if (!editor) return;
         let isMounted = true;
         const unregister = editor.registerUpdateListener(() => {
             if (isMounted) {
@@ -2926,7 +2920,7 @@ export const useLexicalNodeSelection = (
 
     const setSelected = useCallback(
         (selected: boolean) => {
-            editor.update(() => {
+            editor?.update(() => {
                 let selection = $getSelection();
 
                 if (!$isNodeSelection(selection)) {
@@ -2946,7 +2940,7 @@ export const useLexicalNodeSelection = (
     );
 
     const clearSelected = useCallback(() => {
-        editor.update(() => {
+        editor?.update(() => {
             const selection = $getSelection();
 
             if ($isNodeSelection(selection)) {

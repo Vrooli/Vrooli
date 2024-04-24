@@ -25,6 +25,7 @@ export const TablePlugin = ({
     const editor = useLexicalComposerContext();
 
     useEffect(() => {
+        if (!editor) return;
         return editor.registerCommand<InsertTableCommandPayload>(
             INSERT_TABLE_COMMAND,
             ({ columns, rows, includeHeaders }) => {
@@ -47,6 +48,7 @@ export const TablePlugin = ({
     }, [editor]);
 
     useEffect(() => {
+        if (!editor) return;
         const tableSelections = new Map<NodeKey, TableObserver>();
 
         const initializeTableNode = (tableNode: TableNode) => {
@@ -67,7 +69,7 @@ export const TablePlugin = ({
 
         // Plugins might be loaded _after_ initial content is set, hence existing table nodes
         // won't be initialized from mutation[create] listener. Instead doing it here,
-        editor.getEditorState().read(() => {
+        editor.getEditorState()?.read(() => {
             const tableNodes = $nodesOfType("Table");
             for (const tableNode of tableNodes) {
                 if ($isNode("Table", tableNode)) {
@@ -81,7 +83,7 @@ export const TablePlugin = ({
             (nodeMutations) => {
                 for (const [nodeKey, mutation] of nodeMutations) {
                     if (mutation === "created") {
-                        editor.getEditorState().read(() => {
+                        editor.getEditorState()?.read(() => {
                             const tableNode = $getNodeByKey<TableNode>(nodeKey);
                             if ($isNode("Table", tableNode)) {
                                 initializeTableNode(tableNode);
@@ -111,9 +113,7 @@ export const TablePlugin = ({
 
     // Unmerge cells when the feature isn't enabled
     useEffect(() => {
-        if (hasCellMerge) {
-            return;
-        }
+        if (!editor || hasCellMerge) return;
         return editor.registerNodeTransform<TableCellNode>("TableCell", (node) => {
             if (node.getColSpan() > 1 || node.getRowSpan() > 1) {
                 // When we have rowSpan we have to map the entire Table to understand where the new Cells
@@ -165,9 +165,7 @@ export const TablePlugin = ({
 
     // Remove cell background color when feature is disabled
     useEffect(() => {
-        if (hasCellBackgroundColor) {
-            return;
-        }
+        if (!editor || hasCellBackgroundColor) return;
         return editor.registerNodeTransform<TableCellNode>("TableCell", (node) => {
             if (node.getBackgroundColor() !== null) {
                 node.setBackgroundColor(null);
@@ -385,7 +383,7 @@ export class TableObserver {
             this.isHighlightingCells = true;
             this.disableHighlightStyle();
             $updateDOMForSelection(editor, this.table, this.tableSelection);
-        } else if (selection == null) {
+        } else if (selection === null) {
             this.clearHighlight();
         } else {
             this.tableNodeKey = selection.tableKey;
@@ -442,8 +440,8 @@ export class TableObserver {
                 const focusTableCellNode = $getNearestNodeFromDOMNode(cell.elem);
 
                 if (
-                    this.tableSelection != null &&
-                    this.anchorCellNodeKey != null &&
+                    this.tableSelection !== null &&
+                    this.anchorCellNodeKey !== null &&
                     $isNode("TableCell", focusTableCellNode) &&
                     tableNode.__key !== $findTableNode(focusTableCellNode)?.__key
                 ) {
@@ -481,7 +479,7 @@ export class TableObserver {
             if ($isNode("TableCell", anchorTableCellNode)) {
                 const anchorNodeKey = anchorTableCellNode.__key;
                 this.tableSelection =
-                    this.tableSelection != null
+                    this.tableSelection !== null
                         ? this.tableSelection.clone()
                         : $createTableSelection();
                 this.anchorCellNodeKey = anchorNodeKey;
@@ -949,6 +947,7 @@ export function applyTableHandlers(
 
     // Clear selection when clicking outside of dom.
     const mouseDownCallback = (event: MouseEvent) => {
+        console.log("table mousedowncallback", event);
         if (event.button !== 0) {
             return;
         }
@@ -2058,11 +2057,11 @@ function $handleArrowKey(
             return false;
         }
         const anchorCellTable = $findTableNode(anchorCellNode);
-        if (anchorCellTable !== tableNode && anchorCellTable != null) {
+        if (anchorCellTable !== tableNode && anchorCellTable !== null) {
             const anchorCellTableElement = editor.getElementByKey(
                 anchorCellTable.__key,
             );
-            if (anchorCellTableElement != null) {
+            if (anchorCellTableElement !== null) {
                 tableObserver.table = getTable(anchorCellTableElement);
                 return $handleArrowKey(
                     editor,
@@ -2093,7 +2092,7 @@ function $handleArrowKey(
 
         const anchorCellDom = editor.getElementByKey(anchorCellNode.__key);
         const anchorDOM = editor.getElementByKey(anchor.key);
-        if (anchorDOM == null || anchorCellDom == null) {
+        if (anchorDOM === null || anchorCellDom === null) {
             return false;
         }
 
@@ -2114,13 +2113,13 @@ function $handleArrowKey(
             direction === "up"
                 ? anchorCellNode.getFirstChild()
                 : anchorCellNode.getLastChild();
-        if (edgeChild == null) {
+        if (edgeChild === null) {
             return false;
         }
 
         const edgeChildDOM = editor.getElementByKey(edgeChild.__key);
 
-        if (edgeChildDOM == null) {
+        if (edgeChildDOM === null) {
             return false;
         }
 
@@ -2177,7 +2176,7 @@ function $handleArrowKey(
             !$isNode("TableCell", anchorCellNode) ||
             !$isNode("TableCell", focusCellNode) ||
             !$isNode("Table", tableNodeFromSelection) ||
-            tableElement == null
+            tableElement === null
         ) {
             return false;
         }
@@ -2342,7 +2341,7 @@ function isExitingCell(
 export function getDOMCellFromTarget(node: Node): TableDOMCell | null {
     let currentNode: ParentNode | Node | null = node;
 
-    while (currentNode != null) {
+    while (currentNode !== null) {
         const nodeName = currentNode.nodeName;
 
         if (nodeName === "TD" || nodeName === "TH") {

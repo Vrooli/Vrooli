@@ -1,6 +1,6 @@
 import { LexicalEditor } from "../editor";
 import { getTable } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, InsertTableCommandPayloadHeaders, NodeType, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, InsertTableCommandPayloadHeaders, NodeType, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types";
 import { $createNode, $getNearestNodeFromDOMNode, $isNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type TableCellNode } from "./TableCellNode";
@@ -34,7 +34,7 @@ export class TableNode extends ElementNode {
         };
     }
 
-    createDOM(config: EditorConfig, editor?: LexicalEditor): HTMLElement {
+    createDOM(): HTMLElement {
         const tableElement = document.createElement("table");
 
         return tableElement;
@@ -44,9 +44,9 @@ export class TableNode extends ElementNode {
         return false;
     }
 
-    exportDOM(editor: LexicalEditor): DOMExportOutput {
+    exportDOM(): DOMExportOutput {
         return {
-            ...super.exportDOM(editor),
+            ...super.exportDOM(),
             after: (tableElement) => {
                 if (tableElement) {
                     const newElement = tableElement.cloneNode() as ParentNode;
@@ -93,7 +93,7 @@ export class TableNode extends ElementNode {
         for (let y = 0; y < rows; y++) {
             const row = domRows[y];
 
-            if (row == null) {
+            if (row === null || row == undefined) {
                 continue;
             }
 
@@ -123,13 +123,13 @@ export class TableNode extends ElementNode {
 
         const row = domRows[y];
 
-        if (row == null) {
+        if (row === null || row === undefined) {
             return null;
         }
 
         const cell = row[x];
 
-        if (cell == null) {
+        if (cell === null || cell === undefined) {
             return null;
         }
 
@@ -157,7 +157,7 @@ export class TableNode extends ElementNode {
     ): null | TableCellNode {
         const cell = this.getDOMCellFromCords(x, y, table);
 
-        if (cell == null) {
+        if (cell === null) {
             return null;
         }
 
@@ -199,7 +199,7 @@ export function $getElementForTableNode(
 ): TableDOMTable {
     const tableElement = editor.getElementByKey(tableNode.__key);
 
-    if (tableElement == null) {
+    if (tableElement === null) {
         throw new Error("Table Element Not Found");
     }
 

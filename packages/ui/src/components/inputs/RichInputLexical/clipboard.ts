@@ -21,7 +21,7 @@ const getDOMSelection = (targetWindow: Window | null): Selection | null =>
 export const $getLexicalContent = (editor: LexicalEditor): null | string => {
     const selection = $getSelection();
 
-    if (selection == null) {
+    if (selection === null) {
         throw new Error("Expected valid LexicalSelection");
     }
 
@@ -51,7 +51,7 @@ export const $insertDataTransferForPlainText = (
     const text =
         dataTransfer.getData("text/plain") || dataTransfer.getData("text/uri-list");
 
-    if (text != null) {
+    if (text !== null) {
         selection.insertRawText(text);
     }
 };
@@ -104,7 +104,7 @@ export const $insertDataTransferForRichText = (
     // Webkit-specific: Supports read 'text/uri-list' in clipboard.
     const text =
         dataTransfer.getData("text/plain") || dataTransfer.getData("text/uri-list");
-    if (text != null) {
+    if (text !== null) {
         if ($isRangeSelection(selection)) {
             const parts = text.split(/(\r?\n|\t)/);
             if (parts[parts.length - 1] === "") {
@@ -329,7 +329,7 @@ export async function copyToClipboard(
 
     const rootElement = editor.getRootElement();
     const windowDocument =
-        editor._window == null ? window.document : editor._window.document;
+        editor._window === null ? window.document : editor._window.document;
     const domSelection = getDOMSelection(editor._window);
     if (rootElement === null || domSelection === null) {
         return false;

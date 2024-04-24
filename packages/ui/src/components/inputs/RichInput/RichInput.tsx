@@ -116,17 +116,18 @@ export const RichInputBase = ({
     }, [disabled, id, session]);
 
     /** Prevents input from losing focus when the toolbar is pressed */
-    const handleMouseDown = useCallback((e) => {
-        // Find the first parent element with an id
-        let parent = e.target;
-        while (parent && !parent.id) {
-            parent = parent.parentElement;
-        }
-        // If the target is not the textArea, then prevent default
-        if (parent && parent.id !== id) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+    const handleMouseDown = useCallback((event: React.MouseEvent) => {
+        // Check for the toolbar ID at each parent element
+        let parent = event.target as HTMLElement | null | undefined;
+        do {
+            // If the toolbar is clicked, prevent default
+            if (parent?.id === `${id}-toolbar`) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            parent = parent?.parentElement;
+        } while (parent);
     }, [id]);
 
     // Actions which store and active state for the Toolbar. 
@@ -212,6 +213,7 @@ export const RichInputBase = ({
                     disabled={disabled}
                     handleAction={handleAction}
                     handleActiveStatesChange={handleActiveStatesChange}
+                    id={`${id}-toolbar`}
                     isMarkdownOn={isMarkdownOn}
                     name={name}
                     sx={sxs?.topBar}

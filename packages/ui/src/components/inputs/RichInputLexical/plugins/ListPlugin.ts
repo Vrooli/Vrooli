@@ -2,12 +2,14 @@ import { useEffect } from "react";
 import { INSERT_ORDERED_LIST_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_UNORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from "../commands";
 import { COMMAND_PRIORITY_LOW } from "../consts";
 import { useLexicalComposerContext } from "../context";
-import { LexicalEditor } from "../editor";
 import { $handleListInsertParagraph, insertList, removeList } from "../nodes/ListNode";
 import { mergeRegister } from "../utils";
 
-export const useList = (editor: LexicalEditor) => {
+export const ListPlugin = (): null => {
+    const editor = useLexicalComposerContext();
+
     useEffect(() => {
+        if (!editor) return;
         return mergeRegister(
             editor.registerCommand(
                 INSERT_ORDERED_LIST_COMMAND,
@@ -48,12 +50,6 @@ export const useList = (editor: LexicalEditor) => {
             ),
         );
     }, [editor]);
-};
-
-export const ListPlugin = (): null => {
-    const editor = useLexicalComposerContext();
-
-    useList(editor);
 
     return null;
 };
