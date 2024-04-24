@@ -4,7 +4,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
-import { forwardRef, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -148,6 +148,48 @@ const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t
         }
     }, []);
 
+    const handleKeyDown = useCallback((event) => {
+        let newHoveredRow = hoveredRow;
+        let newHoveredCol = hoveredCol;
+
+        switch (event.key) {
+            case "ArrowRight":
+                newHoveredCol = hoveredCol < maxCols ? hoveredCol + 1 : hoveredCol;
+                break;
+            case "ArrowLeft":
+                newHoveredCol = hoveredCol > 1 ? hoveredCol - 1 : hoveredCol;
+                break;
+            case "ArrowUp":
+                newHoveredRow = hoveredRow > 1 ? hoveredRow - 1 : hoveredRow;
+                break;
+            case "ArrowDown":
+                newHoveredRow = hoveredRow < maxRows ? hoveredRow + 1 : hoveredRow;
+                break;
+            case "Enter":
+                handleTableInsert(hoveredRow, hoveredCol);
+                onClose();
+                break;
+            default:
+                return;
+        }
+
+        setHoveredRow(newHoveredRow);
+        setHoveredCol(newHoveredCol);
+        event.preventDefault();
+    }, [hoveredRow, hoveredCol, maxRows, maxCols, handleTableInsert, onClose]);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.addEventListener("keydown", handleKeyDown);
+        } else {
+            document.removeEventListener("keydown", handleKeyDown);
+        }
+
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isOpen, handleKeyDown]);
+
     return (
         <Popover
             open={isOpen}
@@ -220,6 +262,7 @@ export const RichInputToolbar = ({
     disabled = false,
     handleAction,
     handleActiveStatesChange,
+    id,
     isMarkdownOn,
     name,
     sx,
@@ -231,6 +274,7 @@ export const RichInputToolbar = ({
     disabled?: boolean;
     handleAction: (action: RichInputAction, data?: unknown) => unknown;
     handleActiveStatesChange: (activeStates: Omit<RichInputActiveStates, "SetValue">) => unknown;
+    id: string;
     isMarkdownOn: boolean;
     name: string,
     sx?: SxType;
@@ -315,16 +359,20 @@ export const RichInputToolbar = ({
     ];
 
     return (
-        <Box ref={dimRef} sx={{
-            display: "flex",
-            flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
-            width: "100%",
-            padding: "2px",
-            background: palette.primary.main,
-            color: palette.primary.contrastText,
-            borderRadius: "0.5rem 0.5rem 0 0",
-            ...sx,
-        }}>
+        <Box
+            id={id}
+            ref={dimRef}
+            sx={{
+                display: "flex",
+                flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
+                width: "100%",
+                padding: "2px",
+                background: palette.primary.main,
+                color: palette.primary.contrastText,
+                borderRadius: "0.5rem 0.5rem 0 0",
+                ...sx,
+            }}
+        >
             {/* Group of main editor controls including AI assistant and formatting tools */}
             <Stack
                 direction="row"
