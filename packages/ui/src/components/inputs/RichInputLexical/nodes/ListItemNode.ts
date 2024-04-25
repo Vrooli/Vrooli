@@ -1,6 +1,6 @@
 import { RangeSelection } from "../selection";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
-import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
+import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
 import { mergeLists, type ListNode } from "./ListNode";
@@ -124,7 +124,7 @@ export class ListItemNode extends ElementNode {
             return super.replace(replaceWithNode);
         }
         this.setIndent(0);
-        const list = getParentOrThrow(this);
+        const list = getParent(this, { throwIfNull: true });
         if (!$isNode("List", list)) {
             return replaceWithNode;
         }
@@ -160,7 +160,7 @@ export class ListItemNode extends ElementNode {
     }
 
     insertAfter(node: LexicalNode, restoreSelection = true): LexicalNode {
-        const listNode = getParentOrThrow(this);
+        const listNode = getParent(this, { throwIfNull: true });
 
         if (!$isNode("List", listNode)) {
             throw new Error("insertAfter: list node is not parent of list item node");
@@ -217,8 +217,8 @@ export class ListItemNode extends ElementNode {
         const paragraph = $createNode("Paragraph", {});
         const children = this.getChildren();
         children.forEach((child) => paragraph.append(child));
-        const listNode = getParentOrThrow(this);
-        const listNodeParent = getParentOrThrow(listNode);
+        const listNode = getParent(this, { throwIfNull: true });
+        const listNodeParent = getParent(listNode, { throwIfNull: true });
         const isIndented = $isNode("ListItem", listNodeParent);
 
         if (listNode.getChildrenSize() === 1) {
@@ -285,10 +285,11 @@ export class ListItemNode extends ElementNode {
             return this.getLatest().__indent;
         }
         // ListItemNode should always have a ListNode for a parent.
-        let listNodeParent = getParentOrThrow(parent);
+        let listNodeParent = getParent(parent, { throwIfNull: true });
         let indentLevel = 0;
         while ($isNode("ListItem", listNodeParent)) {
-            listNodeParent = getParentOrThrow(getParentOrThrow(listNodeParent));
+            // Get grandparent
+            listNodeParent = getParent(listNodeParent, { skip: 1, throwIfNull: true });
             indentLevel++;
         }
 

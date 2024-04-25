@@ -6,7 +6,8 @@ import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
 import { ListItemNode } from "../nodes/ListItemNode";
 import { insertList } from "../nodes/ListNode";
-import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, getNextSibling, getParent, getParentOrThrow, getPreviousSibling, isHTMLElement, mergeRegister } from "../utils";
+import { CustomDomElement } from "../types";
+import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, getNextSibling, getParent, getPreviousSibling, isHTMLElement, mergeRegister } from "../utils";
 
 export const CheckListPlugin = (): null => {
     const editor = useLexicalComposerContext();
@@ -117,15 +118,15 @@ export const CheckListPlugin = (): null => {
                 },
                 COMMAND_PRIORITY_LOW,
             ),
-            editor.registerRootListener((rootElement, prevElement) => {
+            editor.registerListener("root", ({ prevRootElement, rootElement }) => {
                 if (rootElement !== null) {
                     rootElement.addEventListener("click", handleClick);
                     rootElement.addEventListener("pointerdown", handlePointerDown);
                 }
 
-                if (prevElement !== null) {
-                    prevElement.removeEventListener("click", handleClick);
-                    prevElement.removeEventListener("pointerdown", handlePointerDown);
+                if (prevRootElement !== null) {
+                    prevRootElement.removeEventListener("click", handleClick);
+                    prevRootElement.removeEventListener("pointerdown", handlePointerDown);
                 }
             }),
         );
@@ -154,8 +155,7 @@ const handleCheckItemEvent = (event: PointerEvent, callback: () => void) => {
 
     const parentNode = target.parentNode;
 
-    // @ts-ignore internal field
-    if (!parentNode || parentNode.__lexicalListType !== "check") {
+    if (!parentNode || (parentNode as CustomDomElement).__lexicalListType !== "check") {
         return;
     }
 
@@ -175,7 +175,7 @@ const handleClick = (event: Event) => {
         const domNode = event.target as HTMLElement;
         const editor = findEditor(domNode);
 
-        if (editor !== null && editor.isEditable()) {
+        if (editor && editor.isEditable()) {
             editor.update(() => {
                 if (event.target) {
                     const node = $getNearestNodeFromDOMNode(domNode);
@@ -201,10 +201,8 @@ const findEditor = (target: Node) => {
     let node: ParentNode | Node | null = target;
 
     while (node) {
-        // @ts-ignore internal field
-        if (node.__lexicalEditor) {
-            // @ts-ignore internal field
-            return node.__lexicalEditor;
+        if ((node as CustomDomElement).__lexicalEditor) {
+            return (node as CustomDomElement).__lexicalEditor;
         }
 
         node = node.parentNode;
@@ -216,11 +214,10 @@ const findEditor = (target: Node) => {
 const getActiveCheckListItem = (): HTMLElement | null => {
     const activeElement = document.activeElement as HTMLElement;
 
-    return activeElement !== null &&
+    return activeElement &&
         activeElement.tagName === "LI" &&
-        activeElement.parentNode !== null &&
-        // @ts-ignore internal field
-        activeElement.parentNode.__lexicalListType === "check"
+        activeElement.parentNode &&
+        (activeElement.parentNode as CustomDomElement).__lexicalListType === "check"
         ? activeElement
         : null;
 };
@@ -234,10 +231,10 @@ const findCheckListItemSibling = (
 
     // Going up in a tree to get non-null sibling
     while (sibling === null && $isNode("ListItem", parent)) {
-        // Get li -> parent ul/ol -> parent li
-        parent = getParent(getParentOrThrow(parent));
+        // Get grandparent (li -> parent ul/ol -> parent li)
+        parent = getParent(parent, { skip: 1 });
 
-        if (parent !== null) {
+        if (parent) {
             sibling = backward
                 ? getPreviousSibling(parent)
                 : getNextSibling(parent);

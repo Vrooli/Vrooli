@@ -10,7 +10,7 @@ import { $convertFromMarkdownString, $convertToMarkdownString, registerMarkdownS
 import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands";
 import { COMMAND_PRIORITY_CRITICAL } from "./consts";
 import { LexicalComposerContext, useLexicalComposerContext } from "./context";
-import { EditorState, LexicalEditor, createEditor } from "./editor";
+import { LexicalEditor, createEditor } from "./editor";
 import { type ElementNode } from "./nodes/ElementNode";
 import { type HeadingNode } from "./nodes/HeadingNode";
 import { type LexicalNode } from "./nodes/LexicalNode";
@@ -19,7 +19,6 @@ import { CheckListPlugin } from "./plugins/CheckListPlugin";
 import { CodeBlockPlugin } from "./plugins/CodePlugin";
 import { LinkPlugin } from "./plugins/LinkPlugin";
 import { ListPlugin } from "./plugins/ListPlugin";
-import { OnChangePlugin } from "./plugins/OnChangePlugin";
 import { RichTextPlugin } from "./plugins/RichTextPlugin";
 import { SpoilerPlugin } from "./plugins/SpoilerPlugin";
 import { TablePlugin } from "./plugins/TablePlugin";
@@ -193,7 +192,7 @@ export function ContentEditable({
 
     useLayoutEffect(() => {
         setEditable(editor?.isEditable() ?? false);
-        return editor?.registerEditableListener((currentIsEditable) => {
+        return editor?.registerListener("editable", (currentIsEditable) => {
             setEditable(currentIsEditable);
         });
     }, [editor]);
@@ -257,7 +256,7 @@ export const RichInputLexicalComponents = ({
     value,
     sxs,
 }: RichInputLexicalProps) => {
-    const { palette, spacing, typography } = useTheme();
+    const { palette, typography } = useTheme();
     const editor = useLexicalComposerContext();
 
     const tagData = useTagDropdown({ getTaggableItems });
@@ -269,7 +268,6 @@ export const RichInputLexicalComponents = ({
     const [activeEditor, setActiveEditor] = useState(editor);
     const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>({ ...defaultActiveStates });
     const $updateToolbar = useCallback(() => {
-        console.log("updating toolbar", activeEditor, $getSelection());
         if (!activeEditor) return;
         const updatedStates = { ...defaultActiveStates };
         const selection = $getSelection();
@@ -330,13 +328,11 @@ export const RichInputLexicalComponents = ({
                 }
             }
             // TODO need to find  headers, code and quote blocks, and lists
-            console.log("updated states", updatedStates);
             setActiveStates({ ...updatedStates });
             onActiveStatesChange({ ...updatedStates });
         }
     }, [activeEditor, onActiveStatesChange]);
     useEffect(() => {
-        console.log("registering toolbar update", editor);
         return editor?.registerCommand(
             SELECTION_CHANGE_COMMAND,
             (_payload, newEditor) => {
@@ -356,13 +352,13 @@ export const RichInputLexicalComponents = ({
         }, HISTORY_MERGE_OPTIONS);
     }, [editor, value]);
 
-    const handleChange = useCallback((editorState: EditorState) => {
-        const updatedMarkdown = editorState.read(() => {
-            const root = $getRoot();
-            return $convertToMarkdownString(ALL_TRANSFORMERS, root);
+    useLayoutEffect(() => {
+        if (!editor) return;
+        return editor.registerListener("textcontent", (updatedMarkdown) => {
+            console.log("textcontent listener triggered😽", updatedMarkdown);
+            onChange(updatedMarkdown);
         });
-        onChange(updatedMarkdown);
-    }, [onChange]);
+    }, [editor, onChange]);
 
     // Toolbar actions
     const toggleHeading = useCallback((headingSize: HeadingTagType) => {
@@ -519,7 +515,6 @@ export const RichInputLexicalComponents = ({
             <CheckListPlugin />
             <LinkPlugin />
             <ListPlugin />
-            <OnChangePlugin onChange={handleChange} />
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
             <TablePlugin />

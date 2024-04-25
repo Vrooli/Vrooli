@@ -2,7 +2,7 @@ import hljs from "highlight.js";
 import { copyIconPath } from "icons";
 import { PubSub } from "utils/pubsub";
 import { CODE_BLOCK_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_HIGH } from "../consts";
+import { COMMAND_PRIORITY_HIGH, DOUBLE_LINE_BREAK } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { ElementNode } from "../nodes/ElementNode";
 import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
@@ -175,7 +175,6 @@ export class CodeBlockNode extends ElementNode {
     }
 
     static fromDOMElement(element: HTMLElement): DOMConversionOutput {
-        console.log("from dom element code block");
         const codeElement = element.querySelector("code");
         let language = "";
 
@@ -211,10 +210,16 @@ export class CodeBlockNode extends ElementNode {
         return true;
     }
 
-    getTextContent() {
-        const code = this.getChildren().map(child => child.getTextContent()).join("\n");
+    getMarkdownContent() {
+        const markdown = this.getChildren().map(child => {
+            const text = child.getMarkdownContent();
+            if ($isNode("Element", child) && !child.isInline()) {
+                return text + DOUBLE_LINE_BREAK;
+            }
+            return text;
+        }).join("");
         // Return with backticks and language identifier
-        return `\`\`\`${this.__language}\n${code}\n\`\`\``;
+        return `\`\`\`${this.__language}\n${markdown}\n\`\`\``;
     }
 
     // insertNewAfter(

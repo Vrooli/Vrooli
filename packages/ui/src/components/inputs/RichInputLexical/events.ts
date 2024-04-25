@@ -4,9 +4,9 @@ import { ANDROID_COMPOSITION_LATENCY, CAN_USE_BEFORE_INPUT, COMPOSITION_START_CH
 import { LexicalEditor } from "./editor";
 import { flushRootMutations } from "./mutations";
 import { $getPreviousSelection, RangeSelection, internalCreateRangeSelection } from "./selection";
-import { NodeKey, RootElementEvents, RootElementRemoveHandles } from "./types";
+import { CustomDomElement, CustomLexicalEvent, NodeKey, RootElementEvents, RootElementRemoveHandles } from "./types";
 import { errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
-import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, dispatchCommand, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParentOrThrow, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
+import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, dispatchCommand, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
 
 let lastKeyDownTimeStamp = 0;
 let lastKeyCode = 0;
@@ -151,7 +151,6 @@ const onPointerDown = (event: PointerEvent, editor: LexicalEditor) => {
 };
 
 const onInput = (event: InputEvent, editor: LexicalEditor): void => {
-    console.log("onInput start", event, editor);
     // We don't want the onInput to bubble, in the case of nested editors.
     event.stopPropagation();
     updateEditor(editor, () => {
@@ -381,7 +380,7 @@ const onClick = (event: PointerEvent, editor: LexicalEditor) => {
                         if ($isNode("Element", anchorNode)) {
                             anchorNode.select(0);
                         } else {
-                            getParentOrThrow(anchorNode).select(0);
+                            getParent(anchorNode, { throwIfNull: true }).select(0);
                         }
                     }
                 }
@@ -513,20 +512,17 @@ const getTargetRange = (event: InputEvent): null | StaticRange => {
 const getRootElementRemoveHandles = (
     rootElement: HTMLElement,
 ): RootElementRemoveHandles => {
-    // @ts-expect-error: internal field
-    let eventHandles = rootElement.__lexicalEventHandles;
+    let eventHandles = (rootElement as CustomDomElement).__lexicalEventHandles;
 
     if (eventHandles === undefined) {
         eventHandles = [];
-        // @ts-expect-error: internal field
-        rootElement.__lexicalEventHandles = eventHandles;
+        (rootElement as CustomDomElement).__lexicalEventHandles = eventHandles;
     }
 
     return eventHandles;
 };
 
 function onDocumentSelectionChange(event: Event): void {
-    console.log("in onDocumentSelectionChange", event);
     const target = event.target as null | Element | Document;
     const targetWindow =
         target === null
@@ -574,7 +570,6 @@ function onDocumentSelectionChange(event: Event): void {
     // before, and trigger selection change on it to nullify selection.
     const editors = [nextActiveEditor];
     const rootEditor = editors[editors.length - 1];
-    console.log("rootEditor", rootEditor);
     const rootEditorKey = rootEditor._key;
     const activeNestedEditor = activeNestedEditorsMap.get(rootEditorKey);
     const prevActiveEditor = activeNestedEditor || rootEditor;
@@ -594,23 +589,18 @@ function onDocumentSelectionChange(event: Event): void {
 }
 
 const stopLexicalPropagation = (event: Event): void => {
-    // We attach a special property to ensure the same event doesn't re-fire
-    // for parent editors.
-    // @ts-ignore
-    event._lexicalHandled = true;
+    // We attach a special property to ensure the same event doesn't re-fire for parent editors.
+    (event as CustomLexicalEvent).__lexicalHandled = true;
 };
 
 const hasStoppedLexicalPropagation = (event: Event): boolean => {
-    // @ts-ignore
-    const stopped = event._lexicalHandled === true;
-    return stopped;
+    return (event as CustomLexicalEvent).__lexicalHandled === true;
 };
 
 export const addRootElementEvents = (
     rootElement: HTMLElement,
     editor: LexicalEditor,
 ) => {
-    console.log("adding root element events", rootElement, editor);
     // We only want to have a single global selectionchange event handler, shared
     // between all editor instances.
     const doc = rootElement.ownerDocument;
@@ -619,19 +609,15 @@ export const addRootElementEvents = (
         documentRootElementsCount === undefined ||
         documentRootElementsCount < 1
     ) {
-        console.log("adding selection change event to doc", doc);
         doc.addEventListener("selectionchange", onDocumentSelectionChange);
     }
     rootElementsRegistered.set(doc, documentRootElementsCount || 0 + 1);
 
-    // @ts-expect-error: internal field
-    rootElement.__lexicalEditor = editor;
-    console.log("set __lexicalEditor to rootElement", rootElement, editor);
+    (rootElement as CustomDomElement).__lexicalEditor = editor;
     const removeHandles = getRootElementRemoveHandles(rootElement);
 
     for (let i = 0; i < rootElementEvents.length; i++) {
         const [eventName, onEvent] = rootElementEvents[i];
-        console.log("in loop for rootElementEvents", eventName, onEvent, typeof onEvent);
         let eventHandler: (event: Event) => void;
         if (typeof onEvent === "function") {
             eventHandler = (event: Event) => {
@@ -645,7 +631,6 @@ export const addRootElementEvents = (
             };
         } else {
             eventHandler = (event: Event) => {
-                console.log("in event handler", event, hasStoppedLexicalPropagation(event));
                 if (hasStoppedLexicalPropagation(event)) {
                     return;
                 }
@@ -668,7 +653,6 @@ export const addRootElementEvents = (
                 }
             };
         }
-        console.log("adding event listener", eventName, eventHandler);
         rootElement.addEventListener(eventName, eventHandler);
         removeHandles.push(() => {
             rootElement.removeEventListener(eventName, eventHandler);
@@ -694,13 +678,11 @@ export const removeRootElementEvents = (rootElement: HTMLElement): void => {
         doc.removeEventListener("selectionchange", onDocumentSelectionChange);
     }
 
-    // @ts-expect-error: internal field
-    const editor: LexicalEditor | null | undefined = rootElement.__lexicalEditor;
+    const editor = (rootElement as CustomDomElement).__lexicalEditor;
 
-    if (editor !== null && editor !== undefined) {
+    if (editor) {
         cleanActiveNestedEditorsMap(editor);
-        // @ts-expect-error: internal field
-        rootElement.__lexicalEditor = null;
+        (rootElement as CustomDomElement).__lexicalEditor = null;
     }
 
     const removeHandles = getRootElementRemoveHandles(rootElement);
@@ -709,8 +691,7 @@ export const removeRootElementEvents = (rootElement: HTMLElement): void => {
         removeHandles[i]();
     }
 
-    // @ts-expect-error: internal field
-    rootElement.__lexicalEventHandles = [];
+    (rootElement as CustomDomElement).__lexicalEventHandles = [];
 };
 
 export const markSelectionChangeFromDOMUpdate = (): void => {
@@ -735,7 +716,6 @@ const onSelectionChange = (
     editor: LexicalEditor,
     isActive: boolean,
 ): void => {
-    console.log("in onSelectionChange", domSelection, editor, isActive);
     const {
         anchorNode: anchorDOM,
         anchorOffset,
@@ -757,12 +737,10 @@ const onSelectionChange = (
             shouldSkipSelectionChange(anchorDOM, anchorOffset) &&
             shouldSkipSelectionChange(focusDOM, focusOffset)
         ) {
-            console.log("skipping selection change due to DOM element being text node");
             return;
         }
     }
     updateEditor(editor, () => {
-        console.log("in onSelectionChange updateEditor start", isActive, isSelectionWithinEditor(editor, anchorDOM, focusDOM));
         // Non-active editor don't need any extra logic for selection, it only needs update
         // to reconcile selection (set it to null) to ensure that only one editor has non-null selection.
         if (!isActive) {

@@ -11,15 +11,23 @@ export class LineBreakNode extends LexicalNode {
         return new LineBreakNode(node.__key);
     }
 
-    getTextContent(): "\n" {
+    getMarkdownContent() {
         return "\n";
     }
 
-    createDOM(): HTMLElement {
+    getTextContent() {
+        return "\n";
+    }
+
+    getTextContentSize() {
+        return 1;
+    }
+
+    createDOM() {
         return document.createElement("br");
     }
 
-    updateDOM(): false {
+    updateDOM() {
         return false;
     }
 

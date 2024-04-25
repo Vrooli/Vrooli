@@ -1,10 +1,9 @@
-import { DECORATOR_NODES, ELEMENT_NODES, LEXICAL_ELEMENT_KEY, TEXT_NODES } from "./consts";
+import { DECORATOR_NODES, ELEMENT_NODES, TEXT_NODES } from "./consts";
 import { type EditorState, type LexicalEditor } from "./editor";
 import { type DecoratorNode } from "./nodes/DecoratorNode";
 import { type ElementNode } from "./nodes/ElementNode";
 import { type HashtagNode } from "./nodes/HashtagNode";
 import { type HeadingNode } from "./nodes/HeadingNode";
-import { type HorizontalRuleNode } from "./nodes/HorizontalRuleNode";
 import { type LexicalNode } from "./nodes/LexicalNode";
 import { type LineBreakNode } from "./nodes/LineBreakNode";
 import { type LinkNode } from "./nodes/LinkNode";
@@ -64,7 +63,6 @@ export type NodeConstructors = {
     Element: typeof ElementNode;
     Hashtag: typeof HashtagNode;
     Heading: typeof HeadingNode;
-    HorizontalRule: typeof HorizontalRuleNode;
     LineBreak: typeof LineBreakNode;
     Link: typeof LinkNode;
     List: typeof ListNode;
@@ -86,7 +84,6 @@ export type NodeConstructorPayloads = {
     Element: NodeConstructorBase;
     Hashtag: { text: string } & NodeConstructorBase;
     Heading: { tag: HeadingTagType } & NodeConstructorBase;
-    HorizontalRule: NodeConstructorBase;
     LineBreak: NodeConstructorBase;
     Link: LinkAttributes & NodeConstructorBase;
     List: { listType: ListType, start?: number } & NodeConstructorBase;
@@ -325,44 +322,72 @@ export type ErrorHandler = (error: Error) => void;
 
 export type MutationListeners = Map<MutationListener, LexicalNodeClass>;
 
-export type MutatedNodes = Map<LexicalNodeClass, Map<NodeKey, NodeMutation>>;
+export type MutatedNodes = { [K in NodeType]?: Record<NodeKey, NodeMutation> };
 
 export type NodeMap = Map<NodeKey, LexicalNode>;
 
 export type NodeMutation = "created" | "updated" | "destroyed";
 
-export type UpdateListener = (arg0: {
+export type UpdateListenerArgs = {
     dirtyElements: Map<NodeKey, IntentionallyMarkedAsDirtyElement>;
     dirtyLeaves: Set<NodeKey>;
     editorState: EditorState;
     normalizedNodes: Set<NodeKey>;
     prevEditorState: EditorState;
     tags: Set<string>;
-}) => void;
+};
+export type UpdateListener = (updateArgs: UpdateListenerArgs) => void;
 
-export type DecoratorListener<T = never> = (
-    decorator: Record<NodeKey, T>,
-) => void;
+export type DecoratorListenerArgs<T = never> = Record<NodeKey, T>;
+export type DecoratorListener<T = never> = (decorator: DecoratorListenerArgs) => void;
 
-export type RootListener = (
-    rootElement: null | HTMLElement,
+export type RootListenerArgs = {
     prevRootElement: null | HTMLElement,
-) => void;
+    rootElement: null | HTMLElement,
+};
+export type RootListener = (rootArgs: RootListenerArgs) => void;
 
-export type TextContentListener = (text: string) => void;
+export type TextContentListenerArgs = string;
+export type TextContentListener = (text: TextContentListenerArgs) => void;
 
 export type MutationListener = (
-    nodes: Map<NodeKey, NodeMutation>,
+    nodes: Record<NodeKey, NodeMutation>,
     payload: {
-        updateTags: Set<string>;
         dirtyLeaves: Set<string>;
         prevEditorState: EditorState;
+        updateTags: Set<string>;
     },
 ) => void;
 
-export type CommandListener<P> = (payload: P, editor: LexicalEditor) => boolean;
+export type EditableListenerArgs = boolean;
+export type EditableListener = (editable: EditableListenerArgs) => void;
 
-export type EditableListener = (editable: boolean) => void;
+export type EditorListener = {
+    /** When the editor's decorator object is updated. The decorator object contains the mapping of node keys to decorators */
+    decorator?: DecoratorListener;
+    /** When the editor becomes editable or not */
+    editable?: EditableListener;
+    /** When the root element is registered or updated */
+    root?: RootListener;
+    /** When the text content of the editor changes */
+    textcontent?: TextContentListener;
+    /** When the editor state is updated */
+    update?: UpdateListener;
+} & {
+        /** When a specific node type is updated */
+        [K in NodeType]?: MutationListener;
+    };
+export type EditorListeners = { [K in keyof EditorListener]?: Set<NonNullable<EditorListener[K]>> };
+
+export type EditorListenerPayload = {
+    decorator: DecoratorListenerArgs;
+    editable: EditableListenerArgs;
+    root: RootListenerArgs;
+    textcontent: TextContentListenerArgs;
+    update: UpdateListenerArgs;
+}
+
+export type CommandListener<P> = (payload: P, editor: LexicalEditor) => boolean;
 
 export type CommandListenerPriority = 0 | 1 | 2 | 3 | 4;
 
@@ -398,30 +423,6 @@ export type CommandsMap = Map<
     LexicalCommand<unknown>,
     Array<Set<CommandListener<unknown>>>
 >;
-export type Listeners = {
-    decorator: Set<DecoratorListener>;
-    mutation: MutationListeners;
-    editable: Set<EditableListener>;
-    root: Set<RootListener>;
-    textcontent: Set<TextContentListener>;
-    update: Set<UpdateListener>;
-};
-
-export type Listener =
-    | DecoratorListener
-    | EditableListener
-    | MutationListener
-    | RootListener
-    | TextContentListener
-    | UpdateListener;
-
-export type ListenerType =
-    | "update"
-    | "root"
-    | "decorator"
-    | "textcontent"
-    | "mutation"
-    | "editable";
 
 export type TransformerType = "text" | "decorator" | "element" | "root";
 
@@ -559,8 +560,6 @@ export type SerializedListItemNode = Spread<
     SerializedElementNode
 >;
 
-export type SerializedHorizontalRuleNode = SerializedLexicalNode;
-
 export type ListType = "number" | "bullet" | "check";
 
 export type ListNodeTagType = "ul" | "ol";
@@ -680,6 +679,20 @@ export type InsertTableCommandPayload = Readonly<{
     includeHeaders?: InsertTableCommandPayloadHeaders;
 }>;
 
-export type HTMLTableElementWithWithTableSelectionState = HTMLTableElement &
-    Record<typeof LEXICAL_ELEMENT_KEY, TableObserver>;
+export type CustomDomElement<T = HTMLElement> = T & {
+    __lexicalDir?: "ltr" | "rtl" | null;
+    __lexicalDirTextContent?: string;
+    __lexicalEditor?: LexicalEditor | null;
+    __lexicalEventHandles?: Array<() => void>;
+    __lexicalLineBreak?: HTMLBRElement | null;
+    __lexicalListStart?: string;
+    __lexicalListType?: ListType;
+    __lexicalTableSelection?: TableObserver;
+    __lexicalTextContent?: string;
+    __lexicalMarkdownContent?: string;
+    [Key: `__lexicalKey_${NodeKey}`]: NodeKey;
+}
 
+export type CustomLexicalEvent = Event & {
+    __lexicalHandled?: boolean;
+};

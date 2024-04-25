@@ -1,6 +1,6 @@
 import { PIXEL_VALUE_REG_EXP } from "../consts";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
-import { $createNode, $isNode, getParentOrThrow } from "../utils";
+import { $createNode, $isNode, getParent } from "../utils";
 import { ElementNode } from "./ElementNode";
 
 export class TableCellNode extends ElementNode {
@@ -78,7 +78,7 @@ export class TableCellNode extends ElementNode {
         if (element) {
             const element_ = element as HTMLTableCellElement;
             const maxWidth = 700;
-            const colCount = getParentOrThrow(this).getChildrenSize();
+            const colCount = getParent(this, { throwIfNull: true }).getChildrenSize();
             element_.style.border = "1px solid black";
             if (this.__colSpan > 1) {
                 element_.colSpan = this.__colSpan;

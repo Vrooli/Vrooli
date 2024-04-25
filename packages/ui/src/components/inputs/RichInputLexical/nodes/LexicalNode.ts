@@ -2,7 +2,7 @@
 import { $moveSelectionPointToEnd, $updateElementSelectionOnCreateDeleteNode, RangeSelection } from "../selection";
 import { DOMConversionMap, DOMExportOutput, EditorConfig, LexicalNodeBase, LexicalNodeClass, NodeKey, NodeType, SerializedLexicalNode } from "../types";
 import { errorOnReadOnly, getActiveEditor, getActiveEditorState } from "../updates";
-import { $createNode, $createNodeKey, $getCompositionKey, $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, $setSelection, errorOnInsertTextNodeOnRoot, getCommonAncestor, getIndexWithinParent, getNextSibling, getParent, getParentOrThrow, getPreviousSibling, internalMarkNodeAsDirty, removeFromParent, removeNode } from "../utils";
+import { $createNode, $createNodeKey, $getCompositionKey, $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, $setSelection, errorOnInsertTextNodeOnRoot, getCommonAncestor, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkNodeAsDirty, removeFromParent, removeNode } from "../utils";
 import { ElementNode } from "./ElementNode";
 
 export class LexicalNode extends LexicalNodeBase {
@@ -90,7 +90,7 @@ export class LexicalNode extends LexicalNodeBase {
         let node: this | ElementNode | LexicalNode = this;
         let loopCount = 0;
         while (loopCount < 100) {
-            const parent: ElementNode = getParentOrThrow(node);
+            const parent: ElementNode = getParent(node, { throwIfNull: true });
             if (parent === commonAncestor) {
                 indexA = getIndexWithinParent(node);
                 break;
@@ -100,7 +100,7 @@ export class LexicalNode extends LexicalNodeBase {
         node = targetNode;
         loopCount = 0;
         while (loopCount < 100) {
-            const parent: ElementNode = getParentOrThrow(node);
+            const parent: ElementNode = getParent(node, { throwIfNull: true });
             if (parent === commonAncestor) {
                 indexB = getIndexWithinParent(node);
                 break;
@@ -171,7 +171,7 @@ export class LexicalNode extends LexicalNodeBase {
                 node = nextSibling;
                 continue;
             }
-            const parent: LexicalNode | null = getParentOrThrow(node);
+            const parent: LexicalNode | null = getParent(node, { throwIfNull: true });
             if (!visited.has(parent.__key)) {
                 nodes.push(parent);
             }
@@ -282,10 +282,17 @@ export class LexicalNode extends LexicalNodeBase {
     }
 
     /**
-     * Returns the text content of the node. Override this for
+     * @returns Markdown content of the node. Override this for
+     * custom nodes that should have a representation in markdown format.
+     */
+    getMarkdownContent(): string {
+        return "";
+    }
+
+    /**
+     * @returns Text content of the node. Override this for
      * custom nodes that should have a representation in plain text
      * format (for copy + paste, for example)
-     *
      */
     getTextContent(): string {
         return "";
@@ -293,7 +300,7 @@ export class LexicalNode extends LexicalNodeBase {
 
     /**
      * Returns the length of the string produced by calling getTextContent on this node.
-     *
+     * We use this instead of getTextContent().length for performance reasons.
      */
     getTextContentSize(): number {
         return this.getTextContent().length;
@@ -405,7 +412,7 @@ export class LexicalNode extends LexicalNodeBase {
         const toReplaceKey = this.__key;
         const key = replaceWith.__key;
         const writableReplaceWith = replaceWith.getWritable();
-        const writableParent = getParentOrThrow(this).getWritable();
+        const writableParent = getParent(this, { throwIfNull: true }).getWritable();
         const size = writableParent.__size;
         removeFromParent(writableReplaceWith);
         const prevSibling = getPreviousSibling(self);
@@ -490,7 +497,7 @@ export class LexicalNode extends LexicalNodeBase {
             }
         }
         const nextSibling = getNextSibling(this);
-        const writableParent = getParentOrThrow(this).getWritable();
+        const writableParent = getParent(this, { throwIfNull: true }).getWritable();
         const insertKey = writableNodeToInsert.__key;
         const nextKey = writableSelf.__next;
         if (nextSibling === null) {
@@ -540,7 +547,7 @@ export class LexicalNode extends LexicalNodeBase {
         const insertKey = writableNodeToInsert.__key;
         removeFromParent(writableNodeToInsert);
         const prevSibling = getPreviousSibling(this);
-        const writableParent = getParentOrThrow(this).getWritable();
+        const writableParent = getParent(this, { throwIfNull: true }).getWritable();
         const prevKey = writableSelf.__prev;
         // TODO: this is O(n), can we improve?
         const index = getIndexWithinParent(this);
@@ -557,7 +564,7 @@ export class LexicalNode extends LexicalNodeBase {
         writableNodeToInsert.__parent = writableSelf.__parent;
         const selection = $getSelection();
         if (restoreSelection && $isRangeSelection(selection)) {
-            const parent = getParentOrThrow(this);
+            const parent = getParent(this, { throwIfNull: true });
             $updateElementSelectionOnCreateDeleteNode(selection, parent, index);
         }
         return nodeToInsert;
@@ -598,7 +605,7 @@ export class LexicalNode extends LexicalNodeBase {
     selectPrevious(anchorOffset?: number, focusOffset?: number): RangeSelection {
         errorOnReadOnly();
         const prevSibling = getPreviousSibling(this);
-        const parent = getParentOrThrow(this);
+        const parent = getParent(this, { throwIfNull: true });
         if (prevSibling === null) {
             return parent.select(0, 0);
         }
@@ -620,7 +627,7 @@ export class LexicalNode extends LexicalNodeBase {
     selectNext(anchorOffset?: number, focusOffset?: number): RangeSelection {
         errorOnReadOnly();
         const nextSibling = getNextSibling(this);
-        const parent = getParentOrThrow(this);
+        const parent = getParent(this, { throwIfNull: true });
         if (nextSibling === null) {
             return parent.select();
         }
@@ -656,7 +663,7 @@ export const insertRangeAfter = (
     lastToInsert?: LexicalNode,
 ) => {
     const lastToInsert2 =
-        lastToInsert || getParentOrThrow(firstToInsert).getLastChild()!;
+        lastToInsert || getParent(firstToInsert, { throwIfNull: true }).getLastChild()!;
     let current = firstToInsert;
     const nodesToInsert = [firstToInsert];
     while (current !== lastToInsert2) {

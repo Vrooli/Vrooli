@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LIST_INDENT_SIZE } from "../consts";
 import { type LexicalEditor } from "../editor";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
-import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
+import { CustomDomElement, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
+import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
 import { type ListItemNode } from "./ListItemNode";
@@ -49,12 +49,11 @@ export class ListNode extends ElementNode {
 
     createDOM(): HTMLElement {
         const tag = this.__tag;
-        const dom = document.createElement(tag);
+        const dom = document.createElement(tag) as CustomDomElement<HTMLOListElement | HTMLUListElement>;
 
         if (this.__start !== 1) {
-            dom.setAttribute("start", String(this.__start));
+            dom.__lexicalListStart = String(this.__start);
         }
-        // @ts-expect-error Internal field.
         dom.__lexicalListType = this.__listType;
 
         return dom;
@@ -107,10 +106,10 @@ export class ListNode extends ElementNode {
         const { element } = super.exportDOM();
         if (element && isHTMLElement(element)) {
             if (this.__start !== 1) {
-                element.setAttribute("start", String(this.__start));
+                (element as CustomDomElement).__lexicalListStart = String(this.__start);
             }
             if (this.__listType === "check") {
-                element.setAttribute("__lexicalListType", "check");
+                (element as CustomDomElement).__lexicalListType = "check";
             }
         }
         return {
@@ -279,13 +278,12 @@ function convertListNode(domNode: Node): DOMConversionOutput {
     const nodeName = domNode.nodeName.toLowerCase();
     let node: ListNode | null = null;
     if (nodeName === "ol") {
-        // @ts-ignore
-        const start = domNode.start;
+        const start = +((domNode as CustomDomElement).__lexicalListStart ?? "0");
         node = $createNode("List", { listType: "number", start });
     } else if (nodeName === "ul") {
         if (
             isHTMLElement(domNode) &&
-            domNode.getAttribute("__lexicallisttype") === "check"
+            (domNode as CustomDomElement).__lexicalListType === "check"
         ) {
             node = $createNode("List", { listType: "check" });
         } else {
@@ -381,7 +379,7 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
                         }
                         list.append(listItem);
                     } else if ($isNode("ListItem", anchorNode)) {
-                        const parent = getParentOrThrow(anchorNode);
+                        const parent = getParent(anchorNode, { throwIfNull: true });
                         append(list, parent.getChildren());
                         parent.replace(list);
                     }

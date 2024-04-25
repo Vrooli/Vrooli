@@ -12,7 +12,7 @@ import { type TextNode } from "./nodes/TextNode";
 import { toggleTextFormatType } from "./transformers/textFormatTransformers";
 import { BaseSelection, ElementPointType, NodeKey, PointType, TableDOMRows, TableDOMTable, TextFormatType, TextPointType } from "./types";
 import { getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode } from "./updates";
-import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getIndexWithinParent, getNextSibling, getNextSiblings, getNodeFromDOM, getParent, getParentKeys, getParentOrThrow, getPreviousSibling, getTextNodeOffset, isAttachedToRoot, isSelected, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
+import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getIndexWithinParent, getNextSibling, getNextSiblings, getNodeFromDOM, getParent, getParentKeys, getPreviousSibling, getTextNodeOffset, isAttachedToRoot, isSelected, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
 
 export const $createPoint = (
     key: NodeKey,
@@ -216,7 +216,7 @@ const internalResolveSelectionPoint = (
                         child = descendant;
                         resolvedElement = $isNode("Element", child)
                             ? child
-                            : getParentOrThrow(child);
+                            : getParent(child, { throwIfNull: true });
                     }
                 }
                 if ($isNode("Text", child)) {
@@ -243,7 +243,7 @@ const internalResolveSelectionPoint = (
                 } else {
                     resolvedOffset = index + 1;
                 }
-                resolvedElement = getParentOrThrow(resolvedElement);
+                resolvedElement = getParent(resolvedElement, { throwIfNull: true });
             }
             if ($isNode("Element", resolvedElement)) {
                 return $createPoint(resolvedElement.__key, resolvedOffset, "element");
@@ -1113,7 +1113,7 @@ export class RangeSelection implements BaseSelection {
         }
         const firstNodeText = firstNode.getTextContent();
         const firstNodeTextLength = firstNodeText.length;
-        const firstNodeParent = getParentOrThrow(firstNode);
+        const firstNodeParent = getParent(firstNode, { throwIfNull: true });
         const lastIndex = selectedNodesLength - 1;
         let lastNode = selectedNodes[lastIndex];
 
@@ -1267,10 +1267,10 @@ export class RangeSelection implements BaseSelection {
             // as in that section we might mutate the lastNode.
             const firstElement = $isNode("Element", firstNode)
                 ? firstNode
-                : getParentOrThrow(firstNode);
+                : getParent(firstNode, { throwIfNull: true });
             let lastElement = $isNode("Element", lastNode)
                 ? lastNode
-                : getParentOrThrow(lastNode);
+                : getParent(lastNode, { throwIfNull: true });
             let lastElementChild = lastNode;
 
             // If the last element is inline, we should instead look at getting
@@ -1281,7 +1281,7 @@ export class RangeSelection implements BaseSelection {
                 // Keep traversing till we have a non-inline element parent.
                 do {
                     lastElementChild = lastElement;
-                    lastElement = getParentOrThrow(lastElement);
+                    lastElement = getParent(lastElement, { throwIfNull: true });
                 } while (lastElement.isInline());
             }
 
@@ -1308,7 +1308,7 @@ export class RangeSelection implements BaseSelection {
                     }
                     markedNodeKeysForKeep.add(lastNode.__key);
                 } else {
-                    const lastNodeParent = getParentOrThrow(lastNode);
+                    const lastNodeParent = getParent(lastNode, { throwIfNull: true });
                     if (
                         !lastNodeParent.canBeEmpty() &&
                         lastNodeParent.getChildrenSize() === 1
@@ -1700,7 +1700,7 @@ export class RangeSelection implements BaseSelection {
         this.insertNodes([lineBreak]);
         // this is used in MacOS with the command 'ctrl-O' (openLineBreak)
         if (selectStart) {
-            const parent = getParentOrThrow(lineBreak);
+            const parent = getParent(lineBreak, { throwIfNull: true });
             const index = getIndexWithinParent(lineBreak);
             parent.select(index, index);
         }
@@ -1795,7 +1795,7 @@ export class RangeSelection implements BaseSelection {
                 : getNextSibling(possibleNode);
 
             if (!$isNode("Text", sibling)) {
-                const parent = getParentOrThrow(possibleNode);
+                const parent = getParent(possibleNode, { throwIfNull: true });
                 let offset;
                 let elementKey;
 
@@ -1887,14 +1887,14 @@ export class RangeSelection implements BaseSelection {
                         if ($isNode("Element", firstValidNode)) {
                             firstValidNode.selectStart();
                         } else {
-                            getParentOrThrow(firstValidNode).selectStart();
+                            getParent(firstValidNode, { throwIfNull: true }).selectStart();
                         }
                     } else {
                         const lastValidNode = validNodes[validNodes.length - 1];
                         if ($isNode("Element", lastValidNode)) {
                             lastValidNode.selectEnd();
                         } else {
-                            getParentOrThrow(lastValidNode).selectEnd();
+                            getParent(lastValidNode, { throwIfNull: true }).selectEnd();
                         }
                     }
                 }
@@ -2026,7 +2026,7 @@ export class RangeSelection implements BaseSelection {
                 const element =
                     anchor.type === "element"
                         ? anchor.getNode()
-                        : getParentOrThrow(anchor.getNode());
+                        : getParent(anchor.getNode(), { throwIfNull: true });
                 if (element.collapseAtStart(this)) {
                     return;
                 }
@@ -2198,7 +2198,7 @@ export class NodeSelection implements BaseSelection {
             selectionAtEnd = lastSelectedNode.select();
         } else {
             const index = getIndexWithinParent(lastSelectedNode) + 1;
-            selectionAtEnd = getParentOrThrow(lastSelectedNode).select(index, index);
+            selectionAtEnd = getParent(lastSelectedNode, { throwIfNull: true }).select(index, index);
         }
         selectionAtEnd.insertNodes(nodes);
         // Remove selected nodes
@@ -2734,7 +2734,7 @@ export const $isParentElementRTL = (selection: RangeSelection): boolean => {
     const anchorNode = selection.anchor.getNode();
     const parent = $isNode("Root", anchorNode)
         ? anchorNode
-        : getParentOrThrow(anchorNode);
+        : getParent(anchorNode, { throwIfNull: true });
 
     return parent.getDirection() === "rtl";
 };
@@ -2906,7 +2906,7 @@ export const useLexicalNodeSelection = (
     useEffect(() => {
         if (!editor) return;
         let isMounted = true;
-        const unregister = editor.registerUpdateListener(() => {
+        const unregister = editor.registerListener("update", () => {
             if (isMounted) {
                 setIsSelected(isNodeSelected(editor, key));
             }

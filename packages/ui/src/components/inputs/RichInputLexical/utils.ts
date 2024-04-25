@@ -16,7 +16,7 @@ import { type TableCellNode } from "./nodes/TableCellNode";
 import { type TableNode } from "./nodes/TableNode";
 import { type TextNode } from "./nodes/TextNode";
 import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, NodeSelection, Point, RangeSelection, moveSelectionPointToSibling } from "./selection";
-import { BaseSelection, CommandPayloadType, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, EditorThemeClasses, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, MutatedNodes, MutationListeners, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
+import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, EditorThemeClasses, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
 import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, triggerCommandListeners, updateEditor } from "./updates";
 
 export const getWindow = (editor: LexicalEditor): Window => {
@@ -407,10 +407,6 @@ export const scheduleMicroTask: (fn: () => void) => void =
             Promise.resolve().then(fn);
         };
 
-export const getEditorStateTextContent = (editorState: EditorState): string => {
-    return editorState.read(() => $getRoot().getTextContent());
-};
-
 export const removeDOMBlockCursorElement = (
     blockCursorElement: HTMLElement,
     editor: LexicalEditor,
@@ -448,7 +444,6 @@ export const $applyNodeReplacement = <N extends LexicalNode>(
 ): N => {
     const editor = getActiveEditor();
     const nodeType = node.getType();
-    console.log("in applyNodeReplacement", editor._nodes);
     const registeredNode = editor._nodes[nodeType];
     if (registeredNode === undefined) {
         throw new Error("$initializeNode failed. Ensure node has been registered to the editor. You can do this by passing the node class via the \"nodes\" array in the editor config.");
@@ -558,7 +553,7 @@ export const $getNodeByKey = <T extends LexicalNode>(
 ): T | null => {
     const editorState = _editorState || getActiveEditorState();
     const node = editorState._nodeMap.get(key) as T;
-    if (node === undefined) {
+    if (!node) {
         return null;
     }
     return node;
@@ -569,9 +564,8 @@ export const getNodeFromDOMNode = (
     editorState?: EditorState | null,
 ): LexicalNode | null => {
     const editor = getActiveEditor();
-    // @ts-ignore We intentionally add this to the Node.
-    const key = dom[`__lexicalKey_${editor._key}`];
-    if (key !== undefined) {
+    const key = (dom as CustomDomElement)[`__lexicalKey_${editor._key}`];
+    if (key) {
         return $getNodeByKey(key, editorState);
     }
     return null;
@@ -580,7 +574,7 @@ export const getNodeFromDOMNode = (
 export const getNodeFromDOM = (dom: Node): null | LexicalNode => {
     const editor = getActiveEditor();
     const nodeKey = getNodeKeyFromDOM(dom, editor);
-    if (nodeKey === null) {
+    if (!nodeKey) {
         const rootElement = editor.getRootElement();
         if (dom === rootElement) {
             return $getNodeByKey("root");
@@ -596,10 +590,9 @@ const getNodeKeyFromDOM = (
     editor: LexicalEditor,
 ): NodeKey | null => {
     let node: Node | null = dom;
-    while (node !== null) {
-        // @ts-ignore We intentionally add this to the Node.
-        const key: NodeKey = node[`__lexicalKey_${editor._key}`];
-        if (key !== undefined) {
+    while (node) {
+        const key = (node as CustomDomElement)[`__lexicalKey_${editor._key}`];
+        if (key) {
             return key;
         }
         node = getParentElement(node);
@@ -613,7 +606,7 @@ const isDOMNodeLexicalTextNode = (node: Node): node is Text => {
 
 export const getDOMTextNode = (element: Node | null): Text | null => {
     let node = element;
-    while (node !== null) {
+    while (node) {
         if (isDOMNodeLexicalTextNode(node)) {
             return node;
         }
@@ -626,12 +619,10 @@ export const $getNearestNodeFromDOMNode = (
     startingDOM: Node,
     editorState?: EditorState | null,
 ): LexicalNode | null => {
-    console.log("start of $getNearestNodeFromDOMNode", startingDOM);
     let dom: Node | null = startingDOM;
-    while (dom !== null && dom !== undefined) {
-        console.log("still in $getNearestNodeFromDOMNode. checking getNodeFromDOMNode", dom);
+    while (dom) {
         const node = getNodeFromDOMNode(dom, editorState);
-        if (node !== null) {
+        if (node) {
             return node;
         }
         dom = getParentElement(dom);
@@ -640,10 +631,9 @@ export const $getNearestNodeFromDOMNode = (
 };
 
 export const isSelectionCapturedInDecoratorInput = (anchorDOM: Node): boolean => {
-    console.log("isSelectionCapturedInDEcoratorInput start", anchorDOM);
     const activeElement = document.activeElement as HTMLElement;
 
-    if (activeElement === null) {
+    if (!activeElement) {
         return false;
     }
     const nodeName = activeElement.nodeName;
@@ -653,8 +643,7 @@ export const isSelectionCapturedInDecoratorInput = (anchorDOM: Node): boolean =>
         (nodeName === "INPUT" ||
             nodeName === "TEXTAREA" ||
             (activeElement.contentEditable === "true" &&
-                // @ts-ignore iternal field
-                activeElement.__lexicalEditor === null))
+                (activeElement as CustomDomElement).__lexicalEditor === null))
     );
 };
 
@@ -662,9 +651,8 @@ export const getNearestEditorFromDOMNode = (
     node: Node | null,
 ): LexicalEditor | null => {
     let currentNode = node;
-    while (currentNode !== null && currentNode !== undefined) {
-        // @ts-expect-error: internal field
-        const editor: LexicalEditor = currentNode.__lexicalEditor;
+    while (currentNode) {
+        const editor = (currentNode as CustomDomElement).__lexicalEditor;
         if (editor) {
             return editor;
         }
@@ -1090,7 +1078,7 @@ export const $getAncestor = <NodeType extends LexicalNode = LexicalNode>(
 ) => {
     let parent = node;
     while (parent !== null && getParent(parent) !== null && !predicate(parent)) {
-        parent = getParentOrThrow(parent);
+        parent = getParent(parent, { throwIfNull: true });
     }
     return predicate(parent) ? parent : null;
 };
@@ -1098,12 +1086,12 @@ export const $getAncestor = <NodeType extends LexicalNode = LexicalNode>(
 export const $getNearestRootOrShadowRoot = (
     node: LexicalNode,
 ): RootNode | ElementNode => {
-    let parent = getParentOrThrow(node);
+    let parent = getParent(node, { throwIfNull: true });
     while (parent !== null) {
         if ($isRootOrShadowRoot(parent)) {
             return parent;
         }
-        parent = getParentOrThrow(parent);
+        parent = getParent(parent, { throwIfNull: true });
     }
     return parent;
 };
@@ -1180,7 +1168,7 @@ export const $getAdjacentNode = (
                 : getNextSibling(focusNode);
             if (possibleNode === null) {
                 return resolveElement(
-                    getParentOrThrow(focusNode),
+                    getParent(focusNode, { throwIfNull: true }),
                     isBackward,
                     getIndexWithinParent(focusNode) + (isBackward ? 0 : 1),
                 );
@@ -1274,7 +1262,6 @@ export const $createNodeKey = (
     const editorState = getActiveEditorState();
     const key = generateRandomKey();
     editorState._nodeMap.set(key, node);
-    console.log("set key", key, " in nodeMap", editorState._nodeMap);
     // TODO Split this function into leaf/element
     if ($isNode("Element", node)) {
         editor._dirtyElements.set(key, true);
@@ -1422,7 +1409,7 @@ export const $shouldInsertTextAfterOrBeforeTextNode = (
         return false;
     }
     const offset = selection.anchor.offset;
-    const parent = getParentOrThrow(node);
+    const parent = getParent(node, { throwIfNull: true });
     const isToken = node.isToken();
     if (offset === 0) {
         return (
@@ -1450,34 +1437,29 @@ export const $textContentRequiresDoubleLinebreakAtEnd = (
 
 export const setMutatedNode = (
     mutatedNodes: MutatedNodes,
-    registeredNodes: RegisteredNodes,
-    mutationListeners: MutationListeners,
+    registeredNodes: RegisteredNodes | undefined,
     node: LexicalNode,
     mutation: NodeMutation,
 ) => {
-    if (mutationListeners.size === 0) {
-        return;
-    }
     const nodeType = node.getType();
     const nodeKey = node.__key;
-    const registeredNode = registeredNodes[nodeType];
-    if (registeredNode === undefined) {
+    const registeredNode = registeredNodes?.[nodeType];
+    if (!registeredNode) {
         throw new Error(`Type ${nodeType} not in registeredNodes`);
     }
-    const klass = registeredNode.klass;
-    let mutatedNodesByType = mutatedNodes.get(klass);
-    if (mutatedNodesByType === undefined) {
-        mutatedNodesByType = new Map();
-        mutatedNodes.set(klass, mutatedNodesByType);
+    let mutatedNodesByType = mutatedNodes[nodeType];
+    if (!mutatedNodesByType) {
+        mutatedNodesByType = {};
+        mutatedNodes[nodeType] = mutatedNodesByType;
     }
-    const prevMutation = mutatedNodesByType.get(nodeKey);
+    const prevMutation = mutatedNodesByType[nodeKey];
     // If the node has already been "destroyed", yet we are
     // re-making it, then this means a move likely happened.
     // We should change the mutation to be that of "updated"
     // instead.
     const isMove = prevMutation === "destroyed" && mutation === "created";
     if (prevMutation === undefined || isMove) {
-        mutatedNodesByType.set(nodeKey, isMove ? "updated" : mutation);
+        mutatedNodesByType[nodeKey] = isMove ? "updated" : mutation;
     }
 };
 
@@ -1858,7 +1840,7 @@ export function $splitNode(
     const recurse = <T extends LexicalNode>(
         currentNode: T,
     ): [ElementNode, ElementNode, T] => {
-        const parent = getParentOrThrow(currentNode);
+        const parent = getParent(currentNode, { throwIfNull: true });
         const isParentRoot = $isRootOrShadowRoot(parent);
         // The node we start split from (leaf) is moved, but its recursive
         // parents are copied to create separate tree
@@ -1916,7 +1898,7 @@ export const $insertNodeToNearestRoot = <T extends LexicalNode>(node: T): T => {
             let splitNode: ElementNode;
             let splitOffset: number;
             if ($isNode("Text", focusNode)) {
-                splitNode = getParentOrThrow(focusNode);
+                splitNode = getParent(focusNode, { throwIfNull: true });
                 splitOffset = getIndexWithinParent(focusNode);
                 if (focusOffset > 0) {
                     splitOffset += 1;
@@ -2354,23 +2336,31 @@ export const getIndexWithinParent = (node: LexicalNode): number => {
 /**
  * Returns the parent of the provided node, or null if none is found.
  */
-export const getParent = <T extends ElementNode>(node: LexicalNode): T | null => {
-    const parent = node.getLatest().__parent;
-    if (parent === null) {
-        return null;
-    }
-    return $getNodeByKey<T>(parent);
-};
+export const getParent = <T extends ElementNode, E extends boolean = false>(
+    node: LexicalNode,
+    options?: {
+        /** Will skip the provided number of parents (e.g. 1 will return the grandparent) */
+        skip?: number,
+        /** Will throw an error if the parent is not found */
+        throwIfNull?: E
+    },
+): E extends true ? T : T | null => {
+    let current: LexicalNode | null = node.getLatest();
+    let skip = options?.skip ?? 0;
 
-/**
- * Like `getParent`, but throws an error if no parent is found.
- */
-export const getParentOrThrow = <T extends ElementNode>(node: LexicalNode): T => {
-    const parent = getParent<T>(node);
-    if (parent === null) {
-        throw new Error(`Expected node ${node.__key} to have a parent.`);
+    while (skip >= 0 && current) {
+        const parentKey = current.__parent;
+        current = parentKey ? $getNodeByKey<T>(parentKey) : null;
+        if (current === null) {
+            if (skip === 0 && options?.throwIfNull) {
+                throw new Error(`Expected node ${node.__key} to have a parent.`);
+            }
+            break;
+        }
+        skip--;
     }
-    return parent;
+
+    return current as E extends true ? T : T | null;
 };
 
 /**
@@ -2400,6 +2390,7 @@ export const getTopLevelElementOrThrow = (node: LexicalNode): ElementNode => {
     return parent;
 };
 
+const MAX_PARENT_SEARCH_DEPTH = 25;
 /**
  * Returns a list of the every ancestor of the provided node,
  * all the way up to the RootNode.
@@ -2407,9 +2398,9 @@ export const getTopLevelElementOrThrow = (node: LexicalNode): ElementNode => {
 export const getParents = (node: LexicalNode): ElementNode[] => {
     const parents: ElementNode[] = [];
     let currNode = getParent(node);
-    while (currNode !== null) {
+    while (currNode && parents.length < MAX_PARENT_SEARCH_DEPTH) {
         parents.push(currNode);
-        currNode = getParent(node);
+        currNode = getParent(currNode);
     }
     return parents;
 };

@@ -8,7 +8,7 @@ import { addRootElementEvents, removeRootElementEvents } from "./events";
 import { flushRootMutations, initMutationObserver } from "./mutations";
 import { LexicalNodes } from "./nodes";
 import { type LexicalNode } from "./nodes/LexicalNode";
-import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, DecoratorListener, EditableListener, EditorConfig, EditorFocusOptions, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, Listeners, MutationListener, NodeKey, NodeMap, NodeType, RegisteredNodes, RootListener, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, TextContentListener, Transform, UpdateListener } from "./types";
+import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, EditorConfig, EditorFocusOptions, EditorListener, EditorListeners, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, NodeKey, NodeMap, NodeType, RegisteredNodes, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, Transform } from "./types";
 import { commitPendingUpdates, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
 import { $createNode, $getRoot, $getSelection, $isNode, dispatchCommand, getCachedClassNameArray, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
 
@@ -50,7 +50,6 @@ export class EditorState {
     _readOnly: boolean;
 
     constructor(nodeMap: NodeMap, selection?: null | BaseSelection) {
-        console.log("in editorstate constructor", nodeMap);
         this._nodeMap = nodeMap;
         this._selection = selection || null;
         this._flushSync = false;
@@ -149,7 +148,6 @@ export const createEditor = async (editorConfig?: CreateEditorArgs): Promise<Lex
     setActiveEditor(editor);
     const editorState = createEmptyEditorState();
     editor.setEditorState(editorState);
-    console.log("set editor state!");
 
     return editor;
 };
@@ -176,7 +174,7 @@ export class LexicalEditor {
     _keyToDOMMap: Map<NodeKey, HTMLElement>;
     _updates: [() => void, EditorUpdateOptions | undefined][];
     _updating: boolean;
-    _listeners: Listeners;
+    _listeners: EditorListeners;
     _commands: CommandsMap;
     _decorators: Record<NodeKey, unknown>;
     _pendingDecorators: null | Record<NodeKey, unknown>;
@@ -208,15 +206,7 @@ export class LexicalEditor {
         this._keyToDOMMap = new Map();
         this._updates = [];
         this._updating = false;
-        // Listeners
-        this._listeners = {
-            decorator: new Set(),
-            editable: new Set(),
-            mutation: new Map(),
-            root: new Set(),
-            textcontent: new Set(),
-            update: new Set(),
-        };
+        this._listeners = {};
         // Commands
         this._commands = new Map();
         // Editor configuration for theme/context.
@@ -251,84 +241,27 @@ export class LexicalEditor {
         return this._compositionKey !== null;
     }
     /**
-     * Registers a listener for Editor update event. Will trigger the provided callback
-     * each time the editor goes through an update (via {@link LexicalEditor.update}) until the
-     * teardown function is called.
-     *
+     * Registers a listener for an editor event.
+     * @param event - the event to listen for.
+     * @param listener - the function to run when the event is triggered.
      * @returns a teardown function that can be used to cleanup the listener.
      */
-    registerUpdateListener(listener: UpdateListener): () => void {
-        const listenerSetOrMap = this._listeners.update;
-        listenerSetOrMap.add(listener);
+    registerListener<T extends keyof EditorListeners>(
+        event: T,
+        listener: NonNullable<EditorListener[T]>,
+    ): () => void {
+        // All node class listeners are stored in the mutation map. 
+        // Other listeners are stored in their own sets.
+        let listenerSet = this._listeners[event];
+        // If set has not been created, create it.
+        if (!listenerSet) {
+            this._listeners[event] = new Set() as EditorListeners[T];
+            listenerSet = this._listeners[event];
+        }
+        // Add the listener to the set.
+        listenerSet!.add(listener);
         return () => {
-            listenerSetOrMap.delete(listener);
-        };
-    }
-    /**
-     * Registers a listener for for when the editor changes between editable and non-editable states.
-     * Will trigger the provided callback each time the editor transitions between these states until the
-     * teardown function is called.
-     *
-     * @returns a teardown function that can be used to cleanup the listener.
-     */
-    registerEditableListener(listener: EditableListener): () => void {
-        const listenerSetOrMap = this._listeners.editable;
-        listenerSetOrMap.add(listener);
-        return () => {
-            listenerSetOrMap.delete(listener);
-        };
-    }
-    /**
-     * Registers a listener for when the editor's decorator object changes. The decorator object contains
-     * all DecoratorNode keys -> their decorated value. This is primarily used with external UI frameworks.
-     *
-     * Will trigger the provided callback each time the editor transitions between these states until the
-     * teardown function is called.
-     *
-     * @returns a teardown function that can be used to cleanup the listener.
-     */
-    registerDecoratorListener<T>(listener: DecoratorListener<T>): () => void {
-        const listenerSetOrMap = this._listeners.decorator;
-        listenerSetOrMap.add(listener);
-        return () => {
-            listenerSetOrMap.delete(listener);
-        };
-    }
-    /**
-     * Registers a listener for when Lexical commits an update to the DOM and the text content of
-     * the editor changes from the previous state of the editor. If the text content is the
-     * same between updates, no notifications to the listeners will happen.
-     *
-     * Will trigger the provided callback each time the editor transitions between these states until the
-     * teardown function is called.
-     *
-     * @returns a teardown function that can be used to cleanup the listener.
-     */
-    registerTextContentListener(listener: TextContentListener): () => void {
-        const listenerSetOrMap = this._listeners.textcontent;
-        listenerSetOrMap.add(listener);
-        return () => {
-            listenerSetOrMap.delete(listener);
-        };
-    }
-    /**
-     * Registers a listener for when the editor's root DOM element (the content editable
-     * Lexical attaches to) changes. This is primarily used to attach event listeners to the root
-     *  element. The root listener function is executed directly upon registration and then on
-     * any subsequent update.
-     *
-     * Will trigger the provided callback each time the editor transitions between these states until the
-     * teardown function is called.
-     *
-     * @returns a teardown function that can be used to cleanup the listener.
-     */
-    registerRootListener(listener: RootListener): () => void {
-        const listenerSetOrMap = this._listeners.root;
-        listener(this._rootElement, null);
-        listenerSetOrMap.add(listener);
-        return () => {
-            listener(null, this._rootElement);
-            listenerSetOrMap.delete(listener);
+            listenerSet!.delete(listener);
         };
     }
     /**
@@ -383,34 +316,11 @@ export class LexicalEditor {
 
     /**
      * Registers a listener that will run when a Lexical node of the provided class is
-     * mutated. The listener will receive a list of nodes along with the type of mutation
-     * that was performed on each: created, destroyed, or updated.
-     *
-     * One common use case for this is to attach DOM event listeners to the underlying DOM nodes as Lexical nodes are created.
-     * {@link LexicalEditor.getElementByKey} can be used for this.
-     *
-     * @param klass - The class of the node that you want to listen to mutations on.
-     * @param listener - The logic you want to run when the node is mutated.
-     * @returns a teardown function that can be used to cleanup the listener.
-     */
-    registerMutationListener(
-        node: LexicalNodeClass,
-        listener: MutationListener,
-    ): () => void {
-        const mutations = this._listeners.mutation;
-        mutations.set(listener, node);
-        return () => {
-            mutations.delete(listener);
-        };
-    }
-
-    /**
-     * Registers a listener that will run when a Lexical node of the provided class is
      * marked dirty during an update. The listener will continue to run as long as the node
      * is marked dirty. There are no guarantees around the order of transform execution!
      *
      * Watch out for infinite loops. See [Node Transforms](https://lexical.dev/docs/concepts/transforms)
-     * @param klass - The class of the node that you want to run transforms on.
+     * @param nodeType - The type of node that you want to run transforms on.
      * @param listener - The logic you want to run when the node is updated.
      * @returns a teardown function that can be used to cleanup the listener.
      */
@@ -443,7 +353,6 @@ export class LexicalEditor {
         type: TCommand,
         payload: CommandPayloadType<TCommand>,
     ): boolean {
-        console.log("in editor dispatchCommand", type, payload);
         return dispatchCommand(this, type, payload);
     }
 
@@ -458,7 +367,7 @@ export class LexicalEditor {
     /**
      *
      * @returns the current root element of the editor. If you want to register
-     * an event listener, do it via {@link LexicalEditor.registerRootListener}, since
+     * an event listener, do it via {@link LexicalEditor.registerListener}, since
      * this reference may not be stable.
      */
     getRootElement(): null | HTMLElement {
@@ -519,7 +428,10 @@ export class LexicalEditor {
                 this._window = null;
             }
 
-            triggerListeners("root", this, false, nextRootElement, prevRootElement);
+            triggerListeners("root", this, false, {
+                prevRootElement,
+                rootElement: nextRootElement,
+            });
         }
     }
 
@@ -546,7 +458,6 @@ export class LexicalEditor {
      * @param options - options for the update.
      */
     setEditorState(editorState: EditorState, options?: EditorSetOptions): void {
-        console.log("setting editor state", editorState);
         if (editorState.isEmpty()) {
             throw new Error("setEditorState: the editor state is empty. It should at least contain a root node.");
         }

@@ -12,7 +12,6 @@ const spoilerCommandListener = () => {
     }
 
     const nodes = selection.getNodes();
-    console.log("in spoiler command listener", nodes);
     const isAlreadySpoiled = nodes.some(node => hasFormat(node, "SPOILER_LINES") || hasFormat(node, "SPOILER_TAGS"));
 
     if (isAlreadySpoiled) {

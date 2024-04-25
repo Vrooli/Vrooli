@@ -30,7 +30,6 @@ export class LexicalNodes {
             "Element": (await import("./ElementNode")).ElementNode,
             "Hashtag": (await import("./HashtagNode")).HashtagNode,
             "Heading": (await import("./HeadingNode")).HeadingNode,
-            "HorizontalRule": (await import("./HorizontalRuleNode")).HorizontalRuleNode,
             "LineBreak": (await import("./LineBreakNode")).LineBreakNode,
             "Link": (await import("./LinkNode")).LinkNode,
             "List": (await import("./ListNode")).ListNode,

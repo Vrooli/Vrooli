@@ -8,8 +8,8 @@ import { type LexicalNode } from "./nodes/LexicalNode";
 import { type TextNode } from "./nodes/TextNode";
 import { reconcileRoot } from "./reconcile";
 import { applySelectionTransforms, internalCreateSelection, updateDOMSelection } from "./selection";
-import { CommandPayloadType, EditorUpdateOptions, LexicalCommand, Listener, MutatedNodes, NodeType, RegisteredNode, RegisteredNodes, SerializedEditorState, SerializedLexicalNode, Transform } from "./types";
-import { $getCompositionKey, $isNode, $isNodeSelection, $isRangeSelection, getDOMSelection, getEditorStateTextContent, getNextSibling, getPreviousSibling, getStyleObjectFromRawCSS, isAttachedToRoot, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils";
+import { CommandPayloadType, EditorListenerPayload, EditorListeners, EditorUpdateOptions, LexicalCommand, MutatedNodes, NodeType, RegisteredNode, RegisteredNodes, SerializedEditorState, SerializedLexicalNode, Transform } from "./types";
+import { $getCompositionKey, $getRoot, $isNode, $isNodeSelection, $isRangeSelection, getDOMSelection, getNextSibling, getPreviousSibling, getStyleObjectFromRawCSS, isAttachedToRoot, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils";
 
 let activeEditorState: null | EditorState = null;
 let activeEditor: null | LexicalEditor = null;
@@ -99,13 +99,16 @@ const triggerMutationListeners = (
     dirtyLeaves: Set<string>,
     prevEditorState: EditorState,
 ) => {
-    const listeners = Array.from(editor._listeners.mutation);
-    const listenersLength = listeners.length;
-
-    for (let i = 0; i < listenersLength; i++) {
-        const [listener, klass] = listeners[i];
-        const mutatedNodesByType = mutatedNodes.get(klass);
-        if (mutatedNodesByType !== undefined) {
+    // Loop through every mutated node type
+    for (const [nodeType, mutatedNodesByType] of Object.entries(mutatedNodes)) {
+        // Check if there are any listeners for this node type
+        const listeners = editor._listeners[nodeType] as EditorListeners[NodeType];
+        // If there are no listeners for this node type, skip to the next node type
+        if (!listeners) {
+            continue;
+        }
+        // Call every listener in the set
+        for (const listener of listeners) {
             listener(mutatedNodesByType, {
                 dirtyLeaves,
                 prevEditorState,
@@ -115,36 +118,43 @@ const triggerMutationListeners = (
     }
 };
 
-export const triggerListeners = (
-    type: "update" | "root" | "decorator" | "textcontent" | "editable",
+export const triggerListeners = <T extends keyof EditorListenerPayload>(
+    type: T,
     editor: LexicalEditor,
     isCurrentlyEnqueuingUpdates: boolean,
-    ...payload: unknown[]
+    payload: EditorListenerPayload[T],
 ) => {
     const previouslyUpdating = editor._updating;
     editor._updating = isCurrentlyEnqueuingUpdates;
 
     try {
-        const listeners = Array.from<Listener>(editor._listeners[type]);
-        for (let i = 0; i < listeners.length; i++) {
-            // @ts-ignore
-            listeners[i].apply(null, payload);
+        const listeners = editor._listeners[type];
+        if (!listeners) {
+            return;
+        }
+        for (const listener of listeners) {
+            listener(payload as never);
         }
     } finally {
         editor._updating = previouslyUpdating;
     }
 };
 
+/**
+ * Triggers the text content listeners if the markdown content has changed. 
+ * This includes text changes and formatting changes
+ */
 const triggerTextContentListeners = (
     editor: LexicalEditor,
     currentEditorState: EditorState,
     pendingEditorState: EditorState,
 ) => {
-    const currentTextContent = getEditorStateTextContent(currentEditorState);
-    const latestTextContent = getEditorStateTextContent(pendingEditorState);
+    const currentMarkdownContent = currentEditorState.read(() => $getRoot().getMarkdownContent());
+    const latestMarkdownContent = pendingEditorState.read(() => $getRoot().getMarkdownContent());
+    console.log("in triggerTextContentListeners💗 - markdown comparison", currentMarkdownContent.length, latestMarkdownContent.length);
 
-    if (currentTextContent !== latestTextContent) {
-        triggerListeners("textcontent", editor, true, latestTextContent);
+    if (currentMarkdownContent !== latestMarkdownContent) {
+        triggerListeners("textcontent", editor, true, latestMarkdownContent);
     }
 };
 
@@ -297,7 +307,6 @@ const triggerDeferredUpdateCallbacks = (
 };
 
 const triggerEnqueuedUpdates = (editor: LexicalEditor): void => {
-    console.log("triggering enqueued editor updates");
     const queuedUpdates = editor._updates;
 
     if (queuedUpdates.length !== 0) {
@@ -313,7 +322,6 @@ export const commitPendingUpdates = (
     editor: LexicalEditor,
     recoveryEditorState?: EditorState | null,
 ) => {
-    console.log("in commitPendingUpdates", editor);
     const pendingEditorState = editor._pendingEditorState;
     const rootElement = editor._rootElement;
     const shouldSkipDOM = rootElement === null;
@@ -485,7 +493,7 @@ export const commitPendingUpdates = (
     if (pendingDecorators !== null) {
         editor._decorators = pendingDecorators;
         editor._pendingDecorators = null;
-        triggerListeners("decorator", editor, true, pendingDecorators);
+        triggerListeners("decorator", editor, true, pendingDecorators as Record<string, never>);
     }
 
     // If reconciler fails, we reset whole editor (so current editor state becomes empty)
@@ -505,7 +513,7 @@ export const commitPendingUpdates = (
         dirtyLeaves,
         editorState: pendingEditorState,
         normalizedNodes,
-        prevEditorState: recoveryEditorState || currentEditorState,
+        prevEditorState: (recoveryEditorState || currentEditorState) as EditorState,
         tags,
     });
     triggerDeferredUpdateCallbacks(editor, deferred);
@@ -803,18 +811,17 @@ const beginUpdate = (
     updateFn: () => void,
     options?: EditorUpdateOptions,
 ) => {
-    console.log("in beginUpdate");
     const updateTags = editor._updateTags;
-    let onUpdate;
-    let tag;
+    let onUpdate: (() => void) | null = null;
+    let tag: string | null = null;
     let skipTransforms = false;
     let discrete = false;
 
-    if (options !== undefined) {
-        onUpdate = options.onUpdate;
-        tag = options.tag;
+    if (options) {
+        onUpdate = options.onUpdate || null;
+        tag = options.tag || null;
 
-        if (tag !== null) {
+        if (tag) {
             updateTags.add(tag);
         }
 
@@ -841,6 +848,10 @@ const beginUpdate = (
     }
     pendingEditorState._flushSync = discrete;
 
+    const previousActiveEditorState = activeEditorState;
+    const previousReadOnlyMode = isReadOnlyMode;
+    const previousActiveEditor = activeEditor;
+    const previouslyUpdating = editor._updating;
     activeEditorState = pendingEditorState;
     isReadOnlyMode = false;
     editor._updating = true;
@@ -918,6 +929,10 @@ const beginUpdate = (
         commitPendingUpdates(editor);
         return;
     } finally {
+        activeEditorState = previousActiveEditorState;
+        isReadOnlyMode = previousReadOnlyMode;
+        activeEditor = previousActiveEditor;
+        editor._updating = previouslyUpdating;
         infiniteTransformCount = 0;
     }
 
@@ -950,7 +965,6 @@ export const updateEditor = (
     updateFn: () => void,
     options?: EditorUpdateOptions,
 ) => {
-    console.log("in updateEditor, but not yet the callback passed into updateEditor", editor._updating);
     if (editor._updating) {
         editor._updates.push([updateFn, options]);
     } else {

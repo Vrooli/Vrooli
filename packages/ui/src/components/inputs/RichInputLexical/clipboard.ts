@@ -21,7 +21,7 @@ const getDOMSelection = (targetWindow: Window | null): Selection | null =>
 export const $getLexicalContent = (editor: LexicalEditor): null | string => {
     const selection = $getSelection();
 
-    if (selection === null) {
+    if (!selection) {
         throw new Error("Expected valid LexicalSelection");
     }
 
@@ -331,7 +331,7 @@ export async function copyToClipboard(
     const windowDocument =
         editor._window === null ? window.document : editor._window.document;
     const domSelection = getDOMSelection(editor._window);
-    if (rootElement === null || domSelection === null) {
+    if (!rootElement || !domSelection) {
         return false;
     }
     const element = windowDocument.createElement("span");

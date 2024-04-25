@@ -79,7 +79,6 @@ export const ELEMENT_NODES = [
 ] as const;
 export const DECORATOR_NODES = [
     "Decorator",
-    "HorizontalRule",
 ] as const;
 export const TEXT_NODES = [
     "Hashtag",
@@ -193,8 +192,6 @@ export const LTR_REGEX = new RegExp("^[^" + RTL + "]*[" + LTR + "]");
 export const PIXEL_VALUE_REG_EXP = /^(\d+(?:\.\d+)?)px$/;
 
 export const CSS_TO_STYLES: Map<string, Record<string, string>> = new Map();
-
-export const LEXICAL_ELEMENT_KEY = "__lexicalTableSelection";
 
 export const IGNORE_TAGS = new Set(["STYLE", "SCRIPT"]);
 

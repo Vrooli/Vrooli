@@ -9,7 +9,7 @@ import { type CodeBlockNode } from "./plugins/CodePlugin";
 import { $createRangeSelection } from "./selection";
 import { hasFormat } from "./transformers/textFormatTransformers";
 import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatchTransformer } from "./types";
-import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getParentOrThrow, getPreviousSibling, isAttachedToRoot } from "./utils";
+import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isAttachedToRoot } from "./utils";
 
 /**
  * Matches any punctuation or whitespace character.
@@ -51,9 +51,8 @@ const findOutermostMatch = (
     textContent: string,
     textTransformersIndex: TextMatchTransformersIndex,
 ): [string, RegExpMatchArray] | null => {
-    console.log("in findOutermostmatch", textContent);
     const openTagsMatch = textContent.match(textTransformersIndex.openTagsRegExp);
-    if (openTagsMatch === null) {
+    if (!openTagsMatch) {
         return null;
     }
     for (const match of openTagsMatch) {
@@ -202,7 +201,6 @@ const importBlocks = (
     const elementNode = $createNode("Paragraph", {});
     elementNode.append(textNode);
     rootNode.append(elementNode);
-    console.log("appended element node to root node", rootNode, rootNode.getTextContent());
     for (const {
         regExp,
         replace,
@@ -229,7 +227,7 @@ const importBlocks = (
             let targetNode: ElementNode | null = previousNode;
             if ($isNode("List", previousNode)) {
                 const lastDescendant = previousNode.getLastDescendant();
-                if (lastDescendant === null) {
+                if (!lastDescendant) {
                     targetNode = null;
                 } else {
                     targetNode = $findMatchingParent(lastDescendant, (node) => $isNode("ListItem", node)) as ElementNode;
@@ -450,7 +448,7 @@ const createMarkdownImport = (
 const getTextSibling = (node: LexicalNode, backward: boolean) => {
     let sibling = backward ? getPreviousSibling(node) : getNextSibling(node);
     if (!sibling) {
-        const parent = getParentOrThrow(node);
+        const parent = getParent(node, { throwIfNull: true });
         if (parent.isInline()) {
             sibling = backward ? getPreviousSibling(parent) : getNextSibling(parent);
         }
@@ -582,7 +580,6 @@ const exportTopLevelElements = (
  */
 const createMarkdownExport = (transformers: LexicalTransformer[]): ((node?: ElementNode) => string) => {
     const byType = transformersByType(transformers);
-    console.log("in createMarkdownExport start", byType);
 
     return node => {
         const output: string[] = [];
@@ -595,8 +592,7 @@ const createMarkdownExport = (transformers: LexicalTransformer[]): ((node?: Elem
                 output.push(result);
             }
         }
-        console.log("in createMarkdownExport end", output.join("\n\n"));
-        return output.join("\n\n");
+        return output.join("\n");
     };
 };
 
@@ -739,7 +735,7 @@ const runTextMatchTransformers = (
     const lastChar = textContent[anchorOffset - 1];
     const transformers = transformersByTrigger[lastChar];
 
-    if (transformers === null) {
+    if (!transformers) {
         return false;
     }
 
@@ -752,7 +748,7 @@ const runTextMatchTransformers = (
     for (const transformer of transformers) {
         const match = textContent.match(transformer.regExp);
 
-        if (match === null) {
+        if (!match) {
             continue;
         }
 
@@ -961,7 +957,8 @@ export const registerMarkdownShortcuts = (
         );
     };
 
-    return editor.registerUpdateListener(
+    return editor.registerListener(
+        "update",
         ({ tags, dirtyLeaves, editorState, prevEditorState }) => {
             // Ignore updates from collaboration and undo/redo (as changes already calculated)
             if (tags.has("collaboration") || tags.has("historic")) {
@@ -1005,7 +1002,7 @@ export const registerMarkdownShortcuts = (
 
                 const parentNode = getParent(anchorNode);
 
-                if (parentNode === null || $isNode("Code", parentNode)) {
+                if (!parentNode || $isNode("Code", parentNode)) {
                     return;
                 }
 

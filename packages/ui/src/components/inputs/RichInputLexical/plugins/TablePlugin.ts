@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { CONTROLLED_TEXT_INSERTION_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, FOCUS_COMMAND, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_TABLE_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_ESCAPE_COMMAND, KEY_TAB_COMMAND, SELECTION_CHANGE_COMMAND, SELECTION_INSERT_CLIPBOARD_NODES_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HIGH, LEXICAL_ELEMENT_KEY } from "../consts";
+import { COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HIGH } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { LexicalEditor } from "../editor";
 import { ElementNode } from "../nodes/ElementNode";
@@ -9,9 +9,9 @@ import { type TableCellNode } from "../nodes/TableCellNode";
 import { $createTableNodeWithDimensions, TableNode } from "../nodes/TableNode";
 import { type TableRowNode } from "../nodes/TableRowNode";
 import { $createPoint, $createRangeSelection, $createRangeSelectionFromDom, $getPreviousSelection, RangeSelection, getTable } from "../selection";
-import { BaseSelection, ElementFormatType, HTMLTableElementWithWithTableSelectionState, InsertTableCommandPayload, LexicalCommand, NodeKey, PointType, TableDOMCell, TableDOMTable, TableMapType, TableMapValueType, TableSelectionShape, TextFormatType } from "../types";
+import { BaseSelection, CustomDomElement, ElementFormatType, InsertTableCommandPayload, LexicalCommand, NodeKey, PointType, TableDOMCell, TableDOMTable, TableMapType, TableMapValueType, TableSelectionShape, TextFormatType } from "../types";
 import { isCurrentlyReadOnlyMode } from "../updates";
-import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection, getIndexWithinParent, getNextSibling, getParent, getParentOrThrow, getParents, getPreviousSibling, isSelected } from "../utils";
+import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection, getIndexWithinParent, getNextSibling, getParent, getParents, getPreviousSibling, isSelected } from "../utils";
 
 export const TablePlugin = ({
     hasCellMerge = true,
@@ -53,13 +53,11 @@ export const TablePlugin = ({
 
         const initializeTableNode = (tableNode: TableNode) => {
             const nodeKey = tableNode.__key;
-            const tableElement = editor.getElementByKey(
-                nodeKey,
-            ) as HTMLTableElementWithWithTableSelectionState;
+            const tableElement = editor.getElementByKey(nodeKey);
             if (tableElement && !tableSelections.has(nodeKey)) {
                 const tableSelection = applyTableHandlers(
                     tableNode,
-                    tableElement,
+                    tableElement as CustomDomElement<HTMLTableElement>,
                     editor,
                     hasTabHandler,
                 );
@@ -78,10 +76,10 @@ export const TablePlugin = ({
             }
         });
 
-        const unregisterMutationListener = editor.registerMutationListener(
-            TableNode,
+        const unregisterMutationListener = editor.registerListener(
+            "Table",
             (nodeMutations) => {
-                for (const [nodeKey, mutation] of nodeMutations) {
+                for (const [nodeKey, mutation] of Object.entries(nodeMutations)) {
                     if (mutation === "created") {
                         editor.getEditorState()?.read(() => {
                             const tableNode = $getNodeByKey<TableNode>(nodeKey);
@@ -845,13 +843,17 @@ export class TableSelection implements BaseSelection {
         return nodes;
     }
 
-    getTextContent(): string {
-        const nodes = this.getNodes();
-        let textContent = "";
-        for (let i = 0; i < nodes.length; i++) {
-            textContent += nodes[i].getTextContent();
-        }
-        return textContent;
+    getMarkdownContent() {
+        //TODO need way to generate markdown table
+        return this.getTextContent();
+    }
+
+    getTextContent() {
+        return this.getNodes().map((node) => node.getTextContent()).join("");
+    }
+
+    getTextContentSize() {
+        return this.getNodes().reduce((acc, node) => acc + node.getTextContentSize(), 0);
     }
 }
 
@@ -883,12 +885,12 @@ export function $getChildrenRecursively(node: LexicalNode): Array<LexicalNode> {
     return nodes;
 }
 
-export function applyTableHandlers(
+export const applyTableHandlers = (
     tableNode: TableNode,
-    tableElement: HTMLTableElementWithWithTableSelectionState,
+    tableElement: CustomDomElement<HTMLTableElement>,
     editor: LexicalEditor,
     hasTabHandler: boolean,
-): TableObserver {
+): TableObserver => {
     const rootElement = editor.getRootElement();
 
     if (rootElement === null) {
@@ -899,7 +901,7 @@ export function applyTableHandlers(
     const editorWindow = editor._window || window;
 
     // Attach table observer to table element
-    tableElement[LEXICAL_ELEMENT_KEY] = tableObserver;
+    tableElement.__lexicalTableSelection = tableObserver;
 
     const createMouseHandlers = () => {
         const onMouseUp = () => {
@@ -947,7 +949,6 @@ export function applyTableHandlers(
 
     // Clear selection when clicking outside of dom.
     const mouseDownCallback = (event: MouseEvent) => {
-        console.log("table mousedowncallback", event);
         if (event.button !== 0) {
             return;
         }
@@ -1527,7 +1528,7 @@ export function applyTableHandlers(
                         const newSelection = selection.clone();
                         if (isFocusInside) {
                             newSelection.focus.set(
-                                getParentOrThrow(tableNode).__key,
+                                getParent(tableNode, { throwIfNull: true }).__key,
                                 isBackward
                                     ? getIndexWithinParent(tableNode)
                                     : getIndexWithinParent(tableNode) + 1,
@@ -1535,7 +1536,7 @@ export function applyTableHandlers(
                             );
                         } else {
                             newSelection.anchor.set(
-                                getParentOrThrow(tableNode).__key,
+                                getParent(tableNode, { throwIfNull: true }).__key,
                                 isBackward
                                     ? getIndexWithinParent(tableNode) + 1
                                     : getIndexWithinParent(tableNode),
@@ -1680,7 +1681,7 @@ export function applyTableHandlers(
     );
 
     return tableObserver;
-}
+};
 
 function $findCellNode(node: LexicalNode): null | TableCellNode {
     const cellNode = $findMatchingParent(node, (node): node is TableCellNode => $isNode("TableCell", node));

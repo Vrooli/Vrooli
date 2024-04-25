@@ -8,7 +8,7 @@ import { LexicalEditor } from "../editor";
 import { ElementNode } from "../nodes/ElementNode";
 import { $createRangeSelection, $insertNodes, $moveCharacter, $shouldOverrideDefaultCharacterSelection, caretFromPoint } from "../selection";
 import { ElementFormatType, TextFormatType } from "../types";
-import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $normalizeSelection, $selectAll, $setSelection, eventFiles, getIndexWithinParent, getParentOrThrow, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils";
+import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $normalizeSelection, $selectAll, $setSelection, eventFiles, getIndexWithinParent, getParent, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils";
 
 //TODO this file is a good place to store markdown string and selection positions. Then we can edit this in real-time instead of exporting everything to markdown on every change
 
@@ -401,21 +401,25 @@ const registerRichText = (editor: LexicalEditor): () => void => {
         editor.registerCommand<DragEvent>(
             DROP_COMMAND,
             (event) => {
+                // If we're dealing with plaintext, then we should just
+
                 const [, files] = eventFiles(event);
+                console.log("in drop command richtextplugin", event, files, event.dataTransfer?.getData("text/plain"));
                 if (files.length > 0) {
                     const x = event.clientX;
                     const y = event.clientY;
                     const eventRange = caretFromPoint(x, y);
-                    if (eventRange !== null) {
+                    console.log("drop command event range:", eventRange);
+                    if (eventRange) {
                         const { offset: domOffset, node: domNode } = eventRange;
                         const node = $getNearestNodeFromDOMNode(domNode);
-                        if (node !== null) {
+                        if (node) {
                             const selection = $createRangeSelection();
                             if ($isNode("Text", node)) {
                                 selection.anchor.set(node.__key, domOffset, "text");
                                 selection.focus.set(node.__key, domOffset, "text");
                             } else {
-                                const parentKey = getParentOrThrow(node).__key;
+                                const parentKey = getParent(node, { throwIfNull: true }).__key;
                                 const offset = getIndexWithinParent(node) + 1;
                                 selection.anchor.set(parentKey, offset, "element");
                                 selection.focus.set(parentKey, offset, "element");
@@ -431,6 +435,7 @@ const registerRichText = (editor: LexicalEditor): () => void => {
                 }
 
                 const selection = $getSelection();
+                console.log("selection in drop command:", selection);
                 if ($isRangeSelection(selection)) {
                     return true;
                 }
@@ -508,6 +513,7 @@ const registerRichText = (editor: LexicalEditor): () => void => {
             PASTE_COMMAND,
             (event) => {
                 const [, files, hasTextContent] = eventFiles(event);
+                console.log("in richtextplugin paste_command", event, files, hasTextContent);
                 if (files.length > 0 && !hasTextContent) {
                     editor.dispatchCommand(DRAG_DROP_PASTE, files);
                     return true;
@@ -662,7 +668,6 @@ export const RichTextPlugin = ({
             registerDragonSupport(editor),
         );
     }, [editor]);
-    console.log("got contentEditable:", contentEditable);
 
     return (
         <LexicalErrorBoundary>

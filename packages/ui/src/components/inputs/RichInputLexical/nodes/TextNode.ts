@@ -4,7 +4,7 @@ import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointO
 import { hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatType, TextModeType, TextNodeThemeClasses } from "../types";
 import { errorOnReadOnly } from "../updates";
-import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getCachedClassNameArray, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
+import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getCachedClassNameArray, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
 import { LexicalNode } from "./LexicalNode";
 
 const OUTER_TAGS = {
@@ -305,14 +305,34 @@ export class TextNode extends LexicalNode {
         return this.__mode === 0;
     }
 
-    /**
-     * Returns the text content of the node as a string.
-     *
-     * @returns a string representing the text content of the node.
-     */
-    getTextContent(): string {
+    getMarkdownContent(): string {
+        let text = this.getLatest().__text;
+        if (hasFormat(this, "BOLD")) {
+            text = `**${text}**`;
+        }
+        if (hasFormat(this, "ITALIC")) {
+            text = `*${text}*`;
+        }
+        if (hasFormat(this, "STRIKETHROUGH")) {
+            text = `~~${text}~~`;
+        }
+        if (hasFormat(this, "UNDERLINE_LINES")) {
+            text = `__${text}__`;
+        }
+        if (hasFormat(this, "UNDERLINE_TAGS")) {
+            text = `<u>${text}</u>`;
+        }
+        return text;
+    }
+
+    getTextContent() {
         const self = this.getLatest();
         return self.__text;
+    }
+
+    getTextContentSize() {
+        const self = this.getLatest();
+        return self.__text.length;
     }
 
     /**
@@ -794,7 +814,7 @@ export class TextNode extends LexicalNode {
             return [self];
         }
         const firstPart = parts[0];
-        const parent = getParentOrThrow(self);
+        const parent = getParent(self, { throwIfNull: true });
         let writableNode;
         const format = self.getFormat();
         const style = self.getStyle();

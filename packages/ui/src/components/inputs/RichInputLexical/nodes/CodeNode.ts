@@ -3,7 +3,7 @@
 
 import { RangeSelection } from "../selection";
 import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
-import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParentOrThrow, getPreviousSibling, isHTMLElement } from "../utils";
+import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
 import { type LineBreakNode } from "./LineBreakNode";
@@ -240,7 +240,7 @@ export class CodeNode extends ElementNode {
             const split = firstSelectionNode.splitText(anchor.offset)[0];
             const x = anchor.offset === 0 ? 0 : 1;
             const index = getIndexWithinParent(split) + x;
-            const codeNode = getParentOrThrow(firstSelectionNode);
+            const codeNode = getParent(firstSelectionNode, { throwIfNull: true });
             const nodesToInsert = [$createNode("LineBreak", {}), ...insertNodes];
             codeNode.splice(index, 0, nodesToInsert);
             const last = insertNodes[insertNodes.length - 1];

@@ -7,7 +7,10 @@ import { type LexicalNode } from "./LexicalNode";
 
 export class RootNode extends ElementNode {
     static __type: NodeType = "Root";
-    __cachedText: null | string; //TODO could use this to get markdown text
+    /** Unstyled cached text */
+    __cachedText: null | string;
+    /** Styled (i.e. markdown) cached text */
+    __cachedMarkdown: null | string;
 
     static clone(): RootNode {
         return $createNode("Root", {});
@@ -16,23 +19,44 @@ export class RootNode extends ElementNode {
     constructor({ ...rest }: NodeConstructorPayloads["Root"]) {
         super(rest);
         this.__cachedText = null;
+        this.__cachedMarkdown = null;
     }
 
     getTopLevelElementOrThrow(): never {
         throw new Error("getTopLevelElementOrThrow: root nodes are not top level elements");
     }
 
-    getTextContent(): string {
+    getMarkdownContent() {
+        const cachedMarkdown = this.__cachedMarkdown;
+        if (
+            cachedMarkdown &&
+            (isCurrentlyReadOnlyMode() || getActiveEditor()._dirtyType === NO_DIRTY_NODES)
+        ) {
+            return cachedMarkdown;
+        }
+        return super.getMarkdownContent();
+    }
+
+    getTextContent() {
         const cachedText = this.__cachedText;
         if (
-            isCurrentlyReadOnlyMode() ||
-            getActiveEditor()._dirtyType === NO_DIRTY_NODES
+            cachedText &&
+            (isCurrentlyReadOnlyMode() || getActiveEditor()._dirtyType === NO_DIRTY_NODES)
         ) {
-            if (cachedText !== null) {
-                return cachedText;
-            }
+            return cachedText;
         }
         return super.getTextContent();
+    }
+
+    getTextContentSize() {
+        const cachedText = this.__cachedText;
+        if (
+            cachedText &&
+            (isCurrentlyReadOnlyMode() || getActiveEditor()._dirtyType === NO_DIRTY_NODES)
+        ) {
+            return cachedText.length;
+        }
+        return super.getTextContentSize();
     }
 
     remove(): never {

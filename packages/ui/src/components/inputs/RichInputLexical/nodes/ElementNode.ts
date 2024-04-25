@@ -2,7 +2,7 @@ import { DOUBLE_LINE_BREAK, ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } fro
 import { RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection";
 import { BaseSelection, ElementFormatType, NodeConstructorPayloads, NodeKey, NodeType, PointType, SerializedElementNode } from "../types";
 import { errorOnReadOnly, getActiveEditor } from "../updates";
-import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, getNextSibling, getParent, getParentOrThrow, getPreviousSibling, removeFromParent } from "../utils";
+import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, getNextSibling, getParent, getPreviousSibling, removeFromParent } from "../utils";
 import { LexicalNode } from "./LexicalNode";
 import { type TextNode } from "./TextNode";
 
@@ -78,7 +78,7 @@ export class ElementNode extends LexicalNode {
 
     isLastChild(): boolean {
         const self = this.getLatest();
-        const parentLastChild = getParentOrThrow(this).getLastChild();
+        const parentLastChild = getParent(this, { throwIfNull: true }).getLastChild();
         return parentLastChild !== null && parentLastChild.is(self);
     }
 
@@ -196,40 +196,37 @@ export class ElementNode extends LexicalNode {
         }
         return null;
     }
-    getTextContent(): string {
-        let textContent = "";
-        const children = this.getChildren();
-        const childrenLength = children.length;
-        for (let i = 0; i < childrenLength; i++) {
-            const child = children[i];
-            textContent += child.getTextContent();
-            if (
-                $isNode("Element", child) &&
-                i !== childrenLength - 1 &&
-                !child.isInline()
-            ) {
-                textContent += DOUBLE_LINE_BREAK;
+
+    getMarkdownContent() {
+        return this.getChildren().map(child => {
+            const text = child.getMarkdownContent();
+            if ($isNode("Element", child) && !child.isInline()) {
+                return text + DOUBLE_LINE_BREAK;
             }
-        }
-        return textContent;
+            return text;
+        }).join("");
     }
-    getTextContentSize(): number {
-        let textContentSize = 0;
-        const children = this.getChildren();
-        const childrenLength = children.length;
-        for (let i = 0; i < childrenLength; i++) {
-            const child = children[i];
-            textContentSize += child.getTextContentSize();
-            if (
-                $isNode("Element", child) &&
-                i !== childrenLength - 1 &&
-                !child.isInline()
-            ) {
-                textContentSize += DOUBLE_LINE_BREAK.length;
+
+    getTextContent() {
+        return this.getChildren().map(child => {
+            const text = child.getTextContent();
+            if ($isNode("Element", child) && !child.isInline()) {
+                return text + DOUBLE_LINE_BREAK;
             }
-        }
-        return textContentSize;
+            return text;
+        }).join("");
     }
+
+    getTextContentSize() {
+        return this.getChildren().reduce((acc, child) => {
+            const childSize = child.getTextContentSize();
+            if ($isNode("Element", child) && !child.isInline()) {
+                return acc + childSize + DOUBLE_LINE_BREAK.length;
+            }
+            return acc + childSize;
+        }, 0);
+    }
+
     getDirection(): "ltr" | "rtl" | null {
         const self = this.getLatest();
         return self.__dir;

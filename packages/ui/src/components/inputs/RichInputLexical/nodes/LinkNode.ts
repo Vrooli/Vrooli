@@ -1,6 +1,6 @@
 import { RangeSelection } from "../selection";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, LinkAttributes, NodeConstructorPayloads, NodeType, SerializedAutoLinkNode, SerializedLinkNode } from "../types";
-import { $applyNodeReplacement, $createNode, $isNode, $isRangeSelection, getParentOrThrow, isHTMLAnchorElement } from "../utils";
+import { $applyNodeReplacement, $createNode, $isNode, $isRangeSelection, getParent, isHTMLAnchorElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
 
@@ -275,7 +275,7 @@ export class AutoLinkNode extends LinkNode { //TODO might need to set this.__typ
         selection: RangeSelection,
         restoreSelection = true,
     ): null | ElementNode {
-        const element = getParentOrThrow(this).insertNewAfter(
+        const element = getParent(this, { throwIfNull: true }).insertNewAfter(
             selection,
             restoreSelection,
         );

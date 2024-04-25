@@ -3,7 +3,7 @@ import { DOM_TEXT_TYPE, IS_FIREFOX, TEXT_MUTATION_VARIANCE } from "./consts";
 import { LexicalEditor } from "./editor";
 import { type RootNode } from "./nodes/RootNode";
 import { type TextNode } from "./nodes/TextNode";
-import { BaseSelection } from "./types";
+import { BaseSelection, CustomDomElement } from "./types";
 import { updateEditor } from "./updates";
 import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isAttachedToRoot, isFirefoxClipboardEvents } from "./utils";
 
@@ -39,10 +39,8 @@ const isManagedLineBreak = (
     editor: LexicalEditor,
 ): boolean => {
     return (
-        // @ts-expect-error: internal field
-        target.__lexicalLineBreak === dom ||
-        // @ts-ignore We intentionally add this to the Node.
-        dom[`__lexicalKey_${editor._key}`] !== undefined
+        (target as CustomDomElement).__lexicalLineBreak === dom ||
+        (dom as CustomDomElement)[`__lexicalKey_${editor._key}`] !== undefined
     );
 };
 
