@@ -1,108 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { COMPOSITION_SUFFIX, DETAIL_TYPE_TO_DETAIL, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_DIRECTIONLESS, IS_FIREFOX, IS_SEGMENTED, IS_TOKEN, IS_UNMERGEABLE, TEXT_FLAGS, TEXT_MODE_TO_TYPE, TEXT_TYPE_TO_MODE } from "../consts";
 import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointOffsetForMergedSibling, internalMakeRangeSelection } from "../selection";
-import { hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatType, TextModeType, TextNodeThemeClasses } from "../types";
+import { applyTextTransformers, findAppliedTextTransformers, hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatTransformer, TextFormatType, TextModeType } from "../types";
 import { errorOnReadOnly } from "../updates";
-import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getCachedClassNameArray, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
+import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
 import { LexicalNode } from "./LexicalNode";
-
-const OUTER_TAGS = {
-    [TEXT_FLAGS.CODE_INLINE]: "code",
-    [TEXT_FLAGS.HIGHLIGHT]: "mark",
-    [TEXT_FLAGS.SUBSCRIPT]: "sub",
-    [TEXT_FLAGS.SUPERSCRIPT]: "sup",
-};
-
-const getElementOuterTag = (format: number): string | null => {
-    return OUTER_TAGS[format] || null;
-};
-
-const INNER_TAGS = {
-    [TEXT_FLAGS.BOLD]: "strong",
-    [TEXT_FLAGS.ITALIC]: "em",
-    [TEXT_FLAGS.UNDERLINE_LINES]: "u",
-    [TEXT_FLAGS.UNDERLINE_TAGS]: "u",
-    [TEXT_FLAGS.STRIKETHROUGH]: "s",
-    // [TEXT_FLAGS.SPOILER_LINES]: "span",
-};
-
-const getElementInnerTag = (format: number): string => {
-    return INNER_TAGS[format] || "span";
-};
-
-const setTextThemeClassNames = (
-    tag: string,
-    prevFormat: number,
-    nextFormat: number,
-    dom: HTMLElement,
-    textClassNames: TextNodeThemeClasses,
-) => {
-    const domClassList = dom.classList;
-    // Firstly we handle the base theme.
-    let classNames = getCachedClassNameArray(textClassNames, "base");
-    if (classNames !== undefined) {
-        domClassList.add(...classNames);
-    }
-    // Secondly we handle the special case: underline + strikethrough.
-    // We have to do this as we need a way to compose the fact that
-    // the same CSS property will need to be used: text-decoration.
-    // In an ideal world we shouldn't have to do this, but there's no
-    // easy workaround for many atomic CSS systems today.
-    classNames = getCachedClassNameArray(
-        textClassNames,
-        "underlineStrikethrough",
-    );
-    let hasUnderlineStrikethrough = false;
-    // Check if previous was both underlined and strikethrough
-    const prevUnderlineStrikethrough =
-        hasTextFormat(prevFormat, "UNDERLINE_LINES", "UNDERLINE_TAGS") &&
-        hasTextFormat(prevFormat, "STRIKETHROUGH");
-    // Check if next is both underlined and strikethrough
-    const nextUnderlineStrikethrough =
-        hasTextFormat(nextFormat, "UNDERLINE_LINES", "UNDERLINE_TAGS") &&
-        hasTextFormat(nextFormat, "STRIKETHROUGH");
-
-    if (classNames !== undefined) {
-        if (nextUnderlineStrikethrough) {
-            hasUnderlineStrikethrough = true;
-            if (!prevUnderlineStrikethrough) {
-                domClassList.add(...classNames);
-            }
-        } else if (prevUnderlineStrikethrough) {
-            domClassList.remove(...classNames);
-        }
-    }
-
-    for (const flag in TEXT_FLAGS) {
-        classNames = getCachedClassNameArray(textClassNames, flag);
-        if (classNames !== undefined) {
-            // Add new styles to DOM
-            if (hasTextFormat(nextFormat, flag as TextFormatType)) {
-                if (
-                    hasUnderlineStrikethrough &&
-                    (flag === "UNDERLINE_LINES" || flag === "UNDERLINE_TAGS" || flag === "STRIKETHROUGH")
-                ) {
-                    if (hasTextFormat(prevFormat, flag as TextFormatType)) {
-                        domClassList.remove(...classNames);
-                    }
-                    continue;
-                }
-                if (
-                    !hasTextFormat(prevFormat, flag as TextFormatType) ||
-                    (prevUnderlineStrikethrough && (flag === "UNDERLINE_LINES" || flag === "UNDERLINE_TAGS")) ||
-                    flag === "STRIKETHROUGH"
-                ) {
-                    domClassList.add(...classNames);
-                }
-            }
-            // Remove old styles from DOM
-            else if (hasTextFormat(prevFormat, flag as TextFormatType)) {
-                domClassList.remove(...classNames);
-            }
-        }
-    }
-};
 
 const diffComposedText = (a: string, b: string): [number, number, string] => {
     const aLength = a.length;
@@ -160,14 +63,33 @@ const setTextContent = (
     }
 };
 
-const createTextInnerDOM = (
-    innerDOM: HTMLElement,
-    node: TextNode,
-    innerTag: string,
-    format: number,
-    text: string,
+/**
+ * Applies styling to the provided DOM element, 
+ * based on its type and transformer
+ * @param element The DOM element to apply styling to
+ * @param transformer The transformer associated with the element
+ */
+const applyStyling = (
+    element: HTMLElement,
+    transformer: TextFormatTransformer,
 ) => {
-    setTextContent(text, innerDOM, node);
+    // Apply classes specified in transformer
+    for (const className of transformer.classes) {
+        element.classList.add(className);
+    }
+    // Special case: spoiler should start with "spoiler.hidden" class, 
+    // and have a press event to toggle between this and "spoiler.revealed"
+    if (transformer.format === "SPOILER_LINES" || transformer.format === "SPOILER_TAGS") {
+        element.classList.add("spoiler", "hidden");
+        element.addEventListener("click", () => {
+            element.classList.toggle("hidden");
+            element.classList.toggle("revealed");
+        });
+        element.style.cursor = "pointer";
+        // Disable spellcheck so that the spelling suggestions popup doesn't 
+        // interfere with the spoiler reveal
+        element.setAttribute("spellcheck", "false");
+    }
 };
 
 const wrapElementWith = (
@@ -179,7 +101,6 @@ const wrapElementWith = (
     return el;
 };
 
-/** @noInheritDoc */
 export class TextNode extends LexicalNode {
     static __type: NodeType = "Text";
     __text: string;
@@ -257,7 +178,6 @@ export class TextNode extends LexicalNode {
     }
 
     /**
-     *
      * @returns true if Lexical detects that an IME or other 3rd-party script is attempting to
      * mutate the TextNode, false otherwise.
      */
@@ -275,6 +195,7 @@ export class TextNode extends LexicalNode {
         const self = this.getLatest();
         return self.__mode === IS_SEGMENTED;
     }
+
     /**
      * Returns whether or not the node is "directionless". Directionless nodes don't respect changes between RTL and LTR modes.
      *
@@ -284,6 +205,7 @@ export class TextNode extends LexicalNode {
         const self = this.getLatest();
         return (self.__detail & IS_DIRECTIONLESS) !== 0;
     }
+
     /**
      * Returns whether or not the node is unmergeable. In some scenarios, Lexical tries to merge
      * adjacent TextNodes into a single TextNode. If a TextNode is unmergeable, this won't happen.
@@ -306,23 +228,7 @@ export class TextNode extends LexicalNode {
     }
 
     getMarkdownContent(): string {
-        let text = this.getLatest().__text;
-        if (hasFormat(this, "BOLD")) {
-            text = `**${text}**`;
-        }
-        if (hasFormat(this, "ITALIC")) {
-            text = `*${text}*`;
-        }
-        if (hasFormat(this, "STRIKETHROUGH")) {
-            text = `~~${text}~~`;
-        }
-        if (hasFormat(this, "UNDERLINE_LINES")) {
-            text = `__${text}__`;
-        }
-        if (hasFormat(this, "UNDERLINE_TAGS")) {
-            text = `<u>${text}</u>`;
-        }
-        return text;
+        return applyTextTransformers(this.getLatest().__text, this.getFormat());
     }
 
     getTextContent() {
@@ -346,89 +252,65 @@ export class TextNode extends LexicalNode {
         return toggleTextFormatType(format, type, alignWithFormat);
     }
 
-    /**
-     *
-     * @returns true if the text node supports font styling, false otherwise.
-     */
-    canHaveFormat(): boolean {
-        return true;
-    }
-
     // View
 
     createDOM(): HTMLElement {
+        // Find text formats
         const format = this.__format;
-        const outerTag = getElementOuterTag(format);
-        const innerTag = getElementInnerTag(format);
-        const tag = outerTag === null ? innerTag : outerTag;
-        const dom = document.createElement(tag);
-        let innerDOM = dom;
-        if (hasFormat(this, "CODE_INLINE")) {
+        const appliedFormats = findAppliedTextTransformers(format);
+        console.log("in createDOM", this.__text, format, appliedFormats);
+        // Formats are ordered from outermost to innermost, so we can 
+        // loop through it to generate the DOM elements in the correct order.
+        const outerTag = appliedFormats.length > 0
+            ? appliedFormats[0].domTag
+            : "span"; // Fallback to span if no formats are applied
+        const dom = document.createElement(outerTag);
+        if (appliedFormats.length > 0) {
+            applyStyling(dom, appliedFormats[0]);
+        }
+        let innerDom = dom;
+        for (let i = 1; i < appliedFormats.length; i++) { // Skip the outermost format, since it's already handled
+            const transformer = appliedFormats[i];
+            const tag = transformer.domTag;
+            const newElement = document.createElement(tag);
+            applyStyling(newElement, transformer);
+            // Append the new element to the innermost element
+            innerDom.appendChild(newElement);
+            innerDom = newElement;
+        }
+        // Apply the text content to the innermost element
+        setTextContent(this.__text, innerDom, this);
+        // Special case: code should not be spellchecked
+        if (hasTextFormat(format, "CODE_BLOCK", "CODE_INLINE")) {
             dom.setAttribute("spellcheck", "false");
         }
-        if (outerTag !== null) {
-            innerDOM = document.createElement(innerTag);
-            dom.appendChild(innerDOM);
-        }
-        const text = this.__text;
-        createTextInnerDOM(innerDOM, this, innerTag, format, text);
-        const style = this.__style;
-        if (style !== "") {
-            dom.style.cssText = style;
-        }
+        // Return the outermost element
         return dom;
     }
 
     updateDOM(
         prevNode: TextNode,
         dom: HTMLElement,
-        config: EditorConfig,
     ): boolean {
-        const nextText = this.__text;
+        // If the format (i.e. DOM tags) change, then return true to recreate 
+        // this from scratch (i.e. call createDOM)
         const prevFormat = prevNode.__format;
         const nextFormat = this.__format;
-        const prevOuterTag = getElementOuterTag(prevFormat);
-        const nextOuterTag = getElementOuterTag(nextFormat);
-        const prevInnerTag = getElementInnerTag(prevFormat);
-        const nextInnerTag = getElementInnerTag(nextFormat);
-        const prevTag = prevOuterTag === null ? prevInnerTag : prevOuterTag;
-        const nextTag = nextOuterTag === null ? nextInnerTag : nextOuterTag;
-
-        if (prevTag !== nextTag) {
+        if (prevFormat !== nextFormat) {
             return true;
         }
-        if (prevOuterTag === nextOuterTag && prevInnerTag !== nextInnerTag) {
-            // should always be an element
-            const prevInnerDOM: HTMLElement = dom.firstChild as HTMLElement;
-            if (prevInnerDOM === null) {
-                throw new Error("updateDOM: prevInnerDOM is null or undefined");
-            }
-            const nextInnerDOM = document.createElement(nextInnerTag);
-            createTextInnerDOM(
-                nextInnerDOM,
-                this,
-                nextInnerTag,
-                nextFormat,
-                nextText,
-            );
-            dom.replaceChild(nextInnerDOM, prevInnerDOM);
+        // If the text hasn't changed, then we don't need to do anything
+        if (prevNode.__text === this.__text) {
             return false;
         }
-        let innerDOM = dom;
-        if (nextOuterTag !== null) {
-            if (prevOuterTag !== null) {
-                innerDOM = dom.firstChild as HTMLElement;
-                if (innerDOM === null) {
-                    throw new Error("updateDOM: innerDOM is null or undefined");
-                }
-            }
+        // Otherwise (i.e. just the text changed), find the innermost 
+        // element and update the text content
+        let innermost = dom;
+        while (innermost.firstChild && innermost.firstChild.nodeType === Node.ELEMENT_NODE) {
+            innermost = innermost.firstChild as HTMLElement;
         }
-        setTextContent(nextText, innerDOM, this);
-        const prevStyle = prevNode.__style;
-        const nextStyle = this.__style;
-        if (prevStyle !== nextStyle) {
-            dom.style.cssText = nextStyle;
-        }
+        // Update the text content of the innermost element
+        setTextContent(this.__text, innermost, this);
         return false;
     }
 

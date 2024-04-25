@@ -1,3 +1,31 @@
+.RichInput__textCode {
+    background-color: rgb(240, 242, 245);
+    padding: 1px 0.25rem;
+    font-family: Menlo, Consolas, Monaco, monospace;
+    font-size: 94%;
+}
+
+.RichInput_highlight {
+    background-color: rgba(255, 212, 0, 0.14);
+    border-bottom: 2px solid rgba(255, 212, 0, 0.3);
+    padding-bottom: 2px;
+}
+
+.spoiler {
+    cursor: pointer;
+    transition: color 0.4s, background 0.4s;
+}
+
+.spoiler.revealed {
+    color: inherit;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.spoiler.hidden {
+    color: transparent;
+    background: black;
+}
+
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -35,17 +63,8 @@
     --lexical-indent-base-value: 40px;
 }
 
-.RichInput__textBold {
-    font-weight: bold;
-}
 
-.RichInput__textItalic {
-    font-style: italic;
-}
 
-.RichInput__textUnderline {
-    text-decoration: underline;
-}
 
 .RichInput__textStrikethrough {
     text-decoration: line-through;
@@ -65,12 +84,7 @@
     vertical-align: super;
 }
 
-.RichInput__textCode {
-    background-color: rgb(240, 242, 245);
-    padding: 1px 0.25rem;
-    font-family: Menlo, Consolas, Monaco, monospace;
-    font-size: 94%;
-}
+
 
 .RichInput__hashtag {
     background-color: rgba(88, 144, 255, 0.15);
@@ -439,19 +453,4 @@
 
 .RichInput__embedBlockFocus {
     outline: 2px solid rgb(60, 132, 244);
-}
-
-.spoiler {
-    cursor: pointer;
-    transition: color 0.4s, background 0.4s;
-}
-
-.spoiler.revealed {
-    color: inherit;
-    background: rgba(0, 0, 0, 0.3);
-}
-
-.spoiler.hidden {
-    color: transparent;
-    background: black;
 }

@@ -309,10 +309,6 @@ export class CodeHighlightNode extends TextNode {
         return this.getLatest().__highlightType;
     }
 
-    canHaveFormat(): boolean {
-        return false;
-    }
-
     createDOM(): HTMLElement {
         const element = super.createDOM();
         return element;

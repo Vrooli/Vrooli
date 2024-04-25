@@ -4,55 +4,72 @@ import { TextFormatTransformer, TextFormatType } from "../types";
 import { $isNode } from "../utils";
 
 export const BOLD: TextFormatTransformer = {
+    classes: [],
+    domTag: "strong",
     format: "BOLD",
     tags: ["**", "**"],
     type: "text-format",
 };
 
 export const CODE_INLINE: TextFormatTransformer = {
+    classes: ["RichInput__textCode"],
+    domTag: "code",
     format: "CODE_INLINE",
     tags: ["`", "`"],
     type: "text-format",
 };
 
 export const HIGHLIGHT: TextFormatTransformer = {
+    classes: ["RichInput_highlight"],
+    domTag: "mark",
     format: "HIGHLIGHT",
     tags: ["==", "=="],
     type: "text-format",
 };
 
 export const ITALIC: TextFormatTransformer = {
+    classes: [],
+    domTag: "em",
     format: "ITALIC",
     tags: ["*", "*"],
     type: "text-format",
 };
 
 export const UNDERLINE_LINES: TextFormatTransformer = {
+    classes: [],
+    domTag: "u",
     format: "UNDERLINE_LINES",
     tags: ["__", "__"],
     type: "text-format",
 };
 
 export const UNDERLINE_TAGS: TextFormatTransformer = {
+    classes: [],
+    domTag: "u",
     format: "UNDERLINE_TAGS",
     tags: ["<u>", "</u>"],
     type: "text-format",
 };
 
 export const SPOILER_LINES: TextFormatTransformer = {
+    classes: [],
+    domTag: "span",
     format: "SPOILER_LINES",
     tags: ["||", "||"],
     type: "text-format",
 };
 
 export const SPOILER_TAGS: TextFormatTransformer = {
+    classes: ["spoiler"],
+    domTag: "span",
     format: "SPOILER_TAGS",
     tags: ["<spoiler>", "</spoiler>"],
     type: "text-format",
 };
 
-
 export const STRIKETHROUGH: TextFormatTransformer = {
+    classes: [],
+    domTag: "s",
     format: "STRIKETHROUGH",
     tags: ["~~", "~~"],
     type: "text-format",
@@ -63,8 +80,8 @@ export const STRIKETHROUGH: TextFormatTransformer = {
 // - code should go first as it prevents any transformations inside
 // - then longer tags match (e.g. ** should go before *)
 export const TEXT_TRANSFORMERS: TextFormatTransformer[] = [
-    BOLD,
     CODE_INLINE,
+    BOLD,
     HIGHLIGHT,
     ITALIC,
     SPOILER_LINES,

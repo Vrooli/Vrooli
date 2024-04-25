@@ -6,7 +6,6 @@ import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShad
 import { LexicalNode } from "./LexicalNode";
 import { type TextNode } from "./TextNode";
 
-/** @noInheritDoc */
 export class ElementNode extends LexicalNode {
     static __type: NodeType = "Element";
     __first: null | NodeKey;

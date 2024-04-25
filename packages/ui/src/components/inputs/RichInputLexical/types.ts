@@ -618,13 +618,13 @@ export type NodeType =
     | typeof TEXT_NODES[number]
 
 export type TextFormatTransformer = Readonly<{
-    /**
-     * The type of format
-     */
+    /** The classes to apply to the DOM element */
+    classes: string[];
+    /** The DOM tag that represents the format */
+    domTag: string;
+    /** The type of format */
     format: TextFormatType;
-    /** 
-     * Start and end tags (respectively) for the text format.
-     */
+    /**  Start and end tags (respectively) for the text format. */
     tags: string | [string, string];
     type: "text-format";
 }>;
