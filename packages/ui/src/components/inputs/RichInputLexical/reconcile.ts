@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { headerMarkdowns } from "utils/display/stringTools";
-import { DOUBLE_LINE_BREAK, FULL_RECONCILE, IS_ALIGN_CENTER, IS_ALIGN_END, IS_ALIGN_JUSTIFY, IS_ALIGN_LEFT, IS_ALIGN_RIGHT, IS_ALIGN_START } from "./consts";
+import { DOUBLE_LINE_BREAK, ELEMENT_FORMAT_TO_TYPE, FULL_RECONCILE } from "./consts";
 import { EditorState, LexicalEditor } from "./editor";
 import { ElementNode } from "./nodes/ElementNode";
 import { CustomDomElement, EditorConfig, IntentionallyMarkedAsDirtyElement, MutatedNodes, NodeKey, NodeMap, RegisteredNodes } from "./types";
-import { $isNode, $textContentRequiresDoubleLinebreakAtEnd, cloneDecorators, getElementByKeyOrThrow, getTextDirection, setMutatedNode } from "./utils";
+import { $isNode, cloneDecorators, getElementByKeyOrThrow, getTextDirection, setMutatedNode } from "./utils";
 
 // Subtree information
 /** Text representation of the current subtree being reconciled */
@@ -34,6 +34,12 @@ let activePrevNodeMap: NodeMap;
 let activeNextNodeMap: NodeMap;
 let activePrevKeyToDOMMap: Map<NodeKey, HTMLElement>;
 let mutatedNodes: MutatedNodes;
+
+const $textContentRequiresDoubleLinebreakAtEnd = (
+    node: ElementNode,
+): boolean => {
+    return !$isNode("Root", node) && !node.isLastChild() && !node.isInline();
+};
 
 /**
  * Removes a node (and its children) from the DOM and the keyToDOMMap. 
@@ -118,25 +124,8 @@ const setElementIndent = (dom: HTMLElement, indent: number): void => {
  */
 const setElementFormat = (dom: HTMLElement, format: number): void => {
     const domStyle = dom.style;
-    const setTextAlign = (domStyle: CSSStyleDeclaration, value: string) => {
-        domStyle.setProperty("text-align", value);
-    };
-
-    if (format === 0) {
-        setTextAlign(domStyle, "");
-    } else if (format === IS_ALIGN_LEFT) {
-        setTextAlign(domStyle, "left");
-    } else if (format === IS_ALIGN_CENTER) {
-        setTextAlign(domStyle, "center");
-    } else if (format === IS_ALIGN_RIGHT) {
-        setTextAlign(domStyle, "right");
-    } else if (format === IS_ALIGN_JUSTIFY) {
-        setTextAlign(domStyle, "justify");
-    } else if (format === IS_ALIGN_START) {
-        setTextAlign(domStyle, "start");
-    } else if (format === IS_ALIGN_END) {
-        setTextAlign(domStyle, "end");
-    }
+    const textAlign = ELEMENT_FORMAT_TO_TYPE[format] || "";
+    domStyle.setProperty("text-align", textAlign);
 };
 
 /**

@@ -10,7 +10,7 @@ import { LexicalNodes } from "./nodes";
 import { type LexicalNode } from "./nodes/LexicalNode";
 import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, EditorConfig, EditorFocusOptions, EditorListener, EditorListeners, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, NodeKey, NodeMap, NodeType, RegisteredNodes, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, Transform } from "./types";
 import { commitPendingUpdates, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
-import { $createNode, $getRoot, $getSelection, $isNode, dispatchCommand, getCachedClassNameArray, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
+import { $createNode, $getRoot, $getSelection, $isNode, dispatchCommand, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
 
 export const cloneEditorState = (current: EditorState): EditorState => {
     return new EditorState(new Map(current._nodeMap));
@@ -382,24 +382,20 @@ export class LexicalEditor {
         const prevRootElement = this._rootElement;
 
         if (nextRootElement !== prevRootElement) {
-            const classNames = getCachedClassNameArray({}, "root");
             const pendingEditorState = this._pendingEditorState || this._editorState;
-            if (pendingEditorState === null) {
+            if (!pendingEditorState) {
                 throw new Error("setRootElement: editor state is null. Ensure the editor has been initialized.");
             }
             this._rootElement = nextRootElement;
             resetEditor(this, prevRootElement, nextRootElement, pendingEditorState);
 
-            if (prevRootElement !== null) {
+            if (prevRootElement) {
                 if (this._editable) {
                     removeRootElementEvents(prevRootElement);
                 }
-                if (classNames !== null) {
-                    prevRootElement.classList.remove(...classNames);
-                }
             }
 
-            if (nextRootElement !== null) {
+            if (nextRootElement) {
                 const windowObj = getDefaultView(nextRootElement);
                 const style = nextRootElement.style;
                 style.userSelect = "text";
@@ -416,9 +412,6 @@ export class LexicalEditor {
 
                 if (this._editable) {
                     addRootElementEvents(nextRootElement, this);
-                }
-                if (Array.isArray(classNames)) {
-                    nextRootElement.classList.add(...classNames);
                 }
             } else {
                 // If content editable is unmounted we'll reset editor state back to original
@@ -467,8 +460,8 @@ export class LexicalEditor {
         const tags = this._updateTags;
         const tag = options !== undefined ? options.tag : null;
 
-        if (pendingEditorState !== null && !pendingEditorState.isEmpty()) {
-            if (tag !== null && tag !== undefined) {
+        if (pendingEditorState && !pendingEditorState.isEmpty()) {
+            if (tag) {
                 tags.add(tag);
             }
 
@@ -480,7 +473,7 @@ export class LexicalEditor {
         this._dirtyElements.set("root", false);
         this._compositionKey = null;
 
-        if (tag !== null && tag !== undefined) {
+        if (tag) {
             tags.add(tag);
         }
 
@@ -533,42 +526,41 @@ export class LexicalEditor {
      */
     focus(callbackFn?: () => void, options: EditorFocusOptions = {}): void {
         const rootElement = this._rootElement;
+        if (!rootElement) return;
 
-        if (rootElement !== null) {
-            // This ensures that iOS does not trigger caps lock upon focus
-            rootElement.setAttribute("autocapitalize", "off");
-            updateEditor(
-                this,
-                () => {
-                    const selection = $getSelection();
-                    const root = $getRoot();
+        // This ensures that iOS does not trigger caps lock upon focus
+        rootElement.setAttribute("autocapitalize", "off");
+        updateEditor(
+            this,
+            () => {
+                const selection = $getSelection();
+                const root = $getRoot();
 
-                    if (selection !== null) {
-                        // Marking the selection dirty will force the selection back to it
-                        selection.dirty = true;
-                    } else if (root.getChildrenSize() !== 0) {
-                        if (options.defaultSelection === "rootStart") {
-                            root.selectStart();
-                        } else {
-                            root.selectEnd();
-                        }
+                if (selection) {
+                    // Marking the selection dirty will force the selection back to it
+                    selection.dirty = true;
+                } else if (root.getChildrenSize() !== 0) {
+                    if (options.defaultSelection === "rootStart") {
+                        root.selectStart();
+                    } else {
+                        root.selectEnd();
+                    }
+                }
+            },
+            {
+                onUpdate: () => {
+                    rootElement.removeAttribute("autocapitalize");
+                    if (callbackFn) {
+                        callbackFn();
                     }
                 },
-                {
-                    onUpdate: () => {
-                        rootElement.removeAttribute("autocapitalize");
-                        if (callbackFn) {
-                            callbackFn();
-                        }
-                    },
-                    tag: "focus",
-                },
-            );
-            // In the case where onUpdate doesn't fire (due to the focus update not
-            // occuring).
-            if (this._pendingEditorState === null) {
-                rootElement.removeAttribute("autocapitalize");
-            }
+                tag: "focus",
+            },
+        );
+        // In the case where onUpdate doesn't fire (due to the focus update not
+        // occuring).
+        if (!this._pendingEditorState) {
+            rootElement.removeAttribute("autocapitalize");
         }
     }
 

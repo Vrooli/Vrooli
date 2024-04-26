@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LIST_INDENT_SIZE } from "../consts";
 import { type LexicalEditor } from "../editor";
-import { CustomDomElement, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
+import { CustomDomElement, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
 import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
@@ -190,12 +190,11 @@ export const updateChildrenListItemValue = (list: ListNode): void => {
 
 const setListThemeClassNames = (
     dom: HTMLElement,
-    editorThemeClasses: EditorThemeClasses,
     node: ListNode,
 ): void => {
     const classesToAdd: string[] = [];
     const classesToRemove: string[] = [];
-    const listTheme = editorThemeClasses.list;
+    const listTheme = {} as any;
 
     if (listTheme !== undefined) {
         const listLevelsClassNames = listTheme[`${node.__tag}Depth`] || [];

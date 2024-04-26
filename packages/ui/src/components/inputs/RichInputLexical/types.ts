@@ -199,22 +199,6 @@ export type RootElementEvents = Array<
     ]
 >;
 
-export type EditorThemeClassName = string;
-
-export type TextNodeThemeClasses = {
-    base?: EditorThemeClassName;
-    bold?: EditorThemeClassName;
-    code?: EditorThemeClassName;
-    highlight?: EditorThemeClassName;
-    italic?: EditorThemeClassName;
-    strikethrough?: EditorThemeClassName;
-    subscript?: EditorThemeClassName;
-    superscript?: EditorThemeClassName;
-    underline?: EditorThemeClassName;
-    underlineStrikethrough?: EditorThemeClassName;
-    [key: string]: EditorThemeClassName | undefined;
-};
-
 export type EditorUpdateOptions = {
     onUpdate?: () => void;
     skipTransforms?: true;
@@ -228,68 +212,6 @@ export type EditorSetOptions = {
 
 export type EditorFocusOptions = {
     defaultSelection?: "rootStart" | "rootEnd";
-};
-
-export type EditorThemeClasses = {
-    blockCursor?: EditorThemeClassName;
-    characterLimit?: EditorThemeClassName;
-    code?: EditorThemeClassName;
-    codeHighlight?: Record<string, EditorThemeClassName>;
-    hashtag?: EditorThemeClassName;
-    heading?: {
-        h1?: EditorThemeClassName;
-        h2?: EditorThemeClassName;
-        h3?: EditorThemeClassName;
-        h4?: EditorThemeClassName;
-        h5?: EditorThemeClassName;
-        h6?: EditorThemeClassName;
-    };
-    image?: EditorThemeClassName;
-    link?: EditorThemeClassName;
-    list?: {
-        ul?: EditorThemeClassName;
-        ulDepth?: Array<EditorThemeClassName>;
-        ol?: EditorThemeClassName;
-        olDepth?: Array<EditorThemeClassName>;
-        checklist?: EditorThemeClassName;
-        listitem?: EditorThemeClassName;
-        listitemChecked?: EditorThemeClassName;
-        listitemUnchecked?: EditorThemeClassName;
-        nested?: {
-            list?: EditorThemeClassName;
-            listitem?: EditorThemeClassName;
-        };
-    };
-    ltr?: EditorThemeClassName;
-    mark?: EditorThemeClassName;
-    markOverlap?: EditorThemeClassName;
-    paragraph?: EditorThemeClassName;
-    quote?: EditorThemeClassName;
-    root?: EditorThemeClassName;
-    rtl?: EditorThemeClassName;
-    table?: EditorThemeClassName;
-    tableAddColumns?: EditorThemeClassName;
-    tableAddRows?: EditorThemeClassName;
-    tableCellActionButton?: EditorThemeClassName;
-    tableCellActionButtonContainer?: EditorThemeClassName;
-    tableCellPrimarySelected?: EditorThemeClassName;
-    tableCellSelected?: EditorThemeClassName;
-    tableCell?: EditorThemeClassName;
-    tableCellEditing?: EditorThemeClassName;
-    tableCellHeader?: EditorThemeClassName;
-    tableCellResizer?: EditorThemeClassName;
-    tableCellSortedIndicator?: EditorThemeClassName;
-    tableResizeRuler?: EditorThemeClassName;
-    tableRow?: EditorThemeClassName;
-    tableSelected?: EditorThemeClassName;
-    text?: TextNodeThemeClasses;
-    embedBlock?: {
-        base?: EditorThemeClassName;
-        focus?: EditorThemeClassName;
-    };
-    indent?: EditorThemeClassName;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
 };
 
 export type EditorConfig = {

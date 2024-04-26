@@ -1,5 +1,5 @@
 import { RangeSelection } from "../selection";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, EditorThemeClasses, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
 import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
@@ -351,12 +351,11 @@ export class ListItemNode extends ElementNode {
 
 const $setListItemThemeClassNames = (
     dom: HTMLElement,
-    editorThemeClasses: EditorThemeClasses,
     node: ListItemNode,
 ): void => {
     const classesToAdd: (string | undefined)[] = [];
     const classesToRemove: (string | undefined)[] = [];
-    const listTheme = editorThemeClasses.list;
+    const listTheme: any = {};
     const listItemClassName = listTheme ? listTheme.listitem : undefined;
     let nestedListItemClassName;
 

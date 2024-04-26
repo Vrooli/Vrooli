@@ -1,14 +1,20 @@
 import { DOM_TEXT_TYPE } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, NodeType, SerializedLexicalNode, SerializedLineBreakNode } from "../types";
+import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedLexicalNode } from "../types";
 import { $createNode } from "../utils";
 import { LexicalNode } from "./LexicalNode";
 
-
+/**
+ * Used when a line is empty
+ */
 export class LineBreakNode extends LexicalNode {
     static __type: NodeType = "LineBreak";
 
+    constructor({ key }: NodeConstructorPayloads["LineBreak"]) {
+        super(key);
+    }
+
     static clone(node: LineBreakNode): LineBreakNode {
-        return new LineBreakNode(node.__key);
+        return new LineBreakNode({ key: node.__key });
     }
 
     getMarkdownContent() {
@@ -45,9 +51,7 @@ export class LineBreakNode extends LexicalNode {
         };
     }
 
-    static importJSON(
-        serializedLineBreakNode: SerializedLineBreakNode,
-    ): LineBreakNode {
+    static importJSON(): LineBreakNode {
         return $createNode("LineBreak", {});
     }
 
@@ -59,28 +63,27 @@ export class LineBreakNode extends LexicalNode {
     }
 }
 
-const convertLineBreakElement = (node: Node): DOMConversionOutput => {
+const convertLineBreakElement = (): DOMConversionOutput => {
     return { node: $createNode("LineBreak", {}) };
 };
 
 const isOnlyChild = (node: Node): boolean => {
     const parentElement = node.parentElement;
-    if (parentElement !== null) {
-        const firstChild = parentElement.firstChild;
+    if (!parentElement) return false;
+    const firstChild = parentElement.firstChild;
+    if (
+        firstChild &&
+        (firstChild === node ||
+            (firstChild.nextSibling === node && isWhitespaceDomTextNode(firstChild)))
+    ) {
+        const lastChild = parentElement.lastChild;
         if (
-            firstChild !== null &&
-            (firstChild === node ||
-                (firstChild.nextSibling === node && isWhitespaceDomTextNode(firstChild)))
+            lastChild &&
+            (lastChild === node ||
+                (lastChild.previousSibling === node &&
+                    isWhitespaceDomTextNode(lastChild)))
         ) {
-            const lastChild = parentElement.lastChild;
-            if (
-                lastChild !== null &&
-                (lastChild === node ||
-                    (lastChild.previousSibling === node &&
-                        isWhitespaceDomTextNode(lastChild)))
-            ) {
-                return true;
-            }
+            return true;
         }
     }
     return false;

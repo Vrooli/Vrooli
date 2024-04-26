@@ -16,7 +16,7 @@ import { type TableCellNode } from "./nodes/TableCellNode";
 import { type TableNode } from "./nodes/TableNode";
 import { type TextNode } from "./nodes/TextNode";
 import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, NodeSelection, Point, RangeSelection, moveSelectionPointToSibling } from "./selection";
-import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, EditorThemeClasses, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
+import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
 import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, triggerCommandListeners, updateEditor } from "./updates";
 
 export const getWindow = (editor: LexicalEditor): Window => {
@@ -78,32 +78,6 @@ export const normalizeClassNames = (
         }
     }
     return rval;
-};
-
-export const getCachedClassNameArray = (
-    classNamesTheme: EditorThemeClasses,
-    classNameThemeType: string,
-): Array<string> => {
-    if (classNamesTheme.__lexicalClassNameCache === undefined) {
-        classNamesTheme.__lexicalClassNameCache = {};
-    }
-    const classNamesCache = classNamesTheme.__lexicalClassNameCache;
-    const cachedClassNames = classNamesCache[classNameThemeType];
-    if (cachedClassNames !== undefined) {
-        return cachedClassNames;
-    }
-    const classNames = classNamesTheme[classNameThemeType];
-    // As we're using classList, we need
-    // to handle className tokens that have spaces.
-    // The easiest way to do this to convert the
-    // className tokens to an array that can be
-    // applied to classList.add()/remove().
-    if (typeof classNames === "string") {
-        const classNamesArr = normalizeClassNames(classNames);
-        classNamesCache[classNameThemeType] = classNamesArr;
-        return classNamesArr;
-    }
-    return classNames;
 };
 
 export const markAllNodesAsDirty = (editor: LexicalEditor, type: string): void => {
@@ -1427,12 +1401,6 @@ export const $shouldInsertTextAfterOrBeforeTextNode = (
     } else {
         return false;
     }
-};
-
-export const $textContentRequiresDoubleLinebreakAtEnd = (
-    node: ElementNode,
-): boolean => {
-    return !$isNode("Root", node) && !node.isLastChild() && !node.isInline();
 };
 
 export const setMutatedNode = (

@@ -221,8 +221,8 @@ export class LexicalNode extends LexicalNodeBase {
      */
     getLatest(): this {
         const latest = $getNodeByKey<this>(this.__key);
-        if (latest === null) {
-            throw new Error("Lexical node does not exist in active editor state. Avoid using the same node references between nested closures from editorState.read/editor.update.");
+        if (!latest) {
+            throw new Error(`Lexical node ${this.__key} does not exist in active editor state. Avoid using the same node references between nested closures from editorState.read/editor.update.`);
         }
         return latest;
     }
