@@ -1,8 +1,9 @@
+import { Headers } from "utils/display/stringTools";
 import { $createCodeNode } from "../nodes/CodeNode";
 import { type ElementNode } from "../nodes/ElementNode";
 import { type LexicalNode } from "../nodes/LexicalNode";
 import { listExport, listReplace } from "../nodes/ListNode";
-import { ElementTransformer, HeadingTagType } from "../types";
+import { ElementTransformer } from "../types";
 import { $createNode, $isNode, getPreviousSibling } from "../utils";
 
 const createBlockNode = (
@@ -26,7 +27,7 @@ export const HEADING: ElementTransformer = {
     },
     regExp: /^(#{1,6})\s/,
     replace: createBlockNode((match) => {
-        const tag = ("h" + match[1].length) as HeadingTagType;
+        const tag = ("h" + match[1].length) as Headers;
         return $createNode("Heading", { tag });
     }),
     type: "element",

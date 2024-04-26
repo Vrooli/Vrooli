@@ -185,21 +185,21 @@ export const getLinesAtRange = (text: string, start: number, end: number): [stri
 };
 
 export enum Headers {
-    H1 = "h1",
-    H2 = "h2",
-    H3 = "h3",
-    H4 = "h4",
-    H5 = "h5",
-    H6 = "h6",
+    h1 = "h1",
+    h2 = "h2",
+    h3 = "h3",
+    h4 = "h4",
+    h5 = "h5",
+    h6 = "h6",
 }
 
 export const headerMarkdowns = {
-    [Headers.H1]: "# ",
-    [Headers.H2]: "## ",
-    [Headers.H3]: "### ",
-    [Headers.H4]: "#### ",
-    [Headers.H5]: "##### ",
-    [Headers.H6]: "###### ",
+    [Headers.h1]: "# ",
+    [Headers.h2]: "## ",
+    [Headers.h3]: "### ",
+    [Headers.h4]: "#### ",
+    [Headers.h5]: "##### ",
+    [Headers.h6]: "###### ",
 };
 
 export type TextStyleResult = {

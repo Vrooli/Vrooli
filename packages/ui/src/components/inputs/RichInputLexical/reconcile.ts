@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { headerMarkdowns } from "utils/display/stringTools";
 import { DOUBLE_LINE_BREAK, FULL_RECONCILE, IS_ALIGN_CENTER, IS_ALIGN_END, IS_ALIGN_JUSTIFY, IS_ALIGN_LEFT, IS_ALIGN_RIGHT, IS_ALIGN_START } from "./consts";
 import { EditorState, LexicalEditor } from "./editor";
 import { ElementNode } from "./nodes/ElementNode";
@@ -173,6 +174,12 @@ const createNode = (
         const indent = node.__indent;
         const childrenSize = node.__size;
 
+        if ($isNode("Heading", node)) {
+            const markdown = headerMarkdowns[node.__tag];
+            subTreeMarkdownContent += markdown;
+            editorMarkdownContent += markdown;
+        }
+
         if (indent !== 0) {
             setElementIndent(dom, indent);
         }
@@ -189,6 +196,7 @@ const createNode = (
         if (!node.isInline()) {
             reconcileElementTerminatingLineBreak(null, node, dom);
         }
+
         if ($textContentRequiresDoubleLinebreakAtEnd(node)) {
             subTreeTextContent += DOUBLE_LINE_BREAK;
             subTreeMarkdownContent += DOUBLE_LINE_BREAK;
@@ -519,6 +527,12 @@ const reconcileNode = (
                 __lexicalMarkdownContent: previousSubTreeMarkdownContent,
             } = (dom as CustomDomElement);
 
+            if ($isNode("Heading", prevNode)) {
+                const markdown = headerMarkdowns[prevNode.__tag];
+                subTreeMarkdownContent += markdown;
+                editorMarkdownContent += markdown;
+            }
+
             if (previousSubTreeTextContent) {
                 subTreeTextContent += previousSubTreeTextContent;
                 editorTextContent += previousSubTreeTextContent;
@@ -581,6 +595,13 @@ const reconcileNode = (
         if (nextFormat !== prevNode.__format) {
             setElementFormat(dom, nextFormat);
         }
+
+        if ($isNode("Heading", nextNode)) {
+            const markdown = headerMarkdowns[nextNode.__tag];
+            subTreeMarkdownContent += markdown;
+            editorMarkdownContent += markdown;
+        }
+
         if (isDirty) {
             reconcileChildrenWithDirection(prevNode, nextNode, dom);
             if (!$isNode("Root", nextNode) && !nextNode.isInline()) {

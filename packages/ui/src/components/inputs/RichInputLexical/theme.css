@@ -13,17 +13,25 @@
 
 .spoiler {
     cursor: pointer;
-    transition: color 0.4s, background 0.4s;
+    padding: 0.25rem;
+    transition: color 0.4s ease-in-out, background 0.4s ease-in-out;
+}
+
+.spoiler.hidden {
+    color: black;
+    background: black;
+    filter: blur(2px);
+    transition: filter 0.4s ease-in-out;
+
+    &:hover {
+        filter: blur(1px) brightness(1.1);
+    }
 }
 
 .spoiler.revealed {
     color: inherit;
     background: rgba(0, 0, 0, 0.3);
-}
-
-.spoiler.hidden {
-    color: transparent;
-    background: black;
+    filter: none;
 }
 
 /**

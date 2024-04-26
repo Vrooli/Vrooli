@@ -1,12 +1,13 @@
+import { Headers, headerMarkdowns } from "utils/display/stringTools";
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, HeadingTagType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types";
 import { $createNode, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type ParagraphNode } from "./ParagraphNode";
 
 export class HeadingNode extends ElementNode {
     static __type: NodeType = "Heading";
-    __tag: HeadingTagType;
+    __tag: Headers;
 
     constructor({ tag, ...rest }: NodeConstructorPayloads["Heading"]) {
         super(rest);
@@ -18,7 +19,7 @@ export class HeadingNode extends ElementNode {
         return $createNode("Heading", { tag: __tag, key: __key });
     }
 
-    getTag(): HeadingTagType {
+    getTag(): Headers {
         return this.__tag;
     }
 
@@ -92,7 +93,7 @@ export class HeadingNode extends ElementNode {
     }
 
     static importJSON({ direction, format, indent, tag }: SerializedHeadingNode): HeadingNode {
-        const node = $createNode("Heading", { tag });
+        const node = $createNode("Heading", { tag: tag as Headers });
         node.setFormat(format);
         node.setIndent(indent);
         node.setDirection(direction);
@@ -106,6 +107,11 @@ export class HeadingNode extends ElementNode {
             tag: this.getTag(),
             version: 1,
         };
+    }
+
+    getMarkdownContent() {
+        const markdown = this.getChildren().map(child => child.getMarkdownContent()).join("");
+        return `${headerMarkdowns[this.__tag]} ${markdown}`;
     }
 
     // Mutation
@@ -147,15 +153,8 @@ export class HeadingNode extends ElementNode {
 const convertHeadingElement = (element: HTMLElement): DOMConversionOutput => {
     const nodeName = element.nodeName.toLowerCase();
     let node: HeadingNode | null = null;
-    if (
-        nodeName === "h1" ||
-        nodeName === "h2" ||
-        nodeName === "h3" ||
-        nodeName === "h4" ||
-        nodeName === "h5" ||
-        nodeName === "h6"
-    ) {
-        node = $createNode("Heading", { tag: nodeName });
+    if (nodeName in Headers) {
+        node = $createNode("Heading", { tag: nodeName as Headers });
         if (element.style !== null) {
             node.setFormat(element.style.textAlign as ElementFormatType);
         }

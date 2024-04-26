@@ -274,7 +274,7 @@ function normalizeChildren(nodes: LexicalNode[]): Array<ListItemNode> {
     return normalizedListItems;
 }
 
-function convertListNode(domNode: Node): DOMConversionOutput {
+const convertListNode = (domNode: Node): DOMConversionOutput => {
     const nodeName = domNode.nodeName.toLowerCase();
     let node: ListNode | null = null;
     if (nodeName === "ol") {
@@ -295,7 +295,7 @@ function convertListNode(domNode: Node): DOMConversionOutput {
         after: normalizeChildren,
         node,
     };
-}
+};
 
 const TAG_TO_LIST_TYPE: Record<string, ListType> = {
     ol: "number",

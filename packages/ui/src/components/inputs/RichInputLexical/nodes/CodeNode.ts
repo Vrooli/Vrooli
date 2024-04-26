@@ -2,7 +2,7 @@
 //TODO replace this with custom styling in CodePlugin, then remove CodePlugin
 
 import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
 import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, isHTMLElement } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
@@ -317,9 +317,8 @@ export class CodeHighlightNode extends TextNode {
     updateDOM(
         prevNode: CodeHighlightNode,
         dom: HTMLElement,
-        config: EditorConfig,
     ): boolean {
-        const update = super.updateDOM(prevNode, dom, config);
+        const update = super.updateDOM(prevNode, dom);
         return update;
     }
 

@@ -74,9 +74,7 @@ export class ListItemNode extends ElementNode {
     }
 
     static importJSON({ checked, direction, format, value }: SerializedListItemNode): ListItemNode {
-        const node = $createNode("ListItem", {});
-        node.setChecked(checked);
-        node.setValue(value);
+        const node = $createNode("ListItem", { checked, value });
         node.setFormat(format);
         node.setDirection(direction);
         return node;
@@ -207,7 +205,8 @@ export class ListItemNode extends ElementNode {
         restoreSelection = true,
     ): ListItemNode | ParagraphNode {
         const checked = this.__checked === null ? undefined : false;
-        const newElement = $createNode("ListItem", { checked });
+        const value = this.__value > 0 ? this.__value + 1 : 1;
+        const newElement = $createNode("ListItem", { checked, value });
         this.insertAfter(newElement, restoreSelection);
 
         return newElement;
@@ -437,9 +436,9 @@ function updateListItemChecked(
 }
 
 const convertListItemElement = (domNode: Node): DOMConversionOutput => {
-    const checked =
-        isHTMLElement(domNode) && domNode.getAttribute("aria-checked") === "true";
-    return { node: $createNode("ListItem", { checked }) };
+    const checked = isHTMLElement(domNode) && domNode.getAttribute("aria-checked") === "true";
+    const value = isHTMLElement(domNode) && domNode.getAttribute("value") ? parseInt(domNode.getAttribute("value") || "1", 10) : 1;
+    return { node: $createNode("ListItem", { checked, value }) };
 };
 
 /**
@@ -498,8 +497,10 @@ export const $handleIndent = (listItemNode: ListItemNode): void => {
         // otherwise, we need to create a new nested ListNode
 
         if ($isNode("List", parent)) {
-            const newListItem = $createNode("ListItem", {});
-            const newList = $createNode("List", { listType: parent.getListType() });
+            const listType = parent.getListType();
+            const value = listType === "number" ? 1 : undefined;
+            const newListItem = $createNode("ListItem", { value });
+            const newList = $createNode("List", { listType });
             newListItem.append(newList);
             newList.append(listItemNode);
 

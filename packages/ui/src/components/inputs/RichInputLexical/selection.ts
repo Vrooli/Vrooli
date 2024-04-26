@@ -2386,13 +2386,13 @@ export const $setBlocksType = (
     selection: BaseSelection | null,
     createElement: () => ElementNode,
 ) => {
-    if (selection === null) {
+    if (!selection) {
         return;
     }
     const anchorAndFocus = selection.getStartEndPoints();
     const anchor = anchorAndFocus ? anchorAndFocus[0] : null;
 
-    if (anchor !== null && anchor.key === "root") {
+    if (anchor && anchor.key === "root") {
         const element = createElement();
         const root = $getRoot();
         const firstChild = root.getFirstChild();

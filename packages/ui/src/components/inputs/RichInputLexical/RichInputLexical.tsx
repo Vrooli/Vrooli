@@ -2,6 +2,7 @@ import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ListObject } from "utils/display/listTools";
+import { Headers } from "utils/display/stringTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
@@ -22,13 +23,13 @@ import { ListPlugin } from "./plugins/ListPlugin";
 import { RichTextPlugin } from "./plugins/RichTextPlugin";
 import { SpoilerPlugin } from "./plugins/SpoilerPlugin";
 import { TablePlugin } from "./plugins/TablePlugin";
-import { RangeSelection } from "./selection";
+import { $setBlocksType, RangeSelection } from "./selection";
 import "./theme.css";
 import { ELEMENT_TRANSFORMERS } from "./transformers/elementTransformers";
 import { TEXT_TRANSFORMERS, applyTextTransformers } from "./transformers/textFormatTransformers";
 import { TEXT_MATCH_TRANSFORMERS } from "./transformers/textMatchTransformers";
-import { HeadingTagType, LexicalTransformer } from "./types";
-import { $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot, getParent, getTopLevelElementOrThrow } from "./utils";
+import { LexicalTransformer } from "./types";
+import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot, getParent, getTopLevelElementOrThrow } from "./utils";
 
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 
@@ -37,12 +38,12 @@ const blockTypeToActionName: { [x: string]: RichInputAction | `${RichInputAction
     bullet: "ListBullet",
     check: "ListCheckbox",
     code: "Code",
-    h1: "Header1",
-    h2: "Header2",
-    h3: "Header3",
-    h4: "Header4",
-    h5: "Header5",
-    h6: "Header6",
+    [Headers.h1]: "Header1",
+    [Headers.h2]: "Header2",
+    [Headers.h3]: "Header3",
+    [Headers.h4]: "Header4",
+    [Headers.h5]: "Header5",
+    [Headers.h6]: "Header6",
     number: "ListNumber",
     quote: "Quote",
 };
@@ -361,13 +362,12 @@ export const RichInputLexicalComponents = ({
     }, [editor, onChange]);
 
     // Toolbar actions
-    const toggleHeading = useCallback((headingSize: HeadingTagType) => {
+    const toggleHeading = useCallback((headingSize: Headers) => {
         editor?.update(() => {
             const selection = $getSelection();
-            //TODO fix this or replace it. If replacing, you can also remove $setBlocksType
-            // if (selection && $INTERNAL_isPointSelection(selection)) {
-            //     $setBlocksType(selection as INTERNAL_PointSelection, () => activeStates[blockTypeToActionName[headingSize]] === true ? $createNode("Paragraph", {}) : $createNode("Heading", { headingSize }));
-            // }
+            if (!selection) return;
+            const isAlreadyApplied = activeStates[blockTypeToActionName[headingSize]] === true;
+            $setBlocksType(selection, () => isAlreadyApplied ? $createNode("Paragraph", {}) : $createNode("Heading", { tag: headingSize }));
         });
     }, [activeStates, editor]);
 
@@ -414,12 +414,12 @@ export const RichInputLexicalComponents = ({
                 },
                 "Bold": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "BOLD"),
                 "Code": () => editor.dispatchCommand(CODE_BLOCK_COMMAND, (void 0)),
-                "Header1": () => toggleHeading("h1"),
-                "Header2": () => toggleHeading("h2"),
-                "Header3": () => toggleHeading("h3"),
-                "Header4": () => toggleHeading("h4"),
-                "Header5": () => toggleHeading("h5"),
-                "Header6": () => toggleHeading("h6"),
+                "Header1": () => toggleHeading(Headers.h1),
+                "Header2": () => toggleHeading(Headers.h2),
+                "Header3": () => toggleHeading(Headers.h3),
+                "Header4": () => toggleHeading(Headers.h4),
+                "Header5": () => toggleHeading(Headers.h5),
+                "Header6": () => toggleHeading(Headers.h6),
                 "Italic": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "ITALIC"),
                 "Link": () => editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://"), //TODO not working
                 "ListBullet": () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, (void 0)),

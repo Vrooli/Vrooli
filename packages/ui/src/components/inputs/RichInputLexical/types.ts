@@ -1,3 +1,4 @@
+import { Headers } from "utils/display/stringTools";
 import { DECORATOR_NODES, ELEMENT_NODES, TEXT_NODES } from "./consts";
 import { type EditorState, type LexicalEditor } from "./editor";
 import { type DecoratorNode } from "./nodes/DecoratorNode";
@@ -83,7 +84,7 @@ export type NodeConstructorPayloads = {
     Decorator: NodeConstructorBase;
     Element: NodeConstructorBase;
     Hashtag: { text: string } & NodeConstructorBase;
-    Heading: { tag: HeadingTagType } & NodeConstructorBase;
+    Heading: { tag: Headers } & NodeConstructorBase;
     LineBreak: NodeConstructorBase;
     Link: LinkAttributes & NodeConstructorBase;
     List: { listType: ListType, start?: number } & NodeConstructorBase;
@@ -425,8 +426,6 @@ export type CommandsMap = Map<
 >;
 
 export type TransformerType = "text" | "decorator" | "element" | "root";
-
-export type HeadingTagType = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
 export type IntentionallyMarkedAsDirtyElement = boolean;
 
