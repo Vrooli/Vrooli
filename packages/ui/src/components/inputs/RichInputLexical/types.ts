@@ -601,16 +601,12 @@ export type InsertTableCommandPayload = Readonly<{
 }>;
 
 export type CustomDomElement<T = HTMLElement> = T & {
-    __lexicalDir?: "ltr" | "rtl" | null;
-    __lexicalDirTextContent?: string;
     __lexicalEditor?: LexicalEditor | null;
     __lexicalEventHandles?: Array<() => void>;
     __lexicalLineBreak?: HTMLBRElement | null;
     __lexicalListStart?: string;
     __lexicalListType?: ListType;
     __lexicalTableSelection?: TableObserver;
-    __lexicalTextContent?: string;
-    __lexicalMarkdownContent?: string;
     [Key: `__lexicalKey_${NodeKey}`]: NodeKey;
 }
 

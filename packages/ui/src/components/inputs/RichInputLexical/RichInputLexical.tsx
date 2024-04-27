@@ -7,7 +7,7 @@ import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";
-import { $convertFromMarkdownString, $convertToMarkdownString, registerMarkdownShortcuts } from "./builder";
+import { $convertFromMarkdownString, registerMarkdownShortcuts } from "./builder";
 import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands";
 import { COMMAND_PRIORITY_CRITICAL } from "./consts";
 import { LexicalComposerContext, useLexicalComposerContext } from "./context";
@@ -21,7 +21,6 @@ import { CodeBlockPlugin } from "./plugins/CodePlugin";
 import { LinkPlugin } from "./plugins/LinkPlugin";
 import { ListPlugin } from "./plugins/ListPlugin";
 import { RichTextPlugin } from "./plugins/RichTextPlugin";
-import { SpoilerPlugin } from "./plugins/SpoilerPlugin";
 import { TablePlugin } from "./plugins/TablePlugin";
 import { $setBlocksType, RangeSelection } from "./selection";
 import "./theme.css";
@@ -376,10 +375,12 @@ export const RichInputLexicalComponents = ({
         setHandleAction((action, data) => {
             const actionMap = {
                 "Assistant": () => {
+                    console.log("in assistant action");
                     editor.update(() => {
+                        console.log("in assistant action editor update");
                         const selection = $getSelection() as RangeSelection | null;
                         let selectedText = "";
-                        if (selection !== null) {
+                        if (selection) {
                             const anchorNode = $getNodeByKey(selection.anchor.key);
                             const focusNode = $getNodeByKey(selection.focus.key);
 
@@ -408,7 +409,7 @@ export const RichInputLexicalComponents = ({
                                 }).join("");
                             }
                         }
-                        const fullText = $convertToMarkdownString(ALL_TRANSFORMERS, $getRoot());
+                        const fullText = $getRoot().getMarkdownContent();
                         openAssistantDialog(selectedText, fullText);
                     });
                 },
@@ -451,6 +452,7 @@ export const RichInputLexicalComponents = ({
                 },
             };
             const actionFunction = actionMap[action];
+            console.log("handling action", actionFunction, action);
             if (actionFunction) actionFunction();
         });
     }, [editor, openAssistantDialog, redo, setHandleAction, toggleHeading, triggerEditorChange, undo]);
@@ -518,7 +520,6 @@ export const RichInputLexicalComponents = ({
             <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
             <TablePlugin />
-            <SpoilerPlugin />
             <CodeBlockPlugin />
         </Box>
     );

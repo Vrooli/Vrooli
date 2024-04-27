@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { $insertDataTransferForRichText, copyToClipboard } from "./clipboard";
 import { CUT_COMMAND, PASTE_COMMAND } from "./commands";
-import { CAN_USE_DOM, COMPOSITION_SUFFIX, DOM_TEXT_TYPE, HAS_DIRTY_NODES, IGNORE_TAGS, IS_APPLE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI, LTR_REGEX, RTL_REGEX } from "./consts";
+import { CAN_USE_DOM, COMPOSITION_SUFFIX, DOM_TEXT_TYPE, HAS_DIRTY_NODES, IGNORE_TAGS, IS_APPLE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI } from "./consts";
 import { type EditorState, type LexicalEditor } from "./editor";
 import { LexicalNodes } from "./nodes";
 import { type DecoratorNode } from "./nodes/DecoratorNode";
@@ -730,15 +730,15 @@ export const isTab = ({ altKey, ctrlKey, key, metaKey }: KeyEvent): boolean => {
 };
 
 export const isBold = ({ altKey, ctrlKey, key, metaKey }: KeyEvent): boolean => {
-    return key === "B" && !altKey && controlOrMeta(metaKey, ctrlKey);
+    return key === "b" && !altKey && controlOrMeta(metaKey, ctrlKey);
 };
 
 export const isItalic = ({ altKey, ctrlKey, key, metaKey }: KeyEvent): boolean => {
-    return key === "I" && !altKey && controlOrMeta(metaKey, ctrlKey);
+    return key === "i" && !altKey && controlOrMeta(metaKey, ctrlKey);
 };
 
 export const isUnderline = ({ altKey, ctrlKey, key, metaKey }: KeyEvent): boolean => {
-    return key === "U" && !altKey && controlOrMeta(metaKey, ctrlKey);
+    return key === "u" && !altKey && controlOrMeta(metaKey, ctrlKey);
 };
 
 export const isParagraph = ({ key, shiftKey }: KeyEvent): boolean => {
@@ -752,7 +752,7 @@ export const isLineBreak = ({ key, shiftKey }: KeyEvent): boolean => {
 // Inserts a new line after the selection
 
 export const isOpenLineBreak = ({ ctrlKey, key }: KeyEvent): boolean => {
-    return IS_APPLE && ctrlKey && key === "O";
+    return IS_APPLE && ctrlKey && key === "o";
 };
 
 export const isDeleteWordBackward = ({ altKey, ctrlKey, key }: KeyEvent): boolean => {
@@ -776,7 +776,7 @@ export const isDeleteBackward = ({ altKey, ctrlKey, key, metaKey }: KeyEvent): b
         if (altKey || metaKey) {
             return false;
         }
-        return isBackspace(key) || (key === "H" && ctrlKey);
+        return isBackspace(key) || (key === "h" && ctrlKey);
     }
     if (ctrlKey || altKey || metaKey) {
         return false;
@@ -789,7 +789,7 @@ export const isDeleteForward = ({ altKey, ctrlKey, key, metaKey, shiftKey }: Key
         if (shiftKey || altKey || metaKey) {
             return false;
         }
-        return isDelete(key) || (key === "D" && ctrlKey);
+        return isDelete(key) || (key === "d" && ctrlKey);
     }
     if (ctrlKey || altKey || metaKey) {
         return false;
@@ -798,21 +798,21 @@ export const isDeleteForward = ({ altKey, ctrlKey, key, metaKey, shiftKey }: Key
 };
 
 export const isUndo = ({ ctrlKey, key, metaKey, shiftKey }: KeyEvent): boolean => {
-    return key === "Z" && !shiftKey && controlOrMeta(metaKey, ctrlKey);
+    return key === "z" && !shiftKey && controlOrMeta(metaKey, ctrlKey);
 };
 
 export const isRedo = ({ ctrlKey, key, metaKey, shiftKey }: KeyEvent): boolean => {
     if (IS_APPLE) {
-        return key === "Z" && metaKey && shiftKey;
+        return key === "z" && metaKey && shiftKey;
     }
-    return (key === "Y" && ctrlKey) || (key === "Z" && ctrlKey && shiftKey);
+    return (key === "y" && ctrlKey) || (key === "z" && ctrlKey && shiftKey);
 };
 
 export const isCopy = ({ ctrlKey, key, metaKey, shiftKey }: KeyEvent): boolean => {
     if (shiftKey) {
         return false;
     }
-    if (key === "C") {
+    if (key === "c") {
         return IS_APPLE ? metaKey : ctrlKey;
     }
 
@@ -823,7 +823,7 @@ export const isCut = ({ ctrlKey, key, metaKey, shiftKey }: KeyEvent): boolean =>
     if (shiftKey) {
         return false;
     }
-    if (key === "X") {
+    if (key === "x") {
         return IS_APPLE ? metaKey : ctrlKey;
     }
 
@@ -902,7 +902,7 @@ export const isDelete = (key: Key): boolean => {
 };
 
 export const isSelectAll = ({ ctrlKey, key, metaKey }: KeyEvent): boolean => {
-    return key === "A" && controlOrMeta(metaKey, ctrlKey);
+    return key === "a" && controlOrMeta(metaKey, ctrlKey);
 };
 
 /**
@@ -1429,16 +1429,6 @@ export const setMutatedNode = (
     if (prevMutation === undefined || isMove) {
         mutatedNodesByType[nodeKey] = isMove ? "updated" : mutation;
     }
-};
-
-export const getTextDirection = (text: string): "ltr" | "rtl" | null => {
-    if (RTL_REGEX.test(text)) {
-        return "rtl";
-    }
-    if (LTR_REGEX.test(text)) {
-        return "ltr";
-    }
-    return null;
 };
 
 export const cloneDecorators = (
@@ -2469,3 +2459,4 @@ export const getCommonAncestor = <T extends ElementNode = ElementNode>(
     }
     return null;
 };
+

@@ -2,7 +2,7 @@ import hljs from "highlight.js";
 import { copyIconPath } from "icons";
 import { PubSub } from "utils/pubsub";
 import { CODE_BLOCK_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_HIGH, DOUBLE_LINE_BREAK } from "../consts";
+import { COMMAND_PRIORITY_HIGH } from "../consts";
 import { useLexicalComposerContext } from "../context";
 import { ElementNode } from "../nodes/ElementNode";
 import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
@@ -214,7 +214,7 @@ export class CodeBlockNode extends ElementNode {
         const markdown = this.getChildren().map(child => {
             const text = child.getMarkdownContent();
             if ($isNode("Element", child) && !child.isInline()) {
-                return text + DOUBLE_LINE_BREAK;
+                return text + "\n";
             }
             return text;
         }).join("");

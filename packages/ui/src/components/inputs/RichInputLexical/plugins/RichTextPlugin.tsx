@@ -107,6 +107,7 @@ const registerRichText = (editor: LexicalEditor): () => void => {
             FORMAT_TEXT_COMMAND,
             (format) => {
                 const selection = $getSelection();
+                console.log("in format_text_command register", format, selection);
                 if (!$isRangeSelection(selection)) {
                     return false;
                 }

@@ -12,21 +12,6 @@ import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatc
 import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isAttachedToRoot } from "./utils";
 
 /**
- * Matches any punctuation or whitespace character.
- * This regex is designed to identify punctuation symbols and spaces in a string. It includes a wide range
- * of punctuation marks (from '!' to '/', ':', to '@', '[', to '`', and '{' to '~') as well as any whitespace
- * character (denoted by \s). It's useful for parsing tasks where punctuation or spaces need to be identified
- * or separated from other text content.
- */
-const PUNCTUATION_OR_SPACE = /[!-/:-@[-`{-~\s]/;
-/**
- * Matches an empty line or a line with up to 3 leading spaces in markdown content.
- * This regex is used to identify empty lines within markdown content, which are important for recognizing
- * block elements or separating paragraphs. The regex allows for up to 3 spaces at the beginning of the line,
- * accommodating markdown syntax that considers lines with four or more leading spaces as code blocks.
- */
-const MARKDOWN_EMPTY_LINE_REG_EXP = /^\s{0,3}$/;
-/**
  * Matches the opening or closing line of a code block in markdown content.
  * This regex is used to detect lines that signify the start or end of a fenced code block in markdown,
  * which is indicated by three backticks (```). The regex optionally captures a language identifier
@@ -535,67 +520,6 @@ const exportChildren = (node: ElementNode, textFormatTransformers: TextFormatTra
     return output.join("");
 };
 
-const exportTopLevelElements = (
-    node: LexicalNode,
-    elementTransformers: ElementTransformer[],
-    textFormatTransformers: TextFormatTransformer[],
-    textMatchTransformers: TextMatchTransformer[],
-): string | null => {
-    for (const transformer of elementTransformers) {
-        const result = transformer.export(node, _node => exportChildren(_node, textFormatTransformers, textMatchTransformers));
-        if (result !== null) {
-            return result;
-        }
-    }
-    if ($isNode("Element", node)) {
-        return exportChildren(node, textFormatTransformers, textMatchTransformers);
-    } else if ($isNode("Decorator", node)) {
-        return node.getTextContent();
-    } else {
-        return null;
-    }
-};
-
-/**
- * Creates a function that exports Lexical document content or content within a specified node to markdown format.
- * This higher-order function uses an array of transformers to serialize Lexical nodes into markdown syntax. The
- * resulting function can take an optional Lexical ElementNode as an argument, exporting the content from this node
- * or from the root node if none is specified.
- *
- * The export process involves iterating over the children of the specified or root node, converting each to its
- * markdown representation according to the applicable transformers. Text formatting transformers are filtered to
- * use only those responsible for single formats (e.g., separate transformers for bold and italic, rather than a
- * combined bold-italic transformer) to ensure clarity and simplicity in the markdown output.
- *
- * The function aggregates the markdown strings of all processed nodes, joining them with double newline characters
- * to preserve the document structure and readability in the markdown output.
- *
- * @param transformers - An array of LexicalTransformer objects that define how Lexical nodes are serialized into markdown
- *                       syntax. These transformers handle various Lexical elements and text formatting, ensuring a
- *                       comprehensive and accurate representation of the document in markdown format.
- * @returns A function that optionally takes a Lexical ElementNode and returns a string. This string is the markdown
- *          serialization of the content within the specified node or the entire document if no node is specified.
- *          The serialized content is structured to reflect the original document structure, making it suitable for
- *          export and use in markdown-compatible environments.
- */
-const createMarkdownExport = (transformers: LexicalTransformer[]): ((node?: ElementNode) => string) => {
-    const byType = transformersByType(transformers);
-
-    return node => {
-        const output: string[] = [];
-        // Get all children of the specified or root node
-        const children = (node || $getRoot()).getChildren();
-        for (const child of children) {
-            // Recursively process children
-            const result = exportTopLevelElements(child, byType.element, byType.textFormat, byType.textMatch);
-            if (result !== null) {
-                output.push(result);
-            }
-        }
-        return output.join("\n");
-    };
-};
-
 /**
  * Converts a markdown string to Lexical nodes using the specified transformers.
  * This function is a higher-order function that utilizes a markdown import function
@@ -614,24 +538,6 @@ export const $convertFromMarkdownString = (markdown: string, transformers: Lexic
     console.log("in $convertFromMarkdownString", markdown);
     const importMarkdown = createMarkdownImport(transformers);
     importMarkdown(markdown, node);
-};
-
-/**
- * Converts Lexical nodes within a specified parent node or the entire document into a markdown string
- * using the specified transformers. This can be useful for exporting the document content to markdown-compatible platforms or for storage purposes.
- *
- * @param transformers - An array of LexicalTransformer objects that define how Lexical nodes are converted to markdown syntax.
- *                       Each transformer should handle a specific Lexical node type or pattern and serialize it to its
- *                       corresponding markdown representation.
- * @param node - An optional Lexical ElementNode from which the conversion to markdown will start. If not provided,
- *               the conversion process will include all nodes in the document, effectively serializing the entire
- *               document content to markdown. This parameter can be used to selectively export a portion of the document.
- * @returns A string representing the markdown serialization of the Lexical nodes, starting from the specified node or
- *          encompassing the entire document if no node is specified.
- */
-export const $convertToMarkdownString = (transformers: LexicalTransformer[], node?: ElementNode) => {
-    const exportMarkdown = createMarkdownExport(transformers);
-    return exportMarkdown(node);
 };
 
 /**

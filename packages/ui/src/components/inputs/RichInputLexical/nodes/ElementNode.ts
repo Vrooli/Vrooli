@@ -1,4 +1,4 @@
-import { DOUBLE_LINE_BREAK, ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } from "../consts";
+import { ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } from "../consts";
 import { RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection";
 import { BaseSelection, ElementFormatType, NodeConstructorPayloads, NodeKey, NodeType, PointType, SerializedElementNode } from "../types";
 import { errorOnReadOnly, getActiveEditor } from "../updates";
@@ -200,7 +200,7 @@ export class ElementNode extends LexicalNode {
         return this.getChildren().map(child => {
             const text = child.getMarkdownContent();
             if ($isNode("Element", child) && !child.isInline()) {
-                return text + DOUBLE_LINE_BREAK;
+                return text + "\n";
             }
             return text;
         }).join("");
@@ -210,7 +210,7 @@ export class ElementNode extends LexicalNode {
         return this.getChildren().map(child => {
             const text = child.getTextContent();
             if ($isNode("Element", child) && !child.isInline()) {
-                return text + DOUBLE_LINE_BREAK;
+                return text + "\n";
             }
             return text;
         }).join("");
@@ -220,7 +220,7 @@ export class ElementNode extends LexicalNode {
         return this.getChildren().reduce((acc, child) => {
             const childSize = child.getTextContentSize();
             if ($isNode("Element", child) && !child.isInline()) {
-                return acc + childSize + DOUBLE_LINE_BREAK.length;
+                return acc + childSize + "\n".length;
             }
             return acc + childSize;
         }, 0);

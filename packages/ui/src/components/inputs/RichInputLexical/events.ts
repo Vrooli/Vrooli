@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { BLUR_COMMAND, CLICK_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND, COPY_COMMAND, CUT_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, DRAGEND_COMMAND, DRAGOVER_COMMAND, DRAGSTART_COMMAND, DROP_COMMAND, FOCUS_COMMAND, FORMAT_TEXT_COMMAND, INSERT_LINE_BREAK_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_DOWN_COMMAND, KEY_ENTER_COMMAND, KEY_ESCAPE_COMMAND, KEY_MODIFIER_COMMAND, KEY_SPACE_COMMAND, KEY_TAB_COMMAND, MOVE_TO_END, MOVE_TO_START, PASTE_COMMAND, REDO_COMMAND, SELECTION_CHANGE_COMMAND, SELECT_ALL_COMMAND, UNDO_COMMAND } from "./commands";
+import { BLUR_COMMAND, CLICK_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND, COPY_COMMAND, CUT_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, DRAGEND_COMMAND, DRAGOVER_COMMAND, DRAGSTART_COMMAND, DROP_COMMAND, FOCUS_COMMAND, FORMAT_TEXT_COMMAND, INSERT_LINE_BREAK_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_ENTER_COMMAND, KEY_ESCAPE_COMMAND, KEY_MODIFIER_COMMAND, KEY_SPACE_COMMAND, KEY_TAB_COMMAND, MOVE_TO_END, MOVE_TO_START, PASTE_COMMAND, REDO_COMMAND, SELECTION_CHANGE_COMMAND, SELECT_ALL_COMMAND, UNDO_COMMAND } from "./commands";
 import { ANDROID_COMPOSITION_LATENCY, CAN_USE_BEFORE_INPUT, COMPOSITION_START_CHAR, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI } from "./consts";
 import { LexicalEditor } from "./editor";
 import { flushRootMutations } from "./mutations";
@@ -9,13 +9,10 @@ import { errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
 import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, dispatchCommand, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
 
 let lastKeyDownTimeStamp = 0;
-let lastKeyCode = 0;
 const lastBeforeInputInsertTextTimeStamp = 0;
-let unprocessedBeforeInputData: null | string = null;
 const rootElementsRegistered = new WeakMap<Document, number>();
 let isSelectionChangeFromDOMUpdate = false;
 let isSelectionChangeFromMouseDown = false;
-let isInsertLineBreak = false;
 let isFirefoxEndingComposition = false;
 let collapsedSelectionFormat: [number, string, number, NodeKey, number] = [
     0,
@@ -30,16 +27,12 @@ const activeNestedEditorsMap: Map<string, LexicalEditor> = new Map();
 
 const onKeyDown = (event: KeyboardEvent, editor: LexicalEditor): void => {
     lastKeyDownTimeStamp = event.timeStamp;
-    lastKeyCode = event.keyCode;
     if (editor.isComposing()) {
         return;
     }
 
     const { key } = event;
-
-    if (dispatchCommand(editor, KEY_DOWN_COMMAND, event)) {
-        return;
-    }
+    console.log("in onKeyDown", key, isBold(event));
 
     if (isMoveForward(event)) {
         dispatchCommand(editor, KEY_ARROW_RIGHT_COMMAND, event);
@@ -54,16 +47,13 @@ const onKeyDown = (event: KeyboardEvent, editor: LexicalEditor): void => {
     } else if (isMoveDown(event)) {
         dispatchCommand(editor, KEY_ARROW_DOWN_COMMAND, event);
     } else if (isLineBreak(event)) {
-        isInsertLineBreak = true;
         dispatchCommand(editor, KEY_ENTER_COMMAND, event);
     } else if (isSpace(key)) {
         dispatchCommand(editor, KEY_SPACE_COMMAND, event);
     } else if (isOpenLineBreak(event)) {
         event.preventDefault();
-        isInsertLineBreak = true;
         dispatchCommand(editor, INSERT_LINE_BREAK_COMMAND, true);
     } else if (isParagraph(event)) {
-        isInsertLineBreak = false;
         dispatchCommand(editor, KEY_ENTER_COMMAND, event);
     } else if (isDeleteBackward(event)) {
         if (isBackspace(key)) {
@@ -94,6 +84,7 @@ const onKeyDown = (event: KeyboardEvent, editor: LexicalEditor): void => {
         event.preventDefault();
         dispatchCommand(editor, DELETE_LINE_COMMAND, false);
     } else if (isBold(event)) {
+        console.log("is bold!");
         event.preventDefault();
         dispatchCommand(editor, FORMAT_TEXT_COMMAND, "BOLD");
     } else if (isUnderline(event)) {
@@ -234,7 +225,6 @@ const onInput = (event: InputEvent, editor: LexicalEditor): void => {
         const activeEditor = getActiveEditor();
         flushRootMutations(activeEditor);
     });
-    unprocessedBeforeInputData = null;
 };
 
 const onCompositionStart = (
