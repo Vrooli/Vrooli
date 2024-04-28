@@ -1,7 +1,9 @@
 import { TextField, Typography } from "@mui/material";
+import { useField } from "formik";
 import { RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { TextInputProps } from "../types";
+import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
+import { TextInputProps, TranslatedTextInputProps } from "../types";
 
 export const TextInput = ({
     enterWillSubmit,
@@ -49,4 +51,34 @@ export const TextInput = ({
         variant="outlined"
         {...props}
     />;
+};
+
+export const TranslatedTextInput = ({
+    language,
+    name,
+    ...props
+}: TranslatedTextInputProps) => {
+    const [field, meta, helpers] = useField("translations");
+    const { value, error, touched } = getTranslationData(field, meta, language);
+
+    const handleBlur = (event) => {
+        field.onBlur(event);
+    };
+
+    const handleChange = (event) => {
+        handleTranslationChange(field, meta, helpers, event, language);
+    };
+
+    return (
+        <TextInput
+            {...props}
+            id={name}
+            name={name}
+            value={value?.[name] || ""}
+            error={touched?.[name] && Boolean(error?.[name])}
+            helperText={touched?.[name] && error?.[name]}
+            onBlur={handleBlur}
+            onChange={handleChange}
+        />
+    );
 };

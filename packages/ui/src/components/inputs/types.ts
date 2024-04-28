@@ -1,5 +1,6 @@
 import { ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
+import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
 import { CSSProperties, RefObject } from "react";
@@ -101,7 +102,7 @@ export interface DropzoneProps {
     uploadText?: string;
 }
 
-export interface LanguageInputProps {
+export type LanguageInputProps = {
     disabled?: boolean;
     /**
      * Currently-selected language, if using this component to add/edit an object
@@ -116,6 +117,7 @@ export interface LanguageInputProps {
      * All languages that currently have translations for the object being edited.
      */
     languages: string[];
+    sx?: SxType
 }
 
 export interface LinkInputProps {
@@ -279,7 +281,7 @@ export interface IntegerInputBaseProps extends Omit<BoxProps, "onChange"> {
 
 export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
 
-export interface ResourceListInputProps {
+export type ResourceListInputProps = Pick<ResourceListProps, "sxs"> & {
     disabled?: boolean;
     horizontal: boolean;
     isCreate: boolean;
@@ -333,18 +335,17 @@ export type StandardVersionSelectSwitchProps = {
     disabled?: boolean;
 }
 
-export interface TagSelectorProps {
-    disabled?: boolean;
-    name: string;
-    placeholder?: string;
-}
-
-export interface TagSelectorBaseProps {
+export type TagSelectorBaseProps = {
     disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
     isOptional?: boolean;
     placeholder?: string;
     tags: (TagShape | Tag)[];
+    sx?: SxType;
+}
+
+export type TagSelectorProps = Pick<TagSelectorBaseProps, "disabled" | "placeholder" | "sx"> & {
+    name: string;
 }
 
 export type TextInputProps = Omit<TextFieldProps, "ref"> & {

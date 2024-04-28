@@ -1,13 +1,15 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DeleteManyInput, DeleteType, DUMMY_ID, endpointPostDeleteMany, Resource, ResourceUsedFor } from "@local/shared";
+import { CommonKey, Count, DUMMY_ID, DeleteManyInput, DeleteType, Resource, ResourceList as ResourceListType, ResourceUsedFor, endpointPostDeleteMany } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { ResourceListInputProps } from "components/inputs/types";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
+import { useField } from "formik";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -17,20 +19,20 @@ import usePress from "hooks/usePress";
 import { useSelectableList } from "hooks/useSelectableList";
 import { AddIcon, CloseIcon, DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
+import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { CardBox, multiLineEllipsis } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { ListObject, getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { updateArray } from "utils/shape/general";
-import { resourceInitialValues, ResourceUpsert } from "views/objects/resource";
+import { ResourceUpsert, resourceInitialValues } from "views/objects/resource";
 import { ResourceCardProps, ResourceListHorizontalProps, ResourceListProps, ResourceListVerticalProps } from "../types";
 
 const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
@@ -514,5 +516,33 @@ export const ResourceList = (props: ResourceListProps) => {
                     <ResourceListVertical {...childProps} />
             }
         </>
+    );
+};
+
+export const ResourceListInput = ({
+    disabled = false,
+    horizontal,
+    isCreate,
+    isLoading = false,
+    parent,
+    ...props
+}: ResourceListInputProps) => {
+    const [field, , helpers] = useField("resourceList");
+
+    const handleUpdate = useCallback((newList: ResourceListType) => {
+        helpers.setValue(newList);
+    }, [helpers]);
+
+    return (
+        <ResourceList
+            horizontal={horizontal}
+            list={field.value}
+            canUpdate={!disabled}
+            handleUpdate={handleUpdate}
+            loading={isLoading}
+            mutate={!isCreate}
+            parent={parent}
+            {...props}
+        />
     );
 };

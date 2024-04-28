@@ -44,6 +44,7 @@ export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
 const ToolButton = forwardRef(({
     disabled,
     icon,
+    id,
     isActive,
     label,
     onClick,
@@ -51,6 +52,7 @@ const ToolButton = forwardRef(({
 }: {
     disabled?: boolean,
     icon: React.ReactNode,
+    id?: string,
     isActive?: boolean,
     label: string,
     onClick: (event: React.MouseEvent<HTMLElement>) => unknown,
@@ -58,6 +60,7 @@ const ToolButton = forwardRef(({
 }, ref: React.Ref<HTMLButtonElement>) => (
     <Tooltip title={label}>
         <IconButton
+            id={id}
             ref={ref}
             disabled={disabled}
             size="small"
@@ -383,6 +386,7 @@ export const RichInputToolbar = ({
                 }}
             >
                 {credits && BigInt(credits) > 0 && !disableAssistant && <ToolButton
+                    id={`${id}-assistant`}
                     icon={<MagicIcon fill={palette.primary.contrastText} />}
                     label={t("AIAssistant")}
                     onClick={() => handleToggleAction("Assistant")}

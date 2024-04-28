@@ -15,6 +15,7 @@ export const LanguageInput = ({
     handleDelete,
     handleCurrent,
     languages,
+    sx,
 }: LanguageInputProps) => {
     const session = useContext(SessionContext);
     // TODO for morning: improve look of this component, fix bugs with translations when creating/updating, then fix other bugs with creating/updating
@@ -54,7 +55,7 @@ export const LanguageInput = ({
     }, [handleAdd, handleCurrent, handleDelete, session, languages]);
 
     return (
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} sx={sx}>
             <SelectLanguageMenu
                 currentLanguage={currentLanguage}
                 handleDelete={deleteLanguage}

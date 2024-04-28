@@ -1,4 +1,4 @@
-import { ChatInviteStatus, DUMMY_ID, noop, uuid } from "@local/shared";
+import { ChatInviteStatus, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { SessionContext } from "contexts/SessionContext";
@@ -10,6 +10,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getCookie, getCookieMatchingChat, setCookie } from "utils/cookies";
 import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { generateContext } from "utils/display/stringTools";
+import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
@@ -17,7 +18,7 @@ import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
 import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
-import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps } from "../types";
+import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps, TranslatedRichInputProps } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 
@@ -315,6 +316,47 @@ export const RichInput = ({
             error={meta.touched && !!meta.error}
             helperText={meta.touched && meta.error}
             onBlur={field.onBlur}
+            onChange={handleChange}
+        />
+    );
+};
+
+export const TranslatedRichInput = ({
+    language,
+    name,
+    ...props
+}: TranslatedRichInputProps) => {
+    const [field, meta, helpers] = useField("translations");
+    const translationData = getTranslationData(field, meta, language);
+
+    const fieldValue = getDotNotationValue(translationData.value, name);
+    const fieldError = getDotNotationValue(translationData.error, name);
+    const fieldTouched = getDotNotationValue(translationData.touched, name);
+
+    const handleBlur = (event) => {
+        field.onBlur(event);
+    };
+
+    const handleChange = (newText: string) => {
+        // Only use dot notation if the name has a dot in it
+        if (name.includes(".")) {
+            const updatedValue = setDotNotationValue(translationData.value ?? {}, name, newText);
+            helpers.setValue(field.value.map((translation) => {
+                if (translation.language === language) return updatedValue;
+                return translation;
+            }));
+        }
+        else handleTranslationChange(field, meta, helpers, { target: { name, value: newText } }, language);
+    };
+
+    return (
+        <RichInputBase
+            {...props}
+            name={name}
+            value={fieldValue || ""}
+            error={fieldTouched && Boolean(fieldError)}
+            helperText={fieldTouched && fieldError}
+            onBlur={handleBlur}
             onChange={handleChange}
         />
     );

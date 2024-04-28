@@ -14,6 +14,7 @@ export function ContentCollapse({
     sxs,
     title,
     titleComponent,
+    titleVariant,
     titleKey,
     titleVariables,
 }: ContentCollapseProps) {
@@ -48,7 +49,7 @@ export function ContentCollapse({
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography component={titleComponent ?? "h6"} variant="h6">{titleText}</Typography>
+                <Typography component={titleComponent ?? "h6"} variant={titleVariant ?? "h6"}>{titleText}</Typography>
                 {helpText && <HelpButton
                     markdown={helpText}
                     sx={sxs?.helpButton ?? {}}

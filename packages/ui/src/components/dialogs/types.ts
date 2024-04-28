@@ -265,6 +265,7 @@ export interface LargeDialogProps {
         paper?: SxType;
         root?: SxType;
     };
+    zIndexOffset?: number;
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {

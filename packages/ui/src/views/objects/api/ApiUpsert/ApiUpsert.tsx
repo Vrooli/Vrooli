@@ -1,17 +1,17 @@
-import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, noopSubmit, orDefault, Session } from "@local/shared";
-import { Button, Grid, InputAdornment, Stack } from "@mui/material";
+import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, LINKS, noopSubmit, orDefault, Session } from "@local/shared";
+import { Button, Divider, Grid, InputAdornment, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInputBase/CodeInputBase";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
@@ -22,12 +22,13 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { CompleteIcon, LinkIcon } from "icons";
+import { CompleteIcon, LinkIcon, SearchIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { ApiShape } from "utils/shape/models/api";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
 import { validateFormValues } from "utils/validateFormValues";
@@ -90,6 +91,7 @@ const ApiForm = ({
 }: ApiFormProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const { palette } = useTheme();
 
     // useEffect(() => {
     //     const params = parseSearchParams();
@@ -155,123 +157,144 @@ const ApiForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateApi" : "UpdateApi")}
             />
+            <Button
+                href={`${LINKS.Search}?type=${SearchPageTabOption.Api}`}
+                sx={{
+                    color: palette.background.textSecondary,
+                    display: "flex",
+                    marginTop: 2,
+                    textAlign: "center",
+                    textTransform: "none",
+                }}
+                variant="text"
+                endIcon={<SearchIcon />}
+            >
+                Search existing apis
+            </Button>
             <BaseForm
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
             >
                 <FormContainer>
-                    <RelationshipList
-                        isEditing={true}
-                        objectType={"Api"}
-                    />
-                    <FormSection>
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleDeleteLanguage}
-                            handleCurrent={setLanguage}
-                            languages={languages}
+                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"Api"}
+                            sx={{ marginBottom: 2 }}
                         />
-                        <TranslatedTextInput
-                            autoFocus
-                            fullWidth
-                            label={t("Name")}
-                            language={language}
-                            name="name"
-                            placeholder={t("NamePlaceholder")}
-                        />
-                        <TranslatedRichInput
-                            language={language}
-                            name="summary"
-                            maxChars={1024}
-                            minRows={4}
-                            maxRows={8}
-                            placeholder={t("Summary")}
-                        />
-                        <TranslatedRichInput
-                            language={language}
-                            name="details"
-                            maxChars={8192}
-                            minRows={4}
-                            maxRows={8}
-                            placeholder={t("Details")}
-                        />
-                    </FormSection>
-                    <FormSection>
-                        <Field
-                            fullWidth
-                            name="callLink"
-                            label={"Endpoint URL"}
-                            placeholder={"https://example.com"}
-                            as={TextInput}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <LinkIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                        {/* Selector for documentation URL or text */}
-                        <Grid item xs={12} pb={2}>
-                            {/* Title with help text */}
-                            <Title
-                                title="Use URL for schema?"
-                                help={"Is your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema available at a URL? If so, select \"Yes\" and enter the URL below. If not, select \"No\" and enter the schema text below.\n\n*This field is not required, but recommended.*"}
-                                variant="subheader"
+                        <FormSection sx={{ overflowX: "hidden", marginBottom: 2 }}>
+                            <TranslatedTextInput
+                                autoFocus
+                                fullWidth
+                                label={t("Name")}
+                                language={language}
+                                name="name"
+                                placeholder={t("NamePlaceholder")}
                             />
-                            {/* Yes/No buttons */}
-                            <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
-                                <Button
-                                    fullWidth
-                                    color="secondary"
-                                    onClick={() => setHasDocUrl(true)}
-                                    variant="outlined"
-                                    startIcon={hasDocUrl === true ? <CompleteIcon /> : undefined}
-                                >{t("Yes")}</Button>
-                                <Button
-                                    fullWidth
-                                    color="secondary"
-                                    onClick={() => setHasDocUrl(false)}
-                                    variant="outlined"
-                                    startIcon={hasDocUrl === false ? <CompleteIcon /> : undefined}
-                                >{t("No")}</Button>
-                            </Stack >
-                        </Grid >
-                        {
-                            hasDocUrl === true && (
-                                <Field
-                                    fullWidth
-                                    name="documentationLink"
-                                    label={"Schema URL (Optional)"}
-                                    helperText={"The full URL to the schema"}
-                                    as={TextInput}
+                            <TranslatedRichInput
+                                language={language}
+                                name="summary"
+                                maxChars={1024}
+                                minRows={4}
+                                maxRows={8}
+                                placeholder={t("Summary")}
+                            />
+                            <TranslatedRichInput
+                                language={language}
+                                name="details"
+                                maxChars={8192}
+                                minRows={4}
+                                maxRows={8}
+                                placeholder={t("Details")}
+                            />
+                            <LanguageInput
+                                currentLanguage={language}
+                                handleAdd={handleAddLanguage}
+                                handleDelete={handleDeleteLanguage}
+                                handleCurrent={setLanguage}
+                                languages={languages}
+                                sx={{ flexDirection: "row-reverse" }}
+                            />
+                        </FormSection>
+                        <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
+                        <VersionInput
+                            fullWidth
+                            versions={versions}
+                            sx={{ marginBottom: 2 }}
+                        />
+                        <ResourceListInput
+                            horizontal
+                            isCreate={true}
+                            parent={{ __typename: "ApiVersion", id: values.id }}
+                            sxs={{ list: { marginBottom: 2 } }}
+                        />
+                    </ContentCollapse>
+                    <Divider />
+                    <ContentCollapse title="Api info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                        <FormSection>
+                            <Field
+                                fullWidth
+                                name="callLink"
+                                label={"Endpoint URL"}
+                                placeholder={"https://example.com"}
+                                as={TextInput}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <LinkIcon />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            {/* Selector for documentation URL or text */}
+                            <Grid item xs={12} pb={2}>
+                                {/* Title with help text */}
+                                <Title
+                                    title="Use URL for schema?"
+                                    help={"Is your API's [OpenAPI](https://swagger.io/specification/) or [GraphQL](https://graphql.org/) schema available at a URL? If so, select \"Yes\" and enter the URL below. If not, select \"No\" and enter the schema text below.\n\n*This field is not required, but recommended.*"}
+                                    variant="subheader"
                                 />
-                            )
-                        }
-                        {
-                            hasDocUrl === false && (
-                                <CodeInputBase
-                                    disabled={false}
-                                    limitTo={[StandardLanguage.Json, StandardLanguage.Graphql]}
-                                    name="schemaText"
-                                />
-                            )
-                        }
-                    </FormSection>
-                    <ResourceListInput
-                        horizontal
-                        isCreate={true}
-                        parent={{ __typename: "ApiVersion", id: values.id }}
-                    />
-                    <TagSelector
-                        name="root.tags"
-                    />
-                    <VersionInput
-                        fullWidth
-                        versions={versions}
-                    />
+                                {/* Yes/No buttons */}
+                                <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
+                                    <Button
+                                        fullWidth
+                                        color="secondary"
+                                        onClick={() => setHasDocUrl(true)}
+                                        variant="outlined"
+                                        startIcon={hasDocUrl === true ? <CompleteIcon /> : undefined}
+                                    >{t("Yes")}</Button>
+                                    <Button
+                                        fullWidth
+                                        color="secondary"
+                                        onClick={() => setHasDocUrl(false)}
+                                        variant="outlined"
+                                        startIcon={hasDocUrl === false ? <CompleteIcon /> : undefined}
+                                    >{t("No")}</Button>
+                                </Stack >
+                            </Grid >
+                            {
+                                hasDocUrl === true && (
+                                    <Field
+                                        fullWidth
+                                        name="documentationLink"
+                                        label={"Schema URL (Optional)"}
+                                        helperText={"The full URL to the schema"}
+                                        as={TextInput}
+                                    />
+                                )
+                            }
+                            {
+                                hasDocUrl === false && (
+                                    <CodeInputBase
+                                        disabled={false}
+                                        limitTo={[StandardLanguage.Json, StandardLanguage.Graphql]}
+                                        name="schemaText"
+                                    />
+                                )
+                            }
+                        </FormSection>
+                    </ContentCollapse>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons

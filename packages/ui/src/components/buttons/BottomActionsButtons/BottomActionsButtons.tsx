@@ -61,7 +61,7 @@ export const BottomActionsButtons = ({
                 width: "100%",
                 pointerEvents: "none",
                 "& > *": {
-                    marginBottom: "calc(16px + env(safe-area-inset-bottom))!important",
+                    marginBottom: !hideButtons ? "4px !important" : "calc(16px + env(safe-area-inset-bottom)) !important",
                     pointerEvents: "auto",
                 },
             }}>

@@ -1,18 +1,17 @@
-import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LlmTask, noopSubmit, Session, User } from "@local/shared";
-import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LINKS, LlmTask, noopSubmit, Session, User } from "@local/shared";
+import { Button, Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -22,7 +21,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -30,6 +29,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
+import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 import { BotFormProps, BotUpsertProps } from "../types";
@@ -282,28 +282,39 @@ const BotForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateBot" : "UpdateBot")}
             />
+            <Button
+                href={`${LINKS.Search}?type=${SearchPageTabOption.User}`}
+                sx={{
+                    color: palette.background.textSecondary,
+                    display: "flex",
+                    marginTop: 2,
+                    textAlign: "center",
+                    textTransform: "none",
+                }}
+                variant="text"
+                endIcon={<SearchIcon />}
+            >
+                Search existing bots
+            </Button>
             <BaseForm
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
             >
                 <FormContainer>
-                    <ProfilePictureInput
-                        onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
-                        onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
-                        name="profileImage"
-                        profile={{ ...values }}
-                    />
-                    <Box>
-                        <Title variant="subheader" title="Basic info" />
+                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                         <RelationshipList
                             isEditing={true}
                             objectType={"User"}
                             sx={{ marginBottom: 4 }}
                         />
-                        <FormSection sx={{
-                            overflowX: "hidden",
-                        }}>
+                        <ProfilePictureInput
+                            onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
+                            onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                            name="profileImage"
+                            profile={{ ...values }}
+                        />
+                        <FormSection sx={{ overflowX: "hidden" }}>
                             <Field
                                 fullWidth
                                 autoComplete="name"
@@ -371,27 +382,12 @@ const BotForm = ({
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
+                                sx={{ flexDirection: "row-reverse" }}
                             />
                         </FormSection>
-                    </Box>
-                    <Box>
-                        <Title variant="subheader" title={t("Model", { count: 1 })} />
-                        <SelectorBase
-                            name="model"
-                            options={AVAILABLE_MODELS}
-                            getOptionLabel={(r) => r.name}
-                            getOptionDescription={(r) => r.description}
-                            fullWidth={true}
-                            inputAriaLabel="Mode"
-                            label={t("Model", { count: 1 })}
-                            onChange={(newModel) => {
-                                modelHelpers.setValue(newModel.value);
-                            }}
-                            value={model}
-                        />
-                    </Box>
-                    <Box>
-                        <Title variant="subheader" title="Personality" />
+                    </ContentCollapse>
+                    <Divider />
+                    <ContentCollapse title="Personality" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                         <FormSection sx={{
                             overflowX: "hidden",
                         }}>
@@ -501,9 +497,25 @@ const BotForm = ({
                                 value={verbosityField.value}
                             />
                         </FormSection>
-                    </Box>
+                    </ContentCollapse>
+                    <Divider />
+                    <ContentCollapse title={t("Model", { count: 1 })} titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                        <SelectorBase
+                            name="model"
+                            options={AVAILABLE_MODELS}
+                            getOptionLabel={(r) => r.name}
+                            getOptionDescription={(r) => r.description}
+                            fullWidth={true}
+                            inputAriaLabel="Mode"
+                            label={t("Model", { count: 1 })}
+                            onChange={(newModel) => {
+                                modelHelpers.setValue(newModel.value);
+                            }}
+                            value={model}
+                        />
+                    </ContentCollapse>
                 </FormContainer>
-            </BaseForm>
+            </BaseForm >
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
@@ -526,7 +538,7 @@ const BotForm = ({
                     </Tooltip>
                 ) : null}
             />
-        </MaybeLargeDialog>
+        </MaybeLargeDialog >
     );
 };
 

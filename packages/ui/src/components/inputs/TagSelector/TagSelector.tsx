@@ -17,6 +17,7 @@ export const TagSelectorBase = ({
     isOptional = true,
     tags,
     placeholder,
+    sx,
 }: TagSelectorBaseProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -205,14 +206,15 @@ export const TagSelectorBase = ({
                     sx={{ paddingRight: 0, minWidth: "250px" }}
                 />
             )}
+            sx={sx}
         />
     );
 };
 
 export const TagSelector = ({
-    disabled,
     name,
     placeholder = "Enter tags, followed by commas...",
+    ...props
 }: TagSelectorProps) => {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
@@ -222,10 +224,10 @@ export const TagSelector = ({
 
     return (
         <TagSelectorBase
-            disabled={disabled}
             handleTagsUpdate={handleTagsUpdate}
             placeholder={placeholder}
             tags={field.value ?? []}
+            {...props}
         />
     );
 };

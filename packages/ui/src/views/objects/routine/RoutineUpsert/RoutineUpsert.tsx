@@ -1,16 +1,17 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, Node, NodeLink, noopSubmit, orDefault, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, FormControlLabel, Grid, Stack, Tooltip } from "@mui/material";
+import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, Node, NodeLink, noopSubmit, orDefault, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { Button, Checkbox, Divider, FormControlLabel, Grid, Stack, Tooltip, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceListInput } from "components/inputs/ResourceListInput/ResourceListInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
@@ -21,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { CompleteIcon, RoutineIcon } from "icons";
+import { CompleteIcon, RoutineIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -29,6 +30,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
+import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -107,6 +109,7 @@ const RoutineForm = ({
 }: RoutineFormProps) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const { palette } = useTheme();
 
     // Handle translations
     const {
@@ -224,59 +227,79 @@ const RoutineForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
             />
+            <Button
+                href={`${LINKS.Search}?type=${SearchPageTabOption.Routine}`}
+                sx={{
+                    color: palette.background.textSecondary,
+                    display: "flex",
+                    marginTop: 2,
+                    textAlign: "center",
+                    textTransform: "none",
+                }}
+                variant="text"
+                endIcon={<SearchIcon />}
+            >
+                Search existing routines
+            </Button>
             <BaseForm
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
             >
                 <FormContainer>
-                    <RelationshipList
-                        isEditing={true}
-                        objectType={"Routine"}
-                    />
-                    <ResourceListInput
-                        horizontal
-                        isCreate={true}
-                        parent={{ __typename: "RoutineVersion", id: values.id }}
-                    />
-                    <FormSection>
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleDeleteLanguage}
-                            handleCurrent={setLanguage}
-                            languages={languages}
+                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"Routine"}
+                            sx={{ marginBottom: 2 }}
                         />
-                        <TranslatedTextInput
-                            autoFocus
-                            fullWidth
-                            label={t("Name")}
-                            language={language}
-                            name="name"
-                            placeholder={t("NamePlaceholder")}
+                        <ResourceListInput
+                            horizontal
+                            isCreate={true}
+                            parent={{ __typename: "RoutineVersion", id: values.id }}
+                            sxs={{ list: { marginBottom: 2 } }}
                         />
-                        <TranslatedRichInput
-                            language={language}
-                            name="description"
-                            maxChars={2048}
-                            maxRows={4}
-                            minRows={2}
-                            placeholder={t("DescriptionPlaceholder")}
-                        />
-                        <TranslatedRichInput
-                            language={language}
-                            name="instructions"
-                            maxChars={8192}
-                            minRows={4}
-                            placeholder={t("Instructions")}
-                        />
-                        <br />
-                        <TagSelector name="root.tags" />
+                        <FormSection sx={{ overflowX: "hidden", marginBottom: 2 }}>
+                            <TranslatedTextInput
+                                autoFocus
+                                fullWidth
+                                label={t("Name")}
+                                language={language}
+                                name="name"
+                                placeholder={t("NamePlaceholder")}
+                            />
+                            <TranslatedRichInput
+                                language={language}
+                                name="description"
+                                maxChars={2048}
+                                maxRows={4}
+                                minRows={2}
+                                placeholder={t("DescriptionPlaceholder")}
+                            />
+                            <TranslatedRichInput
+                                language={language}
+                                name="instructions"
+                                maxChars={8192}
+                                minRows={4}
+                                placeholder={t("Instructions")}
+                            />
+                            <LanguageInput
+                                currentLanguage={language}
+                                handleAdd={handleAddLanguage}
+                                handleDelete={handleDeleteLanguage}
+                                handleCurrent={setLanguage}
+                                languages={languages}
+                                sx={{ flexDirection: "row-reverse" }}
+                            />
+                        </FormSection>
+                        <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
                         <VersionInput
                             fullWidth
                             versions={versions}
+                            sx={{ marginBottom: 2 }}
                         />
-                    </FormSection>
+                    </ContentCollapse>
+                    <Divider />
                     {/* Is internal checkbox */}
                     {isSubroutine && (
                         <Grid item xs={12}>

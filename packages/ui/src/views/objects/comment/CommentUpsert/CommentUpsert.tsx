@@ -3,7 +3,7 @@ import { Box, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";

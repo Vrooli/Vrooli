@@ -1,13 +1,13 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, NoteVersion, NoteVersionCreateInput, noteVersionTranslationValidation, NoteVersionUpdateInput, noteVersionValidation, orDefault, Session, Success } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -23,6 +23,7 @@ import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
+import { MagicIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -92,6 +93,7 @@ const NoteForm = ({
     ...props
 }: NoteFormProps) => {
     const session = useContext(SessionContext);
+    const { credits } = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
@@ -169,170 +171,209 @@ const NoteForm = ({
         });
     }, [deleteMutation, values, t, handleDeleted]);
 
+    const openAssistantDialog = useCallback(() => {
+        // Hacky, but it works
+        const assistantButton = document.getElementById("input-container-pages[0].text-toolbar-assistant");
+        assistantButton?.click();
+    }, []);
+
+    const sideActionButtons = useMemo(() => {
+        const buttons: JSX.Element[] = [];
+        if (!isCreate) {
+            buttons.push(
+                <ObjectActionsRow
+                    actionData={actionData}
+                    exclude={[ObjectAction.Delete, ObjectAction.Edit]}
+                    object={values as ListObject}
+                />,
+            );
+        }
+        if (disabled && languages.length > 1) {
+            buttons.push(
+                <Box sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}>
+                    <SelectLanguageMenu
+                        currentLanguage={language}
+                        handleCurrent={setLanguage}
+                        languages={languages}
+                    />
+                </Box>,
+            );
+        }
+        if ((isCreate || !disabled) && credits && BigInt(credits) > 0) {
+            buttons.push(
+                <Tooltip title={t("AIAssistant")} placement="top">
+                    <IconButton
+                        aria-label={t("AIAssistant")}
+                        onClick={openAssistantDialog}
+                        sx={{ background: palette.secondary.main }}
+                    >
+                        <MagicIcon fill={palette.secondary.contrastText} width="36px" height="36px" />
+                    </IconButton>
+                </Tooltip>,
+            );
+        }
+        if (buttons.length === 0) {
+            return null;
+        }
+        if (buttons.length === 1) {
+            return buttons[0];
+        }
+        return (
+            <EllipsisActionButton>
+                <>
+                    {buttons}
+                </>
+            </EllipsisActionButton>
+        );
+    }, [actionData, credits, disabled, isCreate, language, languages, openAssistantDialog, palette.secondary.contrastText, palette.secondary.main, setLanguage, t, values]);
+
     const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="note-crud-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-            sxs={{ paper: { height: "100%" } }}
-        >
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                height: "100vh",
-                overflow: "hidden",
-            }}>
-                <TopBar
-                    display={display}
-                    keepVisible
-                    onClose={onClose}
-                    titleComponent={<EditableTitle
-                        handleDelete={handleDelete}
-                        isDeletable={!(isCreate || disabled)}
-                        isEditable={!disabled}
-                        language={language}
-                        titleField="name"
-                        subtitleField="description"
-                        variant="subheader"
-                        sxs={{
-                            stack: {
-                                padding: 0,
-                                ...(display === "page" && !isMobile ? {
-                                    margin: "auto",
-                                    maxWidth: "800px",
-                                    paddingTop: 1,
-                                    paddingBottom: 1,
-                                } : {}),
-                            },
-                        }}
-                        DialogContentForm={() => (
-                            <>
-                                <BaseForm
-                                    display="dialog"
-                                    style={{
-                                        width: "min(700px, 100vw)",
-                                        paddingBottom: "16px",
-                                    }}
-                                >
-                                    <FormContainer>
-                                        <RelationshipList
-                                            isEditing={!disabled}
-                                            objectType={"Note"}
-                                            sx={{ marginBottom: 4 }}
-                                        />
-                                        <FormSection sx={{ overflowX: "hidden" }}>
-                                            <LanguageInput
-                                                currentLanguage={language}
-                                                handleAdd={handleAddLanguage}
-                                                handleDelete={handleDeleteLanguage}
-                                                handleCurrent={setLanguage}
-                                                languages={languages}
-                                            />
-                                            <TranslatedTextInput
-                                                fullWidth
-                                                label={t("Name")}
-                                                language={language}
-                                                name="name"
-                                            />
-                                            <TranslatedRichInput
-                                                language={language}
-                                                maxChars={2048}
-                                                minRows={4}
-                                                name="description"
-                                                placeholder={t("DescriptionPlaceholder")}
-                                            />
-                                        </FormSection>
-                                    </FormContainer>
-                                </BaseForm>
-                            </>
-                        )}
-                    />}
-                />
-                <BaseForm
-                    display={display}
-                    isLoading={isLoading}
-                    style={{ display: "contents" }}
-                >
-                    <TranslatedRichInput
-                        language={language}
-                        autoFocus
-                        name="pages[0].text"
-                        placeholder={t("PleaseBeNice")}
-                        disabled={disabled}
-                        sxs={{
-                            root: {
-                                display: "flex",
-                                position: "relative",
-                                width: "100%",
-                                maxWidth: "800px",
-                                borderRadius: { xs: 0, md: 1 },
-                                overflow: "hidden",
-                                margin: "auto",
-                                flex: 1,
-                            },
-                            topBar: {
-                                borderRadius: 0,
-                            },
-                            inputRoot: {
-                                borderRadius: 0,
-                                height: "100%",
-                                overflow: "scroll",
-                                background: palette.background.paper,
-                                border: "none",
-                                flex: 1,
-                            },
-                            textArea: {
-                                paddingBottom: "128px",
-                            },
-                        }}
-                    />
-                </BaseForm>
+        <>
+            <MaybeLargeDialog
+                display={display}
+                id="note-crud-dialog"
+                isOpen={isOpen}
+                onClose={onClose}
+                sxs={{ paper: { height: "100%" } }}
+            >
                 <Box sx={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    bottom: isMobile ? "calc(64px - 8px)" : 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100vh",
+                    overflow: "hidden",
                 }}>
-                    <BottomActionsButtons
+                    <TopBar
                         display={display}
-                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                        hideButtons={disabled}
-                        isCreate={isCreate}
-                        loading={isLoading}
-                        onCancel={handleCancel}
-                        onSetSubmitting={props.setSubmitting}
-                        onSubmit={onSubmit}
-                        sideActionButtons={(!isCreate || (disabled && languages.length > 1)) ? (
-                            <EllipsisActionButton>
+                        keepVisible
+                        onClose={onClose}
+                        titleComponent={<EditableTitle
+                            handleDelete={handleDelete}
+                            isDeletable={!(isCreate || disabled)}
+                            isEditable={!disabled}
+                            language={language}
+                            titleField="name"
+                            subtitleField="description"
+                            variant="subheader"
+                            sxs={{
+                                stack: {
+                                    padding: 0,
+                                    ...(display === "page" && !isMobile ? {
+                                        margin: "auto",
+                                        maxWidth: "800px",
+                                        paddingTop: 1,
+                                        paddingBottom: 1,
+                                    } : {}),
+                                },
+                            }}
+                            DialogContentForm={() => (
                                 <>
-                                    <Box sx={{
-                                        display: "flex",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                    }}>
-                                        {disabled && languages.length > 1 ? <SelectLanguageMenu
-                                            currentLanguage={language}
-                                            handleCurrent={setLanguage}
-                                            languages={languages}
-                                        /> : undefined}
-                                    </Box>
-                                    {!isCreate && (
-                                        <ObjectActionsRow
-                                            actionData={actionData}
-                                            exclude={[ObjectAction.Delete, ObjectAction.Edit]}
-                                            object={values as ListObject}
-                                        />
-                                    )}
+                                    <BaseForm
+                                        display="dialog"
+                                        style={{
+                                            width: "min(700px, 100vw)",
+                                            paddingBottom: "16px",
+                                        }}
+                                    >
+                                        <FormContainer>
+                                            <RelationshipList
+                                                isEditing={!disabled}
+                                                objectType={"Note"}
+                                                sx={{ marginBottom: 4 }}
+                                            />
+                                            <FormSection sx={{ overflowX: "hidden" }}>
+                                                <LanguageInput
+                                                    currentLanguage={language}
+                                                    handleAdd={handleAddLanguage}
+                                                    handleDelete={handleDeleteLanguage}
+                                                    handleCurrent={setLanguage}
+                                                    languages={languages}
+                                                />
+                                                <TranslatedTextInput
+                                                    fullWidth
+                                                    label={t("Name")}
+                                                    language={language}
+                                                    name="name"
+                                                />
+                                                <TranslatedRichInput
+                                                    language={language}
+                                                    maxChars={2048}
+                                                    minRows={4}
+                                                    name="description"
+                                                    placeholder={t("DescriptionPlaceholder")}
+                                                />
+                                            </FormSection>
+                                        </FormContainer>
+                                    </BaseForm>
                                 </>
-                            </EllipsisActionButton>
-                        ) : null}
+                            )}
+                        />}
                     />
+                    <BaseForm
+                        display={display}
+                        isLoading={isLoading}
+                        style={{ display: "contents" }}
+                    >
+                        <TranslatedRichInput
+                            language={language}
+                            autoFocus
+                            name="pages[0].text"
+                            placeholder={t("PleaseBeNice")}
+                            disabled={disabled}
+                            sxs={{
+                                root: {
+                                    display: "flex",
+                                    position: "relative",
+                                    width: "100%",
+                                    maxWidth: "800px",
+                                    borderRadius: { xs: 0, md: 1 },
+                                    overflow: "hidden",
+                                    margin: "auto",
+                                    flex: 1,
+                                },
+                                topBar: {
+                                    borderRadius: 0,
+                                },
+                                inputRoot: {
+                                    borderRadius: 0,
+                                    height: "100%",
+                                    overflow: "scroll",
+                                    background: palette.background.paper,
+                                    border: "none",
+                                    flex: 1,
+                                },
+                                textArea: {
+                                    paddingBottom: "128px",
+                                },
+                            }}
+                        />
+                    </BaseForm>
+                    <Box sx={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        bottom: isMobile ? "calc(64px - 8px)" : 0,
+                    }}>
+                        <BottomActionsButtons
+                            display={display}
+                            errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                            hideButtons={disabled}
+                            isCreate={isCreate}
+                            loading={isLoading}
+                            onCancel={handleCancel}
+                            onSetSubmitting={props.setSubmitting}
+                            onSubmit={onSubmit}
+                            sideActionButtons={sideActionButtons}
+                        />
+                    </Box>
                 </Box>
-            </Box>
-        </MaybeLargeDialog>
+            </MaybeLargeDialog>
+        </>
     );
 };
 

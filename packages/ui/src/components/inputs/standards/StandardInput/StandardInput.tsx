@@ -78,7 +78,7 @@ export const StandardInput = ({
                             name="inputType"
                             inputAriaLabel='input-type-selector'
                             label="Type"
-                            sx={{ marginBottom: 2 }}
+                            sxs={{ root: { marginBottom: 2 } }}
                         />
                         <BaseStandardInput
                             fieldName={fieldName}

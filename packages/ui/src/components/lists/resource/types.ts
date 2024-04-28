@@ -17,7 +17,7 @@ export interface ResourceCardProps {
     onDelete: (data: Resource) => unknown;
 }
 
-export interface ResourceListProps {
+export type ResourceListProps = {
     title?: string;
     canUpdate?: boolean;
     handleUpdate?: (updatedList: ResourceList) => unknown;

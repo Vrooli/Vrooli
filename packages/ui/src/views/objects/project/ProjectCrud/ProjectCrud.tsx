@@ -4,8 +4,8 @@ import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { DirectoryList } from "components/lists/directory";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -163,7 +163,7 @@ const ProjectForm = ({
     }, [deleteMutation, values, t, handleDeleted]);
 
     const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-    console.log('project values', values, transformProjectVersionValues(values, existing, isCreate));
+    console.log("project values", values, transformProjectVersionValues(values, existing, isCreate));
 
     const onSubmit = useSubmitHelper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
         disabled,

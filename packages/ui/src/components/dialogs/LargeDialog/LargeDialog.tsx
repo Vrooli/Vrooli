@@ -10,9 +10,10 @@ export const LargeDialog = ({
     onClose,
     titleId,
     sxs,
+    zIndexOffset = 1000,
 }: LargeDialogProps) => {
     const { palette, spacing } = useTheme();
-    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, 1000);
+    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, zIndexOffset);
 
     return (
         <Dialog

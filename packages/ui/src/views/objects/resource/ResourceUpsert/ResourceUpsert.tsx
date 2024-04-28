@@ -5,7 +5,7 @@ import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/Bo
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";

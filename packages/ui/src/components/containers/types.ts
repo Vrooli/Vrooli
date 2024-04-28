@@ -1,4 +1,5 @@
 import { CommentFor, CommonKey } from "@local/shared";
+import { TypographyProps } from "@mui/material";
 import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "components/inputs/types";
 import { ReactNode } from "react";
 import { SvgComponent, SvgProps, SxType } from "types";
@@ -57,7 +58,8 @@ export interface ContentCollapseProps {
         helpButton?: SvgProps;
     }
     title?: string | null;
-    titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
+    titleComponent?: TypographyProps["component"];
+    titleVariant?: TypographyProps["variant"];
     titleKey?: CommonKey;
     titleVariables?: { [x: string]: string | number };
 }
