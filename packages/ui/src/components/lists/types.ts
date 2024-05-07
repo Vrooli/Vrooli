@@ -240,4 +240,5 @@ export interface TIDCardProps {
     id?: string;
     onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
     title: string;
+    warning?: string;
 }

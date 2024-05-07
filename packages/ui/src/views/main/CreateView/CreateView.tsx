@@ -16,6 +16,7 @@ type CreateInfo = {
     description: CommonKey,
     Icon: SvgComponent,
     id: string,
+    incomplete?: boolean;
 }
 
 export const createCards: CreateInfo[] = [
@@ -66,6 +67,7 @@ export const createCards: CreateInfo[] = [
         description: "CreateQuestionDescription",
         Icon: HelpIcon,
         id: "create-question-card",
+        incomplete: true,
     },
     {
         objectType: "Standard",
@@ -78,12 +80,14 @@ export const createCards: CreateInfo[] = [
         description: "CreateSmartContractDescription",
         Icon: SmartContractIcon,
         id: "create-smart-contract-card",
+        incomplete: true,
     },
     {
         objectType: "Api",
         description: "CreateApiDescription",
         Icon: ApiIcon,
         id: "create-api-card",
+        incomplete: true,
     },
 ];
 
@@ -132,7 +136,7 @@ export const CreateView = ({
                 title={t("Create")}
             />
             <CardGrid minWidth={300}>
-                {sortedCards.map(({ objectType, description, Icon, id }, index) => (
+                {sortedCards.map(({ objectType, description, Icon, id, incomplete }, index) => (
                     <TIDCard
                         buttonText={t("Create")}
                         description={t(description)}
@@ -141,6 +145,7 @@ export const CreateView = ({
                         key={index}
                         onClick={() => onSelect(objectType)}
                         title={t(objectType, { count: 1 })}
+                        warning={incomplete ? "Coming soon" : undefined}
                     />
                 ))}
             </CardGrid>
