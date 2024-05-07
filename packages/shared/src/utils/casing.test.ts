@@ -54,6 +54,20 @@ describe("pascalCase", () => {
     });
 });
 
+describe("camelCase", () => {
+    it("should convert a string to camelCase", () => {
+        expect(pascalCase("hello-world")).toBe("HelloWorld");
+        expect(pascalCase("hello_world")).toBe("HelloWorld");
+        expect(pascalCase("hello world")).toBe("HelloWorld");
+        expect(pascalCase("helloWorld")).toBe("HelloWorld");
+        expect(pascalCase("HelloWorld")).toBe("HelloWorld");
+    });
+
+    it("should return an empty string if an empty string is provided", () => {
+        expect(pascalCase("")).toBe("");
+    });
+});
+
 describe("snakeCase", () => {
     it("should convert a string to snake_case", () => {
         expect(snakeCase("helloWorld")).toBe("hello_world");

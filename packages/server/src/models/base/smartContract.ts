@@ -15,7 +15,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, SmartCo
 const __typename = "SmartContract" as const;
 export const SmartContractModel: SmartContractModelLogic = ({
     __typename,
-    delegate: (p) => p.smart_contract,
+    dbTable: "smart_contract",
     display: () => rootObjectDisplay(ModelMap.get<SmartContractVersionModelLogic>("SmartContractVersion")),
     format: SmartContractFormat,
     mutate: {

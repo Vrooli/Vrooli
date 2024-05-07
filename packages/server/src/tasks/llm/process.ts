@@ -332,7 +332,7 @@ export const llmProcessStartTask = async ({
         const language = userData.languages[0] ?? "en";
         const botInfo = await getBotInfo(botId);
         if (!botInfo) {
-            throw new CustomError("0238", "InternalError", userData.languages, { task });
+            throw new CustomError("0415", "InternalError", userData.languages, { task });
         }
         //TODO context is dependent on model (because of context sizes). So we need to update generateResponseWithFallback so that it can do all of this stuff itself
         // Get context

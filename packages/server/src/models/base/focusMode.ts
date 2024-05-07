@@ -11,7 +11,7 @@ import { FocusModeModelLogic } from "./types";
 const __typename = "FocusMode" as const;
 export const FocusModeModel: FocusModeModelLogic = ({
     __typename,
-    delegate: (p) => p.focus_mode,
+    dbTable: "focus_mode",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

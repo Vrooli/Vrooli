@@ -1,7 +1,8 @@
 import https from "https";
+import { hashString } from "../../auth/codes";
 import { logger } from "../../events/logger";
-
-export type EmbeddableType = "ApiVersion" | "Chat" | "Issue" | "Meeting" | "NoteVersion" | "Organization" | "Post" | "ProjectVersion" | "Question" | "Quiz" | "Reminder" | "RoutineVersion" | "RunProject" | "RunRoutine" | "SmartContractVersion" | "StandardVersion" | "Tag" | "User";
+import { withRedis } from "../../redisConn";
+import { EmbeddableType } from "./types";
 
 // The model used for embedding (instructor-base) requires an instruction 
 // to create embeddings. This acts as a way to fine-tune the model for 
@@ -10,46 +11,24 @@ export type EmbeddableType = "ApiVersion" | "Chat" | "Issue" | "Meeting" | "Note
 // See https://github.com/Vrooli/text-embedder-tests for more details.
 const INSTRUCTION_COMMON = "Embed this text";
 const Instructions: { [key in EmbeddableType]: string } = {
-    "ApiVersion": INSTRUCTION_COMMON,
+    "Api": INSTRUCTION_COMMON,
     "Chat": INSTRUCTION_COMMON,
     "Issue": INSTRUCTION_COMMON,
     "Meeting": INSTRUCTION_COMMON,
-    "NoteVersion": INSTRUCTION_COMMON,
+    "Note": INSTRUCTION_COMMON,
     "Organization": INSTRUCTION_COMMON,
     "Post": INSTRUCTION_COMMON,
-    "ProjectVersion": INSTRUCTION_COMMON,
+    "Project": INSTRUCTION_COMMON,
     "Question": INSTRUCTION_COMMON,
     "Quiz": INSTRUCTION_COMMON,
     "Reminder": INSTRUCTION_COMMON,
-    "RoutineVersion": INSTRUCTION_COMMON,
+    "Routine": INSTRUCTION_COMMON,
     "RunProject": INSTRUCTION_COMMON,
     "RunRoutine": INSTRUCTION_COMMON,
-    "SmartContractVersion": INSTRUCTION_COMMON,
-    "StandardVersion": INSTRUCTION_COMMON,
+    "SmartContract": INSTRUCTION_COMMON,
+    "Standard": INSTRUCTION_COMMON,
     "Tag": INSTRUCTION_COMMON,
     "User": INSTRUCTION_COMMON,
-};
-
-// Depending on the object type, the table containing the embeddings may be different.
-export const EmbeddingTables: { [key in EmbeddableType]: string } = {
-    "ApiVersion": "api_version_translation",
-    "Chat": "chat_translation",
-    "Issue": "issue_translation",
-    "Meeting": "meeting_translation",
-    "NoteVersion": "note_version_translation",
-    "Organization": "organization_translation",
-    "Post": "post_translation",
-    "ProjectVersion": "project_version_translation",
-    "Question": "question_translation",
-    "Quiz": "quiz_translation",
-    "Reminder": "reminder",
-    "RoutineVersion": "routine_version_translation",
-    "RunProject": "run_project",
-    "RunRoutine": "run_routine",
-    "SmartContractVersion": "smart_contract_version_translation",
-    "StandardVersion": "standard_version_translation",
-    "Tag": "tag_translation",
-    "User": "user_translation",
 };
 
 /**
@@ -60,10 +39,10 @@ export const EmbeddingTables: { [key in EmbeddableType]: string } = {
  * @returns A Promise that resolves with the embeddings, in the same order as the sentences
  * @throws An Error if the API request fails
  */
-export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<{
+export const fetchEmbeddingsFromApi = async (objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<{
     embeddings: number[][],
     model: string
-}> {
+}> => {
     try {
         const instruction = Instructions[objectType];
         return new Promise((resolve, reject) => {
@@ -75,7 +54,7 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Content-Length": data.length,
+                    "Content-Length": Buffer.byteLength(data, "utf8"),
                 },
             };
             const apiRequest = https.request(options, apiRes => {
@@ -105,4 +84,42 @@ export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableTy
         logger.error("Error fetching embeddings", { trace: "0084", error });
         return { embeddings: [], model: "" };
     }
-}
+};
+
+/**
+ * Finds embeddings for a list of strings, preferring cached results over fetching new ones
+ */
+export const getEmbeddings = async (objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]) => {
+    let cachedEmbeddings: (number[] | null)[] = [];
+    const cacheKeys = sentences.map(sentence => `embeddings:${objectType}:${hashString(sentence)}`);
+
+    await withRedis({
+        process: async (redisCient) => {
+            // Find cached embeddings
+            const cachedData = await redisCient.mGet(cacheKeys);
+            cachedEmbeddings = cachedData.map((data: string | null) => data ? JSON.parse(data) : null);
+
+            // If some are not cached, fetch them from the API
+            const uncachedSentences: { sentence: string, index: number }[] = sentences.map((sentence, index) => ({ sentence, index })).filter((_, index) => !cachedEmbeddings[index]);
+            if (uncachedSentences.length > 0) {
+                const batchedResults = await fetchEmbeddingsFromApi(objectType, uncachedSentences.map(item => item.sentence));
+                batchedResults.embeddings.forEach((embedding, idx) => {
+                    const { sentence, index } = uncachedSentences[idx];
+                    const sentenceHash = hashString(sentence);
+                    const cacheKey = `embeddings:${objectType}:${sentenceHash}`;
+
+                    // Store fetched embeddings in cache
+                    redisCient.set(cacheKey, JSON.stringify(embedding));
+                    // Set expiry of 7 days
+                    redisCient.expire(cacheKey, 60 * 60 * 24 * 7);
+
+                    // Update cached embeddings
+                    cachedEmbeddings[index] = embedding;
+                });
+            }
+        },
+        trace: "getEmbeddings",
+    });
+
+    return cachedEmbeddings;
+};

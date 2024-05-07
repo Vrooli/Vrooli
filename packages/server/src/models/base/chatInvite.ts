@@ -11,7 +11,7 @@ import { ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, Use
 const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({
     __typename,
-    delegate: (p) => p.chat_invite,
+    dbTable: "chat_invite",
     display: () => ({
         // Label is the user label
         label: {

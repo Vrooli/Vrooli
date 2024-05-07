@@ -9,7 +9,7 @@ import { EmailModelLogic } from "./types";
 const __typename = "Email" as const;
 export const EmailModel: EmailModelLogic = ({
     __typename,
-    delegate: (p) => p.email,
+    dbTable: "email",
     display: () => ({
         label: {
             select: () => ({ id: true, emailAddress: true }),

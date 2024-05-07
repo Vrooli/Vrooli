@@ -9533,6 +9533,7 @@ export type TagSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
+  offset?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -9547,8 +9548,12 @@ export type TagSearchResult = {
 };
 
 export enum TagSortBy {
-  New = 'New',
-  Top = 'Top'
+  EmbedDateCreatedAsc = 'EmbedDateCreatedAsc',
+  EmbedDateCreatedDesc = 'EmbedDateCreatedDesc',
+  EmbedDateUpdatedAsc = 'EmbedDateUpdatedAsc',
+  EmbedDateUpdatedDesc = 'EmbedDateUpdatedDesc',
+  EmbedTopAsc = 'EmbedTopAsc',
+  EmbedTopDesc = 'EmbedTopDesc'
 }
 
 export type TagTranslation = {

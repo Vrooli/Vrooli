@@ -28,7 +28,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
 const __typename = "Report" as const;
 export const ReportModel: ReportModelLogic = ({
     __typename,
-    delegate: (p) => p.report,
+    dbTable: "report",
     display: () => ({
         label: {
             select: () => ({

@@ -1,4 +1,5 @@
 import { calculateVersionsFromString, GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { ModelMap } from "../../models/base";
 import { SessionUserToken } from "../../types";
@@ -15,12 +16,12 @@ export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType
     updatedIds: string[]
     userData: SessionUserToken,
 }) => {
-    // Get prisma delegate for root object
-    const { delegate } = ModelMap.getLogic(["delegate"], objectType.replace("Version", "") as GqlModelType);
+    // Get db table for root object
+    const { dbTable } = ModelMap.getLogic(["dbTable"], objectType.replace("Version", "") as GqlModelType);
     // Get ids from created, updated, and deletedIds
     const versionIds = [...createdIds, ...updatedIds, ...deletedIds];
     // Use version ids to query root objects
-    const rootData = await delegate(prismaInstance).findMany({
+    const rootData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
         where: { versions: { some: { id: { in: versionIds } } } },
         select: {
             id: true,
@@ -68,7 +69,7 @@ export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType
     }
     // Update root objects
     if (updatedRoots.length) {
-        await (delegate as any)(prismaInstance).updateMany({
+        await (prismaInstance[dbTable] as any).updateMany({
             where: { id: { in: updatedRoots.map(({ id }) => id) } },
             data: updatedRoots,
         });

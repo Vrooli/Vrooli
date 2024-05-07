@@ -2,7 +2,7 @@ import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
-import { PartialGraphQLInfo, PrismaCreate, PrismaUpdate } from "../builders/types";
+import { PartialGraphQLInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -105,7 +105,7 @@ export async function cudHelper({
     const operations: Promise<object>[] = [];
     // Loop through each type to populate operations array
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
-        const { delegate, idField, mutate } = ModelMap.getLogic(["delegate", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
+        const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
         const deletingIds = Delete.map(({ input }) => input);
         // Create
         if (Create.length > 0) {
@@ -120,7 +120,7 @@ export async function cudHelper({
                 const data = mutate.shape.create ? await mutate.shape.create({ data: input, idsCreateToConnect, preMap, userData }) : input;
                 const select = selectHelper(partialInfo)?.select;
                 // Add to operations
-                const createOperation = delegate(prismaInstance).create({
+                const createOperation = (prismaInstance[dbTable] as PrismaDelegate).create({
                     data,
                     select,
                 });
@@ -134,7 +134,7 @@ export async function cudHelper({
                 const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect, preMap, userData }) : input;
                 const select = selectHelper(partialInfo)?.select;
                 // Add to operations
-                const updateOperation = delegate(prismaInstance).update({
+                const updateOperation = (prismaInstance[dbTable] as PrismaDelegate).update({
                     where: { [idField]: input[idField] },
                     data,
                     select,
@@ -151,14 +151,14 @@ export async function cudHelper({
             // Delete
             try {
                 // Before deleting, check which ids exist
-                const existingIds: string[] = await delegate(prismaInstance).findMany({
+                const existingIds: string[] = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
                     where: { [idField]: { in: deletingIds } },
                     select: { id: true },
                 }).then(x => x.map(({ id }) => id));
                 // Update deletedIdsByType
                 deletedIdsByType[objectType] = existingIds;
                 // Add to operations
-                const deleteOperation = delegate(prismaInstance).deleteMany({
+                const deleteOperation = (prismaInstance[dbTable] as PrismaDelegate).deleteMany({
                     where: { [idField]: { in: existingIds } },
                 });
                 operations.push(deleteOperation);

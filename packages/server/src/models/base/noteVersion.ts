@@ -12,7 +12,8 @@ import { NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLo
 const __typename = "NoteVersion" as const;
 export const NoteVersionModel: NoteVersionModelLogic = ({
     __typename,
-    delegate: (p) => p.note_version,
+    dbTable: "note_version",
+    dbTranslationTable: "note_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

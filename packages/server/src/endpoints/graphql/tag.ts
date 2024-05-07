@@ -4,8 +4,12 @@ import { EndpointsTag, TagEndpoints } from "../logic/tag";
 
 export const typeDef = gql`
     enum TagSortBy {
-        New
-        Top
+        EmbedDateCreatedAsc
+        EmbedDateCreatedDesc
+        EmbedDateUpdatedAsc
+        EmbedDateUpdatedDesc
+        EmbedTopAsc
+        EmbedTopDesc
     }
 
     input TagCreateInput {
@@ -65,13 +69,14 @@ export const typeDef = gql`
     }
 
     input TagSearchInput {
-        after: String
+        after: String # Used when there's no search string, for cursor-based pagination
         createdById: ID
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
         maxBookmarks: Int
         minBookmarks: Int
+        offset: Int # Used whent there is a search string, since we have to calculate a score for each result (meaning it's not ordered)
         searchString: String
         sortBy: TagSortBy
         take: Int

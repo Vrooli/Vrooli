@@ -11,7 +11,7 @@ import { MeetingInviteModelInfo, MeetingInviteModelLogic, MeetingModelInfo, Meet
 const __typename = "MeetingInvite" as const;
 export const MeetingInviteModel: MeetingInviteModelLogic = ({
     __typename,
-    delegate: (p) => p.meeting_invite,
+    dbTable: "meeting_invite",
     display: () => ({
         // Label is the meeting label
         label: {

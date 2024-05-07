@@ -4,6 +4,7 @@ import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
@@ -31,7 +32,7 @@ const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create
 const __typename = "Bookmark" as const;
 export const BookmarkModel: BookmarkModelLogic = ({
     __typename,
-    delegate: (p) => p.bookmark,
+    dbTable: "bookmark",
     display: () => ({
         label: {
             select: () => ({
@@ -93,15 +94,15 @@ export const BookmarkModel: BookmarkModelLogic = ({
                     // Object type is objectRel with "Id" removed and first letter capitalized
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
                     // Update "bookmarks" count for bookmarked object
-                    const delegate = ModelMap.get(objectType, true, "bookmark onCreated").delegate;
-                    await delegate(prismaInstance).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
+                    const delegate = (prismaInstance[ModelMap.get(objectType, true, "bookmark onCreated").dbTable] as PrismaDelegate);
+                    await delegate.update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
                     // Trigger bookmarkCreated event
                     Trigger(userData.languages).objectBookmark(true, objectType, objectId, userData.id);
                 }
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
-                    const delegate = ModelMap.get(objectType as GqlModelType, true, "bookmark onDeleted").delegate;
-                    await (delegate(prismaInstance) as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
+                    const delegate = (prismaInstance[ModelMap.get(objectType as GqlModelType, true, "bookmark onDeleted").dbTable] as PrismaDelegate);
+                    await (delegate as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event
                     for (const objectId of (objectIds as string[])) {
                         Trigger(userData.languages).objectBookmark(false, objectType as BookmarkFor, objectId, userData.id);

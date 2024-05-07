@@ -11,7 +11,7 @@ import { OrganizationModelLogic, ProjectVersionModelLogic, RunProjectModelInfo, 
 const __typename = "RunProject" as const;
 export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
-    delegate: (p) => p.run_project,
+    dbTable: "run_project",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

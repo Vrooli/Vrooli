@@ -20,7 +20,7 @@ const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create
 const __typename = "Schedule" as const;
 export const ScheduleModel: ScheduleModelLogic = ({
     __typename,
-    delegate: (p) => p.schedule,
+    dbTable: "schedule",
     display: () => ({
         label: {
             select: () => ({

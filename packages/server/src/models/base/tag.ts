@@ -11,7 +11,8 @@ import { BookmarkModelLogic, TagModelLogic } from "./types";
 const __typename = "Tag" as const;
 export const TagModel: TagModelLogic = ({
     __typename,
-    delegate: (p) => p.tag,
+    dbTable: "tag",
+    dbTranslationTable: "tag_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, tag: true }),
@@ -55,7 +56,7 @@ export const TagModel: TagModelLogic = ({
         yup: tagValidation,
     },
     search: {
-        defaultSort: TagSortBy.Top,
+        defaultSort: TagSortBy.EmbedTopDesc,
         sortBy: TagSortBy,
         searchFields: {
             createdById: true,

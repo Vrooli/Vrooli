@@ -50,7 +50,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
         },
     },
-    delegate: (p) => p.run_routine,
+    dbTable: "run_routine",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

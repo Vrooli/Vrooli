@@ -57,7 +57,8 @@ const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]
 
 export const UserModel: UserModelLogic = ({
     __typename,
-    delegate: (p) => p.user,
+    dbTable: "user",
+    dbTranslationTable: "user_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

@@ -15,7 +15,7 @@ import { RunRoutineModelInfo, RunRoutineModelLogic, RunRoutineStepModelInfo, Run
 const __typename = "RunRoutineStep" as const;
 export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
     __typename,
-    delegate: (p) => p.run_routine_step,
+    dbTable: "run_routine_step",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

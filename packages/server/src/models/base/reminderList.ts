@@ -8,7 +8,7 @@ import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from 
 const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({
     __typename,
-    delegate: (p) => p.reminder_list,
+    dbTable: "reminder_list",
     display: () => ({
         label: {
             select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.select() } }),

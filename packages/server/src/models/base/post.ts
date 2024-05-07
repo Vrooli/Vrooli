@@ -11,7 +11,8 @@ import { OrganizationModelLogic, PostModelLogic } from "./types";
 const __typename = "Post" as const;
 export const PostModel: PostModelLogic = ({
     __typename,
-    delegate: (p) => p.post,
+    dbTable: "post",
+    dbTranslationTable: "post_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

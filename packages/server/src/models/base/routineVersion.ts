@@ -37,7 +37,8 @@ const validateNodePositions = async (
 const __typename = "RoutineVersion" as const;
 export const RoutineVersionModel: RoutineVersionModelLogic = ({
     __typename,
-    delegate: (p) => p.routine_version,
+    dbTable: "routine_version",
+    dbTranslationTable: "routine_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

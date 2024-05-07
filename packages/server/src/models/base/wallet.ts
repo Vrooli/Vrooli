@@ -10,7 +10,7 @@ import { OrganizationModelLogic, WalletModelLogic } from "./types";
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
     __typename,
-    delegate: (p) => p.wallet,
+    dbTable: "wallet",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

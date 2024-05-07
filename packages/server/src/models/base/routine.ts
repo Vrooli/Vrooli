@@ -197,7 +197,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, Routine
 const __typename = "Routine" as const;
 export const RoutineModel: RoutineModelLogic = ({
     __typename,
-    delegate: (p) => p.routine,
+    dbTable: "routine",
     display: () => rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
     format: RoutineFormat,
     mutate: {

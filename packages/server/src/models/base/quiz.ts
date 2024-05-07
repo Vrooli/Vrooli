@@ -13,7 +13,8 @@ import { BookmarkModelLogic, ProjectModelLogic, QuizModelInfo, QuizModelLogic, R
 const __typename = "Quiz" as const;
 export const QuizModel: QuizModelLogic = ({
     __typename,
-    delegate: (p) => p.quiz,
+    dbTable: "quiz",
+    dbTranslationTable: "quiz_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),

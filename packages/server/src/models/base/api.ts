@@ -14,7 +14,7 @@ import { ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, OrganizationMo
 const __typename = "Api" as const;
 export const ApiModel: ApiModelLogic = ({
     __typename,
-    delegate: (p) => p.api,
+    dbTable: "api",
     display: () => rootObjectDisplay(ModelMap.get<ApiVersionModelLogic>("ApiVersion")),
     format: ApiFormat,
     mutate: {

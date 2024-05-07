@@ -10,7 +10,8 @@ import { NodeRoutineListItemModelInfo, NodeRoutineListItemModelLogic, NodeRoutin
 const __typename = "NodeRoutineListItem" as const;
 export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
     __typename,
-    delegate: (p) => p.node_routine_list_item,
+    dbTable: "node_routine_list_item",
+    dbTranslationTable: "node_routine_list_item_translation",
     display: () => ({
         label: {
             select: () => ({

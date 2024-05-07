@@ -13,7 +13,8 @@ import { MeetingModelLogic, OrganizationModelLogic } from "./types";
 const __typename = "Meeting" as const;
 export const MeetingModel: MeetingModelLogic = ({
     __typename,
-    delegate: (p) => p.meeting,
+    dbTable: "meeting",
+    dbTranslationTable: "meeting_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

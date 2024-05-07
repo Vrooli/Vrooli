@@ -23,7 +23,16 @@ export const uppercaseFirstLetter = (str: string): string => {
  */
 export const pascalCase = (str: string): string => {
     return str.split(/[-_ ]/).map(uppercaseFirstLetter).join("");
-}
+};
+
+/**
+ * Converts a string to camcelCase
+ * @param str String to convert
+ * @returns camelCased string
+ */
+export const camelCase = (str: string): string => {
+    return lowercaseFirstLetter(pascalCase(str));
+};
 
 /**
  * Converts a string to snake_case
@@ -33,11 +42,11 @@ export const pascalCase = (str: string): string => {
 export const snakeCase = (str: string): string => {
     return str
         // Insert an underscore before any uppercase letter followed by lowercase letters
-        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
         // Convert all uppercase letters to lowercase and insert underscore before them
-        .replace(/([A-Z])/g, '_$1').toLowerCase()
+        .replace(/([A-Z])/g, "_$1").toLowerCase()
         // Replace spaces, hyphens, and multiple underscores with a single underscore
-        .replace(/[-\s_]+/g, '_')
+        .replace(/[-\s_]+/g, "_")
         // Remove leading and trailing underscores
-        .replace(/^_|_$/g, '');
-}
+        .replace(/^_|_$/g, "");
+};

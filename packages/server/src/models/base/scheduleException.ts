@@ -9,7 +9,7 @@ import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelI
 const __typename = "ScheduleException" as const;
 export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
     __typename,
-    delegate: (p) => p.schedule_exception,
+    dbTable: "schedule_exception",
     display: () => ({
         label: {
             select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display().label.select() } }),

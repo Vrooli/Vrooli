@@ -1,7 +1,7 @@
 import { DotNotation, GqlModelType, ObjectLimit, YupMutateParams } from "@local/shared";
 import { AnyObjectSchema } from "yup";
-import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
-import { PrismaType, PromiseOrValue, SessionUserToken } from "../types";
+import { PartialGraphQLInfo, PartialPrismaSelect } from "../builders/types";
+import { PromiseOrValue, SessionUserToken } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { InputNode } from "../utils/inputNode";
 import { SortMap } from "../utils/sortMap";
@@ -51,8 +51,10 @@ export type ModelLogic<
     IdField extends keyof Model["GqlModel"] = "id",
 > = {
     __typename: Model["__typename"];
-    /** The prisma delegate for this object (e.g. prisma.user) */
-    delegate: (prisma: PrismaType) => PrismaDelegate;
+    /** The db table for this object, as it appears in Prisma */
+    dbTable: string;
+    /** The db table for the object's translations, as it appears in Prisma */
+    dbTranslationTable?: string;
     /** Functions for representing the object in different formats */
     display: Displayer<Model>;
     /** Data for converting the object between GraphQL and Prisma, and related permissions */

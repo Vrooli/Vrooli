@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -65,7 +66,7 @@ export const versionsCheck = async ({
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     // Query the database for existing data (by root)
     const rootType = objectType.replace("Version", "") as GqlModelType;
-    const delegate = ModelMap.get(rootType).delegate;
+    const dbTable = ModelMap.get(rootType).dbTable;
     let existingRoots: any[];
     let where: { [key: string]: any } = {};
     let select: { [key: string]: any } = {};
@@ -93,7 +94,7 @@ export const versionsCheck = async ({
                 },
             },
         };
-        existingRoots = await delegate(prismaInstance).findMany({
+        existingRoots = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where,
             select,
         });

@@ -21,7 +21,8 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } =
 const __typename = "Issue" as const;
 export const IssueModel: IssueModelLogic = ({
     __typename,
-    delegate: (p) => p.issue,
+    dbTable: "issue",
+    dbTranslationTable: "issue_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),

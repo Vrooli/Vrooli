@@ -8,7 +8,7 @@ import { OrganizationModelInfo, OrganizationModelLogic, StatsOrganizationModelIn
 const __typename = "StatsOrganization" as const;
 export const StatsOrganizationModel: StatsOrganizationModelLogic = ({
     __typename,
-    delegate: (p) => p.stats_organization,
+    dbTable: "stats_organization",
     display: () => ({
         label: {
             select: () => ({ id: true, organization: { select: ModelMap.get<OrganizationModelLogic>("Organization").display().label.select() } }),

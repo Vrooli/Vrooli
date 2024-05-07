@@ -1,4 +1,5 @@
 import { exists, GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { ModelMap } from "../../models/base";
@@ -95,8 +96,8 @@ export const preShapeRoot = async ({
     triggerMap: Record<string, { hasCompleteAndPublic: boolean, wasCompleteAndPublic: boolean }>,
     transferMap: Record<string, boolean>,
 }> => {
-    // Get prisma delegate
-    const { delegate } = ModelMap.getLogic(["delegate"], objectType);
+    // Get db table
+    const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};
@@ -122,7 +123,7 @@ export const preShapeRoot = async ({
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
-        const originalData = await delegate(prismaInstance).findMany({
+        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
@@ -169,7 +170,7 @@ export const preShapeRoot = async ({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
-        const originalData = await delegate(prismaInstance).findMany({
+        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });

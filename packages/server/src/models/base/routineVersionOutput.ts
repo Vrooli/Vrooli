@@ -10,7 +10,8 @@ import { RoutineVersionModelInfo, RoutineVersionModelLogic, RoutineVersionOutput
 const __typename = "RoutineVersionOutput" as const;
 export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
     __typename,
-    delegate: (p) => p.routine_version_output,
+    dbTable: "routine_version_output",
+    dbTranslationTable: "routine_version_output_translation",
     display: () => ({
         label: {
             select: () => ({

@@ -8,7 +8,7 @@ import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { visibilityBuilder } from "../../builders/visibilityBuilder";
+import { visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
 import { SessionUserToken } from "../../types";
@@ -24,7 +24,8 @@ import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelL
 const __typename = "Comment" as const;
 export const CommentModel: CommentModelLogic = ({
     __typename,
-    delegate: ({ comment }) => comment,
+    dbTable: "comment",
+    dbTranslationTable: "comment_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -150,7 +151,7 @@ export const CommentModel: CommentModelLogic = ({
                 }
             }
             // Create query for visibility
-            const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req.session), visibility: VisibilityType.Public });
+            const visibilityQuery = visibilityBuilderPrisma({ objectType: "Comment", userData: getUser(req.session), visibility: VisibilityType.Public });
             // Combine queries
             const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order

@@ -6,7 +6,7 @@ import { NotificationModelLogic } from "./types";
 const __typename = "Notification" as const;
 export const NotificationModel: NotificationModelLogic = ({
     __typename,
-    delegate: (p) => p.notification,
+    dbTable: "notification",
     display: () => ({
         label: {
             select: () => ({ id: true, title: true }),

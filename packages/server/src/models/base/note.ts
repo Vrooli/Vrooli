@@ -14,7 +14,7 @@ import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, Organization
 const __typename = "Note" as const;
 export const NoteModel: NoteModelLogic = ({
     __typename,
-    delegate: (p) => p.note,
+    dbTable: "note",
     display: () => rootObjectDisplay(ModelMap.get<NoteVersionModelLogic>("NoteVersion")),
     format: NoteFormat,
     mutate: {

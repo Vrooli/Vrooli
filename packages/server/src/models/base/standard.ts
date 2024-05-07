@@ -16,7 +16,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, Standar
 const __typename = "Standard" as const;
 export const StandardModel: StandardModelLogic = ({
     __typename,
-    delegate: (p) => p.standard,
+    dbTable: "standard",
     display: () => rootObjectDisplay(ModelMap.get<StandardVersionModelLogic>("StandardVersion")),
     format: StandardFormat,
     mutate: {

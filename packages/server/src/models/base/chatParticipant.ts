@@ -7,7 +7,7 @@ import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo
 const __typename = "ChatParticipant" as const;
 export const ChatParticipantModel: ChatParticipantModelLogic = ({
     __typename,
-    delegate: (p) => p.chat_participants,
+    dbTable: "chat_participants",
     display: () => ({
         // Label is the user's label
         label: {

@@ -11,7 +11,7 @@ import { MemberInviteModelInfo, MemberInviteModelLogic, OrganizationModelLogic, 
 const __typename = "MemberInvite" as const;
 export const MemberInviteModel: MemberInviteModelLogic = ({
     __typename,
-    delegate: (p) => p.member_invite,
+    dbTable: "member_invite",
     display: () => ({
         // Label is the member label
         label: {

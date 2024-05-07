@@ -41,6 +41,13 @@ export const SortMap = {
     DueDateDesc: { dueDate: Order.Desc },
     DirectoryListingsAsc: { directoryListings: { _count: Order.Asc } },
     DirectoryListingsDesc: { directoryListings: { _count: Order.Desc } },
+    // Embed sorts are reserved for embeddable object search, so they're not applicable here
+    EmbedDateCreatedAsc: {},
+    EmbedDateCreatedDesc: {},
+    EmbedDateUpdatedAsc: {},
+    EmbedDateUpdatedDesc: {},
+    EmbedTopAsc: {},
+    EmbedTopDesc: {},
     EndTimeAsc: { endTime: Order.Asc },
     EndTimeDesc: { endTime: Order.Desc },
     ForksAsc: { forks: { _count: Order.Asc } },
@@ -65,7 +72,6 @@ export const SortMap = {
     MessagesDesc: { messages: { _count: Order.Desc } },
     NameAsc: { name: Order.Asc },
     NameDesc: { name: Order.Desc },
-    New: {}, // Reserved for embeddable object search, so not applicable here
     OrderAsc: { order: Order.Asc },
     OrderDesc: { order: Order.Desc },
     ParticipantsAsc: { participants: { _count: Order.Asc } },
@@ -106,7 +112,6 @@ export const SortMap = {
     TimeTakenDesc: { timeTaken: Order.Desc },
     TitleAsc: { title: Order.Asc },
     TitleDesc: { title: Order.Desc },
-    Top: {}, // Reserved for embeddable object search, so not applicable here
     BookmarksAsc: { bookmarkedBy: { _count: Order.Asc } },
     BookmarksDesc: { bookmarkedBy: { _count: Order.Desc } },
     UsedForAsc: { usedFor: Order.Asc },

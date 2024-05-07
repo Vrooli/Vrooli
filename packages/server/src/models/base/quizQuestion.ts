@@ -12,7 +12,8 @@ import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModel
 const __typename = "QuizQuestion" as const;
 export const QuizQuestionModel: QuizQuestionModelLogic = ({
     __typename,
-    delegate: (p) => p.quiz_question,
+    dbTable: "quiz_question",
+    dbTranslationTable: "quiz_question_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),

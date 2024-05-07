@@ -12,7 +12,7 @@ import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, Qui
 const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
     __typename,
-    delegate: (p) => p.quiz_question_response,
+    dbTable: "quiz_question_response",
     display: () => ({
         label: {
             select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.select() } }),

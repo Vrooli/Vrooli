@@ -89,7 +89,8 @@ const querier = () => ({
 const __typename = "StandardVersion" as const;
 export const StandardVersionModel: StandardVersionModelLogic = ({
     __typename,
-    delegate: (p) => p.standard_version,
+    dbTable: "standard_version",
+    dbTranslationTable: "standard_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

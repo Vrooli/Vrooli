@@ -14,7 +14,7 @@ import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportRespo
 const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({
     __typename,
-    delegate: (p) => p.report_response,
+    dbTable: "report_response",
     display: () => ({
         label: {
             select: () => ({

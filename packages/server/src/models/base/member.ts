@@ -9,7 +9,7 @@ import { MemberModelInfo, MemberModelLogic, OrganizationModelInfo, OrganizationM
 const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({
     __typename,
-    delegate: (p) => p.member,
+    dbTable: "member",
     display: () => ({
         label: {
             select: () => ({

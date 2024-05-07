@@ -8,7 +8,8 @@ import { QuestionAnswerModelLogic } from "./types";
 const __typename = "QuestionAnswer" as const;
 export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     __typename,
-    delegate: (p) => p.question_answer,
+    dbTable: "question_answer",
+    dbTranslationTable: "question_answer_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),

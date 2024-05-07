@@ -1,13 +1,15 @@
-import { PageInfo, ViewFor, VisibilityType } from "@local/shared";
+import { GqlModelType, PageInfo, TimeFrame, ViewFor, VisibilityType, camelCase } from "@local/shared";
 import { getUser } from "../auth/request";
 import { addSupplementalFields } from "../builders/addSupplementalFields";
 import { combineQueries } from "../builders/combineQueries";
 import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
+import { timeFrameToSql } from "../builders/timeFrame";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
-import { visibilityBuilder } from "../builders/visibilityBuilder";
+import { PaginatedSearchResult, PartialGraphQLInfo, PrismaDelegate } from "../builders/types";
+import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
 import { prismaInstance } from "../db/instance";
+import { SqlBuilder } from "../db/sqlBuilder";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { getIdFromHandle } from "../getters/getIdFromHandle";
@@ -17,12 +19,13 @@ import { ModelMap } from "../models/base";
 import { ViewModelLogic } from "../models/base/types";
 import { Searcher } from "../models/types";
 import { RecursivePartial } from "../types";
-import { findTags } from "../utils/embeddings/search/tags";
+import { SearchEmbeddingsCache } from "../utils/embeddings/cache";
+import { getEmbeddings } from "../utils/embeddings/getEmbeddings";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData";
 import { SearchMap } from "../utils/searchMap";
 import { SortMap } from "../utils/sortMap";
 import { permissionsCheck } from "../validators/permissions";
-import { ReadManyHelperProps, ReadOneHelperProps } from "./types";
+import { ReadManyHelperProps, ReadManyWithEmbeddingsHelperProps, ReadOneHelperProps } from "./types";
 
 const DEFAULT_TAKE = 20;
 const MAX_TAKE = 100;
@@ -81,7 +84,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     // Get the Prisma object
     let object: any;
     try {
-        object = await model.delegate(prismaInstance).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+        object = await (prismaInstance[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...selectHelper(partialInfo) });
         if (!object)
             throw new CustomError("0022", "NotFound", userData?.languages ?? req.session.languages, { objectType });
     } catch (error) {
@@ -104,7 +107,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
  * NOTE: Permissions queries should be passed into additionalQueries
  * @returns Paginated search result
  */
-export async function readManyHelper<Input extends { [x: string]: any }>({
+export const readManyHelper = async <Input extends { [x: string]: any }>({
     additionalQueries,
     addSupplemental = true,
     info,
@@ -112,7 +115,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     objectType,
     req,
     visibility = VisibilityType.Public,
-}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
+}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> => {
     const userData = getUser(req.session);
     const model = ModelMap.get(objectType);
     // Partially convert info type
@@ -136,7 +139,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         customQueries.push(searcher.customQueryData(input, userData));
     }
     // Create query for visibility, if supported
-    const visibilityQuery = visibilityBuilder({ objectType, userData, visibility: input.visibility ?? visibility });
+    const visibilityQuery = visibilityBuilderPrisma({ objectType, userData, visibility: input.visibility ?? visibility });
     // Combine queries
     const where = combineQueries([additionalQueries, searchQuery, visibilityQuery, ...customQueries]);
     // Determine sortBy, orderBy, and take
@@ -148,7 +151,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Search results have at least an id
     let searchResults: Record<string, any>[] = [];
     try {
-        searchResults = await model.delegate(prismaInstance).findMany({
+        searchResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
             where,
             orderBy,
             take: desiredTake + 1, // Take one extra so we can determine if there is a next page
@@ -192,7 +195,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             node: result,
         })),
     };
-}
+};
 
 export type ReadManyAsFeedResult = {
     pageInfo: PageInfo;
@@ -230,49 +233,159 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
 /**
  * Helper function for reading many embeddable objects in a single line.
  * Cursor-based search. Supports pagination, sorting, and filtering by string.
- * NOTE: Permissions queries should be passed into additionalQueries
+ * 
+ * NOTE: This mode uses raw SQL to search for results, which comes with more limitations than the normal search mode.
  * @returns Paginated search result
  */
 export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: any }>({
-    additionalQueries,
-    addSupplemental = true,
+    fetchMode = "full",
     info,
     input,
     objectType,
     req,
     visibility = VisibilityType.Public,
-}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
+}: ReadManyWithEmbeddingsHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
     const model = ModelMap.get(objectType);
     const desiredTake = getDesiredTake(input.take, req.session.languages, objectType);
-    const embedResults = await findTags({ //TODO support more than just tags
-        limit: desiredTake,
-        offset: 0, //TODO support offset
-        searchString: input.searchString ?? "",
-        sortOption: input.sortBy ?? model.search?.defaultSort,
-        thresholdBookmarks: 0,
-        thresholdDistance: 2,
-    });
+    const searchStringTrimmed = (input.searchString ?? "").trim();
+    // If there isn't a search string, we can perform non-embedding search
+    if (searchStringTrimmed.length === 0) {
+        // Call normal search function
+        const results = await readManyHelper({
+            addSupplemental: fetchMode === "full",
+            info,
+            input,
+            objectType,
+            req,
+            visibility,
+        });
+        return results;
+    }
+
+    const offset = input.offset ?? 0;
+    const sortOption = input.sortBy ?? model.search?.defaultSort;
+    const take = desiredTake + 1; // Add 1 for hasNextPage check
+
+    let idsNeeded = take;
+    let finalResults: Record<string, any>[] = [];
+
+    // Check cache for previously fetched IDs for this specific situation
+    const cacheKey = SearchEmbeddingsCache.createKey({ objectType, searchString: searchStringTrimmed, sortOption, userId: userData?.id, visibility });
+    const cachedResults = await SearchEmbeddingsCache.check({ cacheKey, offset, take });
+
+    // Add all cached results to the final results
+    if (cachedResults && cachedResults.length > 0) {
+        finalResults = cachedResults;
+        idsNeeded = take - cachedResults.length;
+    }
+
+    // If we still need more results (i.e. no cached results or only some cached), fetch them
+    if (idsNeeded > 0) {
+        const newOffset = offset + (cachedResults ? cachedResults.length : 0);
+        const translationObjectType = (objectType + "Translation") as GqlModelType;
+        // Create builder to construct the SQL query to fetch missing data
+        const builder = new SqlBuilder(objectType);
+        // Make sure we select the ID
+        builder.addSelect(objectType, "id");
+        // Join with translation table, as that's where the embeddings are stored
+        builder.addJoin(
+            translationObjectType,
+            "INNER",
+            SqlBuilder.equals(builder.field(objectType, "id"), builder.field(translationObjectType, camelCase(objectType) + "Id")),
+        );
+        // Get the embedding for the search string
+        const embeddings = await getEmbeddings(objectType, [searchStringTrimmed]);
+        // Convert it to an equation based on the sort option
+        // TODO embed field will change if versioned. Should update embedDistance, addSelect, and addWhere accordingly
+        builder.embedPoints(translationObjectType, objectType, embeddings[0] as number[], sortOption);
+        // Get date queries for restricting search results by time
+        const createdAtDateLimit = timeFrameToSql("created_at", input.createdTimeFrame as TimeFrame | undefined);
+        const updatedAtDateLimit = timeFrameToSql("updated_at", input.updatedTimeFrame as TimeFrame | undefined);
+        // Add dates to SELECT and WHERE clauses
+        if (createdAtDateLimit) {
+            builder.addSelect(objectType, "created_at");
+            builder.addWhere(createdAtDateLimit);
+        }
+        if (updatedAtDateLimit) {
+            builder.addSelect(objectType, "updated_at");
+            builder.addWhere(updatedAtDateLimit);
+        }
+        // Get visibility query
+        const visibilityQuery = visibilityBuilderPrisma({ objectType, userData, visibility });
+        builder.buildQueryFromPrisma(visibilityQuery); //TODO
+        // Set order by, limit, and offset
+        builder.addOrderByRaw("points " + (sortOption.endsWith("Desc") ? "DESC" : "ASC"));
+        builder.setLimit(take);
+        builder.setOffset(offset);
+        const rawQuery = builder.serialize();
+
+        try {
+            // Should be safe to use $queryRawUnsafe in this context, as the only user input is 
+            // the search string, and that has been converted to embeddings
+            const additionalResults = await prismaInstance.$queryRawUnsafe(rawQuery) as Record<string, any>[];
+            finalResults = [...finalResults, ...additionalResults];
+            // Cache the newly fetched results
+            await SearchEmbeddingsCache.set({
+                cacheKey,
+                offset: newOffset,
+                take: additionalResults.length,
+                results: additionalResults.map((res: any) => ({ id: res.id })),
+            });
+        } catch (error) {
+            logger.error("readManyWithEmbeddingsHelper: Failed to execute raw query", { trace: "0384", error, objectType, rawQuery });
+            throw new CustomError("0384", "InternalError", req.session.languages, { objectType });
+        }
+    }
+
+    // Remove last result if we fetched more than we needed (i.e. hasNextPage is true)
+    const hasNextPage = finalResults.length > desiredTake;
+    if (hasNextPage) {
+        finalResults.pop();
+    }
+
+    // If fetch mode is ids, return the IDs
+    if (fetchMode === "ids") {
+        // Return only the IDs
+        return {
+            __typename: `${model.__typename}SearchResult` as const,
+            pageInfo: {
+                __typename: "PageInfo" as const,
+                hasNextPage,
+                endCursor: null, // Only used for cursor-based search
+            },
+            edges: finalResults.map(t => ({
+                __typename: `${model.__typename}Edge` as const,
+                cursor: t.id,
+                node: { id: t.id }, // Returning only IDs
+            })),
+        };
+    }
+
+    // Fetch additional data for the search results
     const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
     const select = selectHelper(partialInfo);
-    const searchResults = await prismaInstance.tag.findMany({
-        where: { id: { in: embedResults.map(t => t.id) } },
+    finalResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
+        where: { id: { in: finalResults.map(t => t.id) } },
         ...select,
     });
     //TODO validate that the user has permission to read all of the results, including relationships
     // Return formatted for GraphQL
-    let formattedNodes = searchResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);
-    // Reorder nodes to match the order of the embedResults
+    let formattedNodes = finalResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
+    // If fetch mode is "full", add supplemental fields
+    if (fetchMode === "full") {
+        formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);
+    }
+    // Construct and return the final response
     const formattedNodesMap = new Map(formattedNodes.map(n => [n.id, n]));
     return {
         __typename: `${model.__typename}SearchResult` as const,
         pageInfo: {
             __typename: "PageInfo" as const,
-            hasNextPage: false,
-            endCursor: null,
+            hasNextPage,
+            endCursor: null, // Only used for cursor-based search
         },
-        edges: embedResults.map(t => ({
+        edges: finalResults.map(t => ({
             __typename: `${model.__typename}Edge` as const,
             cursor: t.id,
             node: formattedNodesMap.get(t.id),

@@ -18,7 +18,8 @@ import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVe
 const __typename = "ProjectVersion" as const;
 export const ProjectVersionModel: ProjectVersionModelLogic = ({
     __typename,
-    delegate: (p) => p.project_version,
+    dbTable: "project_version",
+    dbTranslationTable: "project_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

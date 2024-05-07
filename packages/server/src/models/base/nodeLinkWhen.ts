@@ -10,7 +10,8 @@ import { NodeLinkModelInfo, NodeLinkModelLogic, NodeLinkWhenModelInfo, NodeLinkW
 const __typename = "NodeLinkWhen" as const;
 export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
     __typename,
-    delegate: (p) => p.node_link,
+    dbTable: "node_link_when",
+    dbTranslationTable: "node_link_when_translation",
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {

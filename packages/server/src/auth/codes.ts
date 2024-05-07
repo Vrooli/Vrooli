@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 
 /**
  * Generate a random string of the specified length, consisting of the specified characters
@@ -6,10 +6,10 @@ import { randomBytes } from "crypto";
  * @param chars The available characters to use in the string
  * @returns A random string of the specified length, consisting of the specified characters
  */
-export function randomString(
+export const randomString = (
     length = 64,
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-): string {
+): string => {
     // Check for valid parameters
     if (!Number.isInteger(length) || length <= 0 || length > 2048) throw new Error("Length must be bewteen 1 and 2048.");
     const charsLength = chars.length;
@@ -26,7 +26,7 @@ export function randomString(
     }
     // Return result as string
     return result.join("");
-}
+};
 
 /**
  * Verifies if a code is valid and not expired
@@ -51,3 +51,15 @@ export const validateCode = (
     // Check that code is not expired
     return Date.now() - new Date(dateRequested).getTime() < timeoutInMs;
 };
+
+/**
+ * Non-cryptographic hashing function for strings
+ * @param str The string to hash
+ * @returns The hashed string
+ */
+export const hashString = (str: string): string => {
+    const hash = createHash("md5");
+    hash.update(str);
+    return hash.digest("hex");
+};
+

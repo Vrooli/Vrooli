@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper } from "../builders/selectHelper";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
+import { GraphQLInfo, PartialGraphQLInfo, PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -217,8 +217,8 @@ const replaceLabels = async (
     const findTranslations = async (objectType: `${GqlModelType}`, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
-        const { delegate, display } = ModelMap.getLogic(["delegate", "display"], objectType, true, "replaceLabels 1");
-        const labels = await delegate(prismaInstance).findUnique({
+        const { dbTable, display } = ModelMap.getLogic(["dbTable", "display"], objectType, true, "replaceLabels 1");
+        const labels = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
             where: { id: objectId },
             select: display().label.select(),
         });

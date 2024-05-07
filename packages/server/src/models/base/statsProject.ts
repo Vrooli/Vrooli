@@ -8,7 +8,7 @@ import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjec
 const __typename = "StatsProject" as const;
 export const StatsProjectModel: StatsProjectModelLogic = ({
     __typename,
-    delegate: (p) => p.stats_project,
+    dbTable: "stats_project",
     display: () => ({
         label: {
             select: () => ({ id: true, project: { select: ModelMap.get<ProjectModelLogic>("Project").display().label.select() } }),

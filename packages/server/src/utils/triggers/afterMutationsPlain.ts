@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
 import { ModelMap } from "../../models/base";
@@ -28,7 +29,7 @@ export const afterMutationsPlain = async ({
     // Find owners of created and updated items
     const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
     const createAndUpdateIds = [...createdIds, ...updatedIds];
-    const { delegate } = ModelMap.getLogic(["delegate"], objectType);
+    const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
     // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
     const select = { id: true };
     if (ownerOrganizationField) {
@@ -37,7 +38,7 @@ export const afterMutationsPlain = async ({
     if (ownerUserField) {
         select[ownerUserField] = { select: { id: true } };
     }
-    const ownersData = await delegate(prismaInstance).findMany({
+    const ownersData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
         where: { id: { in: createAndUpdateIds } },
         select,
     });

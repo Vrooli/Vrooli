@@ -4,7 +4,7 @@ import i18next from "i18next";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
-import { PartialGraphQLInfo } from "../../builders/types";
+import { PartialGraphQLInfo, PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Notify } from "../../notify";
@@ -73,8 +73,8 @@ export const transfer = () => ({
     ): Promise<string> => {
         // Find the object and its owner
         const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
-        const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], object.__typename);
-        const permissionData = await delegate(prismaInstance).findUnique({
+        const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
+        const permissionData = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
             where: { id: object.id },
             select: validate().permissionsSelect,
         });
@@ -262,7 +262,7 @@ export const transfer = () => ({
 
 export const TransferModel: TransferModelLogic = ({
     __typename,
-    delegate: (p) => p.transfer,
+    dbTable: "transfer",
     display: () => ({
         label: {
             select: () => ({

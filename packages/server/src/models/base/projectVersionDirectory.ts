@@ -10,7 +10,8 @@ import { ProjectVersionDirectoryModelInfo, ProjectVersionDirectoryModelLogic, Pr
 const __typename = "ProjectVersionDirectory" as const;
 export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = ({
     __typename,
-    delegate: (p) => p.project_version_directory,
+    dbTable: "project_version_directory",
+    dbTranslationTable: "project_version_directory_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

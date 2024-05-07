@@ -1,3 +1,4 @@
+import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -100,8 +101,8 @@ export const handlesCheck = async (
 
     // Find all existing handles that match the handles in createList and updateList.
     // There should be none, unless some of the updates are changing the existing handles to something else.
-    const { delegate } = ModelMap.getLogic(["delegate"], forType);
-    const existingHandles = await delegate(prismaInstance).findMany({
+    const { dbTable } = ModelMap.getLogic(["dbTable"], forType);
+    const existingHandles = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
         where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
         select: { id: true, handle: true },
     });

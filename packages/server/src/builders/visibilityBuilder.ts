@@ -3,9 +3,9 @@ import { combineQueries } from "./combineQueries";
 import { VisibilityBuilderProps } from "./types";
 
 /**
- * Assembles visibility query
+ * Assembles visibility query for Prisma read operations
  */
-export const visibilityBuilder = ({
+export const visibilityBuilderPrisma = ({
     objectType,
     userData,
     visibility,

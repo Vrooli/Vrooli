@@ -30,7 +30,8 @@ const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUps
 const __typename = "PullRequest" as const;
 export const PullRequestModel: PullRequestModelLogic = ({
     __typename,
-    delegate: (p) => p.pull_request,
+    dbTable: "pull_request",
+    dbTranslationTable: "pull_request_translation",
     display: () => ({
         label: {
             select: () => ({

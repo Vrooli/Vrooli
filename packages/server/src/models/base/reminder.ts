@@ -9,7 +9,7 @@ import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, Remin
 const __typename = "Reminder" as const;
 export const ReminderModel: ReminderModelLogic = ({
     __typename,
-    delegate: (p) => p.reminder,
+    dbTable: "reminder",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

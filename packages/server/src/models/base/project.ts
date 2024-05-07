@@ -15,7 +15,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ProjectModelInfo, ProjectMo
 const __typename = "Project" as const;
 export const ProjectModel: ProjectModelLogic = ({
     __typename,
-    delegate: (p) => p.project,
+    dbTable: "project",
     display: () => rootObjectDisplay(ModelMap.get<ProjectVersionModelLogic>("ProjectVersion")),
     format: ProjectFormat,
     mutate: {

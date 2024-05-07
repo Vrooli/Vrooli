@@ -1,4 +1,4 @@
-import { timeFrameToPrisma } from "./timeFrameToPrisma";
+import { timeFrameToPrisma, timeFrameToSql } from "./timeFrame";
 
 describe("timeFrameToPrisma", () => {
     const fieldName = "createdAt";
@@ -52,3 +52,43 @@ describe("timeFrameToPrisma", () => {
         expect(timeFrameToPrisma(fieldName, timeFrame)).toEqual(expected);
     });
 });
+
+describe("timeFrameToSql", () => {
+    const fieldName = "created_at";  // Change as needed for additional field tests
+
+    test("returns null when timeFrame is undefined", () => {
+        expect(timeFrameToSql(fieldName, undefined)).toBeNull();
+    });
+
+    test("returns correct query for after date only", () => {
+        const afterDate = new Date("2021-01-01");
+        const expectedSeconds = Math.floor(afterDate.getTime() / 1000);
+        expect(timeFrameToSql(fieldName, { after: afterDate }))
+            .toBe(`EXTRACT(EPOCH FROM t."${fieldName}") >= ${expectedSeconds}`);
+    });
+
+    test("returns correct query for before date only", () => {
+        const beforeDate = new Date("2022-01-01");
+        const expectedSeconds = Math.floor(beforeDate.getTime() / 1000);
+        expect(timeFrameToSql(fieldName, { before: beforeDate }))
+            .toBe(`EXTRACT(EPOCH FROM t."${fieldName}") <= ${expectedSeconds}`);
+    });
+
+    test("returns correct query for both after and before dates", () => {
+        const afterDate = new Date("2021-01-01");
+        const beforeDate = new Date("2022-01-01");
+        const afterSeconds = Math.floor(afterDate.getTime() / 1000);
+        const beforeSeconds = Math.floor(beforeDate.getTime() / 1000);
+        expect(timeFrameToSql(fieldName, { after: afterDate, before: beforeDate }))
+            .toBe(`EXTRACT(EPOCH FROM t."${fieldName}") >= ${afterSeconds} AND EXTRACT(EPOCH FROM t."${fieldName}") <= ${beforeSeconds}`);
+    });
+
+    test("handles different field names", () => {
+        const afterDate = new Date("2021-01-01");
+        const expectedSeconds = Math.floor(afterDate.getTime() / 1000);
+        const updatedFieldName = "updated_at";
+        expect(timeFrameToSql(updatedFieldName, { after: afterDate }))
+            .toBe(`EXTRACT(EPOCH FROM t."${updatedFieldName}") >= ${expectedSeconds}`);
+    });
+});
+

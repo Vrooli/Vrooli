@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
+import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getLabels } from "../../getters/getLabels";
@@ -161,7 +162,7 @@ const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] 
 const __typename = "View" as const;
 export const ViewModel: ViewModelLogic = ({
     __typename,
-    delegate: (p) => p.view,
+    dbTable: "view",
     display: () => ({
         label: {
             select: () => ({
@@ -243,10 +244,10 @@ export const ViewModel: ViewModelLogic = ({
      * @returns True if view updated correctly
      */
     view: async (userData: SessionUserToken, input: ViewInput): Promise<boolean> => {
-        // Get Prisma delegate for viewed object
-        const { delegate } = ModelMap.getLogic(["delegate"], input.viewFor, true, "view 1");
+        // Get db table for viewed object
+        const { dbTable } = ModelMap.getLogic(["dbTable"], input.viewFor, true, "view 1");
         // Check if object being viewed on exists
-        const objectToView: { [x: string]: any } | null = await delegate(prismaInstance).findUnique({
+        const objectToView: { [x: string]: any } | null = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
             where: { id: input.forId },
             select: selectMapper[input.viewFor],
         });
@@ -301,8 +302,8 @@ export const ViewModel: ViewModelLogic = ({
             case ViewFor.Standard:
             case ViewFor.StandardVersion: {
                 // Check if ROOT object is owned by this user or by an organization they are a member of
-                const { delegate: rootObjectDelegate } = ModelMap.getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 2");
-                const rootObject = await rootObjectDelegate(prismaInstance).findFirst({
+                const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 2");
+                const rootObject = await (prismaInstance[rootDbTable] as PrismaDelegate).findFirst({
                     where: {
                         AND: [
                             { id: dataMapper[input.viewFor](objectToView).id },
@@ -339,8 +340,8 @@ export const ViewModel: ViewModelLogic = ({
                 // If object viewed more than 1 hour ago, update view count
                 if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
                     // View counts don't exist on versioned objects, so we must make sure we are updating the root object
-                    const { delegate: rootObjectDelegate } = ModelMap.getLogic(["delegate"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 3");
-                    await rootObjectDelegate(prismaInstance).update({
+                    const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 3");
+                    await (prismaInstance[rootDbTable] as PrismaDelegate).update({
                         where: { id: input.forId },
                         data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
                     });

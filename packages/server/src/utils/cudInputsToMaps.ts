@@ -1,5 +1,6 @@
 import { GqlModelType, pascalCase, uuidValidate } from "@local/shared";
 import { isRelationshipObject } from "../builders/isOfType";
+import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -63,7 +64,7 @@ export const fetchAndMapPlaceholder = async (
         return;
     }
 
-    const { delegate } = ModelMap.getLogic(["delegate"], pascalCase(objectType) as GqlModelType, true, "fetchAndMapPlaceholder 1");
+    const { dbTable } = ModelMap.getLogic(["dbTable"], pascalCase(objectType) as GqlModelType, true, "fetchAndMapPlaceholder 1");
 
     // Construct the select object to query nested relations
     const select: Record<string, any> = {};
@@ -79,7 +80,7 @@ export const fetchAndMapPlaceholder = async (
         }
     });
 
-    const queryResult = await delegate(prismaInstance).findUnique({
+    const queryResult = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
         where: { id: rootId },
         select,
     });

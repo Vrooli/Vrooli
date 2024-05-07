@@ -28,7 +28,7 @@ const forMapper: { [key in ReactionFor]: string } = {
 const __typename = "Reaction" as const;
 export const ReactionModel: ReactionModelLogic = ({
     __typename,
-    delegate: (p) => p.reaction,
+    dbTable: "reaction",
     display: () => ({
         label: {
             select: () => ({

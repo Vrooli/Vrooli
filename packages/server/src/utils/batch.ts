@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { ModelMap } from "../models/base";
 
@@ -28,7 +29,7 @@ export const batch = async <T extends FindManyArgs>({
     select,
     where,
 }: BatchProps<T>) => {
-    const delegate = ModelMap.get(objectType).delegate(prismaInstance);
+    const delegate = prismaInstance[ModelMap.get(objectType).dbTable] as PrismaDelegate;
     let skip = 0;
     let currentBatchSize = 0;
 

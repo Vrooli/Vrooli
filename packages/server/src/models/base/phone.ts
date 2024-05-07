@@ -10,7 +10,7 @@ import { OrganizationModelLogic, PhoneModelLogic } from "./types";
 const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({
     __typename,
-    delegate: (p) => p.phone,
+    dbTable: "phone",
     display: () => ({
         label: {
             select: () => ({ id: true, phoneNumber: true }),

@@ -10,7 +10,8 @@ import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVer
 const __typename = "RoutineVersionInput" as const;
 export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({
     __typename,
-    delegate: (p) => p.routine_version_input,
+    dbTable: "routine_version_input",
+    dbTranslationTable: "routine_version_input_translation",
     display: () => ({
         label: {
             select: () => ({

@@ -2,19 +2,18 @@ import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { PrismaDelegate } from "../../builders/types";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
-import { PrismaType } from "../../types";
 import { Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
 
 export type GenericModelLogic = ModelLogic<any, any, any>;
 type ObjectMap = { [key in GqlModelType]: GenericModelLogic | Record<string, never> };
-type LogicProps = "delegate" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
+type LogicProps = "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
 type GetLogicReturn<
     Logic extends LogicProps,
 > = {
-    delegate: "delegate" extends Logic ? ((prisma: PrismaType) => PrismaDelegate) : never,
+    dbTable: "dbTable" extends Logic ? string : never,
+    dbTranslationTable: "dbTranslationTable" extends Logic ? string : never,
     display: "display" extends Logic ? Displayer<any> : never,
     duplicate: "duplicate" extends Logic ? Duplicator<any, any> : never,
     format: "format" extends Logic ? Formatter<any> : never,
@@ -65,6 +64,16 @@ export class ModelMap {
                 } else {
                     this.map[modelName] = {};
                 }
+                // If the model has a translation table, add that to the map as well
+                const translationTable = this.map[modelName].dbTranslationTable;
+                if (translationTable) {
+                    const __typename = this.map[modelName].__typename + "Translation";
+                    this.map[__typename] = {
+                        __typename,
+                        dbTable: translationTable,
+                        idField: "id",
+                    };
+                }
             } catch (error) {
                 this.map[modelName] = {};
                 logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
@@ -81,7 +90,7 @@ export class ModelMap {
             throw new Error(`ModelMap was never initialized by caller ${caller}`);
         }
         const model = ModelMap.instance.map[objectType];
-        return model && typeof model === "object" && Object.prototype.hasOwnProperty.call(model, "delegate");
+        return model && typeof model === "object" && Object.prototype.hasOwnProperty.call(model, "dbTable");
     }
 
     public static get<

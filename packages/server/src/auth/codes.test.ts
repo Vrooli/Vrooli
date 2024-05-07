@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { randomString, validateCode } from "./codes";
+import { hashString, randomString, validateCode } from "./codes";
 
 describe("randomString function", () => {
     // Test for correct string length
@@ -103,5 +103,50 @@ describe("validateCode function", () => {
         const providedCode = "123456";
         const dateRequested = new Date(Date.now() - timeoutInMs * 2); // Double the timeout
         expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).toBe(false);
+    });
+});
+
+describe("hashString", () => {
+    // Test basic functionality
+    test("returns a consistent hash for a specific string", () => {
+        const testString = "Hello, world!";
+        expect(hashString(testString)).toBe(hashString(testString));
+    });
+
+    // Test edge cases
+    describe("handles edge cases", () => {
+        test("correctly hashes an empty string", () => {
+            const result = hashString("");
+            expect(typeof result).toBe("string");
+            expect(result.length).toBeGreaterThan(0);
+            expect(result.length).toBeLessThanOrEqual(128);
+        });
+
+        test("correctly hashes a very long string", () => {
+            const result = hashString("a".repeat(1000));
+            expect(typeof result).toBe("string");
+            expect(result.length).toBeGreaterThan(0);
+            expect(result.length).toBeLessThanOrEqual(128);
+        });
+
+        test("correctly hashes a string with all sorts of characters", () => {
+            const result = hashString("你好，世界！Привет, мир! こんにちは、世界！12345 😊🚀🌟@#&*");
+            expect(typeof result).toBe("string");
+            expect(result.length).toBeGreaterThan(0);
+            expect(result.length).toBeLessThanOrEqual(128);
+        });
+    });
+
+    // Test uniqueness
+    test("generates different hashes for different strings", () => {
+        const string1 = "hello";
+        const string2 = "hello!";
+        expect(hashString(string1)).not.toBe(hashString(string2));
+    });
+
+    // Optional: Test error handling (if applicable)
+    test("throws an error when input is not a string", () => {
+        const invalidInput = 123; // This would be a TypeScript error, but just in case of runtime JS usage
+        expect(() => hashString(invalidInput as unknown as string)).toThrow();
     });
 });

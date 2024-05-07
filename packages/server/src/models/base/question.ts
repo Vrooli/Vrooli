@@ -23,7 +23,8 @@ const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["cr
 const __typename = "Question" as const;
 export const QuestionModel: QuestionModelLogic = ({
     __typename,
-    delegate: (p) => p.question,
+    dbTable: "question",
+    dbTranslationTable: "question_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

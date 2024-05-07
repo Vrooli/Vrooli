@@ -8,7 +8,7 @@ import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic 
 const __typename = "StatsUser" as const;
 export const StatsUserModel: StatsUserModelLogic = ({
     __typename,
-    delegate: (p) => p.stats_user,
+    dbTable: "stats_user",
     display: () => ({
         label: {
             select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),

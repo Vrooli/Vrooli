@@ -10,7 +10,7 @@ import { NodeEndModelInfo, NodeEndModelLogic, NodeModelInfo, NodeModelLogic } fr
 const __typename = "NodeEnd" as const;
 export const NodeEndModel: NodeEndModelLogic = ({
     __typename,
-    delegate: (p) => p.node_end,
+    dbTable: "node_end",
     display: () => ({
         label: {
             select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),

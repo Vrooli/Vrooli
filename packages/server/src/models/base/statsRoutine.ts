@@ -8,7 +8,7 @@ import { RoutineModelInfo, RoutineModelLogic, StatsRoutineModelInfo, StatsRoutin
 const __typename = "StatsRoutine" as const;
 export const StatsRoutineModel: StatsRoutineModelLogic = ({
     __typename,
-    delegate: (p) => p.stats_routine,
+    dbTable: "stats_routine",
     display: () => ({
         label: {
             select: () => ({ id: true, routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display().label.select() } }),

@@ -90,7 +90,8 @@ export type ChatMessageBeforeDeletedData = {
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
     __typename,
-    delegate: (p) => p.chat_message,
+    dbTable: "chat_message",
+    dbTranslationTable: "chat_message_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),

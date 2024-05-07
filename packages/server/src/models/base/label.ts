@@ -12,7 +12,8 @@ import { LabelModelInfo, LabelModelLogic, OrganizationModelLogic } from "./types
 const __typename = "Label" as const;
 export const LabelModel: LabelModelLogic = ({
     __typename,
-    delegate: (p) => p.label,
+    dbTable: "label",
+    dbTranslationTable: "label_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, label: true }),

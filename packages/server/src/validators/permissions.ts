@@ -1,5 +1,6 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
+import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -269,14 +270,14 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
-    const delegator = ModelMap.get(type).delegate(prismaInstance);
-    const validator = ModelMap.get(type).validate();
+    const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], type);
+    const validator = validate();
     // Get auth data for all objects
     let select: any;
     let dataById: Record<string, object>;
     try {
         select = permissionsSelectHelper(validator.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
-        const authData = await delegator.findMany({
+        const authData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: ids } },
             select,
         });

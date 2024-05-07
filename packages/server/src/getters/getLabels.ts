@@ -1,4 +1,5 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -29,7 +30,7 @@ export async function getLabels(
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
         select = typeof model.display().label.select === "function" ? model.display().label.select() : model.display().label.select;
-        labelsData = await model.delegate(prismaInstance).findMany({
+        labelsData = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
             where,
             select,
         });

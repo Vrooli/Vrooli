@@ -11,7 +11,7 @@ import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLo
 const __typename = "QuizAttempt" as const;
 export const QuizAttemptModel: QuizAttemptModelLogic = ({
     __typename,
-    delegate: (p) => p.quiz_attempt,
+    dbTable: "quiz_attempt",
     display: () => ({
         label: {
             select: () => ({

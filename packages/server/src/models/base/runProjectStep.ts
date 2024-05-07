@@ -7,7 +7,7 @@ import { RunProjectModelInfo, RunProjectModelLogic, RunProjectStepModelInfo, Run
 const __typename = "RunProjectStep" as const;
 export const RunProjectStepModel: RunProjectStepModelLogic = ({
     __typename,
-    delegate: (p) => p.run_project_step,
+    dbTable: "run_project_step",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),

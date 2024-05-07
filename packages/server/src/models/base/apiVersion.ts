@@ -12,7 +12,8 @@ import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic 
 const __typename = "ApiVersion" as const;
 export const ApiVersionModel: ApiVersionModelLogic = ({
     __typename,
-    delegate: (p) => p.api_version,
+    dbTable: "api_version",
+    dbTranslationTable: "api_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),

@@ -16,7 +16,8 @@ import { BookmarkModelLogic, OrganizationModelLogic, ViewModelLogic } from "./ty
 const __typename = "Organization" as const;
 export const OrganizationModel: OrganizationModelLogic = ({
     __typename,
-    delegate: (p) => p.organization,
+    dbTable: "organization",
+    dbTranslationTable: "organization_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

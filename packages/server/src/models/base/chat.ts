@@ -12,7 +12,8 @@ import { ChatModelLogic } from "./types";
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
     __typename,
-    delegate: (p) => p.chat,
+    dbTable: "chat",
+    dbTranslationTable: "chat_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

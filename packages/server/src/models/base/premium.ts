@@ -8,7 +8,7 @@ import { OrganizationModelLogic, PremiumModelLogic } from "./types";
 const __typename = "Premium" as const;
 export const PremiumModel: PremiumModelLogic = ({
     __typename,
-    delegate: (p) => p.payment,
+    dbTable: "payment",
     display: () => ({
         label: {
             select: () => ({ id: true, customPlan: true }),

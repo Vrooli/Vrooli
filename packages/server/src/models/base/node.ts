@@ -13,7 +13,8 @@ const __typename = "Node" as const;
 const MAX_NODES_IN_ROUTINE = 100;
 export const NodeModel: NodeModelLogic = ({
     __typename,
-    delegate: (p) => p.node,
+    dbTable: "node",
+    dbTranslationTable: "node_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

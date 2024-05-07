@@ -2,6 +2,7 @@ import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityTyp
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { SessionData, SessionUserToken } from "../types";
+import { EmbeddableType } from "../utils/embeddings/types";
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
@@ -44,7 +45,7 @@ export type ReadManyHelperProps<
 > = {
     additionalQueries?: { [x: string]: any };
     /**
-     * Decides if queried data should be called. Defaults to true. 
+     * Decides if supplemental data (e.g. if you've bookmarked an item) should be called. Defaults to true. 
      * You may want to set this to false if you are calling readManyHelper multiple times, so you can do this 
      * later in one call
      */
@@ -55,6 +56,18 @@ export type ReadManyHelperProps<
     req: { session: { languages: string[], users?: SessionUserToken[] } };
     visibility?: VisibilityType;
 }
+
+export type ReadManyWithEmbeddingsHelperProps<
+    Input extends { [x: string]: any }
+> = Pick<ReadManyHelperProps<Input>, "info" | "input" | "req" | "visibility"> & {
+    /**
+     * If you want just the IDs of the results, the results without supplemental fields 
+     * (i.e. what would be returned from readManyHelper with "addSupplemental" set to false), 
+     * or the full results with supplemental fields.
+     */
+    fetchMode?: "ids" | "noSupplemental" | "full";
+    objectType: EmbeddableType;
+};
 
 type FindUniqueInput = {
     id?: string | null | undefined;

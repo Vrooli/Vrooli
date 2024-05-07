@@ -10,7 +10,8 @@ import { OrganizationModelInfo, OrganizationModelLogic, RoleModelInfo, RoleModel
 const __typename = "Role" as const;
 export const RoleModel: RoleModelLogic = ({
     __typename,
-    delegate: (p) => p.role,
+    dbTable: "role",
+    dbTranslationTable: "role_translation",
     display: () => ({
         label: {
             select: () => ({

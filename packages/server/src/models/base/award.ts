@@ -8,7 +8,7 @@ import { AwardModelLogic } from "./types";
 const __typename = "Award" as const;
 export const AwardModel: AwardModelLogic = ({
     __typename,
-    delegate: (p) => p.award,
+    dbTable: "award",
     display: () => ({
         label: {
             select: () => ({ id: true, category: true, progress: true }),

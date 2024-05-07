@@ -12,7 +12,8 @@ import { SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionMo
 const __typename = "SmartContractVersion" as const;
 export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
     __typename,
-    delegate: (p) => p.smart_contract_version,
+    dbTable: "smart_contract_version",
+    dbTranslationTable: "smart_contract_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),

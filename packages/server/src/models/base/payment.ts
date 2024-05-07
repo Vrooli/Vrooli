@@ -7,7 +7,7 @@ import { OrganizationModelLogic, PaymentModelLogic } from "./types";
 const __typename = "Payment" as const;
 export const PaymentModel: PaymentModelLogic = ({
     __typename,
-    delegate: (p) => p.payment,
+    dbTable: "payment",
     display: () => ({
         label: {
             select: () => ({ id: true, description: true }),
