@@ -9,4 +9,4 @@ export const tagSearchSchema = (): FormSchema => ({
     fields: [], //TODO
 });
 
-export const tagSearchParams = () => toParams(tagSearchSchema(), endpointGetTags, endpointGetTag, TagSortBy, TagSortBy.Top);
+export const tagSearchParams = () => toParams(tagSearchSchema(), endpointGetTags, endpointGetTag, TagSortBy, TagSortBy.EmbedTopDesc);

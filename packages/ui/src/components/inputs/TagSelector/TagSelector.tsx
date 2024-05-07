@@ -1,5 +1,5 @@
 import { BookmarkFor, DUMMY_ID, endpointGetTags, exists, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
-import { Autocomplete, Chip, InputAdornment, ListItemText, MenuItem, useTheme } from "@mui/material";
+import { Autocomplete, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useField } from "formik";
 import { useFetch } from "hooks/useFetch";
@@ -11,6 +11,45 @@ import { TagShape } from "utils/shape/models/tag";
 import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps, TagSelectorProps } from "../types";
 
+/** Removes invalid characters from tag string */
+const withoutInvalidChars = (str: string) => str.replace(/[,;]/g, "");
+
+/** Custom Popper component to add scroll handling */
+const PopperComponent = ({
+    onScrollBottom,
+    ...props
+}: PopperProps & { onScrollBottom: () => unknown }) => {
+    const popperRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const handleScroll = (event) => {
+            const target = event.target;
+            // Check if we've scrolled to the bottom
+            if (target.scrollTop + target.clientHeight >= target.scrollHeight - 10) {
+                // Trigger load more function
+                onScrollBottom();
+            }
+        };
+
+        // The grandchild of the Popper is the scrollable element
+        const popperNode = popperRef.current;
+        const scrollableNode = popperNode?.firstChild?.firstChild;
+        if (scrollableNode) {
+            scrollableNode.addEventListener("scroll", handleScroll);
+        }
+
+        return () => {
+            if (scrollableNode) {
+                scrollableNode.removeEventListener("scroll", handleScroll);
+            }
+        };
+    }, [onScrollBottom, props.open]); // Re-run effect when open state changes
+
+    return <Popper {...props} ref={popperRef} />;
+};
+
+const PAGE_SIZE = 25;
+
 export const TagSelectorBase = ({
     disabled,
     handleTagsUpdate,
@@ -19,35 +58,43 @@ export const TagSelectorBase = ({
     placeholder,
     sx,
 }: TagSelectorBaseProps) => {
+    console.log("tagselectorbase tags", tags);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const handleTagAdd = useCallback((tag: TagShape) => {
-        handleTagsUpdate([...tags, tag]);
+    const [inputValue, setInputValue] = useState<string>("");
+    // Switch between cursor and offset pagination depending on if there's a search string. 
+    // This is because we're using text embedding search to match the search string to tags, 
+    // which requires offset pagination.
+    const [after, setAfter] = useState<string | null>(null);
+    const [offset, setOffset] = useState<number>(0);
+
+    const handleTagAdd = useCallback((tag: string | TagShape) => {
+        if (tags.some(t => typeof tag === "string"
+            ? (t as unknown as string) === tag
+            : (t as TagShape).tag === tag.tag)) return;
+        handleTagsUpdate([...tags, typeof tag === "string" ? { __typename: "Tag", id: DUMMY_ID, tag } : tag]);
     }, [handleTagsUpdate, tags]);
-    const handleTagRemove = useCallback((tag: TagShape) => {
-        handleTagsUpdate(tags.filter(t => t.tag !== tag.tag));
+    const handleTagRemove = useCallback((tag: string | TagShape) => {
+        handleTagsUpdate(tags.filter(t => typeof tag === "string"
+            ? (t as unknown as string) !== tag
+            : (t as TagShape).tag !== tag.tag));
     }, [handleTagsUpdate, tags]);
 
-    const [inputValue, setInputValue] = useState<string>("");
     const clearText = useCallback(() => { setInputValue(""); }, []);
-    const onChange = useCallback((change: any) => {
-        // Remove invalid characters (i.e. ',' or ';')
-        setInputValue(change.target.value.replace(/[,;]/g, ""));
+
+    const onChange = useCallback((change: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const sanitized = withoutInvalidChars(change.target.value);
+        console.log("onchange", change.target.value, sanitized);
+        setInputValue(sanitized);
     }, []);
-    const onKeyDown = useCallback((event: any) => {
-        let tagLabel;
-        // Check if the user pressed ',' or ';'
-        if (event.code === "Comma" || event.code === "Semicolon") {
-            tagLabel = inputValue;
-        }
-        // Check if the user pressed enter
-        else if (event.code === "enter" && event.target.value) {
-            tagLabel = inputValue + event.key;
-        }
-        else return;
-        // Remove invalid characters (i.e. ',' or ';')
-        tagLabel = tagLabel.replace(/[,;]/g, "");
+
+    // Detect when the tag should be submitted
+    const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        // Check if the user pressed ',', ';', or enter
+        if (!["Comma", "Semicolon", "Enter"].includes(event.code)) return;
+        // Remove invalid characters
+        const tagLabel = withoutInvalidChars(inputValue);
         // Check if tag is valid length
         if (tagLabel.length < 2) {
             PubSub.get().publish("snack", { messageKey: "TagTooShort", severity: "Error" });
@@ -69,74 +116,74 @@ export const TagSelectorBase = ({
         clearText();
     }, [clearText, handleTagAdd, inputValue, tags]);
 
-    const onInputSelect = useCallback((tag: Tag) => {
+    const onInputSelect = useCallback((tag: TagShape | Tag) => {
+        console.log("onInputSelect", tag);
         setInputValue("");
-        // Determine if tag is already selected
-        const isSelected = tags.some(t => t.tag === tag.tag);
-        if (isSelected) handleTagRemove(tag);
+        // Remove tag is already selected
+        if (tags.some(t => t.tag === tag.tag)) handleTagRemove(tag);
+        // Add otherwise
         else handleTagAdd(tag);
     }, [handleTagAdd, handleTagRemove, tags]);
+
     const onChipDelete = useCallback((tag: TagShape | Tag) => {
         handleTagRemove(tag);
     }, [handleTagRemove]);
 
-    // Map of tag strings to queried tag data, so we can exclude tags that have already been queried before
-    type TagsRef = { [key: string]: TagShape | Tag }
-    const tagsRef = useRef<TagsRef | null>(null);
-    // Whenever selected tags change, add unknown tags to the tag map
-    useEffect(() => {
-        if (!tagsRef.current) return;
-        tags.forEach(tag => {
-            if (!(tagsRef.current as TagsRef)[tag.tag]) (tagsRef.current as TagsRef)[tag.tag] = tag;
-        });
-    }, [tags]);
+    // Map of tag strings to queried tag data, so we can persist bookmarks
+    const tagsRef = useRef<{ [key: string]: TagShape | Tag }>({});
 
-    const { data: autocompleteData } = useFetch<TagSearchInput, TagSearchResult>({
+    const { data: autocompleteData, loading } = useFetch<TagSearchInput, TagSearchResult>({
         ...endpointGetTags,
         debounceMs: 250,
         inputs: {
-            // Exclude tags that have already been fully queried, and match the search string
-            // (i.e. in tag map, and have an ID)
-            excludeIds: tagsRef.current !== null ?
-                Object.values(tagsRef.current)
-                    .filter(t => (t as Tag).id && t.tag.toLowerCase().includes(inputValue.toLowerCase()))
-                    .map(t => (t as Tag).id) as string[] :
-                [],
-            searchString: inputValue,
-            sortBy: TagSortBy.Top,
-            take: 25,
+            sortBy: TagSortBy.EmbedTopDesc,
+            take: PAGE_SIZE,
+            ...(
+                inputValue.trim().length > 0
+                    ? { offset, searchString: inputValue }
+                    : { after }
+            ),
         },
     }, [inputValue]);
 
-    /**
-     * Store queried tags in the tag ref
-     */
-    useEffect(() => {
-        if (!autocompleteData) return;
-        const queried = autocompleteData.edges.map(({ node }) => node);
-        queried.forEach(tag => {
-            if (!tagsRef.current) tagsRef.current = {};
-            (tagsRef.current as TagsRef)[tag.tag] = tag;
-        });
-    }, [autocompleteData, tagsRef]);
+    useMemo(() => {
+        if (inputValue.trim().length > 0) {
+            setOffset(0);  // Reset offset when a new search is started
+        } else {
+            setAfter(null); // Reset cursor when search is cleared
+        }
+    }, [inputValue]);
+
+    const loadMoreTags = useCallback(() => {
+        if (autocompleteData?.pageInfo?.endCursor && autocompleteData.pageInfo.hasNextPage && !inputValue) {
+            setAfter(autocompleteData.pageInfo.endCursor);
+        } else if (autocompleteData?.pageInfo?.hasNextPage && inputValue) {
+            setOffset(prevOffset => prevOffset + PAGE_SIZE);
+        }
+    }, [autocompleteData, inputValue]);
 
     const autocompleteOptions: (TagShape | Tag)[] = useMemo(() => {
         if (!autocompleteData) return [];
-        // Find queried
+        // Find queried tags
         const queried = autocompleteData.edges.map(({ node }) => node);
-        // Find already known, that match the search string
-        const known = tagsRef.current ?
-            Object.values(tagsRef.current)
-                .filter(tag => tag.tag.toLowerCase().includes(inputValue.toLowerCase())) :
-            [];
-        // Return all queried and known
-        return [...queried, ...known];
-    }, [autocompleteData, inputValue, tagsRef]);
+        // Store queried tags in the tag ref
+        queried.forEach(tag => {
+            if (!tagsRef.current[tag.tag]) tagsRef.current[tag.tag] = tag;
+        });
+        // Grab tags from the tag ref, in the same order as the queried tags
+        const stored = autocompleteData.edges.map(({ node }) => tagsRef.current[node.tag] ?? node);
+        // Return stored tags
+        return stored;
+    }, [autocompleteData, tagsRef]);
+    console.log("tag autocomplete options", autocompleteOptions);
 
     const handleIsBookmarked = useCallback((tag: string, isBookmarked: boolean) => {
-        // Update tag ref
-        if (!tagsRef.current) tagsRef.current = {};
-        ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isBookmarked };
+        if (!tagsRef.current[tag]) return;
+        (tagsRef.current[tag] as TagShape).you = {
+            ...((tagsRef.current[tag] as TagShape).you ?? {}),
+            __typename: "TagYou" as const,
+            isBookmarked,
+        } as Tag["you"];
     }, [tagsRef]);
 
     return (
@@ -146,36 +193,55 @@ export const TagSelectorBase = ({
             disablePortal
             fullWidth
             multiple
+            // Allow all options through the filter - we perform custom filtering
+            filterOptions={(options) => options}
             freeSolo={true}
+            isOptionEqualToValue={(option, value) => {
+                const optionTag = typeof option === "string" ? option : option.tag;
+                const valueTag = typeof value === "string" ? value : value.tag;
+                return optionTag === valueTag;
+            }}
             options={autocompleteOptions}
             getOptionLabel={(o: string | TagShape | Tag) => (typeof o === "string" ? o : o.tag)}
             inputValue={inputValue}
             noOptionsText={t("NoSuggestions")}
             limitTags={3}
-            onClose={clearText}
+            loading={loading}
             value={tags}
-            // Filter out what has already been selected
-            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === (o as TagShape | Tag).tag))}
+            defaultValue={tags}
+            PopperComponent={(props) => <PopperComponent {...props} onScrollBottom={loadMoreTags} />}
             renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                    <Chip
-                        variant="filled"
-                        label={(option as TagShape | Tag).tag}
-                        {...getTagProps({ index })}
-                        onDelete={() => onChipDelete(option as TagShape | Tag)}
-                        sx={{
-                            backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
-                            color: "white",
-                        }}
-                    />
-                ),
-                )}
+                value.map((option, index) => {
+                    console.log("rendering tag", option, index);
+                    return (
+                        <Chip
+                            {...getTagProps({ index })}
+                            id={`tag-chip-${index}`}
+                            key={typeof option === "string" ? option : option.tag}
+                            variant="filled"
+                            label={typeof option === "string" ? option : option.tag}
+                            onDelete={() => onChipDelete(option as TagShape | Tag)}
+                            sx={{
+                                backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
+                                color: "white",
+                            }}
+                        />
+                    );
+                })}
             renderOption={(props, option) => (
                 <MenuItem
                     {...props}
-                    onClick={() => onInputSelect(option as Tag)} //TODO
+                    onClick={() => {
+                        if (typeof option === "string") {
+                            const found = autocompleteOptions.find(t => t.tag === option);
+                            if (found) onInputSelect(found);
+                        } else {
+                            onInputSelect(option);
+                        }
+                    }}
+                    selected={tags.some(t => typeof option === "string" ? (t as unknown as string) === option : (t as TagShape | Tag).tag === option.tag)}
                 >
-                    <ListItemText>{(option as TagShape | Tag).tag}</ListItemText>
+                    <ListItemText>{typeof option === "string" ? option : option.tag}</ListItemText>
                     <BookmarkButton
                         objectId={(option as Tag).id ?? ""}
                         bookmarkFor={BookmarkFor.Tag}
@@ -195,9 +261,18 @@ export const TagSelectorBase = ({
                     InputProps={{
                         ...params.InputProps,
                         startAdornment: (
-                            <InputAdornment position="start">
-                                <TagIcon />
-                            </InputAdornment>
+                            <>
+                                <InputAdornment position="start">
+                                    <TagIcon />
+                                </InputAdornment>
+                                {params.InputProps.startAdornment}
+                            </>
+                        ),
+                        endAdornment: (
+                            <>
+                                {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                                {params.InputProps.endAdornment}
+                            </>
                         ),
                     }}
                     inputProps={params.inputProps}
@@ -213,7 +288,6 @@ export const TagSelectorBase = ({
 
 export const TagSelector = ({
     name,
-    placeholder = "Enter tags, followed by commas...",
     ...props
 }: TagSelectorProps) => {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
@@ -225,9 +299,9 @@ export const TagSelector = ({
     return (
         <TagSelectorBase
             handleTagsUpdate={handleTagsUpdate}
-            placeholder={placeholder}
             tags={field.value ?? []}
             {...props}
         />
     );
 };
+
