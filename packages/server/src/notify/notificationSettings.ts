@@ -1,7 +1,7 @@
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { prismaInstance } from "../db/instance";
-import { logger } from "../events/logger";
+import { parseJsonOrDefault } from "../utils/objectTools";
 import { NotificationCategory } from "./notify";
 
 type NotificationRecipients = {
@@ -10,23 +10,7 @@ type NotificationRecipients = {
     phoneNumbers: any,
 }
 
-const defaultSettings: NotificationSettings = { __typename: "NotificationSettings" as const, enabled: false };
-
-/**
- * Parses a user's notification settings from the a stringified JSON object
- * @param settingsJson JSON string of the user's notification settings
- * @returns Parsed notification settings
- */
-export const parseNotificationSettings = (settingsJson: string | null): NotificationSettings => {
-    try {
-        const settings = settingsJson ? JSON.parse(settingsJson) : defaultSettings;
-        return settings;
-    } catch (error) {
-        logger.error("Failed to parse notification settings", { trace: "0304" });
-        // If there is an error parsing the JSON, return the default settings
-        return { __typename: "NotificationSettings" as const, enabled: false };
-    }
-};
+export const defaultNotificationSettings: NotificationSettings = { __typename: "NotificationSettings" as const, enabled: false };
 
 /**
  * Finds the current notification settings for a list of users
@@ -47,18 +31,18 @@ export const getNotificationSettingsAndRecipients = async (userIds: string[]): P
         },
     });
     // If no results, return default settings
-    if (!usersData) return Array(userIds.length).fill({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
+    if (!usersData) return Array(userIds.length).fill({ settings: defaultNotificationSettings, pushDevices: [], emails: [], phoneNumbers: [] });
     // For each user, parse the notification settings and add to the results array
     for (let i = 0; i < userIds.length; i++) {
         // Find queried user data
         const user = usersData.find(u => u.id === userIds[i]);
         // If no user data, return default settings
         if (!user) {
-            results.push({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
+            results.push({ settings: defaultNotificationSettings, pushDevices: [], emails: [], phoneNumbers: [] });
             continue;
         }
         // Parse the notification settings
-        const settings = parseNotificationSettings(user.notificationSettings);
+        const settings = parseJsonOrDefault<NotificationSettings>(user.notificationSettings, defaultNotificationSettings);
         // Add to results array
         results.push({
             settings,
@@ -99,7 +83,7 @@ export const updateNotificationSettings = async (
         data: { notificationSettings: JSON.stringify(newSettings) },
         select: { notificationSettings: true },
     });
-    return parseNotificationSettings(updated.notificationSettings);
+    return parseJsonOrDefault<NotificationSettings>(updated.notificationSettings, defaultNotificationSettings);
 };
 
 /**

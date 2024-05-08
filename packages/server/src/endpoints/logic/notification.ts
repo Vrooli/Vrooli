@@ -4,8 +4,9 @@ import { assertRequestFrom } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
-import { parseNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings";
+import { defaultNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings";
 import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { parseJsonOrDefault } from "../../utils/objectTools";
 
 export type EndpointsNotification = {
     Query: {
@@ -39,7 +40,7 @@ export const NotificationEndpoints: EndpointsNotification = {
                 select: { notificationSettings: true },
             });
             if (!user) throw new CustomError("0402", "InternalError", ["en"]);
-            return parseNotificationSettings(user.notificationSettings);
+            return parseJsonOrDefault<NotificationSettings>(user.notificationSettings, defaultNotificationSettings);
         },
     },
     Mutation: {

@@ -1,4 +1,4 @@
-import { Notify, ScheduleSubscriptionContext, batch, findFirstRel, logger, parseSubscriptionContext, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
+import { Notify, ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
 import { GqlModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
@@ -30,7 +30,7 @@ const scheduleNotifications = async (
                     // Find notification preferences for each subscriber
                     const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                     for (const subscription of batch) {
-                        const context = parseSubscriptionContext(subscription.context) as ScheduleSubscriptionContext | null;
+                        const context = parseJsonOrDefault<ScheduleSubscriptionContext>(subscription.context, {} as ScheduleSubscriptionContext);
                         if (!context) continue;
                         for (const reminder of context.reminders) {
                             if (!subscriberPrefs[subscription.subscriber.id]) {

@@ -168,14 +168,14 @@ export const deepClone = <T>(obj: T): T => {
  * @returns A new object with properties from both target and reference.
  */
 export const mergeDeep = <T>(target: T, reference: T): T => {
-    if (target === null || typeof target !== 'object' || Array.isArray(target)) {
+    if (target === null || typeof target !== "object" || Array.isArray(target)) {
         return target !== undefined && target !== null ? target : reference;
     }
 
     const result: any = { ...reference };
 
     for (const key in target) {
-        if (typeof target[key] === 'object' && target[key] !== null && !Array.isArray(target[key])) {
+        if (typeof target[key] === "object" && target[key] !== null && !Array.isArray(target[key])) {
             result[key] = mergeDeep(target[key] as object, reference[key] || {});
         } else {
             result[key] = target[key];
@@ -183,4 +183,4 @@ export const mergeDeep = <T>(target: T, reference: T): T => {
     }
 
     return result;
-}
+};

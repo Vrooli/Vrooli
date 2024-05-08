@@ -1,4 +1,3 @@
-import { logger } from "../events/logger";
 
 export type ApiSubscriptionContext = object;
 
@@ -52,18 +51,3 @@ export type SubscriptionContext = ApiSubscriptionContext |
     ScheduleSubscriptionContext |
     SmartContractSubscriptionContext |
     StandupSubscriptionContext;
-
-/**
- * Parses a notification subscription's context from its stringified JSON representation
- * @param contextJson JSON string of the subscription's context
- * @returns Parsed subscription context, or empty object if there is an error
- */
-export const parseSubscriptionContext = (contextJson: string | null): SubscriptionContext | object => {
-    try {
-        const settings = contextJson ? JSON.parse(contextJson) : {};
-        return settings;
-    } catch (error) {
-        logger.error("Failed to parse notification subscription context", { trace: "0431" });
-        return {};
-    }
-};
