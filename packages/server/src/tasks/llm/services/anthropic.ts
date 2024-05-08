@@ -119,7 +119,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
             system: systemMessage,
         };
 
-        let accumulatedText: [string, number][] = [];
+        const accumulatedText: [string, number][] = [];
         let totalInputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
         let totalOutputTokens = 0;
 
@@ -164,7 +164,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
             const trace = "0421";
             const errorType = this.getErrorType(error);
             LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
-            logger.error("Failed to stream from OpenAI", { trace, error, errorType });
+            logger.error("Failed to stream from Anthropic", { trace, error, errorType });
 
             const message = accumulatedText.sort((a, b) => a[1] - b[1]).map(([text]) => text).join("");
             const cost = this.getResponseCost({

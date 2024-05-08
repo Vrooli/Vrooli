@@ -409,7 +409,7 @@ export const handleTaskTransition = ({
 
 /**
  * Helper function which loops forward or backward from an index to find the matching character.
- * If it finds a non-whitespace character (including newline), passes the max length, or reaches the end of the string,
+ * If it finds a non-whitespace character (excluding newline), passes the max length, or reaches the end of the string,
  * it returns null. Otherwise, it returns the index of the matching character.
  * 
  * @param index The index to start from.
@@ -447,7 +447,7 @@ export const findCharWithLimit = (
 
         if (currentChar === char) {
             return index; // Found the target character
-        } else if (!isWhitespace(currentChar)) {
+        } else if (!isWhitespace(currentChar) && !isNewline(currentChar)) {
             // Found a non-whitespace character that is not the target
             return null;
         }

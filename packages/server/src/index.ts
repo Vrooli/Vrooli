@@ -125,39 +125,25 @@ const main = async () => {
     // Set up image uploading for GraphQL
     app.use("/api/v2/graphql", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
 
-    // Apollo server for latest API version
-    const apollo_options_latest = new ApolloServer({
-        cache: "bounded",
-        introspection: debug,
-        schema,
-        context: (c) => context(c), // Allows request and response to be included in the context
-        validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
-    });
-    // Start server
-    await apollo_options_latest.start();
-    // Configure server with ExpressJS settings and path
-    apollo_options_latest.applyMiddleware({
-        app,
-        path: "/api/v2/graphql",
-        cors: false,
-    });
-    // Additional Apollo server that wraps the latest version. Uses previous endpoint, and transforms the schema
-    // to be compatible with the latest version.
-    // const apollo_options_previous = new ApolloServer({
-    //     cache: 'bounded' as any,
-    //     introspection: debug,
-    //     schema: schema,
-    //     context: (c) => context(c), // Allows request and response to be included in the context
-    //     validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
-    // });
-    // // Start server
-    // await apollo_options_previous.start();
-    // // Configure server with ExpressJS settings and path
-    // apollo_options_previous.applyMiddleware({
-    //     app,
-    //     path: `/api/v2`,
-    //     cors: false
-    // });
+    // GraphQL server for latest API version, if needed. We use GraphQL to generate 
+    // types, so this needs to run at least in development.
+    if (debug) {
+        const apollo_options_latest = new ApolloServer({
+            cache: "bounded",
+            introspection: debug,
+            schema,
+            context: (c) => context(c), // Allows request and response to be included in the context
+            validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
+        });
+        // Start server
+        await apollo_options_latest.start();
+        // Configure server with ExpressJS settings and path
+        apollo_options_latest.applyMiddleware({
+            app,
+            path: "/api/v2/graphql",
+            cors: false,
+        });
+    }
 
     // Set up websocket server
     // Pass the session to the socket, after it's been authenticated
@@ -169,7 +155,8 @@ const main = async () => {
         userSocketRoomHandlers(socket);
     });
 
-    // Unhandled Rejection Handler
+    // Unhandled Rejection Handler. This is a last resort for catching errors that were not caught by the application. 
+    // If you see this error, please try to find its source and catch it there.
     process.on("unhandledRejection", (reason, promise) => {
         logger.error("🚨 Unhandled Rejection", { trace: "0003", reason, promise });
     });

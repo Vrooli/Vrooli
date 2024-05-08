@@ -1267,37 +1267,33 @@ describe("findCharWithLimit", () => {
     const testString1 = "[/command1]";
     const testString2 = "  [/command1]  ";
     const testString3 = "  [  /command1  ]  ";
-    const allTests = [testString1, testString2, testString3];
+    const testString4 = " \n[/command1]\n  ";
+    const allTests = [testString1, testString2, testString3, testString4];
 
     for (const testString of allTests) {
         const openIndex = testString.indexOf("[");
         const closeIndex = testString.indexOf("]");
-        test("finds \"[\" starting at beginning", () => {
+        test("finds \"[\" starting at beginning and going forward", () => {
             // @ts-ignore: expect-message
             expect(findCharWithLimit(0, true, "[", testString, 5), `input: ${testString}`).toBe(openIndex);
         });
-        test("doesn't find \"[\" starting at end - runs into non-whitespace", () => {
+        test("doesn't find \"[\" starting at end and going forward", () => {
             // @ts-ignore: expect-message
             expect(findCharWithLimit(testString.length - 1, true, "[", testString, 5), `input: ${testString}`).toBeNull();
         });
-        test("finds \"]\" starting at end", () => {
+        test("finds \"]\" starting at end and going backward", () => {
             // @ts-ignore: expect-message
             expect(findCharWithLimit(testString.length - 1, false, "]", testString, 5), `input: ${testString}`).toBe(closeIndex);
         });
-        test("doesn't find \"]\" starting at beginning - runs into non-whitespace", () => {
+        test("doesn't find \"]\" starting at beginning and going backward", () => {
             // @ts-ignore: expect-message
             expect(findCharWithLimit(0, false, "]", testString, 5), `input: ${testString}`).toBeNull();
         });
-        test("doesn't find \"[\" starting at middle - runs into non-whitespace", () => {
+        test("doesn't find \"[\" starting at middle and going forward - should already be past it", () => {
             // @ts-ignore: expect-message
             expect(findCharWithLimit(3, true, "[", testString, 5), `input: ${testString}`).toBeNull();
         });
     }
-
-    test("doesn't find \"]\" when a newline is in the way", () => {
-        const testString = " \n ]";
-        expect(findCharWithLimit(0, false, "]", testString, 5)).toBeNull();
-    });
 });
 
 // Mock commandToTask
@@ -1386,26 +1382,19 @@ describe("detectWrappedTasks", () => {
         });
         test("returns empty array when commands are not wrapped - test 4", () => {
             detectWrappedTasksTester({
-                input: `${start}:\n[/command1]`,
+                input: `${start}: [/command1\n]`,
                 expected: [],
                 ...wrapper,
             });
         });
         test("returns empty array when commands are not wrapped - test 5", () => {
             detectWrappedTasksTester({
-                input: `${start}: [/command1\n]`,
-                expected: [],
-                ...wrapper,
-            });
-        });
-        test("returns empty array when commands are not wrapped - test 6", () => {
-            detectWrappedTasksTester({
                 input: `${start}: [/command1${delimiter}\n/command2]`,
                 expected: [],
                 ...wrapper,
             });
         });
-        test("returns empty array when commands are not wrapped - test 7", () => {
+        test("returns empty array when commands are not wrapped - test 6", () => {
             detectWrappedTasksTester({
                 input: `${start}:[/command1 ${start}:]`,
                 expected: [],
@@ -1503,6 +1492,30 @@ describe("detectWrappedTasks", () => {
                 expected: [{
                     taskIndices: [1],
                     wrapperStart: "/hi there ".length,
+                    wrapperEnd: input.length - 1,
+                }],
+                ...wrapper,
+            });
+        });
+        test("returns correct indices for a single wrapped command - test 9", () => {
+            const input = `${start}:\n[/command1] `;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    taskIndices: [0],
+                    wrapperStart: 0,
+                    wrapperEnd: input.length - 2, // Excludes space at end
+                }],
+                ...wrapper,
+            });
+        });
+        test("returns correct indices for a single wrapped command - test 10", () => {
+            const input = `/task boop ${start}: \n [/command1]`;
+            detectWrappedTasksTester({
+                input,
+                expected: [{
+                    taskIndices: [1],
+                    wrapperStart: "/task boop ".length,
                     wrapperEnd: input.length - 1,
                 }],
                 ...wrapper,

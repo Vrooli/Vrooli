@@ -235,9 +235,9 @@ export const generateTaskExec = async (
     const converter = await importConverter(language);
     // NOTE: We are skipping some information in this context, such as the request and response information. 
     // This is typically only used by middleware, so it should hopefully not be necessary for the LLM.
-    // TODO: Realized this won't work for rate limiting. Need solution
     const context: Context = {
         req: {
+            path: `/llmTask/${task}`, // Needed for rate limiting
             session: {
                 fromSafeOrigin: true,
                 isLoggedIn: true,
