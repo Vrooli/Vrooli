@@ -1,6 +1,6 @@
 import { VisibilityType } from "@local/shared";
 import { withRedis } from "../../redisConn";
-import { EmbeddableType, EmbedSortOption } from "./types";
+import { EmbeddableType } from "./types";
 
 type CreateSearchEmbeddingsKeyProps = {
     /** The type of object being searched */
@@ -25,6 +25,15 @@ type SetSearchEmbeddingsCacheProps = CheckSearchEmbeddingsCacheProps & {
     /** The results to cache */
     results: { id: string }[];
 };
+
+export enum EmbedSortOption {
+    EmbedDateCreatedAsc = "EmbedDateCreatedAsc",
+    EmbedDateCreatedDesc = "EmbedDateCreatedDesc",
+    EmbedDateUpdatedAsc = "EmbedDateUpdatedAsc",
+    EmbedDateUpdatedDesc = "EmbedDateUpdatedDesc",
+    EmbedTopAsc = "EmbedTopAsc",
+    EmbedTopDesc = "EmbedTopDesc",
+}
 
 /**
  * Manages the search embeddings cache, to speed up search results.

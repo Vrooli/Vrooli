@@ -11,22 +11,22 @@ import { EmbeddableType } from "./types";
 // See https://github.com/Vrooli/text-embedder-tests for more details.
 const INSTRUCTION_COMMON = "Embed this text";
 const Instructions: { [key in EmbeddableType]: string } = {
-    "Api": INSTRUCTION_COMMON,
+    "ApiVersion": INSTRUCTION_COMMON,
     "Chat": INSTRUCTION_COMMON,
     "Issue": INSTRUCTION_COMMON,
     "Meeting": INSTRUCTION_COMMON,
-    "Note": INSTRUCTION_COMMON,
+    "NoteVersion": INSTRUCTION_COMMON,
     "Organization": INSTRUCTION_COMMON,
     "Post": INSTRUCTION_COMMON,
-    "Project": INSTRUCTION_COMMON,
+    "ProjectVersion": INSTRUCTION_COMMON,
     "Question": INSTRUCTION_COMMON,
     "Quiz": INSTRUCTION_COMMON,
     "Reminder": INSTRUCTION_COMMON,
-    "Routine": INSTRUCTION_COMMON,
+    "RoutineVersion": INSTRUCTION_COMMON,
     "RunProject": INSTRUCTION_COMMON,
     "RunRoutine": INSTRUCTION_COMMON,
-    "SmartContract": INSTRUCTION_COMMON,
-    "Standard": INSTRUCTION_COMMON,
+    "SmartContractVersion": INSTRUCTION_COMMON,
+    "StandardVersion": INSTRUCTION_COMMON,
     "Tag": INSTRUCTION_COMMON,
     "User": INSTRUCTION_COMMON,
 };

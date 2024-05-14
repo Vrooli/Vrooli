@@ -1,41 +1,23 @@
 
 /**
- * All object types that can be embedded. For any versioned object, 
- * the embedding is for the latest version.
+ * All object types that can be embedded.
  */
 export type EmbeddableType =
-    | "Api"
+    | "ApiVersion"
     | "Chat"
     | "Issue"
     | "Meeting"
-    | "Note"
+    | "NoteVersion"
     | "Organization"
     | "Post"
-    | "Project"
+    | "ProjectVersion"
     | "Question"
     | "Quiz"
     | "Reminder"
-    | "Routine"
+    | "RoutineVersion"
     | "RunProject"
     | "RunRoutine"
-    | "SmartContract"
-    | "Standard"
+    | "SmartContractVersion"
+    | "StandardVersion"
     | "Tag"
     | "User";
-
-export enum EmbedSortOption {
-    EmbedDateCreatedAsc = "EmbedDateCreatedAsc",
-    EmbedDateCreatedDesc = "EmbedDateCreatedDesc",
-    EmbedDateUpdatedAsc = "EmbedDateUpdatedAsc",
-    EmbedDateUpdatedDesc = "EmbedDateUpdatedDesc",
-    EmbedTopAsc = "EmbedTopAsc",
-    EmbedTopDesc = "EmbedTopDesc",
-}
-
-export enum SearchTimePeriod {
-    Day = "Day",
-    Week = "Week",
-    Month = "Month",
-    Year = "Year",
-    AllTime = "AllTime"
-}
