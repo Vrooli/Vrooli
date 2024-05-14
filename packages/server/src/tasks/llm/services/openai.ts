@@ -1,3 +1,4 @@
+import { OpenAIModel } from "@local/shared";
 import OpenAI from "openai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
@@ -8,11 +9,13 @@ type OpenAITokenModel = "default";
 
 /** Cost in cents per 1_000_000 input tokens */
 const inputCosts: Record<OpenAIModel, number> = {
+    [OpenAIModel.Gpt4o]: 500,
     [OpenAIModel.Gpt4]: 1000,
     [OpenAIModel.Gpt3_5Turbo]: 50,
 };
 /** Cost in cents per 1_000_000 output tokens */
 const outputCosts: Record<OpenAIModel, number> = {
+    [OpenAIModel.Gpt4o]: 1500,
     [OpenAIModel.Gpt4]: 3000,
     [OpenAIModel.Gpt3_5Turbo]: 150,
 };
@@ -145,7 +148,9 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     getContextSize(requestedModel?: string | null) {
         const model = this.getModel(requestedModel);
         switch (model) {
-            case "gpt-4-0125-preview":
+            case OpenAIModel.Gpt4o:
+                return 200_000;
+            case OpenAIModel.Gpt4:
                 return 120_000;
             default:
                 return 16_000;
@@ -168,6 +173,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
+        if (model.startsWith("gpt-4o")) return OpenAIModel.Gpt4o;
         if (model.startsWith("gpt-4")) return OpenAIModel.Gpt4;
         if (model.startsWith("gpt-3.5")) return OpenAIModel.Gpt3_5Turbo;
         return this.defaultModel;

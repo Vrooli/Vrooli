@@ -65,13 +65,23 @@ type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
  * Preferred fallback order for each service
  */
 export const fallbacks: Record<LlmServiceModel, LlmServiceModel[]> = {
-    [AnthropicModel.Opus]: [OpenAIModel.Gpt4, MistralModel.Mistral8x7b],
+    [AnthropicModel.Opus]: [OpenAIModel.Gpt4o, MistralModel.Mistral8x7b],
     [AnthropicModel.Sonnet]: [OpenAIModel.Gpt3_5Turbo, MistralModel.Mistral7b],
-    [MistralModel.Mistral8x7b]: [OpenAIModel.Gpt4, AnthropicModel.Opus],
+    [MistralModel.Mistral8x7b]: [OpenAIModel.Gpt4o, AnthropicModel.Opus],
     [MistralModel.Mistral7b]: [OpenAIModel.Gpt3_5Turbo, AnthropicModel.Sonnet],
+    [OpenAIModel.Gpt4o]: [MistralModel.Mistral8x7b, AnthropicModel.Opus],
     [OpenAIModel.Gpt4]: [MistralModel.Mistral8x7b, AnthropicModel.Opus],
     [OpenAIModel.Gpt3_5Turbo]: [MistralModel.Mistral7b, AnthropicModel.Sonnet],
 };
+
+/**
+ * All available services
+ */
+export enum LlmServiceId {
+    Anthropic = "Anthropic",
+    Mistral = "Mistral",
+    OpenAI = "OpenAI",
+}
 
 const serviceInstances: Partial<Record<LlmServiceId, any>> = {};
 

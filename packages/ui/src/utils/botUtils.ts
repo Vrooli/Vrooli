@@ -1,4 +1,4 @@
-import { DUMMY_ID, User, toBotSettings } from "@local/shared";
+import { AnthropicModel, DUMMY_ID, OpenAIModel, User, toBotSettings } from "@local/shared";
 import { BotShape, BotTranslationShape } from "./shape/models/bot";
 
 export type LlmModel = {
@@ -9,19 +9,23 @@ export type LlmModel = {
 export const AVAILABLE_MODELS: LlmModel[] = [{
     name: "Claude 3 Sonnet",
     description: "Anthropic's fastest model (recommended)",
-    value: "claude-3-sonnet",
+    value: AnthropicModel.Sonnet,
 }, {
     name: "Claude 3 Opus",
     description: "Anthropic's most advanced model",
-    value: "claude-3-opus",
+    value: AnthropicModel.Opus,
 }, {
     name: "GPT-3.5 Turbo",
     description: "OpenAI's fastest model",
-    value: "gpt-3.5-turbo",
+    value: OpenAIModel.Gpt3_5Turbo,
+}, {
+    name: "GPT-4o",
+    description: "OpenAI's most advanced model",
+    value: OpenAIModel.Gpt4o,
 }, {
     name: "GPT-4",
-    description: "OpenAI's most advanced model",
-    value: "gpt-4",
+    description: "One of OpenAI's advanced models",
+    value: OpenAIModel.Gpt4,
     // }, {
     //     name: "Mistral 7b",
     //     description: "Mistral's fastest model",
