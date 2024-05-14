@@ -5,6 +5,8 @@ import cors from "cors";
 import express from "express";
 import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
+import path from "path";
+import { fileURLToPath } from "url";
 import { app } from "./app";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
@@ -29,6 +31,9 @@ import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const main = async () => {
     logger.info("Starting server...");
@@ -115,7 +120,7 @@ const main = async () => {
     setupStripe(app);
 
     // Set static folders
-    // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
+    app.use("/llm/configs", express.static(path.join(__dirname, "../../shared/dist/llm/configs")));
 
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {

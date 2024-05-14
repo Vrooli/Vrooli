@@ -1,5 +1,5 @@
 import { SessionUserToken } from "@local/server";
-import { LlmTaskInfo } from "@local/shared";
+import { ServerLlmTaskInfo } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -7,7 +7,7 @@ import winston from "winston";
 
 export type LlmTaskProcessPayload = {
     /** The task to be run */
-    taskInfo: Omit<LlmTaskInfo, "status">;
+    taskInfo: ServerLlmTaskInfo;
     /** The chat the command was triggered in */
     chatId?: string | null;
     /** The language the command was triggered in */

@@ -21,7 +21,7 @@ import { useLocation } from "route";
 import { NavigableObject } from "types";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, ListObject } from "utils/display/listTools";
-import { fontSizeToPixels } from "utils/display/stringTools";
+import { displayDate, fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
@@ -323,6 +323,9 @@ const ChatBubbleReactions = ({
     );
 };
 
+/** How long a task can be running until it is considered stale */
+const STALE_THRESHOLD_MS = 1000 * 60 * 10;
+
 /** Displays a suggested, active, or finished task that is associated with the message */
 export const TaskChip = ({
     taskInfo,
@@ -334,7 +337,14 @@ export const TaskChip = ({
     const { label, status, task } = taskInfo;
     const canPress = ["suggested", "running"].includes(status);
 
+    const isStale = useMemo(() => {
+        const lastUpdatedTime = new Date(taskInfo.lastUpdated).getTime();
+        const currentTime = Date.now();
+        return status === "running" && (currentTime - lastUpdatedTime > STALE_THRESHOLD_MS);
+    }, [status, taskInfo.lastUpdated]);
+
     const getStatusColor = () => {
+        if (isStale) return "warning";
         switch (status) {
             case "running":
                 return "primary";
@@ -348,6 +358,7 @@ export const TaskChip = ({
     };
 
     const getStatusIcon = () => {
+        if (isStale) return <ErrorIcon />;
         switch (status) {
             case "running":
                 return <CircularProgress size={20} color="inherit" />;
@@ -370,11 +381,12 @@ export const TaskChip = ({
     };
 
     const getStatusTooltip = () => {
+        if (isStale) return `Task is stale: ${label}`;
         switch (status) {
             case "suggested":
                 return `Press to start task: ${label}`;
             case "running":
-                return `Task is running: ${label}`;
+                return `Task is running: ${label} (Started: ${displayDate(taskInfo.lastUpdated)})`;
             case "completed":
                 return `Task completed: ${label}`;
             case "failed":

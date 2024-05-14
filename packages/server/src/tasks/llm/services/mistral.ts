@@ -2,7 +2,7 @@ import { MistralModel } from "@local/shared";
 import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
-import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, MistralModel } from "../registry";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type MistralTokenModel = "default";

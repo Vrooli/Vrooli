@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicModel } from "@local/shared";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
-import { AnthropicModel, LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
 
 type AnthropicTokenModel = "default";

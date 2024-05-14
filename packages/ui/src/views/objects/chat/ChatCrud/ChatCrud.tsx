@@ -223,6 +223,8 @@ const ChatForm = ({
     const messageTree = useMessageTree(existing.id);
     const { dimensions, ref: dimRef } = useDimensions();
 
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
+
     const newChat = useCallback(() => {
         if (isLoading || existing.id === DUMMY_ID) return;
         // Create a new chat with the same participants
@@ -249,9 +251,7 @@ const ChatForm = ({
             },
             onCompleted: () => { props.setSubmitting(false); },
         });
-    }, []);
-
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
+    }, [display, existing.id, existing.participants, existing.translations, fetchCreate, handleUpdate, isLoading, props, setLocation]);
 
     const onSubmit = useCallback((updatedChat?: ChatShape) => {
         return new Promise<Chat>((resolve, reject) => {
@@ -318,8 +318,11 @@ const ChatForm = ({
         chat: values,
         handleChatUpdate: onSubmit,
         language,
+        tasks: messageTree.messageTasks,
+        tree: messageTree.tree,
         updateTasksForMessage: messageTree.updateTasksForMessage,
     });
+    console.log("curr chat messages", values.messages, existing.messages);
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {

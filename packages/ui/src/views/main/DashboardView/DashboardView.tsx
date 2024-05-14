@@ -381,6 +381,8 @@ export const DashboardView = ({
         chat,
         handleChatUpdate: onSubmit,
         language: languages[0],
+        tasks: messageTree.messageTasks,
+        tree: messageTree.tree,
         updateTasksForMessage: messageTree.updateTasksForMessage,
     });
 

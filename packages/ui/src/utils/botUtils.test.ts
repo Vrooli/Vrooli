@@ -1,4 +1,4 @@
-import { User } from "@local/shared";
+import { OpenAIModel, User } from "@local/shared";
 import { findBotData } from "./botUtils";
 
 describe("findBotData", () => {
@@ -22,7 +22,7 @@ describe("findBotData", () => {
         botSettings: JSON.stringify({
             creativity: "0.8", // Invalid, but should still be able to parse
             verbosity: 0.4,
-            model: "gpt-4",
+            model: OpenAIModel.Gpt4,
             translations: {
                 fr: {
                     bias: "bot settings bias",
@@ -41,18 +41,17 @@ describe("findBotData", () => {
         expect(result).toEqual({
             creativity: 0.5,
             verbosity: 0.5,
-            model: "gpt-3.5-turbo",
+            model: OpenAIModel.Gpt3_5Turbo,
             translations: [expect.objectContaining({ language: "ge" })], // checks if it contains the language
         });
     });
 
     test("should return parsed values from user settings", () => {
-        console.log('before parsed data for user')
         const result = findBotData("fr", existingUser);
         expect(result).toEqual({
             creativity: 0.8,
             verbosity: 0.4,
-            model: "gpt-4",
+            model: OpenAIModel.Gpt4,
             translations: [expect.objectContaining({
                 language: "fr",
                 bias: "Neutral", // Original translations should override bot settings translations

@@ -1,11 +1,11 @@
-import { LlmTaskInfo } from "@local/shared";
+import { ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
-import { generateTaskExec } from "../llm/config";
+import { generateTaskExec } from "../llm/converter";
 import { LlmTaskProcessPayload } from "./queue";
 
-export type ExecuteLlmTaskResult = Omit<LlmTaskInfo, "status"> & { status: "completed" | "failed" };
+export type ExecuteLlmTaskResult = ServerLlmTaskInfo & { status: "completed" | "failed" };
 
 export const executeLlmTask = async ({
     chatId,
@@ -20,6 +20,7 @@ export const executeLlmTask = async ({
             emitSocketEvent("llmTasks", chatId, {
                 tasks: [{
                     ...taskInfo,
+                    lastUpdated: new Date().toISOString(),
                     status: "running",
                 }],
             });
@@ -34,6 +35,7 @@ export const executeLlmTask = async ({
     }
     const result = {
         ...(taskInfo as LlmTaskProcessPayload["taskInfo"]),
+        lastUpdated: new Date().toISOString(),
         status: success ? "completed" as const : "failed" as const,
     };
     if (chatId && taskInfo !== null) {

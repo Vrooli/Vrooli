@@ -1,4 +1,4 @@
-import { AutoFillResult, BotSettings, ChatMessage, LlmTaskInfo, Success, VALYXA_ID, toBotSettings } from "@local/shared";
+import { AutoFillResult, BotSettings, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, Success, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -9,14 +9,12 @@ import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findO
 import { CustomError } from "../../events";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
-import { PreMapUserData } from "../../models/base/chatMessage";
 import { emitSocketEvent } from "../../sockets/events";
+import { PreMapUserData } from "../../utils/chat";
 import { processLlmTask } from "../llmTask";
-import { importCommandToTask } from "./config";
 import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload, StartTaskPayload } from "./queue";
-import { generateResponseWithFallback } from "./service";
-import { ExistingTaskData, ForceGetTaskParams, forceGetTask, getValidTasksFromMessage } from "./tasks";
+import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service";
 
 const parseBotInformation = (
     participants: Record<string, PreMapUserData>,
@@ -34,7 +32,7 @@ const parseBotInformation = (
 type ForceGetAndProcessCommandParams = ForceGetTaskParams;
 type ForceGetAndProcessCommandResult = {
     messageWithoutTasks: string | null,
-    tasksToSuggest: Omit<LlmTaskInfo, "status">[],
+    tasksToSuggest: ServerLlmTaskInfo[],
     cost: number
 };
 const forceGetAndProcessCommand = async (params: ForceGetAndProcessCommandParams): Promise<ForceGetAndProcessCommandResult> => {
@@ -61,7 +59,7 @@ export const llmProcessBotMessage = async ({
     try {
         // Parse bot information
         const botSettings = parseBotInformation(participantsData, respondingBotId, logger, language);
-        const commandToTask = await importCommandToTask(language);
+        const commandToTask = await importCommandToTask(language, logger);
 
         // Parse previous message
         let respondingToMessage: { id: string, text: string } | null = null;
@@ -71,6 +69,7 @@ export const llmProcessBotMessage = async ({
                 commandToTask,
                 existingData: null,
                 language,
+                logger,
                 message: parent.content,
                 taskMode: task,
             });
@@ -94,8 +93,8 @@ export const llmProcessBotMessage = async ({
         emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
 
         let responseMessage: string | null = null;
-        let botCommandsToRun: Omit<LlmTaskInfo, "status">[] = [];
-        let botTasksToSuggest: Omit<LlmTaskInfo, "status">[] = [];
+        let botCommandsToRun: ServerLlmTaskInfo[] = [];
+        let botTasksToSuggest: ServerLlmTaskInfo[] = [];
 
         // If we're not in a "Start" task (the only task that allows general conversation), 
         // we'll demand a valid command immediately
@@ -136,6 +135,7 @@ export const llmProcessBotMessage = async ({
                 commandToTask,
                 existingData: null,
                 language,
+                logger,
                 message: botResponse,
                 taskMode: task,
             });
@@ -234,11 +234,13 @@ export const llmProcessBotMessage = async ({
                 tasks: [
                     ...botCommandsToRun.map((command) => ({
                         ...command,
+                        lastUpdated: new Date().toISOString(),
                         messageId: fullResponseMessage.id,
                         status: "running" as const,
                     })),
                     ...botTasksToSuggest.map((command) => ({
                         ...command,
+                        lastUpdated: new Date().toISOString(),
                         messageId: fullResponseMessage.id,
                         status: "suggested" as const,
                     })),
@@ -273,7 +275,7 @@ export const llmProcessAutoFill = async ({
     task,
     userData,
 }: RequestAutoFillPayload): Promise<AutoFillResult> => {
-    let result: Omit<LlmTaskInfo, "status"> | null = null;
+    let result: ServerLlmTaskInfo | null = null;
     try {
         const language = userData.languages[0] ?? "en";
         const botInfo = await getBotInfo(VALYXA_ID);
@@ -282,7 +284,7 @@ export const llmProcessAutoFill = async ({
         }
         const participantsData = { [VALYXA_ID]: botInfo };
         const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger, language);
-        const commandToTask = await importCommandToTask(language);
+        const commandToTask = await importCommandToTask(language, logger);
         const { taskToRun, cost } = await forceGetTask({
             commandToTask,
             existingData: data as ExistingTaskData,
@@ -313,12 +315,15 @@ export const llmProcessAutoFill = async ({
         logger.error("Caught error in llmProcessAutoFill", { trace: "0331", error });
     }
     if (result) {
-        return { __typename: "AutoFillResult", data: (result as Omit<LlmTaskInfo, "status">).properties };
+        return { __typename: "AutoFillResult", data: (result as ServerLlmTaskInfo).properties };
     } else {
         throw new CustomError("0230", "InternalError", userData.languages, { task });
     }
 };
 
+/**
+ * Process for starting an LLM task, not including the "Start" task itself (despite the confusing name)
+ */
 export const llmProcessStartTask = async ({
     botId,
     label,
@@ -327,7 +332,7 @@ export const llmProcessStartTask = async ({
     task,
     userData,
 }: StartTaskPayload): Promise<Success> => {
-    const result: Omit<LlmTaskInfo, "status"> | null = null;
+    const result: ServerLlmTaskInfo | null = null;
     try {
         const language = userData.languages[0] ?? "en";
         const botInfo = await getBotInfo(botId);
@@ -341,7 +346,7 @@ export const llmProcessStartTask = async ({
         //TODO
         const participantsData = { [VALYXA_ID]: botInfo };
         const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger, language);
-        const commandToTask = await importCommandToTask(language);
+        const commandToTask = await importCommandToTask(language, logger);
         //TODO
     } catch (error) {
         logger.error("Caught error in llmProcessStartTask", { trace: "0331", error });

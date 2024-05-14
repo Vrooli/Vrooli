@@ -8,11 +8,14 @@ import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { useLazyFetch } from "./useLazyFetch";
+import { MessageTree } from "./useMessageTree";
 
 type UseMessageActionsProps = {
     chat: ChatShape;
     handleChatUpdate: (updatedChat?: ChatShape) => Promise<Chat>;
     language: string;
+    tasks: Record<string, LlmTaskInfo[]>;
+    tree: MessageTree<ChatMessageShape>;
     updateTasksForMessage: (messageId: string, tasks: LlmTaskInfo[]) => unknown
 };
 
@@ -24,6 +27,8 @@ export const useMessageActions = ({
     chat,
     handleChatUpdate,
     language,
+    tasks,
+    tree,
     updateTasksForMessage,
 }: UseMessageActionsProps) => {
     const session = useContext(SessionContext);
@@ -128,19 +133,40 @@ export const useMessageActions = ({
      * Handle a suggested task, depending on its state
      */
     const respondToTask = useCallback((task: LlmTaskInfo) => {
-        console.log("in respondToTask", task);
         // Ignore if status is "completed" or "failed"
-        if (["completed", "failed"].includes(task.status)) return;
-        // Ignore if this isn't a task type that can be started/stopped
-        if (["Start"].includes(task.task)) return;
+        if (["completed", "failed"].includes(task.status)) {
+            console.warn("Ignoring task: invalid status", task);
+            return;
+        }
+        // Ignore if this isn't a valid task type ("Start" is a placeholder task for chatting 
+        // with the user until we have a real task to perform, so we don't want to trigger it here)
+        if (["Start"].includes(task.task)) {
+            console.warn("Ignoring task: invalid task type", task);
+            return;
+        }
         // Only respond if we can find the message
-        if (!task.messageId) return;
-        const message = chat.messages?.find((message) => message.id === task.messageId);
-        if (!message) return;
+        if (!task.messageId) {
+            console.warn("Ignoring task: no message ID", task);
+            return;
+        }
+        const messageNode = tree.map.get(task.messageId);
+        if (!messageNode) {
+            console.warn("Ignoring task: could not find associated message", task, tree.map);
+            return;
+        }
         // If status is "suggested", trigger the task
         if (task.status === "suggested") {
-            setCookieTaskForMessage(message.id, { ...task, status: "running" });
-            updateTasksForMessage(message.id, [{ ...task, status: "running" }]);
+            const { message } = messageNode;
+            const originalTask = { ...task };
+            const originalTaskList = tasks[message.id] ?? [];
+            const updatedTask = {
+                ...task,
+                lastUpdated: new Date().toISOString(),
+                status: "running" as const,
+            };
+            const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? updatedTask : t);
+            setCookieTaskForMessage(message.id, updatedTask);
+            updateTasksForMessage(message.id, updatedTaskList);
             fetchLazyWrapper<StartTaskInput, Success>({
                 fetch: startTask,
                 inputs: {
@@ -151,11 +177,12 @@ export const useMessageActions = ({
                     task: task.task as LlmTask,
                     taskId: task.id,
                 },
+                spinnerDelay: null, // Disable spinner since this is a background task
                 successCondition: (data) => data && data.success === true,
                 errorMessage: () => ({ messageKey: "ActionFailed" }),
                 onError: () => {
-                    setCookieTaskForMessage(message.id, { ...task, status: "suggested" });
-                    updateTasksForMessage(message.id, [{ ...task, status: "suggested" }]);
+                    setCookieTaskForMessage(message.id, originalTask);
+                    updateTasksForMessage(message.id, originalTaskList);
                 },
             });
         }
@@ -163,7 +190,7 @@ export const useMessageActions = ({
         else if (task.status === "running") {
             //TODO
         }
-    }, [chat, startTask, updateTasksForMessage]);
+    }, [startTask, tasks, tree.map, updateTasksForMessage]);
 
     return {
         postMessage,

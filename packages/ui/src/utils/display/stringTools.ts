@@ -26,15 +26,26 @@ export const firstString = (...strings: unknown[]): string => {
 
 /**
  * Displays a date in a human readable format
- * @param timestamp Timestamp of date to display
+ * @param timestamp Timestamp of date to display as seconds since epoch, or an ISO string
  * @param showDateAndTime Whether to display the time and date, or just the date
  */
-export const displayDate = (timestamp: number, showDateAndTime = true): string | null => {
-    if (isNaN(timestamp) || timestamp < 0) {
+export const displayDate = (timestamp: number | string, showDateAndTime = true): string | null => {
+    let date: Date;
+
+    if (typeof timestamp === "number") {
+        if (isNaN(timestamp) || timestamp < 0) {
+            return null;
+        }
+        date = new Date(timestamp);
+    } else if (typeof timestamp === "string") {
+        date = new Date(timestamp);
+        if (isNaN(date.getTime())) {
+            return null;
+        }
+    } else {
         return null;
     }
 
-    const date = new Date(timestamp);
     const currentDate = new Date();
 
     const isCurrentYear = date.getUTCFullYear() === currentDate.getUTCFullYear();

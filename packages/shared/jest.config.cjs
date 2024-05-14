@@ -7,6 +7,8 @@ module.exports = {
         "!src/mocks/**",
     ],
     coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
+    setupFilesAfterEnv: ["jest-27-expect-message"],
+    extensionsToTreatAsEsm: [".ts"],
     testEnvironment: "jsdom",
     testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     modulePaths: ["<rootDir>/src"],

@@ -1,5 +1,5 @@
 import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
-import { LlmTaskInfo } from "./api";
+import { LlmTaskInfo } from "../llm/types";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinUserRoom" | "leaveUserRoom";

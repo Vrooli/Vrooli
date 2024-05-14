@@ -1,4 +1,5 @@
 import { UserTranslation } from "../api/generated/graphqlTypes";
+import { PassableLogger } from "../consts/commonTypes";
 import { toPosDouble } from "../validation/utils/builders/toPosDouble";
 
 export type BotSettingsTranslation = {
@@ -31,7 +32,7 @@ export type ToBotSettingsPropBot = {
  */
 export const toBotSettings = (
     bot: ToBotSettingsPropBot | null | undefined,
-    logger: { error: (message: string, data?: Record<string, any>) => unknown },
+    logger: PassableLogger,
 ): BotSettings => {
     if (!bot || typeof bot !== "object" || Array.isArray(bot)) {
         logger.error("Invalid data passed into 'toBotSettings'", { trace: "0408", bot });

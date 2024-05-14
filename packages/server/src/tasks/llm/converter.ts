@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -9,59 +9,8 @@ import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
 import { SessionUserToken } from "../../types";
 
-export const DEFAULT_LANGUAGE = "en";
-
 type LlmTaskDataValue = string | number | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
-
-/** Information about a property provided with a command */
-export type LlmTaskProperty = {
-    name: string,
-    type?: string,
-    description?: string,
-    example?: string,
-    examples?: string[],
-    is_required?: boolean
-};
-
-/** 
- * Command information, which can be used to validate commands or 
- * converted into a structured command to provide to the LLM as context
- */
-export type LlmTaskUnstructuredConfig = {
-    actions?: string[];
-    properties?: (string | LlmTaskProperty)[],
-    commands: Record<string, string>,
-    label: string,
-} & Record<string, any>;
-
-/** Structured command information, which can be used to provide context to the LLM */
-export type LlmTaskStructuredConfig = Record<string, any>;
-
-/**
- * Information about all LLM tasks in a given language, including a function to 
- * convert unstructured task information into structured task information
- */
-export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> & {
-    /**
-     * Prefix for suggested commands. These are commands that are not run right away.
-     * Instead, they are suggested to the user, who can then choose to run them.
-     */
-    __suggested_prefix: string;
-    /**
-     * Builds context object to add to the LLM's context, so that it 
-     * can start or execute commands
-     */
-    __construct_context: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
-    /**
-     * Similar to __construct_context, but should force LLM to 
-     * respond with a command - rather than making it optional
-     */
-    __construct_context_force: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
-    // Allow for additional properties, as long as they're prefixed with "__"
-    [Key: `__${string}`]: any;
-    [Key: `__${string}Properties`]: Record<string, Omit<LlmTaskProperty, "name">>;
-}
 
 /** 
  * Converts data provided to a command into a shape usable by the rest of the server 
@@ -124,99 +73,23 @@ export type LlmTaskConverters = {
     TeamUpdate: ConverterFunc<OrganizationUpdateInput>,
 }
 
-/** Converts a command and optional action to a valid task name, or null if invalid */
-export type CommandToTask = (command: string, action?: string | null) => (LlmTask | null);
+
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
-export const LLM_CONFIG_LOCATION = `${dirname}/configs`;
-
-/**
- * Dynamically imports the configuration for the specified language.
- */
-export const importConfig = async (language: string): Promise<LlmTaskConfig> => {
-    try {
-        const { config } = await import(`${LLM_CONFIG_LOCATION}/${language}`);
-        return config;
-    } catch (error) {
-        logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309" });
-        const { config } = await import(`${LLM_CONFIG_LOCATION}/${DEFAULT_LANGUAGE}`);
-        return config;
-    }
-};
+export const LLM_CONVERTER_LOCATION = `${dirname}/converters`;
 
 /**
  * Dynamically imports the converter for the specified language.
  */
 export const importConverter = async (language: string): Promise<LlmTaskConverters> => {
     try {
-        const { convert } = await import(`${LLM_CONFIG_LOCATION}/${language}`);
+        const { convert } = await import(`${LLM_CONVERTER_LOCATION}/${language}`);
         return convert;
     } catch (error) {
         logger.error(`Converter for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0040" });
-        const { convert } = await import(`${LLM_CONFIG_LOCATION}/${DEFAULT_LANGUAGE}`);
+        const { convert } = await import(`${LLM_CONVERTER_LOCATION}/${DEFAULT_LANGUAGE}`);
         return convert;
     }
-};
-
-/**
- * Dynamically imports the `commandToTask` function, which converts a command and 
- * action to a task name.
- */
-export const importCommandToTask = async (language: string): Promise<CommandToTask> => {
-    try {
-        const { commandToTask } = await import(`${LLM_CONFIG_LOCATION}/${language}`);
-        return commandToTask;
-    } catch (error) {
-        logger.error(`Command to task function for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0041" });
-        const { commandToTask } = await import(`${LLM_CONFIG_LOCATION}/${DEFAULT_LANGUAGE}`);
-        return commandToTask;
-    }
-};
-
-/**
- * @returns The unstructured configuration object for the given task, 
- * in the best language available for the user
- */
-export const getUnstructuredTaskConfig = async (
-    task: LlmTask | `${LlmTask}`,
-    language: string = DEFAULT_LANGUAGE,
-): Promise<LlmTaskUnstructuredConfig> => {
-    const unstructuredConfig = await importConfig(language);
-    const taskConfig = unstructuredConfig[task];
-
-    // Fallback to a default message if the task is not found in the config
-    if (!taskConfig || typeof taskConfig !== "function") {
-        logger.error(`Task ${task} was invalid or not found in the configuration for language ${language}`, { trace: "0305" });
-        return {} as LlmTaskUnstructuredConfig;
-    }
-
-    return taskConfig();
-};
-
-/**
- * @param task The task to get the structured configuration for
- * @param force Whether to force the LLM to respond with a command
- * @param language The language to use for the configuration
- * @returns The structured configuration object for the given task,
- * in the best language available for the user
- */
-export const getStructuredTaskConfig = async (
-    task: LlmTask | `${LlmTask}`,
-    force = false,
-    language: string = DEFAULT_LANGUAGE,
-): Promise<LlmTaskStructuredConfig> => {
-    const unstructuredConfig = await importConfig(language);
-    const taskConfig = unstructuredConfig[task];
-
-    // Fallback to a default message if the task is not found in the config
-    if (!taskConfig || typeof taskConfig !== "function") {
-        logger.error(`Task ${task} was invalid or not found in the configuration for language ${language}`, { trace: "0046" });
-        return {} as LlmTaskStructuredConfig;
-    }
-
-    return force ?
-        unstructuredConfig.__construct_context_force(taskConfig()) :
-        unstructuredConfig.__construct_context(taskConfig());
 };
 
 /**

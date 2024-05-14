@@ -86,30 +86,53 @@ describe("displayDate", () => {
         global.navigator = originalNavigator;
     });
 
-    it("displays full date and time for dates not today", () => {
+    it("displays full date and time for dates not today (timestamp)", () => {
         // Timestamp for Dec 31, 2021, 9:00 AM
         const timestamp = new Date("2021-12-31T09:00:00.000Z").getTime();
         expect(displayDate(timestamp)).toBe("Dec 31, 2021, 9:00:00 AM"); // Adjust based on your locale
     });
 
-    it("displays only date if showDateAndTime is false", () => {
+    it("displays full date and time for dates not today (ISO string)", () => {
+        // ISO string for Dec 31, 2021, 9:00 AM
+        const timestamp = "2021-12-31T09:00:00.000Z";
+        expect(displayDate(timestamp)).toBe("Dec 31, 2021, 9:00:00 AM"); // Adjust based on your locale
+    });
+
+    it("displays only date if showDateAndTime is false (timestamp)", () => {
         const timestamp = new Date("2021-12-31T09:00:00.000Z").getTime();
         expect(displayDate(timestamp, false)).toBe("Dec 31, 2021"); // Adjust based on your locale
     });
 
-    it("displays \"Today at <time>\" for the current day", () => {
+    it("displays only date if showDateAndTime is false (ISO string)", () => {
+        const timestamp = "2021-12-31T09:00:00.000Z";
+        expect(displayDate(timestamp, false)).toBe("Dec 31, 2021"); // Adjust based on your locale
+    });
+
+    it("displays \"Today at <time>\" for the current day (timestamp)", () => {
         // Using the mocked current day
         const timestamp = new Date("2022-01-01T12:00:00.000Z").getTime();
         expect(displayDate(timestamp)).toBe("12:00:00 PM"); // Adjust based on your locale
     });
 
-    it("omits the year for dates within the current year but not today", () => {
+    it("displays \"Today at <time>\" for the current day (ISO string)", () => {
+        // Using the mocked current day
+        const timestamp = "2022-01-01T12:00:00.000Z";
+        expect(displayDate(timestamp)).toBe("12:00:00 PM"); // Adjust based on your locale
+    });
+
+    it("omits the year for dates within the current year but not today (timestamp)", () => {
         // Timestamp for Jan 2, 2022, 8:00 AM
         const timestamp = new Date("2022-01-02T08:00:00.000Z").getTime();
         expect(displayDate(timestamp)).toBe("Jan 2, 8:00:00 AM"); // Adjust based on your locale
     });
 
-    it("handles edge cases around midnight", () => {
+    it("omits the year for dates within the current year but not today (ISO string)", () => {
+        // ISO string for Jan 2, 2022, 8:00 AM
+        const timestamp = "2022-01-02T08:00:00.000Z";
+        expect(displayDate(timestamp)).toBe("Jan 2, 8:00:00 AM"); // Adjust based on your locale
+    });
+
+    it("handles edge cases around midnight (timestamp)", () => {
         // Just before midnight
         let timestamp = new Date("2021-12-31T23:59:59.000Z").getTime();
         expect(displayDate(timestamp)).toBe("Dec 31, 2021, 11:59:59 PM");
@@ -119,13 +142,29 @@ describe("displayDate", () => {
         expect(displayDate(timestamp)).toBe("12:00:01 AM"); // Assuming the current date is 2022-01-01
     });
 
-    it("handles leap year correctly", () => {
+    it("handles edge cases around midnight (ISO string)", () => {
+        // Just before midnight
+        let timestamp = "2021-12-31T23:59:59.000Z";
+        expect(displayDate(timestamp)).toBe("Dec 31, 2021, 11:59:59 PM");
+
+        // Just after midnight
+        timestamp = "2022-01-01T00:00:01.000Z";
+        expect(displayDate(timestamp)).toBe("12:00:01 AM"); // Assuming the current date is 2022-01-01
+    });
+
+    it("handles leap year correctly (timestamp)", () => {
         // Leap day in a leap year
         const timestamp = new Date("2020-02-29T10:00:00.000Z").getTime();
         expect(displayDate(timestamp)).toBe("Feb 29, 2020, 10:00:00 AM");
     });
 
-    it("adjusts for year-end and year-beginning dates", () => {
+    it("handles leap year correctly (ISO string)", () => {
+        // Leap day in a leap year
+        const timestamp = "2020-02-29T10:00:00.000Z";
+        expect(displayDate(timestamp)).toBe("Feb 29, 2020, 10:00:00 AM");
+    });
+
+    it("adjusts for year-end and year-beginning dates (timestamp)", () => {
         // End of the year
         let timestamp = new Date("2021-12-31T10:00:00.000Z").getTime();
         expect(displayDate(timestamp)).toBe("Dec 31, 2021, 10:00:00 AM");
@@ -135,24 +174,51 @@ describe("displayDate", () => {
         expect(displayDate(timestamp)).toBe("10:00:00 AM");
     });
 
-    it("distinguishes same day across different years", () => {
+    it("adjusts for year-end and year-beginning dates (ISO string)", () => {
+        // End of the year
+        let timestamp = "2021-12-31T10:00:00.000Z";
+        expect(displayDate(timestamp)).toBe("Dec 31, 2021, 10:00:00 AM");
+
+        // Beginning of the year
+        timestamp = "2022-01-01T10:00:00.000Z";
+        expect(displayDate(timestamp)).toBe("10:00:00 AM");
+    });
+
+    it("distinguishes same day across different years (timestamp)", () => {
         // Same day, previous year
         const timestamp = new Date("2021-01-01T10:00:00.000Z").getTime();
+        expect(displayDate(timestamp)).toBe("Jan 1, 2021, 10:00:00 AM");
+    });
+
+    it("distinguishes same day across different years (ISO string)", () => {
+        // Same day, previous year
+        const timestamp = "2021-01-01T10:00:00.000Z";
         expect(displayDate(timestamp)).toBe("Jan 1, 2021, 10:00:00 AM");
     });
 
     it("handles invalid timestamps gracefully", () => {
         // Invalid timestamp
         expect(displayDate(NaN)).toBe(null);
+        expect(displayDate("invalid-date")).toBe(null);
     });
 
-    it("distinguishes close times within the same day", () => {
+    it("distinguishes close times within the same day (timestamp)", () => {
         // 5 minutes before the mock current time
         let timestamp = new Date("2022-01-01T09:55:00Z").getTime();
         expect(displayDate(timestamp)).toBe("9:55:00 AM");
 
         // 5 minutes after the mock current time
         timestamp = new Date("2022-01-01T10:05:00Z").getTime();
+        expect(displayDate(timestamp)).toBe("10:05:00 AM");
+    });
+
+    it("distinguishes close times within the same day (ISO string)", () => {
+        // 5 minutes before the mock current time
+        let timestamp = "2022-01-01T09:55:00Z";
+        expect(displayDate(timestamp)).toBe("9:55:00 AM");
+
+        // 5 minutes after the mock current time
+        timestamp = "2022-01-01T10:05:00Z";
         expect(displayDate(timestamp)).toBe("10:05:00 AM");
     });
 });
@@ -637,7 +703,7 @@ Fourth line`;
 describe("insertHeader function", () => {
     it("should insert a header at the beginning of the text if there is none", () => {
         const initialText = "This is a test";
-        const { end, start, text } = insertHeader(Headers.H2, initialText, 0, 0);
+        const { end, start, text } = insertHeader(Headers.h2, initialText, 0, 0);
         expect(text).toEqual("## This is a test");
         // Cursor should be right after the inserted header (plus the space always inserted after a header)
         expect(start).toEqual(3);
@@ -646,7 +712,7 @@ describe("insertHeader function", () => {
 
     it("should replace an existing header with a new one", () => {
         const initialText = "## This is a test";
-        const { end, start, text } = insertHeader(Headers.H1, initialText, 3, 5);
+        const { end, start, text } = insertHeader(Headers.h1, initialText, 3, 5);
         expect(text).toEqual("# This is a test");
         // Since new header is one character shorter, selection should move back by 1
         expect(start).toEqual(2);
@@ -655,7 +721,7 @@ describe("insertHeader function", () => {
 
     it("should remove an existing header if the same type is selected", () => {
         const initialText = "### This is a test";
-        const { end, start, text } = insertHeader(Headers.H3, initialText, 5, 7);
+        const { end, start, text } = insertHeader(Headers.h3, initialText, 5, 7);
         expect(text).toEqual("This is a test");
         // Since removed header is 4 characters long (including the space), selection should move back by 4
         expect(start).toEqual(1);

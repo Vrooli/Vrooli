@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask, uuid } from "@local/shared";
-import { CommandToTask } from "./config";
-import { MaybeLlmTaskInfo, PartialTaskInfo, detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, handleTaskTransition, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
+import { LlmTask } from "../api/generated/graphqlTypes";
+import { uuid } from "../id/uuid";
+import { detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, handleTaskTransition, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
+import { CommandToTask, MaybeLlmTaskInfo, PartialTaskInfo } from "./types";
 
 describe("isNewline", () => {
     test("recognizes newline character", () => {
@@ -2396,7 +2397,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en", console);
         expect(result).toEqual([]);
     });
 
@@ -2410,7 +2411,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en", console);
         expect(result).toEqual([]); // Command was invalid
     });
 
@@ -2424,7 +2425,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
         expect(result).toEqual([{
             ...potentialCommands[0],
             action: null,
@@ -2441,7 +2442,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en", console);
         expect(result).toEqual([{
             ...potentialCommands[0],
             action: null,
@@ -2461,7 +2462,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en", console);
         expect(result).toEqual(potentialCommands);
     });
 
@@ -2475,7 +2476,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en", console);
         expect(result).toEqual([]); // The "BotAdd" task requires a "name" property, but we're not given any properties.
     });
 
@@ -2489,7 +2490,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", { name: "hello" }, "en");
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", { name: "hello" }, "en", console);
         expect(result).toEqual(potentialCommands);
     });
 
@@ -2503,7 +2504,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en", console);
         expect(result).toEqual(potentialCommands);
     });
 
@@ -2517,7 +2518,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
         expect(result[0].command).toBe("add");
         expect(result[0].action).toBe(null);
         expect(result[0].properties).toEqual({ "name": "value" });
@@ -2533,7 +2534,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
         expect(result).toEqual([]); // Missing required property
     });
 
@@ -2547,7 +2548,7 @@ describe("filterInvalidTasks", () => {
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en");
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
         expect(result).toEqual([]);
     });
 });
@@ -2651,4 +2652,3 @@ describe("removeTasks", () => {
 
     // Add more tests for other edge cases as needed
 });
-

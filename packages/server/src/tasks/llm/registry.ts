@@ -1,3 +1,4 @@
+import { AnthropicModel, MistralModel, OpenAIModel } from "@local/shared";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 
@@ -38,27 +39,6 @@ const COOLDOWN_TIMES: Partial<Record<LlmServiceErrorType, number>> = {
     [LlmServiceErrorType.Overloaded]: FIFTEEN_MINUTES,
 };
 
-/**
- * All available services
- */
-export enum LlmServiceId {
-    Anthropic = "Anthropic",
-    Mistral = "Mistral",
-    OpenAI = "OpenAI",
-}
-
-export enum AnthropicModel {
-    Opus = "claude-3-opus-20240229",
-    Sonnet = "claude-3-sonnet-20240229",
-}
-export enum MistralModel {
-    Mistral8x7b = "open-mixtral-8x7b",
-    Mistral7b = "open-mistral-7b",
-}
-export enum OpenAIModel {
-    Gpt4 = "gpt-4-0125-preview",
-    Gpt3_5Turbo = "gpt-3.5-turbo-0125",
-}
 type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
 
 /**

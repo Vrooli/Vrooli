@@ -41,3 +41,11 @@ export type DeepPartialBoolean<T> = {
     DeepPartialBoolean<T[P]> :
     boolean;
 };
+
+/**
+ * Logger that is passed into a function. Typically `console` in the UI 
+ * and winston in the server.
+ */
+export type PassableLogger = {
+    error: (message: string, data?: Record<string, any>) => unknown
+}
