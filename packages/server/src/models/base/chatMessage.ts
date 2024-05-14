@@ -18,74 +18,12 @@ import { emitSocketEvent } from "../../sockets/events";
 import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { bestTranslation, getAuthenticatedData, SortMap } from "../../utils";
+import { ChatMessageBeforeDeletedData, getChatParticipantData, PreMapChatData, PreMapMessageData, PreMapUserData } from "../../utils/chat";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck, permissionsCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
-
-/** Information for a message, collected in mutate.shape.pre */
-export type PreMapMessageData = {
-    /** ID of the chat this message belongs to */
-    chatId: string | null;
-    /** Content in user's preferred (or closest to preferred) language */
-    content: string;
-    id: string;
-    isNew: boolean;
-    /** Language code for message content */
-    language: string;
-    /** ID of the message which should appear directly before this one */
-    parentId?: string;
-    /** All translations */
-    translations: { language: string, text: string }[];
-    /** ID of the user who sent this message */
-    userId: string;
-}
-
-/** Information for a message's corresponding chat, collected in mutate.shape.pre */
-export type PreMapChatData = {
-    /** User IDs for all bots in the chat */
-    botParticipants?: string[],
-    /** User IDs of participants being invited, which may be bots */
-    potentialBotIds?: string[],
-    /** User IDs of participants being deleted */
-    participantsDelete?: string[],
-    isNew: boolean,
-    /** ID of the last message in the chat */
-    lastMessageId?: string,
-    /** Total number of participants in the chat, including bots, users, and the current user */
-    participantsCount?: number,
-    /** Determines configuration to provide for AI responses */
-    task?: string, //TODO can find taask in inputsById[node.parent.id].task for creates, but need way for updates. 
-    // Should be able to store not necessarily the first task, but the current one. Can add new row to chat table for this. 
-    // Or better yet, make it a stack of contexts. Can use reminder list for this, since where it only focuses on one reminder at a time 
-    // (and can even add multiple items to the reminder to keep track of multiple things at once). For example, could start off with 
-    // no reminders, which defaults to normal AI configuration ("What would you like to do today?" type response). Then when it starts a task or routine, 
-    // you add it as a reminder. When that task is complete, you remove it from the reminder list (or just mark it as complete) and move on to 
-    // the highest index reminder in the list that isn't marked as complete. Will need way to add a link or resource to reminder items. For example, 
-    // let's say you want to complete the routine "Start a Business". The chat will add a reminder with one item. The item will have a name of the routine,
-    // a description with the context of why you want to complete it, and a link to the routine ID.
-};
-
-/** 
- * Fields that we'll use to set up context for bots and other users in the chat. 
- * Taken by combining parsed bot settings wiht other information 
- * from the user object.
- */
-export type PreMapUserData = {
-    botSettings: string,
-    id: string,
-    isBot: boolean,
-    name: string;
-};
-
-export type ChatMessageBeforeDeletedData = {
-    id: string,
-    chatId: string | undefined,
-    userId: string | undefined,
-    parentId: string | undefined,
-    childIds: string[],
-}
 
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
@@ -113,9 +51,9 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
              */
             pre: async ({ Create, Update, Delete, userData, inputsById }) => {
                 // Initialize objects to store bot, message, and chat information
-                const preMapUserData: Record<string, PreMapUserData> = {};
                 const preMapChatData: Record<string, PreMapChatData> = {};
                 const preMapMessageData: Record<string, PreMapMessageData> = {};
+                const preMapUserData: Record<string, PreMapUserData> = {};
                 // Find known create/update information. We'll query for the rest later.
                 for (const { node, input } of [...Create, ...Update]) {
                     const translations = [...((input as ChatMessageCreateInput).translationsCreate ?? []), ...((input as ChatMessageUpdateInput).translationsUpdate ?? [])].filter(t => t.text) as { language: string, text: string }[];
@@ -175,67 +113,13 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Find chat information of every chat in chatData and every chat missing from messageData
                 const messageIdsForMissingChats = Object.entries(preMapMessageData).filter(([, data]) => !data.chatId).map(([id]) => id);
                 const knownExistingChatIds = Object.entries(preMapChatData).filter(([, data]) => !data.isNew).map(([id]) => id);
-                const chatSelect = messageIdsForMissingChats.length > 0 ? {
-                    OR: [
-                        { id: { in: knownExistingChatIds } },
-                        { messages: { some: { id: { in: messageIdsForMissingChats } } } },
-                    ],
-                } : { id: { in: knownExistingChatIds } };
-                // Query existing chat information
-                const existingChatInfo = await prismaInstance.chat.findMany({
-                    where: chatSelect,
-                    select: {
-                        id: true,
-                        participants: {
-                            select: {
-                                user: {
-                                    select: {
-                                        id: true,
-                                        invitedByUser: {
-                                            select: {
-                                                id: true,
-                                            },
-                                        },
-                                        isBot: true,
-                                        isPrivate: true,
-                                        botSettings: true,
-                                        name: true,
-                                    },
-                                },
-                            },
-                        },
-                        // Find most recent message
-                        messages: {
-                            orderBy: { sequence: "desc" },
-                            take: 1,
-                            select: {
-                                id: true,
-                            },
-                        },
-                        // Find number of participants
-                        _count: { select: { participants: true } },
-                    },
-                });
-                // Parse chat and bot information
-                existingChatInfo.forEach(chat => {
-                    // Find bots you are allowed to talk to
-                    const allowedBots = chat.participants.filter(p => p.user.isBot && (!p.user.isPrivate || p.user.invitedByUser?.id === userData.id));
-                    // Set chat information
-                    preMapChatData[chat.id] = {
-                        isNew: false,
-                        botParticipants: allowedBots.map(p => p.user.id),
-                        participantsCount: chat._count.participants,
-                        lastMessageId: chat.messages.length > 0 ? chat.messages[0].id : undefined,
-                    };
-                    // Set information about all participants
-                    chat.participants.forEach(p => {
-                        preMapUserData[p.user.id] = {
-                            botSettings: p.user.botSettings ?? JSON.stringify({}),
-                            id: p.user.id,
-                            isBot: p.user.isBot,
-                            name: p.user.name,
-                        };
-                    });
+                await getChatParticipantData({
+                    chatIds: knownExistingChatIds,
+                    messageIds: messageIdsForMissingChats,
+                    preMapChatData,
+                    preMapMessageData,
+                    preMapUserData,
+                    userData,
                 });
                 const lastParentId: Record<string, string> = {};
                 // Loop through all new messages to find the parent ID of each one
@@ -340,7 +224,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Messages can be created for you or bots. Make sure all new messages meet this criteria.
                 Object.values(preMapMessageData).forEach((message) => {
                     // If the message is new, but the user ID is not yours or a bot, throw an error
-                    if (message.isNew && message.userId !== userData.id && !Object.keys(preMapUserData).includes(message.userId)) {
+                    if (message.isNew && message.userId !== userData.id && !Object.keys(preMapUserData).includes(message.userId ?? "")) {
                         throw new CustomError("0526", "Unauthorized", ["en"], { message });
                     }
                 });
@@ -408,8 +292,9 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     const messageData: PreMapMessageData = preMapMessageData[objectId];
                     const chatId = messageData.chatId;
                     const chatMessage = messages.find(m => m.id === objectId) as ChatMessage;
-                    if (!chatMessage || !chatId) {
-                        logger.error("Message or chat not found", { trace: "0478", user: userData.id, messageId: objectId, chatId });
+                    const senderId = messageData.userId;
+                    if (!chatMessage || !chatId || !senderId) {
+                        logger.error("Message, message sender, or chat not found", { trace: "0363", user: userData.id, messageId: objectId, chatId });
                         continue;
                     }
                     // Add message to cache
@@ -427,7 +312,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         excludeUserId: userData.id,
                         chatId,
                         messageId: objectId,
-                        senderId: messageData.userId,
+                        senderId,
                         message: chatMessage,
                     });
                     // Determine which bots should respond, if any.

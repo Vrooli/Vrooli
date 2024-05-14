@@ -3,8 +3,8 @@ import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
-import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage.js";
 import { SessionUserToken } from "../../types.js";
+import { PreMapMessageData, PreMapUserData } from "../../utils/chat.js";
 
 /**
  * Payload for generating a bot response in a chat

@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
-import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
-import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { ChatMessageModelLogic } from "../../models/base/types";
+import { emitSocketEvent } from "../../sockets/events";
+import { determineRespondingBots } from "../../tasks/llm/context";
 import { llmProcessAutoFill, llmProcessStartTask } from "../../tasks/llm/process";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
-import { bestTranslation } from "../../utils/bestTranslation";
+import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
 
 export type EndpointsChatMessage = {
@@ -68,109 +68,66 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             if (!canDelete) {
                 throw new CustomError("0424", "Unauthorized", userData.languages, { input });
             }
-            const existingMessageInfo = await prismaInstance.chat_message.findUnique({
-                where: { id: input.messageId },
-                select: {
-                    chat: {
-                        select: {
-                            id: true,
-                            participants: {
-                                select: {
-                                    id: true,
-                                    user: {
-                                        select: {
-                                            id: true,
-                                            botSettings: true,
-                                            isBot: true,
-                                            name: true,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    parent: {
-                        select: {
-                            id: true,
-                            parent: {
-                                select: {
-                                    id: true,
-                                },
-                            },
-                            translations: {
-                                select: {
-                                    id: true,
-                                    language: true,
-                                    text: true,
-                                },
-                            },
-                            user: {
-                                select: {
-                                    id: true,
-                                    isBot: true,
-                                },
-                            },
-                        },
-                    },
-                    user: {
-                        select: {
-                            id: true,
-                            isBot: true,
-                        },
-                    },
-                },
-            });
-            if (
-                !existingMessageInfo ||
-                !existingMessageInfo.chat ||
-                !existingMessageInfo.chat.participants ||
-                !existingMessageInfo.user
-            ) {
-                throw new CustomError("0426", "InternalError", userData.languages, { existingMessageInfo });
-            }
-            const chatId = existingMessageInfo.chat.id;
-            const botId = existingMessageInfo.user.isBot ? existingMessageInfo.user.id : null;
-            const translation = existingMessageInfo.parent ?
-                bestTranslation(existingMessageInfo.parent.translations, userData.languages) :
-                undefined;
-            if (!chatId || !botId) {
-                throw new CustomError("0427", "InternalError", userData.languages, { chatId, botId, input });
-            }
-            const parent = existingMessageInfo.parent;
-            const previousMessage: PreMapMessageData | null = parent && translation ? {
-                chatId,
-                content: translation.text,
-                id: parent.id,
-                isNew: false,
-                language: translation.language,
-                parentId: parent.parent?.id,
-                translations: parent.translations,
-                userId: parent.user?.id ?? "",
-            } : null;
-            // Map of participants by Id
-            const participants: Record<string, PreMapUserData> = {};
-            for (const participant of existingMessageInfo.chat.participants) {
-                if (participant.user) {
-                    participants[participant.user.id] = {
-                        botSettings: participant.user.botSettings ?? JSON.stringify({}),
-                        id: participant.user.id,
-                        isBot: participant.user.isBot,
-                        name: participant.user.name,
-                    };
-                }
-            }
-            // Call LLM for bot response
-            requestBotResponse({
-                chatId,
-                parent: previousMessage,
-                respondingBotId: botId,
-                task: "Start", //TODO
-                participantsData: participants,
+            // Initialize objects to store queried information
+            const preMapChatData: Record<string, PreMapChatData> = {};
+            const preMapMessageData: Record<string, PreMapMessageData> = {};
+            const preMapUserData: Record<string, PreMapUserData> = {};
+            // Collect chat and participant information
+            const messageId = input.messageId;
+            const userId = userData.id;
+            await getChatParticipantData({
+                includeMessageInfo: true,
+                includeMessageParentInfo: true,
+                messageIds: [messageId],
+                preMapChatData,
+                preMapMessageData,
+                preMapUserData,
                 userData,
             });
+            const messageData = preMapMessageData[messageId];
+            const chatId = messageData?.chatId;
+            const chat: PreMapChatData | undefined = chatId ? preMapChatData[chatId] : undefined;
+            const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
+            if (
+                !messageData ||
+                !messageData.userId ||
+                !chatId ||
+                !chat ||
+                bots.length === 0
+            ) {
+                throw new CustomError("0426", "InternalError", userData.languages, { messageId, messageData, userId });
+            }
+            // Determine which bot should respond.
+            let respondingBotId: string | null = null;
+            // If the message is already a bot message, then use the same bot.
+            if (bots.some(b => b.id === messageData.userId)) {
+                respondingBotId = messageData.userId;
+            }
+            // Otherwise, use helper function determine which bots should respond.
+            else {
+                const botsToRespond = determineRespondingBots(messageData, chat, bots, userData.id);
+                if (botsToRespond.length) {
+                    // For now, we'll limit regenerations to a single bot
+                    respondingBotId = botsToRespond[0];
+                }
+            }
+            // If we found a bot to respond, then request a response
+            if (respondingBotId) {
+                // Send typing indicator while bots are responding
+                emitSocketEvent("typing", chatId, { starting: [respondingBotId] });
+                // Call LLM for bot response
+                requestBotResponse({
+                    chatId,
+                    parent: messageData,
+                    respondingBotId,
+                    task: "Start", //TODO
+                    participantsData: preMapUserData,
+                    userData,
+                });
+            }
             return { __typename: "Success", success: true };
         },
-        autoFill: async (_, { input }, { req }, info) => {
+        autoFill: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 

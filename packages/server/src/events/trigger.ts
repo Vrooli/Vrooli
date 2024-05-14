@@ -1,9 +1,9 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus, SubscribableObject } from "@local/shared";
 import { setupEmailVerificationCode } from "../auth/email";
 import { prismaInstance } from "../db/instance";
-import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../models/base/chatMessage";
 import { Notify, isObjectSubscribable } from "../notify";
 import { emitSocketEvent } from "../sockets/events";
+import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../utils/chat";
 import { Award, objectAwardCategory } from "./awards";
 import { logger } from "./logger";
 import { Reputation, objectReputationEvent } from "./reputation";

@@ -1,9 +1,9 @@
 import { RedisClientType } from "redis";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events/logger";
-import { PreMapMessageData, PreMapUserData } from "../../models/base/chatMessage";
 import { withRedis } from "../../redisConn";
 import { UI_URL } from "../../server";
+import { PreMapMessageData, PreMapUserData } from "../../utils/chat";
 import { LanguageModelService } from "./service";
 import { OpenAIService } from "./services/openai";
 
@@ -546,14 +546,11 @@ export const processMentions = (
     // 1. Label must start with @
     // 2. Link must be to this site
     links = links.filter(l => {
-        console.log('in link filter', l, UI_URL)
         if (!l.label.startsWith("@")) return false;
         try {
             const url = new URL(l.link);
-            console.log('url', url.origin, UI_URL)
             return url.origin === UI_URL;
         } catch (e) {
-            console.log('error', e)
             return false;
         }
     });
@@ -574,7 +571,7 @@ export const processMentions = (
         botsToRespond = [...new Set(botsToRespond)];
     }
     return botsToRespond;
-}
+};
 
 /**
  * Determines which bots should respond based on the message content and chat context.
@@ -593,7 +590,7 @@ export const processMentions = (
  * @returns An array of botIds that should respond to the message.
  */
 export const determineRespondingBots = (
-    message: { userId: string, content: string },
+    message: { userId: string | null, content: string },
     chat: { botParticipants?: string[], participantsCount?: number },
     bots: Pick<PreMapUserData, "id" | "name">[],
     userId: string,
@@ -602,6 +599,7 @@ export const determineRespondingBots = (
         !chat ||
         !message.content ||
         message.content.trim() === "" ||
+        !message.userId ||
         message.userId !== userId ||
         bots.length === 0
     ) {
@@ -613,4 +611,4 @@ export const determineRespondingBots = (
     } else {
         return processMentions(message.content, chat, bots);
     }
-}
+};
