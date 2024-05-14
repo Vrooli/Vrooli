@@ -1,4 +1,5 @@
-// import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai"; //TODO waiting on https://github.com/mistralai/client-js/pull/42
+import { MistralModel } from "@local/shared";
+import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, MistralModel } from "../registry";
@@ -19,11 +20,11 @@ const outputCosts: Record<MistralModel, number> = {
 
 export class MistralService implements LanguageModelService<MistralModel, MistralTokenModel> {
     public __id = LlmServiceId.Mistral;
-    private client: any;//MistralClient;
+    private client: MistralClient;
     private defaultModel: MistralModel = MistralModel.Mistral7b;
 
     constructor() {
-        this.client = {} as any;//new MistralClient(process.env.MISTRAL_API_KEY);
+        this.client = new MistralClient(process.env.MISTRAL_API_KEY);
     }
 
     estimateTokens(params: EstimateTokensParams) {
@@ -88,7 +89,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
             model,
             max_tokens: 1024, // Adjust as needed
         };
-        const completion: any = await this.client //ChatCompletionResponse = await this.client
+        const completion: ChatCompletionResponse = await this.client
             .chat(params)
             .catch((error) => {
                 const trace = "0249";
@@ -111,24 +112,21 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
     async *generateResponseStreaming({
         messages,
         model,
-        systemMessage,
-        userData,
     }: GenerateResponseParams) {
         const params = {
-            messages,
             model,
-            max_tokens: 1024, // Adjust as needed
+            messages,
         };
 
         let accumulatedMessage = "";
-        // NOTE: None of this is tested. Probably works the same as OpenAI's streaming, but not sure
+        // NOTE: Mistral's API might not provide token usage when streaming. You'll need to estimate it yourself.
         const inputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
         let accumulatedOutputTokens = 0;
 
         try {
             // Create the stream
-            const stream = await this.client.chat.create({ ...params, stream: true });
-            for await (const chunk of stream) {
+            const chatStreamResponse = this.client.chatStream(params);
+            for await (const chunk of chatStreamResponse) {
                 const content = chunk.choices[0]?.delta?.content || "";
                 accumulatedMessage += content;
                 const outputTokens = this.estimateTokens({ model, text: content }).tokens;

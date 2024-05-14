@@ -8,8 +8,8 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { EmbeddableType, EmbeddingTables, FindManyArgs, GenericModelLogic, ModelMap, batch, getEmbeddings, logger, prismaInstance } from "@local/server";
-import { RunStatus } from "@local/shared";
+import { EmbeddableType, FindManyArgs, GenericModelLogic, ModelMap, batch, getEmbeddings, logger, prismaInstance } from "@local/server";
+import { GqlModelType, RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
@@ -50,7 +50,7 @@ const updateEmbedding = async (
     id: string,
     embeddings: number[],
 ): Promise<void> => {
-    const tableName = EmbeddingTables[objectType];
+    const tableName = ModelMap.get(objectType + "Translation" as GqlModelType).dbTable;
     const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;
     // Use raw query to update the embedding, because the Prisma client doesn't support Postgres vectors
     await prismaInstance.$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
@@ -72,12 +72,14 @@ const processTranslatedBatchHelper = async (
     const sentences = extractTranslatedSentences(batch, model);
     if (sentences.length === 0) return;
     // Find embeddings for all versions in the batch
-    const { embeddings } = await getEmbeddings(objectType, sentences);
+    const embeddings = await getEmbeddings(objectType, sentences);
     // Update the embeddings for each stale translation
     await Promise.all(batch.map(async (curr, index) => {
         const translationsToUpdate = curr.translations.filter(t => t.embeddingNeedsUpdate);
         for (const translation of translationsToUpdate) {
-            await updateEmbedding(objectType, translation.id, embeddings[index]);
+            const currEmbeddings = embeddings[index];
+            if (!currEmbeddings) continue;
+            await updateEmbedding(objectType, translation.id, currEmbeddings);
         }
     }));
 };
@@ -99,11 +101,13 @@ const processUntranslatedBatchHelper = async (
     const sentences = batch.map(obj => model.display().embed?.get(obj as any, []) ?? "");
     if (sentences.length === 0) return;
     // Find embeddings for all objects in the batch
-    const { embeddings } = await getEmbeddings(objectType, sentences);
+    const embeddings = await getEmbeddings(objectType, sentences);
     // Update the embeddings for each object
     await Promise.all(
         batch.map(async (obj, index) => {
-            await updateEmbedding(objectType, obj.id, embeddings[index]);
+            const currEmbeddings = embeddings[index];
+            if (!currEmbeddings) return;
+            await updateEmbedding(objectType, obj.id, currEmbeddings);
         }),
     );
 };
