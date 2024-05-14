@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { ModelMap } from "../models/base/index";
-import { EmbedSortOption } from "../utils/embeddings/types";
+import { EmbedSortOption } from "../utils/embeddings/cache";
 
 export type SQLQuery = {
     select: (SelectClause | string)[];

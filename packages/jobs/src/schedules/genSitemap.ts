@@ -1,4 +1,4 @@
-import { logger, ModelMap, prismaInstance, UI_URL_REMOTE } from "@local/server";
+import { logger, ModelMap, PrismaDelegate, prismaInstance, UI_URL_REMOTE } from "@local/server";
 import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
 import fs from "fs";
 import path from "path";
@@ -83,8 +83,8 @@ const genSitemapForObject = async (
         let estimatedFileSize = 0;
         do {
             // Find all public objects
-            const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], objectType);
-            const batch = await delegate(prismaInstance).findMany({
+            const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], objectType);
+            const batch = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
                 where: {
                     ...validate().visibility.public,
                 },

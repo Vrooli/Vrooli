@@ -1,4 +1,4 @@
-import { ModelMap, Trigger, batch, findFirstRel, logger, prismaInstance } from "@local/server";
+import { ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger, prismaInstance } from "@local/server";
 import { GqlModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
 import pkg, { Prisma } from "@prisma/client";
 
@@ -207,8 +207,8 @@ const moderateReport = async (
             reportStatus: status,
             userUpdatingReportId: null,
         });
-        // Get Prisma delegate for the object type
-        const { delegate } = ModelMap.getLogic(["delegate"], objectType as GqlModelType);
+        // Get Prisma table for the object type
+        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as GqlModelType);
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:
@@ -216,13 +216,13 @@ const moderateReport = async (
             // If the object can be soft-deleted, soft-delete it.
             case ReportSuggestedAction.Delete:
                 if (softDeletableTypes.includes(objectType)) {
-                    await delegate(prismaInstance).update({
+                    await (prismaInstance[dbTable] as PrismaDelegate).update({
                         where: { id: objectData.id },
                         data: { isDeleted: true },
                     });
                 }
                 else {
-                    await delegate(prismaInstance).delete({ where: { id: objectData.id } });
+                    await (prismaInstance[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
                 }
                 break;
             case ReportSuggestedAction.FalseReport:
@@ -235,7 +235,7 @@ const moderateReport = async (
                     return;
                 }
                 // Hide the object
-                await delegate(prismaInstance).update({
+                await (prismaInstance[dbTable] as PrismaDelegate).update({
                     where: { id: objectData.id },
                     data: { isPrivate: true },
                 });

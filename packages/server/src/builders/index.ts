@@ -27,6 +27,7 @@ export * from "./shapeRelationshipData";
 export * from "./timeFrame";
 export * from "./toPartialGqlInfo";
 export * from "./toPartialPrismaSelect";
+export * from "./types";
 export * from "./unions";
 export * from "./visibilityBuilder";
 
