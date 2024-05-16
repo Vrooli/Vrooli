@@ -1,3 +1,4 @@
+import { HOURS_1_S } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -34,6 +35,16 @@ export const setupExportQueue = async () => {
         // Initialize the Bull queue
         exportQueue = new Bull<ExportProcessPayload>("export", {
             redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
         });
         exportQueue.process(exportProcess);
     } catch (error) {

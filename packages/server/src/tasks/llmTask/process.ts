@@ -5,14 +5,17 @@ import { emitSocketEvent } from "../../sockets/events";
 import { generateTaskExec } from "../llm/converter";
 import { LlmTaskProcessPayload } from "./queue";
 
+type ExecuteLlmTaskParams = {
+    data: LlmTaskProcessPayload;
+    update: (data: LlmTaskProcessPayload) => Promise<unknown>;
+}
 export type ExecuteLlmTaskResult = ServerLlmTaskInfo & { status: "completed" | "failed" };
 
 export const executeLlmTask = async ({
-    chatId,
-    language,
-    taskInfo,
-    userData,
-}: LlmTaskProcessPayload): Promise<ExecuteLlmTaskResult> => {
+    data,
+    update,
+}: ExecuteLlmTaskParams): Promise<ExecuteLlmTaskResult> => {
+    const { chatId, language, taskInfo, userData } = data;
     let success = false;
     try {
         // Notify UI that command is being processed
@@ -32,6 +35,8 @@ export const executeLlmTask = async ({
         success = true;
     } catch (error) {
         logger.error("Caught error in executeLlmTask", { trace: "0498", error, taskInfo, language, userId: (userData as unknown as LlmTaskProcessPayload["userData"])?.id });
+        await update({ ...data, status: "failed" });
+
     }
     const result = {
         ...(taskInfo as LlmTaskProcessPayload["taskInfo"]),
@@ -43,9 +48,11 @@ export const executeLlmTask = async ({
             tasks: [result],
         });
     }
+    await update({ ...data, status: "completed" });
     return result;
 };
 
-export const llmTaskProcess = async ({ data }: Job<LlmTaskProcessPayload>) => {
-    await executeLlmTask(data);
+export const llmTaskProcess = async ({ data, update }: Job<LlmTaskProcessPayload>) => {
+    await update({ ...data, status: "running" });
+    await executeLlmTask({ data, update });
 };

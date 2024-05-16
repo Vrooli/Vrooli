@@ -1,4 +1,4 @@
-import { chatMessage_autoFill, chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_findTree, chatMessage_regenerateResponse, chatMessage_startTask, chatMessage_update } from "../generated";
+import { chatMessage_autoFill, chatMessage_cancelTask, chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_findTree, chatMessage_regenerateResponse, chatMessage_startTask, chatMessage_update } from "../generated";
 import { ChatMessageEndpoints } from "../logic/chatMessage";
 import { setupRoutes } from "./base";
 
@@ -24,5 +24,8 @@ export const ChatMessageRest = setupRoutes({
     },
     "/startTask": {
         post: [ChatMessageEndpoints.Mutation.startTask, chatMessage_startTask],
+    },
+    "/cancelTask": {
+        post: [ChatMessageEndpoints.Mutation.cancelTask, chatMessage_cancelTask],
     },
 });

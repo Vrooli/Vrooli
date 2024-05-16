@@ -1,4 +1,4 @@
-import { BUSINESS_NAME } from "@local/shared";
+import { BUSINESS_NAME, HOURS_1_S } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -37,6 +37,16 @@ export const setupSmsQueue = async () => {
         // Initialize the Bull queue
         smsQueue = new Bull<SmsProcessPayload>("sms", {
             redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
         });
         smsQueue.process(smsProcess);
     } catch (error) {

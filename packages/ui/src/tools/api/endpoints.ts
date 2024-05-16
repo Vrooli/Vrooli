@@ -104,6 +104,7 @@ export const endpoints = {
             regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", successPartial, "full"),
             autoFill: toMutation("autoFill", "AutoFillInput", autoFillResultPartial, "full"),
             startTask: toMutation("startTask", "StartTaskInput", successPartial, "full"),
+            cancelTask: toMutation("cancelTask", "CancelTaskInput", successPartial, "full"),
         };
     },
     chatParticipant: async () => {

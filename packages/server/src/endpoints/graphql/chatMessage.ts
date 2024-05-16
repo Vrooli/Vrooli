@@ -189,6 +189,10 @@ export const typeDef = gql`
         taskId: ID!
     }
 
+    input CancelTaskInput {
+        taskId: ID!
+    }
+
     extend type Query {
         chatMessage(input: FindByIdInput!): ChatMessage
         chatMessages(input: ChatMessageSearchInput!): ChatMessageSearchResult!
@@ -201,6 +205,7 @@ export const typeDef = gql`
         regenerateResponse(input: RegenerateResponseInput!): Success!
         autoFill(input: AutoFillInput!): AutoFillResult!
         startTask(input: StartTaskInput!): Success!
+        cancelTask(input: CancelTaskInput!): Success!
     }
 `;
 

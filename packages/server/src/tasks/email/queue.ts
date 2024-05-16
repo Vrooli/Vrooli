@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, LINKS, PaymentType } from "@local/shared";
+import { BUSINESS_NAME, HOURS_1_S, LINKS, PaymentType } from "@local/shared";
 import Bull from "bull";
 import fs from "fs";
 import path from "path";
@@ -46,6 +46,16 @@ export const setupEmailQueue = async () => {
         // Initialize the Bull queue
         emailQueue = new Bull<EmailProcessPayload>("email", {
             redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
         });
         emailQueue.process(emailProcess);
 

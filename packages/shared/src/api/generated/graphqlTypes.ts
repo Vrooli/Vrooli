@@ -593,6 +593,10 @@ export type BotUpdateInput = {
   translationsUpdate?: InputMaybe<Array<UserTranslationUpdateInput>>;
 };
 
+export type CancelTaskInput = {
+  taskId: Scalars['ID'];
+};
+
 export type Chat = {
   __typename: 'Chat';
   created_at: Scalars['Date'];
@@ -2159,6 +2163,7 @@ export type Mutation = {
   bookmarkUpdate: Bookmark;
   botCreate: User;
   botUpdate: User;
+  cancelTask: Success;
   chatCreate: Chat;
   chatInviteAccept: ChatInvite;
   chatInviteCreate: ChatInvite;
@@ -2384,6 +2389,11 @@ export type MutationBotCreateArgs = {
 
 export type MutationBotUpdateArgs = {
   input: BotUpdateInput;
+};
+
+
+export type MutationCancelTaskArgs = {
+  input: CancelTaskInput;
 };
 
 
@@ -10109,6 +10119,7 @@ export type ResolversTypes = {
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
   BotCreateInput: BotCreateInput;
   BotUpdateInput: BotUpdateInput;
+  CancelTaskInput: CancelTaskInput;
   Chat: ResolverTypeWrapper<Chat>;
   ChatCreateInput: ChatCreateInput;
   ChatEdge: ResolverTypeWrapper<ChatEdge>;
@@ -10883,6 +10894,7 @@ export type ResolversParentTypes = {
   Boolean: Scalars['Boolean'];
   BotCreateInput: BotCreateInput;
   BotUpdateInput: BotUpdateInput;
+  CancelTaskInput: CancelTaskInput;
   Chat: Chat;
   ChatCreateInput: ChatCreateInput;
   ChatEdge: ChatEdge;
@@ -12287,6 +12299,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   bookmarkUpdate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkUpdateArgs, 'input'>>;
   botCreate?: Resolver<ResolversTypes['User'], ParentType, ContextType, RequireFields<MutationBotCreateArgs, 'input'>>;
   botUpdate?: Resolver<ResolversTypes['User'], ParentType, ContextType, RequireFields<MutationBotUpdateArgs, 'input'>>;
+  cancelTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationCancelTaskArgs, 'input'>>;
   chatCreate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatCreateArgs, 'input'>>;
   chatInviteAccept?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteAcceptArgs, 'input'>>;
   chatInviteCreate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteCreateArgs, 'input'>>;

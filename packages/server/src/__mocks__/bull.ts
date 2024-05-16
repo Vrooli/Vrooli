@@ -1,6 +1,6 @@
 import { noop } from "@local/shared";
 
-type Job = { id: number; data: any; options?: any };
+type Job = { id: string | number; data: any; options?: any };
 type ProcessCallback = (job: Job, done: () => void) => void;
 
 class BullQueueMock {
@@ -53,6 +53,10 @@ class BullQueueMock {
         this.eventHandlers[event].push(callback);
     });
 
+    getJob = async (jobId: string) => {
+        return BullQueueMock.jobs.find(job => job.id === jobId) || null;
+    };
+
     // Utility function to simulate emitting events
     __emit = (event: string, ...args: any[]) => {
         if (this.eventHandlers[event]) {
@@ -81,6 +85,7 @@ class BullQueueMock {
             BullQueueMock.instance.on.mockClear();
             BullQueueMock.instance.add.mockClear();
             BullQueueMock.instance.process.mockClear();
+            // BullQueueMock.instance.getJob.mockClear();
         }
         BullQueueMock.instance = null;
         BullQueueMock.instantiationCount = 0;

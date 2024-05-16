@@ -37,7 +37,7 @@ export type LlmTaskInfo = {
     /**
      * The latest status of the command.
      */
-    status: "suggested" | "running" | "completed" | "failed"
+    status: "suggested" | "running" | "canceling" | "completed" | "failed"
 };
 
 export type ExistingTaskData = Record<string, string | number | boolean | null>;

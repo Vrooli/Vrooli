@@ -1,10 +1,11 @@
 import { SessionUserToken } from "@local/server";
-import { ServerLlmTaskInfo } from "@local/shared";
+import { HOURS_1_S, MINUTES_1_MS, ServerLlmTaskInfo } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
 
+type LlmTaskStatus = "scheduled" | "running" | "canceled" | "completed" | "failed";
 export type LlmTaskProcessPayload = {
     /** The task to be run */
     taskInfo: ServerLlmTaskInfo;
@@ -14,6 +15,8 @@ export type LlmTaskProcessPayload = {
     language: string;
     /** The user who's running the command (not the bot) */
     userData: SessionUserToken;
+    /** The status of the job process */
+    status: LlmTaskStatus;
 }
 
 let logger: winston.Logger;
@@ -43,6 +46,16 @@ export const setupLlmTaskQueue = async () => {
         // Initialize the Bull queue
         llmTaskQueue = new Bull<LlmTaskProcessPayload>("command", {
             redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
         });
         llmTaskQueue.process(llmTaskProcess);
     } catch (error) {
@@ -55,6 +68,80 @@ export const setupLlmTaskQueue = async () => {
     }
 };
 
-export const processLlmTask = (data: LlmTaskProcessPayload) => {
-    llmTaskQueue.add(data, { timeout: 1000 * 60 * 1 });
+export const processLlmTask = (data: Omit<LlmTaskProcessPayload, "status">) => {
+    llmTaskQueue.add(
+        { ...data, status: "scheduled" },
+        { jobId: data.taskInfo.id, timeout: MINUTES_1_MS },
+    );
+};
+
+/**
+ * Update a task's status
+ * @param jobId The job ID (also the task ID) of the task
+ * @param status The new status of the task
+ * @param userId The user ID of the user who triggered the task. 
+ * Only they are allowed to change the status of the task.
+ */
+export const changeLlmTaskStatus = async (
+    jobId: string,
+    status: "scheduled" | "canceled" | "running",
+    userId: string,
+): Promise<{ success: boolean, message: string }> => {
+    try {
+        const job = await llmTaskQueue.getJob(jobId);
+        if (!job) {
+            // Job not found in queue, handle based on desired status
+            if (status === "canceled") {
+                logger.info(`LLM task with jobId ${jobId} not found, but considered canceled.`);
+                return { success: true, message: "Task not found but considered canceled." };
+            } else {
+                throw new Error(`LLM task with jobId ${jobId} not found.`);
+            }
+        }
+
+        // Check if the user has permission to change the status
+        if (job.data.userData.id !== userId) {
+            throw new Error(`User ${userId} is not authorized to change the status of job ${jobId}.`);
+        }
+
+        if (status === "scheduled") {
+            const currentState = await job.getState();
+            if (currentState === "failed" || currentState === "waiting") {
+                // Add the job back to the queue if it failed or is waiting
+                await job.update({ ...job.data, status: "scheduled" });
+                await llmTaskQueue.add(job.data);
+                logger.info(`LLM task with jobId ${jobId} rescheduled.`);
+                return { success: true, message: "Task rescheduled." };
+            } else {
+                throw new Error(`LLM task with jobId ${jobId} cannot be rescheduled from state ${currentState}.`);
+            }
+        } else if (status === "canceled") {
+            await job.update({ ...job.data, status: "canceled" });
+            await job.remove();
+            logger.info(`LLM task with jobId ${jobId} canceled.`);
+            return { success: true, message: "Task canceled." };
+        }
+    } catch (error) {
+        logger.error(`Failed to change status for LLM task with jobId ${jobId}.`, { error });
+        return { success: false, message: (error as { message?: string }).message || "Failed to change status." };
+    }
+    logger.error(`Failed to change status for LLM task with jobId ${jobId}.`);
+    return { success: false, message: "Failed to change status." };
+};
+
+export const getLlmTaskStatus = async (jobId: string) => {
+    try {
+        const job = await llmTaskQueue.getJob(jobId);
+        if (job) {
+            const state = await job.getState();
+            const progress = await job.progress();
+            const result = await job.finished().catch(err => ({ error: err.message }));
+            return { state, progress, result };
+        } else {
+            return { state: "not found" };
+        }
+    } catch (error) {
+        logger.error(`Failed to get status for LLM task with jobId ${jobId}.`, { error });
+        throw error;
+    }
 };

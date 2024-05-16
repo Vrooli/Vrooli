@@ -1,4 +1,4 @@
-import { Chat, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartTaskInput, Success, VALYXA_ID, endpointPostRegenerateResponse, endpointPostStartTask, uuid } from "@local/shared";
+import { CancelTaskInput, Chat, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartTaskInput, Success, VALYXA_ID, endpointPostCancelTask, endpointPostRegenerateResponse, endpointPostStartTask, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
@@ -129,6 +129,8 @@ export const useMessageActions = ({
     }, [regenerate]);
 
     const [startTask] = useLazyFetch<StartTaskInput, Success>(endpointPostStartTask);
+    const [cancelTask] = useLazyFetch<CancelTaskInput, Success>(endpointPostCancelTask);
+
     /** 
      * Handle a suggested task, depending on its state
      */
@@ -154,11 +156,11 @@ export const useMessageActions = ({
             console.warn("Ignoring task: could not find associated message", task, tree.map);
             return;
         }
+        const { message } = messageNode;
+        const originalTask = { ...task };
+        const originalTaskList = tasks[message.id] ?? [];
         // If status is "suggested", trigger the task
         if (task.status === "suggested") {
-            const { message } = messageNode;
-            const originalTask = { ...task };
-            const originalTaskList = tasks[message.id] ?? [];
             const updatedTask = {
                 ...task,
                 lastUpdated: new Date().toISOString(),
@@ -186,11 +188,29 @@ export const useMessageActions = ({
                 },
             });
         }
-        // If status is "running", attempt to pause/stop the task
+        // If status is "running", attempt to cancel the task
         else if (task.status === "running") {
-            //TODO
+            const updatedTask = {
+                ...task,
+                lastUpdated: new Date().toISOString(),
+                status: "canceling" as const,
+            };
+            const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? updatedTask : t);
+            setCookieTaskForMessage(message.id, updatedTask);
+            updateTasksForMessage(message.id, updatedTaskList);
+            fetchLazyWrapper<CancelTaskInput, Success>({
+                fetch: cancelTask,
+                inputs: { taskId: task.id },
+                spinnerDelay: null, // Disable spinner since this is a background task
+                successCondition: (data) => data && data.success === true,
+                errorMessage: () => ({ messageKey: "ActionFailed" }),
+                onError: () => {
+                    setCookieTaskForMessage(message.id, originalTask);
+                    updateTasksForMessage(message.id, originalTaskList);
+                },
+            });
         }
-    }, [startTask, tasks, tree.map, updateTasksForMessage]);
+    }, [cancelTask, startTask, tasks, tree.map, updateTasksForMessage]);
 
     return {
         postMessage,

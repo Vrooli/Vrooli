@@ -1,3 +1,4 @@
+import { HOURS_1_S } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -45,6 +46,16 @@ export const setupPushQueue = async () => {
         // Initialize the Bull queue
         pushQueue = new Bull<PushSubscription & PushPayload>("push", {
             redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
         });
         pushQueue.process(pushProcess);
     } catch (error) {

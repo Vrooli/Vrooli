@@ -1,4 +1,4 @@
-import { LlmTask } from "@local/shared";
+import { HOURS_1_S, LlmTask } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -127,6 +127,16 @@ export const setupLlmQueue = async () => {
         // Initialize the Bull queue
         llmQueue = new Bull<LlmRequestPayload>("llm", {
             redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
         });
         llmQueue.process(llmProcess);
     } catch (error) {
