@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { HttpStatus, PaymentStatus, PaymentType, StripeEndpoint } from "@local/shared";
+import { DAYS_180_MS, DAYS_1_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint } from "@local/shared";
 import Stripe from "stripe";
 import pkg from "../__mocks__/@prisma/client";
 import Bull from "../__mocks__/bull";
@@ -1831,11 +1831,6 @@ describe("checkSubscriptionPrices", () => {
 
 // NOTE: session.created is in seconds
 describe("isStripeObjectOlderThan", () => {
-    // Constant for 180 days in milliseconds
-    const DAYS_180_MS = 180 * 24 * 60 * 60 * 1000;
-    const DAYS_1_MS = 24 * 60 * 60 * 1000;
-    const HOURS_1_MS = 60 * 60 * 1000;
-
     test("should return true for a session older than 180 days", () => {
         const session = {
             created: (Date.now() - (DAYS_180_MS + DAYS_1_MS)) / 1000, // 181 days in the past

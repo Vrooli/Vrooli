@@ -1,4 +1,4 @@
-import { VisibilityType } from "@local/shared";
+import { MINUTES_15_S, VisibilityType } from "@local/shared";
 import { withRedis } from "../../redisConn";
 import { EmbeddableType } from "./types";
 
@@ -40,7 +40,7 @@ export enum EmbedSortOption {
  */
 export class SearchEmbeddingsCache {
     /** How long embeddings search results can be cached */
-    static CACHE_EXPIRY_SECONDS = 60 * 15;
+    static CACHE_EXPIRY_SECONDS = MINUTES_15_S;
 
     /**
      * Creates redis key for search embeddings results.

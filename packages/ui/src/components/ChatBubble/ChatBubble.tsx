@@ -1,3 +1,4 @@
+import { DUMMY_ID, endpointPostReact, LlmTaskInfo, MINUTES_10_MS, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
 import { Avatar, Box, Chip, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
@@ -323,7 +324,7 @@ const ChatBubbleReactions = ({
 };
 
 /** How long a task can be running until it is considered stale */
-const STALE_THRESHOLD_MS = 1000 * 60 * 10;
+const STALE_THRESHOLD_MS = MINUTES_10_MS;
 
 /** Displays a suggested, active, or finished task that is associated with the message */
 export const TaskChip = ({

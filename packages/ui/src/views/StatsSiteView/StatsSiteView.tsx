@@ -1,4 +1,4 @@
-import { endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { DAYS_1_MS, endpointGetStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
@@ -34,14 +34,12 @@ enum StatsTabOption {
     AllTime = "AllTime",
 }
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
 /** Maps tab options to time frame intervals (in milliseconds) */
 const tabPeriods: { [key in StatsTabOption]: number } = {
-    Daily: ONE_DAY_MS,
-    Weekly: 7 * ONE_DAY_MS,
-    Monthly: 30 * ONE_DAY_MS,
-    Yearly: 365 * ONE_DAY_MS,
+    Daily: DAYS_1_MS,
+    Weekly: WEEKS_1_MS,
+    Monthly: MONTHS_1_MS,
+    Yearly: YEARS_1_MS,
     AllTime: Number.MAX_SAFE_INTEGER,
 };
 

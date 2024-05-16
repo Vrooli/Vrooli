@@ -1,5 +1,6 @@
-import type { Schedule, ScheduleRecurrence } from "@local/shared";
+import { type Schedule, type ScheduleRecurrence } from "@local/shared";
 import { Moment } from "moment-timezone";
+import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/time";
 
 // Native Date objects don't handle time zones well, so we use moment-timezone instead.
 // This must be loaded asynchronously so the UI can code-split it.
@@ -16,10 +17,6 @@ const ensureMomentTimezone = async () => {
     }
 };
 
-const ONE_YEAR_IN_MS = 1000 * 60 * 60 * 24 * 365;
-const ONE_HOUR_IN_MS = 1000 * 60 * 60;
-const ONE_MINUTE_IN_MS = 1000 * 60;
-
 /**
  * Ensure that the given time frame does not exceed a year.
  *
@@ -33,7 +30,7 @@ export const validateTimeFrame = (timeframeStart: Date, timeframeEnd: Date): boo
         return false;
     }
     const timeframeDuration = timeframeEnd.getTime() - timeframeStart.getTime();
-    if (timeframeDuration > ONE_YEAR_IN_MS) {
+    if (timeframeDuration > YEARS_1_MS) {
         console.error("Time frame too large", { trace: "0432", timeframeStart, timeframeEnd });
         return false;
     }
@@ -421,7 +418,7 @@ export const applyExceptions = (
         const exceptionOriginalStartTime = new Date(exception.originalStartTime.toLocaleString("en-US", { timeZone }));
 
         // Check for exceptions within a 1-minute window of the current start time
-        if (Math.abs(exceptionOriginalStartTime.getTime() - currentStartTime.getTime()) < ONE_MINUTE_IN_MS) {
+        if (Math.abs(exceptionOriginalStartTime.getTime() - currentStartTime.getTime()) < MINUTES_1_MS) {
             // The occurrence has an exception
             if (exception.newStartTime || exception.newEndTime) {
                 // If there's a new start time, use it, otherwise set it original start time
@@ -478,7 +475,7 @@ export const calculateOccurrences = async (
     const startTime = new Date(schedule.startTime.toLocaleString("en-US", { timeZone: schedule.timezone }));
     // Calcuate occurrences for each recurrence
     for (const recurrence of schedule.recurrences) {
-        const duration = recurrence.duration ?? ONE_HOUR_IN_MS; // Default to 1 hour if no duration is provided
+        const duration = recurrence.duration ?? HOURS_1_MS; // Default to 1 hour if no duration is provided
         // Use jump functions to calculate the first relevant start time
         let currentStartTime = startTime;
         switch (recurrence.recurrenceType) {

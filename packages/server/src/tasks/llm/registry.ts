@@ -1,4 +1,4 @@
-import { AnthropicModel, MistralModel, OpenAIModel } from "@local/shared";
+import { AnthropicModel, MINUTES_15_MS, MistralModel, OpenAIModel } from "@local/shared";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 
@@ -31,12 +31,11 @@ export enum LlmServiceErrorType {
 const CRITICAL_ERRORS = [LlmServiceErrorType.Authentication];
 const COOLDOWN_ERRORS = [LlmServiceErrorType.RateLimit, LlmServiceErrorType.ApiError, LlmServiceErrorType.Overloaded];
 
-const FIFTEEN_MINUTES = 15 * 60 * 1000;
 /** Maps cooldown errors to their cooldown time in milliseconds */
 const COOLDOWN_TIMES: Partial<Record<LlmServiceErrorType, number>> = {
-    [LlmServiceErrorType.RateLimit]: FIFTEEN_MINUTES,
-    [LlmServiceErrorType.ApiError]: FIFTEEN_MINUTES,
-    [LlmServiceErrorType.Overloaded]: FIFTEEN_MINUTES,
+    [LlmServiceErrorType.RateLimit]: MINUTES_15_MS,
+    [LlmServiceErrorType.ApiError]: MINUTES_15_MS,
+    [LlmServiceErrorType.Overloaded]: MINUTES_15_MS,
 };
 
 type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
@@ -168,7 +167,7 @@ export class LlmServiceRegistry {
         } else if (COOLDOWN_ERRORS.includes(errorType)) {
             logger.warning(`Cooldown error received from service ${serviceId}: ${errorType}. Placing service in cooldown.`, { trace: "0241" });
             service.state = LlmServiceState.Cooldown;
-            service.cooldownUntil = new Date(Date.now() + (COOLDOWN_TIMES[errorType] || FIFTEEN_MINUTES));
+            service.cooldownUntil = new Date(Date.now() + (COOLDOWN_TIMES[errorType] || MINUTES_15_MS));
             this.serviceStates.set(serviceId, service);
             this.resetServiceStateAfterCooldown(serviceId);
         }

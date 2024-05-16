@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, DAYS_180_MS, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
@@ -1124,9 +1124,6 @@ export const isStripeObjectOlderThan = (
     const now = Date.now();
     return (stripeObject.created * 1000) + ageDifferenceMs < now;
 };
-
-// Constant for 180 days in milliseconds
-const DAYS_180_MS = 180 * 24 * 60 * 60 * 1000;
 
 /**
  * Fixes any credits that were paid for but not awarded.

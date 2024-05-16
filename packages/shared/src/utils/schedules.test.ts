@@ -1,5 +1,6 @@
 import moment from "moment";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api";
+import { HOURS_2_MS } from "../consts";
 import { uuid } from "../id";
 import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules";
 
@@ -1009,7 +1010,6 @@ describe("applyExceptions", () => {
 
     it("should return the end time using duration if no explicit end time was set", () => {
         const exceptionStartTime = new Date("2024-01-01T00:00:11Z").toISOString();
-        const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
         schedule.exceptions.push({
             originalStartTime: exceptionStartTime,
             newStartTime: exceptionStartTime,
@@ -1018,11 +1018,11 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:00Z",
             schedule,
-            duration: TWO_HOURS_IN_MS,
+            duration: HOURS_2_MS,
             timeZone: "Europe/Zurich",
             expected: {
                 start: "2024-01-01T00:00:11Z",
-                end: new Date(new Date(exceptionStartTime).getTime() + TWO_HOURS_IN_MS).toISOString(),
+                end: new Date(new Date(exceptionStartTime).getTime() + HOURS_2_MS).toISOString(),
             },
         });
     });
