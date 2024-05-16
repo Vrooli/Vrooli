@@ -1,4 +1,3 @@
-import { DUMMY_ID, endpointPostReact, LlmTaskInfo, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
 import { Avatar, Box, Chip, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
@@ -629,10 +628,14 @@ export const ChatBubble = ({
                             pr: isEditing ? 0 : 2,
                             ml: isOwn ? "auto" : 0,
                             mr: isOwn ? 0 : "auto",
-                            backgroundColor: (isOwn && !isEditing) ?
-                                palette.mode === "light" ? "#88d17e" : "#1a5413" :
-                                palette.background.paper,
-                            color: palette.background.textPrimary,
+                            background: !isOwn && message.status === "failed"
+                                ? palette.error.dark
+                                : (isOwn && !isEditing)
+                                    ? palette.mode === "light" ? "#88d17e" : "#1a5413"
+                                    : palette.background.paper,
+                            color: !isOwn && message.status === "failed"
+                                ? palette.error.contrastText
+                                : palette.background.textPrimary,
                             borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
                             boxShadow: 2,
                             minWidth: "50px",

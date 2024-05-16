@@ -3,7 +3,7 @@ export enum AnthropicModel {
     Sonnet = "claude-3-sonnet-20240229",
 }
 export enum MistralModel {
-    Mistral8x7b = "open-mixtral-8x7b",
+    Mistral8x7b = "open-mixtral-8x7b", // Not a typo
     Mistral7b = "open-mistral-7b",
 }
 export enum OpenAIModel {

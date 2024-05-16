@@ -107,7 +107,7 @@ export const findBotData = (
     return {
         creativity: creativity >= 0 && creativity <= 1 ? creativity : 0.5,
         verbosity: verbosity >= 0 && verbosity <= 1 ? verbosity : 0.5,
-        model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : "gpt-3.5-turbo",
+        model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : OpenAIModel.Gpt3_5Turbo,
         translations,
     };
 };

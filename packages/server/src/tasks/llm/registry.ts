@@ -105,7 +105,7 @@ export class LlmServiceRegistry {
     getServiceId = (model: string | undefined): LlmServiceId => {
         if (!model) return LlmServiceId.OpenAI;
         if (model.includes("claude")) return LlmServiceId.Anthropic;
-        if (model.includes("mistral")) return LlmServiceId.Mistral;
+        if (model.includes("mistral") || model.includes("mixtral")) return LlmServiceId.Mistral;
         return LlmServiceId.OpenAI;
     };
 

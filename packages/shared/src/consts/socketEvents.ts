@@ -30,6 +30,8 @@ export type ChatSocketEventPayloads = {
     responseStream: {
         /** The state of the stream */
         __type: "stream" | "end" | "error";
+        /** The ID of the bot sending the message */
+        botId?: string;
         /** The current text stream (not the accumulated text) */
         message: string;
     }

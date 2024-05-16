@@ -365,7 +365,7 @@ export const DashboardView = ({
         });
     }, [chat, fetch, session, setMessage]);
 
-    useSocketChat({
+    const { messageStream } = useSocketChat({
         addMessages: messageTree.addMessages,
         chat,
         editMessage: messageTree.editMessage,
@@ -540,6 +540,7 @@ export const DashboardView = ({
                     handleRetry={messageActions.regenerateResponse}
                     handleTaskClick={messageActions.respondToTask}
                     isBotOnlyChat={isBotOnlyChat}
+                    messageStream={messageStream}
                     messageTasks={messageTree.messageTasks}
                     removeMessages={messageTree.removeMessages}
                     setBranches={messageTree.setBranches}

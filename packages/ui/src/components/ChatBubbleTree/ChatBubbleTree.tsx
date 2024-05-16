@@ -1,4 +1,4 @@
-import { LlmTaskInfo } from "@local/shared";
+import { ChatSocketEventPayloads, LlmTaskInfo, noop } from "@local/shared";
 import { Box, IconButton, Typography, useTheme } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { Dimensions } from "components/graphs/types";
@@ -144,6 +144,7 @@ type ChatBubbleTreeProps = {
     handleRetry: (message: ChatMessageShape) => unknown,
     handleTaskClick: (task: LlmTaskInfo) => unknown,
     isBotOnlyChat: boolean,
+    messageStream: ChatSocketEventPayloads["responseStream"] | null,
     messageTasks: Record<string, LlmTaskInfo[]>,
     removeMessages: (messageIds: string[]) => unknown,
     setBranches: Dispatch<SetStateAction<BranchMap>>,
@@ -159,6 +160,7 @@ export const ChatBubbleTree = ({
     handleRetry,
     handleTaskClick,
     isBotOnlyChat,
+    messageStream,
     messageTasks,
     removeMessages,
     setBranches,
@@ -223,7 +225,7 @@ export const ChatBubbleTree = ({
                     activeIndex={data.activeIndex}
                     chatWidth={dimensions.width}
                     isBotOnlyChat={isBotOnlyChat}
-                    isLastMessage={data.isLastMessage}
+                    isLastMessage={!messageStream && data.isLastMessage}
                     numSiblings={data.numSiblings}
                     onActiveIndexChange={data.onActiveIndexChange}
                     onDeleted={data.onDeleted}
@@ -236,6 +238,38 @@ export const ChatBubbleTree = ({
                     tasks={messageTasks[data.message.id] || []}
                 />
             ))}
+            {messageStream && (
+                <ChatBubble
+                    key="streamingMessage"
+                    activeIndex={0}
+                    chatWidth={dimensions.width}
+                    isBotOnlyChat={isBotOnlyChat}
+                    isLastMessage={true}
+                    numSiblings={1}
+                    onActiveIndexChange={noop}
+                    onDeleted={noop}
+                    onReply={noop}
+                    onRetry={noop}
+                    onTaskClick={noop}
+                    onUpdated={noop}
+                    message={{
+                        id: "streamingMessage",
+                        reactionSummaries: [],
+                        status: messageStream.__type === "error" ? "failed" : "sending",
+                        translations: [{
+                            language: "en",
+                            text: messageStream.message,
+                        }],
+                        user: messageStream.botId && {
+                            id: messageStream.botId,
+                            isBot: true,
+                        },
+                        versionIndex: 0,
+                    } as unknown as ChatMessageShape}
+                    isOwn={false}
+                    tasks={[]}
+                />
+            )}
         </Box>
     );
 };

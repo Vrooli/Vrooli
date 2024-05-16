@@ -1,4 +1,4 @@
-import { BotSettings, BotSettingsTranslation, CommandToTask, ExistingTaskData, LlmTask, ServerLlmTaskInfo, getLlmConfigLocation, getStructuredTaskConfig, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, ServerLlmTaskInfo, getLlmConfigLocation, getStructuredTaskConfig, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -396,15 +396,20 @@ export const generateResponseWithFallback = async ({
                     systemMessage,
                     userData,
                 });
+                let messageStreamStarted = false;
                 for await (const { __type, message, cost } of response) {
-                    if (__type === "stream") {
-                        console.log("sending stream to UI", message);
-                    } else if (__type === "end") {
+                    if (__type === "end") {
                         responseMessage = message;
                         finalCost = cost;
                     } else if (__type === "error") {
                         responseMessage = message;
                         finalCost = cost;
+                    }
+                    const payload: ChatSocketEventPayloads["responseStream"] = { __type, message };
+                    // At the start of the stream, send the bot's ID so the UI can identify which bot is responding
+                    if (!messageStreamStarted) {
+                        payload.botId = respondingBotId;
+                        messageStreamStarted = true;
                     }
                     emitSocketEvent("responseStream", chatId, { __type, message });
                 }

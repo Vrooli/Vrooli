@@ -1,12 +1,13 @@
-import { ChatParticipant, DUMMY_ID, LlmTask, LlmTaskInfo } from "@local/shared";
+import { ChatParticipant, ChatSocketEventPayloads, DUMMY_ID, LlmTask, LlmTaskInfo } from "@local/shared";
 import { emitSocketEvent, onSocketEvent } from "api";
 import { SessionContext } from "contexts/SessionContext";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieTasksForMessage, removeCookieMatchingChat, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
+import { useThrottle } from "./useThrottle";
 
 type ParticipantWithoutChat = Omit<ChatParticipant, "chat">;
 
@@ -61,7 +62,13 @@ export const useSocketChat = ({
         };
     }, [chat?.id]);
 
-    const messageStream = useRef("");
+    const messageStreamRef = useRef<ChatSocketEventPayloads["responseStream"] | null>(null);
+    const [messageStream, setMessageStream] = useState<ChatSocketEventPayloads["responseStream"] | null>(null);
+    const throttledSetMessageStream = useThrottle((messageStream: ChatSocketEventPayloads["responseStream"] | null) => {
+        // Create copy of message to ensure proper re-rendering
+        const messageStreamCopy = messageStream ? { ...messageStream } : null;
+        setMessageStream(messageStreamCopy);
+    }, 100);
 
     // Handle incoming data
     useEffect(() => {
@@ -137,19 +144,36 @@ export const useSocketChat = ({
             const updatedUserIds = updatedParticipants.map(p => p.user.id);
             setCookieMatchingChat(chat.id, updatedUserIds, task);
         });
-        const cleanupResponseStream = onSocketEvent("responseStream", ({ __type, message }) => {
-            if (__type === "stream") {
-                messageStream.current += message;
-            } else if (__type === "end") {
-                messageStream.current = message;
-                // TODO
-                messageStream.current = "";
-            } else if (__type === "error") {
-                messageStream.current = message;
-                // TODO
-                messageStream.current = "";
+        const cleanupResponseStream = onSocketEvent("responseStream", ({ __type, botId, message }) => {
+            // Initialize ref if it doesn't exist
+            if (!messageStreamRef.current) {
+                messageStreamRef.current = { __type, message: "" };
             }
-            console.log('received message stream', messageStream.current)
+            // Add __type to stream
+            messageStreamRef.current.__type = __type;
+            // Add botId if it doesn't exist
+            if (botId && !messageStreamRef.current.botId) {
+                messageStreamRef.current.botId = botId;
+                // This also indicates the start of a new message, so we can remove 
+                // any old message that failed
+                messageStreamRef.current.message = "";
+            }
+            // Add to message if we're still streaming or it's an error. 
+            // We keep the stream if there's an error in case the user want to 
+            // read what part of the message was received
+            if (__type === "stream" || __type === "error") {
+                messageStreamRef.current.message += message;
+            }
+            // Remove message if it's the end. The full message will be received through the rest endpoint
+            if (__type === "end") {
+                messageStreamRef.current = null;
+                console.log('removing message stream')
+                // Update state immediately
+                setMessageStream(null);
+            } else {
+                // Update state on throttle
+                throttledSetMessageStream(messageStreamRef.current);
+            }
         });
         return () => {
             cleanupMessages();
@@ -159,4 +183,6 @@ export const useSocketChat = ({
             cleanupResponseStream();
         };
     }, [addMessages, editMessage, chat.id, participants, removeMessages, session, usersTyping, setUsersTyping, task, updateTasksForMessage, setParticipants]);
+
+    return { messageStream };
 };

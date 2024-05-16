@@ -289,7 +289,7 @@ const ChatForm = ({
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
-    useSocketChat({
+    const { messageStream } = useSocketChat({
         addMessages: messageTree.addMessages,
         chat: existing,
         editMessage: messageTree.editMessage,
@@ -322,7 +322,6 @@ const ChatForm = ({
         tree: messageTree.tree,
         updateTasksForMessage: messageTree.updateTasksForMessage,
     });
-    console.log("curr chat messages", values.messages, existing.messages);
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {
@@ -535,6 +534,7 @@ const ChatForm = ({
                             handleRetry={messageActions.regenerateResponse}
                             handleTaskClick={messageActions.respondToTask}
                             isBotOnlyChat={isBotOnlyChat}
+                            messageStream={messageStream}
                             messageTasks={messageTree.messageTasks}
                             removeMessages={messageTree.removeMessages}
                             setBranches={messageTree.setBranches}

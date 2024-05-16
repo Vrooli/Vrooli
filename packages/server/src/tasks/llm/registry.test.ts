@@ -1,4 +1,5 @@
-import { AnthropicModel, LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState, OpenAIModel } from "./registry";
+import { AnthropicModel, MistralModel, OpenAIModel } from "@local/shared";
+import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry";
 
 describe("LlmServiceRegistry", () => {
     let registry: LlmServiceRegistry;
@@ -18,6 +19,7 @@ describe("LlmServiceRegistry", () => {
     test("returns the preferred service when active", () => {
         expect(registry.getBestService(AnthropicModel.Opus)).toEqual(LlmServiceId.Anthropic);
         expect(registry.getBestService(OpenAIModel.Gpt3_5Turbo)).toEqual(LlmServiceId.OpenAI);
+        expect(registry.getBestService(MistralModel.Mistral8x7b)).toEqual(LlmServiceId.Mistral);
     });
 
     test("returns the first active fallback service when preferred is on cooldown", () => {

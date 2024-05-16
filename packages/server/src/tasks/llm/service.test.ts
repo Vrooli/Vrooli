@@ -3,10 +3,11 @@ import { SessionUserToken } from "@local/server";
 import { LlmTask } from "@local/shared";
 import pkg from "../../__mocks__/@prisma/client";
 import { ModelMap } from "../../models";
-import { PreMapUserData } from "../../models/base/chatMessage";
+import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector } from "./context";
 import { GenerateResponseParams, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
 import { AnthropicService } from "./services/anthropic";
+import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
 
 const { PrismaClient } = pkg;
@@ -158,7 +159,7 @@ describe("LanguageModelService lmServices", () => {
     const lmServices = [
         { name: "OpenAIService", lmService: new OpenAIService() },
         { name: "AnthropicService", lmService: new AnthropicService() },
-        // { name: "MistralService", lmService: new MistralService() },
+        { name: "MistralService", lmService: new MistralService() },
         // add other lmServices as needed
     ];
 
