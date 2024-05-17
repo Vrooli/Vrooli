@@ -1,5 +1,5 @@
 import { Method, ServerResponse } from "api";
-import { stringifySearchParams } from "route";
+import { ParseSearchParamsResult, stringifySearchParams } from "route";
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
@@ -67,7 +67,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     // GET requests should have their inputs converted to query parameters.
     if (method === "GET") {
         if (inputs !== undefined && Object.keys(inputs).length !== 0) {
-            url += `${stringifySearchParams(inputs)}`;
+            url += `${stringifySearchParams(inputs as ParseSearchParamsResult)}`;
         }
     }
     // Other requests should have their inputs converted to JSON and sent in the body.

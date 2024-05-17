@@ -1,33 +1,8 @@
+import { encodeValue } from "@local/shared";
 import { SetLocation } from "./types";
 
 type Primitive = string | number | boolean | object;
 export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult | null | undefined };
-
-const encodeValue = (value: unknown) => {
-    if (typeof value === 'string') {
-        // encodeURIComponent will skip what looks like percent-encoded values. 
-        // For this reason, we must manually replace all '%' characters with '%25'
-        return value.replace(/%/g, '%25');
-    } else if (typeof value === 'object' && value !== null) {
-        if (Array.isArray(value)) {
-            return value.map(encodeValue);
-        }
-        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, encodeValue(v)]));
-    }
-    return value;
-};
-
-const decodeValue = (value: unknown) => {
-    if (typeof value === 'string') {
-        return value;
-    } else if (typeof value === 'object' && value !== null) {
-        if (Array.isArray(value)) {
-            return value.map(decodeValue);
-        }
-        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, decodeValue(v)]));
-    }
-    return value;
-};
 
 /**
  * Converts object to url search params. 
@@ -65,7 +40,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
     const obj = {};
     for (let [key, value] of params) {
         try {
-            obj[decodeURIComponent(key)] = decodeValue(JSON.parse(decodeURIComponent(value)));
+            obj[decodeURIComponent(key)] = JSON.parse(decodeURIComponent(value));
         } catch (e: any) {
             console.error(`Error decoding parameter "${key}": ${e.message}`);
         }

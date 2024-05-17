@@ -1,4 +1,4 @@
-import { HttpStatus } from "@local/shared";
+import { HttpStatus, decodeValue } from "@local/shared";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
@@ -36,12 +36,8 @@ export type EndpointTuple = readonly [
     any,
     UploadConfig<any>?
 ];
-export type EndpointGroup = {
-    get?: EndpointTuple;
-    post?: EndpointTuple;
-    put?: EndpointTuple;
-    delete?: EndpointTuple;
-};
+export type EndpointType = "get" | "post" | "put" | "delete";
+export type EndpointGroup = { [key in EndpointType]?: EndpointTuple };
 
 /**
  * Converts request search params to their correct types. 
@@ -53,7 +49,7 @@ const parseInput = (input: any): Record<string, any> => {
     const parsed: any = {};
     Object.entries(input).forEach(([key, value]) => {
         try {
-            parsed[key] = JSON.parse(value as any);
+            parsed[key] = decodeValue(JSON.parse(value as any));
         } catch (error) {
             parsed[key] = value;
         }
@@ -136,7 +132,7 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
         // Create route
         const routerChain = router.route(route);
         // Loop through each method
-        Object.entries(methods).forEach(([method, [endpoint, selection, config]]) => {
+        (Object.entries(methods) as [EndpointType, EndpointTuple][]).forEach(([method, [endpoint, selection, config]]) => {
             // Add method to route
             routerChain[method](
                 maybeMulter(config),
@@ -147,6 +143,7 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                     // If it's a GET method, combine params and parsed query
                     if (method === "get") {
                         input = { ...req.params, ...parseInput(req.query) };
+                        console.log("parsed input", input)
                     } else {
                         // For non-GET methods, handle object and array bodies
                         if (Array.isArray(req.body)) {
