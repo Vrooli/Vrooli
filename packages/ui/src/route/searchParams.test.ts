@@ -119,3 +119,134 @@ describe("stringifySearchParams", () => {
         expect(stringifySearchParams({ key: { nestedKey: "nestedValue" } })).toBe("?key=%7B%22nestedKey%22%3A%22nestedValue%22%7D");
     });
 });
+
+describe("stringifySearchParams and parseSearchParams", () => {
+    const originalLocation = window.location;
+
+    const setWindowSearch = (search: string) => {
+        Object.defineProperty(window, "location", {
+            value: {
+                ...originalLocation,
+                search,
+            },
+            writable: true,
+        });
+    };
+
+    afterEach(() => {
+        Object.defineProperty(window, "location", {
+            value: originalLocation,
+        });
+    });
+
+    const testCases = [
+        {
+            description: "handles an empty object",
+            input: {},
+            expected: {},
+        },
+        {
+            description: "removes null and undefined values from object",
+            input: { key1: null, key2: undefined, key3: "value" },
+            expected: { key3: "value" },
+        },
+        {
+            description: "handles a single key-value pair",
+            input: { key: "val/ue" },
+            expected: { key: "val/ue" },
+        },
+        {
+            description: "handles multiple key-value pairs",
+            input: { key_one: "value1", key_TwO: "value2" },
+            expected: { key_one: "value1", key_TwO: "value2" },
+        },
+        {
+            description: "handles special characters",
+            input: {
+                "normalSpecialCharacters": "!@#$%^&*()_+-=[]{}\|;:'\",.<>/?",
+                "rarerSpecialCharacters": "(╯°□°）╯︵ ┻━┻  (. ❛ ᴗ ❛.) ( ͡° ͜ʖ ͡°) ᕕ( ᐛ )ᕗ",
+                "otherLanguagesAndAccents": "¡Hola! ¿Cómo estás? 你好吗 こんにちは สวัสดี ជំរាបសួរ გამარჯობა Բարև",
+                "emojis": "😁🪿🥳🙆‍♂️🙅🏻‍♂️👴🏿👽🥳",
+
+
+
+                "zalgo": "H̷̢̛̛͚̖͙̰̪͔̗̔̊͌̈́̑̿͌̆̔͊͋̀̆̚͝e̷̢̲̬̙͓̝̜̖͎͈̯͙̭̱̼̳͚̿͊̿̔́̐͐̍̏̽̈́̉͠͠ ̶͚̲̖̻̼̰̘̋̿͆͒̋͠c̷͙͇͋̃̈̒͌͌͝õ̵͕̘̤̳̻̞͖̉̈́̆̏̒͝m̶̘͔̰̬͊̊ȩ̸̢̧̨̛̞̰͚̳̜͙̻͚̰͎͐͆́̍̎̚s̶̢̡̬̠̹͓̳͎̪̰̯̻̃̒̕͝"
+
+
+
+            },
+            expected: {
+                "normalSpecialCharacters": "!@#$%^&*()_+-=[]{}\|;:'\",.<>/?",
+                "rarerSpecialCharacters": "(╯°□°）╯︵ ┻━┻  (. ❛ ᴗ ❛.) ( ͡° ͜ʖ ͡°) ᕕ( ᐛ )ᕗ",
+                "otherLanguagesAndAccents": "¡Hola! ¿Cómo estás? 你好吗 こんにちは สวัสดี ជំរាបសួរ გამარჯობა Բարև",
+                "emojis": "😁🪿🥳🙆‍♂️🙅🏻‍♂️👴🏿👽🥳",
+
+
+
+                "zalgo": "H̷̢̛̛͚̖͙̰̪͔̗̔̊͌̈́̑̿͌̆̔͊͋̀̆̚͝e̷̢̲̬̙͓̝̜̖͎͈̯͙̭̱̼̳͚̿͊̿̔́̐͐̍̏̽̈́̉͠͠ ̶͚̲̖̻̼̰̘̋̿͆͒̋͠c̷͙͇͋̃̈̒͌͌͝õ̵͕̘̤̳̻̞͖̉̈́̆̏̒͝m̶̘͔̰̬͊̊ȩ̸̢̧̨̛̞̰͚̳̜͙̻͚̰͎͐͆́̍̎̚s̶̢̡̬̠̹͓̳͎̪̰̯̻̃̒̕͝"
+
+
+
+            },
+        },
+        {
+            description: "handles what looks like URL-encoded characters originally, by not changing them",
+            input: { "key_one": "value%2Fone%22%3A%22nestedValue%22%7D" },
+            expected: { "key_one": "value%2Fone%22%3A%22nestedValue%22%7D" },
+        },
+        {
+            description: "handles nested objects",
+            input: { key: { nestedKey: "nestedValue" } },
+            expected: { key: { nestedKey: "nestedValue" } },
+        },
+        {
+            description: "handles arrays",
+            input: { key: ["value1", "value2", "value3"] },
+            expected: { key: ["value1", "value2", "value3"] },
+        },
+        {
+            description: "handles mixed types",
+            input: { string: "value", number: 123, boolean: true, null: null },
+            expected: { string: "value", number: 123, boolean: true },
+        },
+        {
+            description: "handles complex nested structures",
+            input: {
+                key1: { nestedKey1: "nestedValue1" },
+                key2: [{ id: 1, name: "Item1" }, { id: 2, name: "Item2" }],
+            },
+            expected: {
+                key1: { nestedKey1: "nestedValue1" },
+                key2: [{ id: 1, name: "Item1" }, { id: 2, name: "Item2" }],
+            },
+        },
+        {
+            description: "Handles negatives and decimals",
+            input: {
+                "positiveInteger": 123,
+                "negativeInteger": -123,
+                "positiveFloat": 123.456,
+                "negativeFloat": -123.456,
+                "zero": 0,
+            },
+            expected: {
+                "positiveInteger": 123,
+                "negativeInteger": -123,
+                "positiveFloat": 123.456,
+                "negativeFloat": -123.456,
+                "zero": 0,
+            },
+        }
+    ];
+
+    testCases.forEach(({ description, input, expected }) => {
+        it(description, () => {
+            const searchParams = stringifySearchParams(input);
+            console.log("yeet stringified params", searchParams)
+            setWindowSearch(searchParams);
+            const parsedParams = parseSearchParams();
+            console.log("yeet parsed params", parsedParams)
+            expect(parsedParams).toEqual(expected);
+        });
+    });
+});

@@ -1,72 +1,76 @@
 import { SetLocation } from "./types";
 
 type Primitive = string | number | boolean | object;
-export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
+export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult | null | undefined };
 
-/**
- * Converts url search params to object
- * See https://stackoverflow.com/a/8649003/10240279
- * @returns Object with key/value pairs, or empty object if no params
- */
-export const parseSearchParams = (): ParseSearchParamsResult => {
-    const searchParams = window.location.search;
-    if (searchParams.length <= 1 || !searchParams.startsWith("?")) return {};
-    let search = searchParams.substring(1);
-    try {
-        search = search.replace(/([^&=]+)=([^&]*)/g, (match, key, value) => {
-            if (value.startsWith("\"") || value.includes("%") || value === "true" || value === "false") return match;
-            // Check for numbers and null
-            if (isFinite(Number(value))) {
-                return `${key}=${value}`;
-            } else if (value === "null") {
-                return `${key}=null`;
-            }
-            // Wrap other values in quotes
-            return `${key}="${value}"`;
-        });
-
-        const parsed = JSON.parse("{\""
-            + decodeURI(search)
-                .replace(/&/g, ",\"")
-                .replace(/=/g, "\":")
-                .replace(/%2F/g, "/")
-                .replace(/%5B/g, "[")
-                .replace(/%5D/g, "]")
-                .replace(/%5C/g, "\\")
-                .replace(/%2C/g, ",")
-                .replace(/%3A/g, ":")
-            + "}");
-
-        Object.keys(parsed).forEach((key) => {
-            const value = parsed[key];
-            if (typeof value === "string" && value.startsWith("{") && value.endsWith("}")) {
-                try {
-                    parsed[key] = JSON.parse(value);
-                } catch (e) {
-                    // Do nothing
-                }
-            }
-        });
-        return parsed;
-    } catch (error) {
-        console.error("Could not parse search params", error);
-        return {};
+const encodeValue = (value: unknown) => {
+    if (typeof value === 'string') {
+        // encodeURIComponent will skip what looks like percent-encoded values. 
+        // For this reason, we must manually replace all '%' characters with '%25'
+        return value.replace(/%/g, '%25');
+    } else if (typeof value === 'object' && value !== null) {
+        if (Array.isArray(value)) {
+            return value.map(encodeValue);
+        }
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, encodeValue(v)]));
     }
+    return value;
+};
+
+const decodeValue = (value: unknown) => {
+    if (typeof value === 'string') {
+        return value;
+    } else if (typeof value === 'object' && value !== null) {
+        if (Array.isArray(value)) {
+            return value.map(decodeValue);
+        }
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, decodeValue(v)]));
+    }
+    return value;
 };
 
 /**
  * Converts object to url search params. 
- * Ignores keys with undefined or null values.
+ * Ignores top-level keys with null values.
+ * 
+ * NOTE: Values which are NOT supported are:
+ * - undefined
+ * - functions
+ * - symbols
+ * - BigInts, Infinity, -Infinity, NaN
+ * - Dates
+ * - Maps, Sets
  * @param params Object with key/value pairs, representing search params
  * @returns string of search params, matching the format of window.location.search
  */
-export const stringifySearchParams = (params: object): string => {
-    const keys = Object.keys(params);
-    // Filter out any keys which are associated with undefined or null values
-    const filteredKeys = keys.filter(key => params[key] !== null && params[key] !== undefined);
-    if (!filteredKeys.length) return "";
-    const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + "=" + encodeURIComponent(JSON.stringify(params[key]))).join("&");
-    return "?" + encodedParams;
+export const stringifySearchParams = (params: ParseSearchParamsResult) => {
+    const keys = Object.keys(params).filter(key => params[key] != null && params[key] !== undefined);
+    const encodedParams = keys.map(key => {
+        try {
+            return `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(encodeValue(params[key])))}`;
+        } catch (e: any) {
+            console.error(`Error encoding value for key "${key}": ${e.message}`);
+            return null;
+        }
+    }).filter(param => param !== null).join("&");
+    return encodedParams ? `?${encodedParams}` : "";
+};
+
+/**
+ * Converts url search params to object
+ * @returns Object with key/value pairs, or empty object if no params
+ */
+export const parseSearchParams = (): ParseSearchParamsResult => {
+    const params = new URLSearchParams(window.location.search);
+    const obj = {};
+    for (let [key, value] of params) {
+        try {
+            obj[decodeURIComponent(key)] = decodeValue(JSON.parse(decodeURIComponent(value)));
+        } catch (e: any) {
+            console.error(`Error decoding parameter "${key}": ${e.message}`);
+        }
+    }
+    return obj;
 };
 
 /**
