@@ -24,17 +24,8 @@ export const getLlmConfigLocation = async (): Promise<string> => {
 };
 
 async function loadFile(modulePath: string) {
-    // try {
-    //     // @ts-ignore
-    //     if (typeof require !== "undefined" && require.resolve) {
-    //         // eslint-disable-next-line @typescript-eslint/no-var-requires
-    //         return require(modulePath);  // Use require in CommonJS environments
-    //     }
-    // } catch (err) {
-    //     // require failed, falling back to import
-    const module = await import(modulePath);
+    const module = await import(/* @vite-ignore */modulePath);
     return module;
-    // }
 }
 
 /**
