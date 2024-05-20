@@ -351,7 +351,8 @@ export const updateRel = <
             if (!updatedItem || !updatedItem[idField]) continue;
             const oi = originalDataArray.find(item => item?.[idField] === updatedItem[idField]);
             if (oi && ((shape as ShapeModel<object, object | null, object>).hasObjectChanged ?? hasObjectChanged)(oi, updatedItem)) {
-                shaped.push((shape as ShapeModel<object, object | null, object>).update(oi, updatedItem));
+                const update = (shape as ShapeModel<object, object | null, object>).update(oi, updatedItem);
+                if (typeof update === "object" && Object.keys(update).length > 0) shaped.push(update);
             }
         }
         if (shaped.length > 0) {
