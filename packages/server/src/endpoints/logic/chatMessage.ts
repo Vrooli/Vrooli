@@ -86,7 +86,7 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
                 preMapUserData,
                 userData,
             });
-            const messageData = preMapMessageData[messageId];
+            let messageData = preMapMessageData[messageId];
             const chatId = messageData?.chatId;
             const chat: PreMapChatData | undefined = chatId ? preMapChatData[chatId] : undefined;
             const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
@@ -101,9 +101,14 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             }
             // Determine which bot should respond.
             let respondingBotId: string | null = null;
-            // If the message is already a bot message, then use the same bot.
+            // If the message is already a bot message
             if (bots.some(b => b.id === messageData.userId)) {
+                // Use the same bot to respond
                 respondingBotId = messageData.userId;
+                // Set the parent as the message we're responding to, if it exists
+                if (messageData.parentId && preMapMessageData[messageData.parentId]) {
+                    messageData = preMapMessageData[messageData.parentId];
+                }
             }
             // Otherwise, use helper function determine which bots should respond.
             else {
