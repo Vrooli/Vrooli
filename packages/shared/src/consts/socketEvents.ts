@@ -49,7 +49,10 @@ export type ChatSocketEventPayloads = {
     };
     /** Tasks that can or have been performed */
     llmTasks: {
-        tasks: LlmTaskInfo[];
+        /** Provides full task information for tasks */
+        tasks?: LlmTaskInfo[];
+        /** For updating individual fields (e.g. "status") of a task */
+        updates?: Partial<LlmTaskInfo>[];
     };
     joinChatRoom: { chatId: string };
     leaveChatRoom: { chatId: string };

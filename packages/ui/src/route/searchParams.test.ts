@@ -242,10 +242,8 @@ describe("stringifySearchParams and parseSearchParams", () => {
     testCases.forEach(({ description, input, expected }) => {
         it(description, () => {
             const searchParams = stringifySearchParams(input);
-            console.log("yeet stringified params", searchParams)
             setWindowSearch(searchParams);
             const parsedParams = parseSearchParams();
-            console.log("yeet parsed params", parsedParams)
             expect(parsedParams).toEqual(expected);
         });
     });

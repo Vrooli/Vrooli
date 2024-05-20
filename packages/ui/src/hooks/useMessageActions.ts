@@ -159,8 +159,8 @@ export const useMessageActions = ({
         const { message } = messageNode;
         const originalTask = { ...task };
         const originalTaskList = tasks[message.id] ?? [];
-        // If status is "suggested", trigger the task
-        if (task.status === "suggested") {
+        // If task is not running and not completed, start the task
+        if (["suggested", "canceled", "failed"].includes(task.status)) {
             const updatedTask = {
                 ...task,
                 lastUpdated: new Date().toISOString(),
