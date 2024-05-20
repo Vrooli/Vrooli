@@ -4,12 +4,14 @@ import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, OrganizationModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
+
+type NotePre = PreShapeRootResult;
 
 const __typename = "Note" as const;
 export const NoteModel: NoteModelLogic = ({
@@ -19,31 +21,37 @@ export const NoteModel: NoteModelLogic = ({
     format: NoteFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<NotePre> => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: data.isPrivate,
-                permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: true, objectType: __typename, data, ...rest })),
-                parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest }),
-                versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
-                versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as NotePre;
+                return {
+                    id: data.id,
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as NotePre;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

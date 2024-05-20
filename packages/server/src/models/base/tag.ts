@@ -3,10 +3,12 @@ import { ModelMap } from ".";
 import { prismaInstance } from "../../db/instance";
 import { bestTranslation, defaultPermissions } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
-import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { TagFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, TagModelLogic } from "./types";
+
+type TagPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "Tag" as const;
 export const TagModel: TagModelLogic = ({
@@ -33,7 +35,7 @@ export const TagModel: TagModelLogic = ({
     format: TagFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<TagPre> => {
                 const maps = preShapeEmbeddableTranslatable<"tag">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
@@ -42,16 +44,22 @@ export const TagModel: TagModelLogic = ({
                 const existingTags = await prismaInstance.tag.findMany({ where: { tag: { in: createIds } }, select: { tag: true } });
                 return createIds.map(id => existingTags.find(x => x.tag === id) ? id : null);
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                tag: data.tag,
-                createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                createdBy: data.anonymous ? { disconnect: true } : undefined,
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.tag], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as TagPre;
+                return {
+                    id: data.id,
+                    tag: data.tag,
+                    createdBy: data.anonymous ? undefined : { connect: { id: rest.userData.id } },
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.tag], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as TagPre;
+                return {
+                    createdBy: data.anonymous ? { disconnect: true } : undefined,
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.tag], data, ...rest }),
+                }
+            },
         },
         yup: tagValidation,
     },

@@ -2,11 +2,13 @@ import { IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/share
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { IssueFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, IssueModelInfo, IssueModelLogic, ReactionModelLogic } from "./types";
+
+type IssuePre = PreShapeEmbeddableTranslatableResult;
 
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } = {
     Api: "api",
@@ -42,21 +44,27 @@ export const IssueModel: IssueModelLogic = ({
     format: IssueFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<IssuePre> => {
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
-                [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as IssuePre;
+                return {
+                    id: data.id,
+                    referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
+                    [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as IssuePre;
+                return {
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         yup: issueValidation,
     },

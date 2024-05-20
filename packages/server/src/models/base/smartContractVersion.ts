@@ -3,11 +3,13 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { SmartContractVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { SmartContractModelInfo, SmartContractModelLogic, SmartContractVersionModelInfo, SmartContractVersionModelLogic } from "./types";
+
+type SmartContractVersionPre = PreShapeVersionResult;
 
 const __typename = "SmartContractVersion" as const;
 export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
@@ -38,7 +40,7 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
     format: SmartContractVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<SmartContractVersionPre> => {
                 const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
@@ -51,33 +53,39 @@ export const SmartContractVersionModel: SmartContractVersionModelLogic = ({
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                content: data.content,
-                contractType: data.contractType,
-                default: noNull(data.default),
-                isPrivate: data.isPrivate,
-                isComplete: noNull(data.isComplete),
-                versionLabel: data.versionLabel,
-                versionNotes: noNull(data.versionNotes),
-                directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childSmartContractVersions", data, ...rest }),
-                resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "smartContractVersion", data, ...rest }),
-                root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "SmartContract", parentRelationshipName: "versions", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                content: noNull(data.content),
-                contractType: noNull(data.contractType),
-                default: noNull(data.default),
-                isPrivate: noNull(data.isPrivate),
-                isComplete: noNull(data.isComplete),
-                versionLabel: noNull(data.versionLabel),
-                versionNotes: noNull(data.versionNotes),
-                directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childSmartContractVersions", data, ...rest }),
-                resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "smartContractVersion", data, ...rest }),
-                root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "SmartContract", parentRelationshipName: "versions", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as SmartContractVersionPre;
+                return {
+                    id: data.id,
+                    content: data.content,
+                    contractType: data.contractType,
+                    default: noNull(data.default),
+                    isPrivate: data.isPrivate,
+                    isComplete: noNull(data.isComplete),
+                    versionLabel: data.versionLabel,
+                    versionNotes: noNull(data.versionNotes),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childSmartContractVersions", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "smartContractVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "SmartContract", parentRelationshipName: "versions", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as SmartContractVersionPre;
+                return {
+                    content: noNull(data.content),
+                    contractType: noNull(data.contractType),
+                    default: noNull(data.default),
+                    isPrivate: noNull(data.isPrivate),
+                    isComplete: noNull(data.isComplete),
+                    versionLabel: noNull(data.versionLabel),
+                    versionNotes: noNull(data.versionNotes),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childSmartContractVersions", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "smartContractVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "SmartContract", parentRelationshipName: "versions", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

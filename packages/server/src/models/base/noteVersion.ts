@@ -3,11 +3,13 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLogic } from "./types";
+
+type NoteVersionPre = PreShapeVersionResult;
 
 const __typename = "NoteVersion" as const;
 export const NoteVersionModel: NoteVersionModelLogic = ({
@@ -38,7 +40,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
     format: NoteVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<NoteVersionPre> => {
                 const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
@@ -52,7 +54,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
-                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const preData = rest.preMap[__typename] as NoteVersionPre;
+                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
@@ -73,7 +76,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
             },
             update: async ({ data, ...rest }) => {
                 // Translated pages require custom logic
-                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const preData = rest.preMap[__typename] as NoteVersionPre;
+                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,

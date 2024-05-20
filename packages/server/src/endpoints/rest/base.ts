@@ -143,7 +143,6 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
                     // If it's a GET method, combine params and parsed query
                     if (method === "get") {
                         input = { ...req.params, ...parseInput(req.query) };
-                        console.log("parsed input", input)
                     } else {
                         // For non-GET methods, handle object and array bodies
                         if (Array.isArray(req.body)) {

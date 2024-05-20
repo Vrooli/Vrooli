@@ -8,12 +8,17 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
-import { bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { SubroutineWeightData, bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { RoutineVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic, RunRoutineModelLogic } from "./types";
+
+type RoutineVersionPre = PreShapeVersionResult & {
+    /** Map of routine version ID to graph complexity metrics */
+    weightMap: Record<string, SubroutineWeightData & { id: string; }>;
+};
 
 /**
  * Validates node positions
@@ -63,7 +68,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
     format: RoutineVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<RoutineVersionPre> => {
                 const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
@@ -85,18 +90,19 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     Delete.map(d => d.input),
                 );
                 // Convert dataWeights to a map for easy lookup
-                const dataWeightMap = dataWeights.reduce((acc, curr) => {
+                const weightMap: RoutineVersionPre["weightMap"] = dataWeights.reduce((acc, curr) => {
                     acc[curr.id] = curr;
                     return acc;
                 }, {});
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
-                return { ...maps, dataWeightMap };
+                return { ...maps, weightMap };
             },
             create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as RoutineVersionPre;
                 return {
                     id: data.id,
-                    simplicity: rest.preMap[__typename][data.id]?.simplicity ?? 0,
-                    complexity: rest.preMap[__typename][data.id]?.complexity ?? 0,
+                    simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
+                    complexity: preData.weightMap[data.id]?.complexity ?? 0,
                     apiCallData: noNull(data.apiCallData),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: data.isPrivate,
@@ -114,31 +120,34 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
                     smartContractVersion: await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
                     // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), TODO needs join table
-                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
-            update: async ({ data, ...rest }) => ({
-                simplicity: rest.preMap[__typename][data.id]?.simplicity ?? 0,
-                complexity: rest.preMap[__typename][data.id]?.complexity ?? 0,
-                apiCallData: noNull(data.apiCallData),
-                isAutomatable: noNull(data.isAutomatable),
-                isPrivate: noNull(data.isPrivate),
-                isComplete: noNull(data.isComplete),
-                smartContractCallData: noNull(data.smartContractCallData),
-                versionLabel: noNull(data.versionLabel),
-                versionNotes: noNull(data.versionNotes),
-                apiVersion: await shapeHelper({ relation: "apiVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "ApiVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
-                directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childRoutineVersions", data, ...rest }),
-                inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionInput", parentRelationshipName: "routineVersion", data, ...rest }),
-                nodes: await shapeHelper({ relation: "nodes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Node", parentRelationshipName: "routineVersion", data, ...rest }),
-                nodeLinks: await shapeHelper({ relation: "nodeLinks", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeLink", parentRelationshipName: "routineVersion", data, ...rest }),
-                outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionOutput", parentRelationshipName: "routineVersion", data, ...rest }),
-                resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "routineVersion", data, ...rest }),
-                root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
-                smartContractVersion: await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
-                // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), needs join table
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as RoutineVersionPre;
+                return {
+                    simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
+                    complexity: preData.weightMap[data.id]?.complexity ?? 0,
+                    apiCallData: noNull(data.apiCallData),
+                    isAutomatable: noNull(data.isAutomatable),
+                    isPrivate: noNull(data.isPrivate),
+                    isComplete: noNull(data.isComplete),
+                    smartContractCallData: noNull(data.smartContractCallData),
+                    versionLabel: noNull(data.versionLabel),
+                    versionNotes: noNull(data.versionNotes),
+                    apiVersion: await shapeHelper({ relation: "apiVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "ApiVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childRoutineVersions", data, ...rest }),
+                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionInput", parentRelationshipName: "routineVersion", data, ...rest }),
+                    nodes: await shapeHelper({ relation: "nodes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Node", parentRelationshipName: "routineVersion", data, ...rest }),
+                    nodeLinks: await shapeHelper({ relation: "nodeLinks", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeLink", parentRelationshipName: "routineVersion", data, ...rest }),
+                    outputs: await shapeHelper({ relation: "outputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersionOutput", parentRelationshipName: "routineVersion", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "routineVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
+                    smartContractVersion: await shapeHelper({ relation: "smartContractVersion", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "SmartContractVersion", parentRelationshipName: "calledByRoutineVersions", data, ...rest }),
+                    // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), needs join table
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

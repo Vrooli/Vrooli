@@ -6,12 +6,14 @@ import { getLabels } from "../../getters";
 import { SessionUserToken } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { StandardFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, ViewModelLogic } from "./types";
+
+type StandardPre = PreShapeRootResult;
 
 const __typename = "Standard" as const;
 export const StandardModel: StandardModelLogic = ({
@@ -21,33 +23,39 @@ export const StandardModel: StandardModelLogic = ({
     format: StandardFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<StandardPre> => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isInternal: noNull(data.isInternal),
-                isPrivate: data.isPrivate,
-                permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: true, objectType: __typename, data, ...rest })),
-                parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "forks", data, ...rest }),
-                versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isInternal: noNull(data.isInternal),
-                isPrivate: noNull(data.isPrivate),
-                permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: false, objectType: __typename, data, ...rest })),
-                versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardPre;
+                return {
+                    id: data.id,
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardPre;
+                return {
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

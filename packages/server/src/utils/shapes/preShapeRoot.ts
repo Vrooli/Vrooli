@@ -9,7 +9,7 @@ import { SessionUserToken } from "../../types";
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
     completedAt: Date | null,
-}
+};
 
 type ObjectTriggerData = {
     hasCompleteAndPublic: boolean,
@@ -20,38 +20,9 @@ type ObjectTriggerData = {
         id: string,
         __typename: "User" | "Organization",
     }
-}
-
-const originalDataSelect = {
-    id: true,
-    hasBeenTransferred: true,
-    isPrivate: true,
-    ownedByOrganization: { select: { id: true } },
-    ownedByUser: { select: { id: true } },
-    parent: { select: { id: true } },
-    versions: {
-        select: {
-            id: true,
-            isComplete: true,
-            isPrivate: true,
-        },
-    },
 };
 
-/**
- * Used in mutate.shape.pre of root objects. Has three purposes:
- * 1. Calculate hasCompleteVersion flag and completedAt date to update object in database)
- * 2. Calculate data for objectCreated/Updated/Deleted trigger
- * 3. Determine which creates/updates require a transfer request
- * @returns maps for version, trigger, and transfer data
- */
-export const preShapeRoot = async ({
-    Create,
-    Update,
-    Delete,
-    objectType,
-    userData,
-}: {
+type PreShapeRootParams = {
     Create: {
         input: {
             id: string,
@@ -91,11 +62,44 @@ export const preShapeRoot = async ({
     }[],
     objectType: GqlModelType | `${GqlModelType}`,
     userData: SessionUserToken,
-}): Promise<{
+};
+
+export type PreShapeRootResult = {
     versionMap: Record<string, HasCompleteVersionData>,
     triggerMap: Record<string, { hasCompleteAndPublic: boolean, wasCompleteAndPublic: boolean }>,
     transferMap: Record<string, boolean>,
-}> => {
+};
+
+const originalDataSelect = {
+    id: true,
+    hasBeenTransferred: true,
+    isPrivate: true,
+    ownedByOrganization: { select: { id: true } },
+    ownedByUser: { select: { id: true } },
+    parent: { select: { id: true } },
+    versions: {
+        select: {
+            id: true,
+            isComplete: true,
+            isPrivate: true,
+        },
+    },
+};
+
+/**
+ * Used in mutate.shape.pre of root objects. Has three purposes:
+ * 1. Calculate hasCompleteVersion flag and completedAt date to update object in database)
+ * 2. Calculate data for objectCreated/Updated/Deleted trigger
+ * 3. Determine which creates/updates require a transfer request
+ * @returns maps for version, trigger, and transfer data
+ */
+export const preShapeRoot = async ({
+    Create,
+    Update,
+    Delete,
+    objectType,
+    userData,
+}: PreShapeRootParams): Promise<PreShapeRootResult> => {
     // Get db table
     const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags

@@ -7,11 +7,13 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { prismaInstance } from "../../db/instance";
 import { getLabels } from "../../getters";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
-import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
+import { preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
 import { OrganizationFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, OrganizationModelLogic, ViewModelLogic } from "./types";
+
+type OrganizationPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "Organization" as const;
 export const OrganizationModel: OrganizationModelLogic = ({
@@ -37,7 +39,7 @@ export const OrganizationModel: OrganizationModelLogic = ({
     format: OrganizationFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, userData }) => {
+            pre: async ({ Create, Update, userData }): Promise<OrganizationPre> => {
                 [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
                 await handlesCheck(__typename, Create, Update, userData.languages);
                 // Find translations that need text embeddings
@@ -45,6 +47,7 @@ export const OrganizationModel: OrganizationModelLogic = ({
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as OrganizationPre;
                 return {
                     id: data.id,
                     bannerImage: data.bannerImage,
@@ -65,23 +68,26 @@ export const OrganizationModel: OrganizationModelLogic = ({
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest }),
                     roles: await shapeHelper({ relation: "roles", relTypes: ["Create"], isOneToOne: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Organization", data, ...rest }),
-                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
-            update: async ({ data, ...rest }) => ({
-                bannerImage: noNull(data.bannerImage),
-                handle: noNull(data.handle),
-                isOpenToNewMembers: noNull(data.isOpenToNewMembers),
-                isPrivate: noNull(data.isPrivate),
-                permissions: JSON.stringify({}), //TODO
-                profileImage: noNull(data.profileImage),
-                members: await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest }),
-                memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest }),
-                resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest }),
-                roles: await shapeHelper({ relation: "roles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Organization", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as OrganizationPre;
+                return {
+                    bannerImage: noNull(data.bannerImage),
+                    handle: noNull(data.handle),
+                    isOpenToNewMembers: noNull(data.isOpenToNewMembers),
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: JSON.stringify({}), //TODO
+                    profileImage: noNull(data.profileImage),
+                    members: await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest }),
+                    memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "organization", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "organization", data, ...rest }),
+                    roles: await shapeHelper({ relation: "roles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Role", parentRelationshipName: "organization", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Organization", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async ({ createdIds, userData }) => {

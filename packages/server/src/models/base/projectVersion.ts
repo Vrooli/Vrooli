@@ -9,11 +9,13 @@ import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ProjectVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic, RunProjectModelLogic } from "./types";
+
+type ProjectVersionPre = PreShapeVersionResult;
 
 const __typename = "ProjectVersion" as const;
 export const ProjectVersionModel: ProjectVersionModelLogic = ({
@@ -44,7 +46,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     format: ProjectVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<ProjectVersionPre> => {
                 const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
@@ -57,26 +59,32 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: data.isPrivate,
-                isComplete: noNull(data.isComplete),
-                versionLabel: data.versionLabel,
-                versionNotes: noNull(data.versionNotes),
-                directories: await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
-                root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
-                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), //TODO needs join table
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                versionLabel: noNull(data.versionLabel),
-                versionNotes: noNull(data.versionNotes),
-                directories: await shapeHelper({ relation: "directories", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
-                root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
-                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), needs join table
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as ProjectVersionPre;
+                return {
+                    id: data.id,
+                    isPrivate: data.isPrivate,
+                    isComplete: noNull(data.isComplete),
+                    versionLabel: data.versionLabel,
+                    versionNotes: noNull(data.versionNotes),
+                    directories: await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
+                    // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), //TODO needs join table
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as ProjectVersionPre;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    versionLabel: noNull(data.versionLabel),
+                    versionNotes: noNull(data.versionNotes),
+                    directories: await shapeHelper({ relation: "directories", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
+                    // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), needs join table
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

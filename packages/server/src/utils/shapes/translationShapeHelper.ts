@@ -1,11 +1,12 @@
 import { GqlModelType } from "@local/shared";
 import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
+import { EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable";
 
 type TranslationShapeHelperProps<
     Types extends readonly RelationshipType[],
 > = Omit<ShapeHelperProps<false, Types, false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "relation" | "softDelete"> & {
-    embeddingNeedsUpdate?: Record<string, { [language in string]: boolean }>,
+    embeddingNeedsUpdate?: EmbeddingLanguageUpdateMap,
 }
 
 /**

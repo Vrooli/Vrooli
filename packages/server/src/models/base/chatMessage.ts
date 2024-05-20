@@ -25,6 +25,15 @@ import { ChatMessageFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
 
+type ChatMessagePre = {
+    /** Map of chat IDs to information about the chat */
+    chatData: Record<string, PreMapChatData>;
+    /** Map of message IDs to information about the message */
+    messageData: Record<string, PreMapMessageData>;
+    /** Map of user IDs to information about the user */
+    userData: Record<string, PreMapUserData>;
+};
+
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
     __typename,
@@ -49,7 +58,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
              * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message 
              * with versionIndex set to the previous version's index + 1.
              */
-            pre: async ({ Create, Update, Delete, userData, inputsById }) => {
+            pre: async ({ Create, Update, Delete, userData, inputsById }): Promise<ChatMessagePre> => {
                 // Initialize objects to store bot, message, and chat information
                 const preMapChatData: Record<string, PreMapChatData> = {};
                 const preMapMessageData: Record<string, PreMapMessageData> = {};
@@ -232,7 +241,8 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 return { userData: preMapUserData, chatData: preMapChatData, messageData: preMapMessageData };
             },
             create: async ({ data, ...rest }) => {
-                const parentId = rest.preMap[__typename]?.messageData?.[data.id]?.parentId;
+                const preData = rest.preMap[__typename] as ChatMessagePre;
+                const parentId = preData.messageData[data.id]?.parentId;
                 return {
                     id: data.id,
                     user: { connect: { id: data.userConnect ?? rest.userData.id } }, // Can create messages for bots. This is authenticated in the "pre" function.

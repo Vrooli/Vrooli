@@ -6,11 +6,13 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { StandardVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, StandardVersionModelLogic } from "./types";
+
+type StandardVersionPre = PreShapeVersionResult;
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
@@ -115,7 +117,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
     format: StandardVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<StandardVersionPre> => {
                 const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
@@ -129,9 +131,10 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardVersionPre;
                 // If jsonVariables defined, sort them. 
                 // This makes comparing standards a whole lot easier
-                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
                     translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
                         if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
@@ -156,8 +159,9 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 };
             },
             update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardVersionPre;
                 // If jsonVariables defined, sort them
-                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
                     translations.update = translations.update.map((t: { where: { id: string }, data: StandardVersionTranslationUpdateInput }) => {
                         if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable, rest.userData.languages);

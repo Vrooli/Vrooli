@@ -3,12 +3,14 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, ProjectModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic, RoutineModelLogic } from "./types";
+
+type QuizPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "Quiz" as const;
 export const QuizModel: QuizModelLogic = ({
@@ -34,37 +36,43 @@ export const QuizModel: QuizModelLogic = ({
     format: QuizFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<QuizPre> => {
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: data.isPrivate,
-                maxAttempts: noNull(data.maxAttempts),
-                randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
-                revealCorrectAnswers: noNull(data.revealCorrectAnswers),
-                timeLimit: noNull(data.timeLimit),
-                pointsToPass: noNull(data.pointsToPass),
-                createdBy: { connect: { id: rest.userData.id } },
-                project: await shapeHelper({ relation: "project", relTypes: ["Connect"], isOneToOne: true, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest }),
-                routine: await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest }),
-                quizQuestions: await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                maxAttempts: noNull(data.maxAttempts),
-                randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
-                revealCorrectAnswers: noNull(data.revealCorrectAnswers),
-                timeLimit: noNull(data.timeLimit),
-                pointsToPass: noNull(data.pointsToPass),
-                createdBy: { connect: { id: rest.userData.id } },
-                project: await shapeHelper({ relation: "project", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest }),
-                routine: await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest }),
-                quizQuestions: await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as QuizPre;
+                return {
+                    id: data.id,
+                    isPrivate: data.isPrivate,
+                    maxAttempts: noNull(data.maxAttempts),
+                    randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
+                    revealCorrectAnswers: noNull(data.revealCorrectAnswers),
+                    timeLimit: noNull(data.timeLimit),
+                    pointsToPass: noNull(data.pointsToPass),
+                    createdBy: { connect: { id: rest.userData.id } },
+                    project: await shapeHelper({ relation: "project", relTypes: ["Connect"], isOneToOne: true, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest }),
+                    routine: await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest }),
+                    quizQuestions: await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as QuizPre;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    maxAttempts: noNull(data.maxAttempts),
+                    randomizeQuestionOrder: noNull(data.randomizeQuestionOrder),
+                    revealCorrectAnswers: noNull(data.revealCorrectAnswers),
+                    timeLimit: noNull(data.timeLimit),
+                    pointsToPass: noNull(data.pointsToPass),
+                    createdBy: { connect: { id: rest.userData.id } },
+                    project: await shapeHelper({ relation: "project", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Project", parentRelationshipName: "quizzes", data, ...rest }),
+                    routine: await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest }),
+                    quizQuestions: await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

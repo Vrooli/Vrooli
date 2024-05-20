@@ -5,7 +5,7 @@ import { CustomError } from "../events/error";
 /**
  * Weight data for a subroutine, or all subroutines in a node combined.
  */
-type WeightData = {
+export type SubroutineWeightData = {
     simplicity: number,
     complexity: number,
     optionalInputs: number,
@@ -29,7 +29,7 @@ type LinkData = {
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
 export const calculateShortestLongestWeightedPath = (
-    nodes: { [id: string]: WeightData },
+    nodes: { [id: string]: SubroutineWeightData },
     edges: LinkData[],
     languages: string[],
 ): [number, number] => {
@@ -142,7 +142,7 @@ const routineVersionSelect = ({
 
 type GroupRoutineVersionDataResult = {
     linkData: { [linkId: string]: LinkData },
-    nodeData: { [nodeId: string]: { routineVersionId: string, subroutines: WeightData[] } },
+    nodeData: { [nodeId: string]: { routineVersionId: string, subroutines: SubroutineWeightData[] } },
     subroutineItemData: { [itemId: string]: string },
     optionalRoutineVersionInputCounts: { [routineId: string]: number }
     allRoutineVersionInputCounts: { [routineId: string]: number }
@@ -216,7 +216,7 @@ const groupRoutineVersionData = async (ids: { id: string, parentId: string | nul
 
 type CalculateComplexityResult = {
     updatingSubroutineIds: string[],
-    dataWeights: (WeightData & { id: string })[],
+    dataWeights: (SubroutineWeightData & { id: string })[],
 }
 
 /**
@@ -242,7 +242,7 @@ export const calculateWeightData = async (
     }
     // Initialize data used to calculate complexity/simplicity
     const linkData: { [id: string]: LinkData } = {};
-    const nodeData: { [id: string]: { routineVersionId: string, subroutines: (WeightData & { id: string })[] } } = {};
+    const nodeData: { [id: string]: { routineVersionId: string, subroutines: (SubroutineWeightData & { id: string })[] } } = {};
     const subroutineItemData: { [id: string]: string } = {}; // Routine list item ID to subroutine ID
     const optionalRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Excludes subroutine inputs
     const allRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Includes subroutine inputs
@@ -375,7 +375,7 @@ export const calculateWeightData = async (
     }
     // Calculate weights for each main (i.e. not subroutines) routine version
     // Map routineVersionId to nodes and links
-    const nodesByRVerId: { [routineVersionId: string]: { nodeId: string, subroutines: (WeightData & { id: string })[] }[] } = {};
+    const nodesByRVerId: { [routineVersionId: string]: { nodeId: string, subroutines: (SubroutineWeightData & { id: string })[] }[] } = {};
     const linksByRVerId: { [routineVersionId: string]: LinkData[] } = {};
     for (const nodeId in nodeData) {
         const node = nodeData[nodeId];
@@ -388,12 +388,12 @@ export const calculateWeightData = async (
         linksByRVerId[link.routineVersionId].push(link);
     }
     // For each main (i.e. not subroutine) routine version, calculate the weights using its nodes and links
-    const dataWeights: (WeightData & { id: string })[] = [];
+    const dataWeights: (SubroutineWeightData & { id: string })[] = [];
     for (const versionId in nodesByRVerId) {
         const nodes = nodesByRVerId[versionId];
         const links = linksByRVerId[versionId];
         // Combine the weights of all subroutines in each node
-        const squishedNodes: { [nodeId: string]: WeightData } = {};
+        const squishedNodes: { [nodeId: string]: SubroutineWeightData } = {};
         for (const node of nodes) {
             const squishedNode = node.subroutines.reduce((acc, { complexity, simplicity, optionalInputs, allInputs }) => {
                 return {

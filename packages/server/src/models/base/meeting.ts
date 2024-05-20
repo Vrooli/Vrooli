@@ -3,12 +3,14 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
-import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeEmbeddableTranslatableResult, labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { MeetingModelLogic, OrganizationModelLogic } from "./types";
+
+type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "Meeting" as const;
 export const MeetingModel: MeetingModelLogic = ({
@@ -34,46 +36,52 @@ export const MeetingModel: MeetingModelLogic = ({
     format: MeetingFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<MeetingPre> => {
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
-                organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "meetings", data, ...rest }),
-                restrictedToRoles: await shapeHelper({
-                    relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
-                        fieldName: "role",
-                        uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
-                        childIdFieldName: "roleId",
-                        parentIdFieldName: "meetingId",
-                        parentId: data.id ?? null,
-                    }, data, ...rest,
-                }),
-                invites: await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
-                schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
-                labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
-                restrictedToRoles: await shapeHelper({
-                    relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
-                        fieldName: "role",
-                        uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
-                        childIdFieldName: "roleId",
-                        parentIdFieldName: "meetingId",
-                        parentId: data.id ?? null,
-                    }, data, ...rest,
-                }),
-                invites: await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
-                schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
-                labels: await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as MeetingPre;
+                return {
+                    id: data.id,
+                    openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                    showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
+                    organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "meetings", data, ...rest }),
+                    restrictedToRoles: await shapeHelper({
+                        relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
+                            fieldName: "role",
+                            uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
+                            childIdFieldName: "roleId",
+                            parentIdFieldName: "meetingId",
+                            parentId: data.id ?? null,
+                        }, data, ...rest,
+                    }),
+                    invites: await shapeHelper({ relation: "invites", relTypes: ["Create"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as MeetingPre;
+                return {
+                    openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
+                    showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
+                    restrictedToRoles: await shapeHelper({
+                        relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
+                            fieldName: "role",
+                            uniqueFieldName: "meeting_roles_meetingid_roleid_unique",
+                            childIdFieldName: "roleId",
+                            parentIdFieldName: "meetingId",
+                            parentId: data.id ?? null,
+                        }, data, ...rest,
+                    }),
+                    invites: await shapeHelper({ relation: "invites", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "MeetingInvite", parentRelationshipName: "meeting", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {

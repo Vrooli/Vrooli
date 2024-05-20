@@ -3,10 +3,12 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
-import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { PostFormat } from "../formats";
 import { OrganizationModelLogic, PostModelLogic } from "./types";
+
+type PostPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "Post" as const;
 export const PostModel: PostModelLogic = ({
@@ -32,28 +34,34 @@ export const PostModel: PostModelLogic = ({
     format: PostFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<PostPre> => {
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPinned: noNull(data.isPinned),
-                isPrivate: data.isPrivate,
-                organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
-                user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
-                repostedFrom: await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, objectType: "Post", parentRelationshipName: "reposts", data, ...rest }),
-                resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Post", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPinned: noNull(data.isPinned),
-                isPrivate: noNull(data.isPrivate),
-                resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest }),
-                tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Post", data, ...rest }),
-                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest }),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as PostPre;
+                return {
+                    id: data.id,
+                    isPinned: noNull(data.isPinned),
+                    isPrivate: data.isPrivate,
+                    organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
+                    user: !data.organizationConnect ? { connect: { id: rest.userData.id } } : undefined,
+                    repostedFrom: await shapeHelper({ relation: "repostedFrom", relTypes: ["Connect"], isOneToOne: true, objectType: "Post", parentRelationshipName: "reposts", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Post", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as PostPre;
+                return {
+                    isPinned: noNull(data.isPinned),
+                    isPrivate: noNull(data.isPrivate),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "post", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Post", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {
