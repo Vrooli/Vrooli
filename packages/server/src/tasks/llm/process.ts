@@ -1,4 +1,4 @@
-import { AutoFillResult, BotSettings, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, Success, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, toBotSettings } from "@local/shared";
+import { AutoFillResult, BotSettings, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, StartTaskResult, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -10,8 +10,9 @@ import { CustomError } from "../../events";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { emitSocketEvent } from "../../sockets/events";
-import { PreMapUserData } from "../../utils/chat";
-import { processLlmTask } from "../llmTask";
+import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
+import { getSingleTypePermissions } from "../../validators/permissions";
+import { executeLlmTask, processLlmTask } from "../llmTask";
 import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload, StartTaskPayload } from "./queue";
 import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service";
@@ -60,9 +61,9 @@ export const llmProcessBotMessage = async ({
         // Parse bot information
         const botSettings = parseBotInformation(participantsData, respondingBotId, logger, language);
         const commandToTask = await importCommandToTask(language, logger);
+        const latestMessage = parent?.id ?? null;
 
         // Parse previous message
-        let respondingToMessage: { id: string, text: string } | null = null;
         if (parent) {
             // Check for commands in user's message
             const { tasksToRun, messageWithoutTasks } = await getValidTasksFromMessage({
@@ -83,10 +84,6 @@ export const llmProcessBotMessage = async ({
             }
             // If there is no text left after removing commands, don't create a response
             if (messageWithoutTasks.trim() === "") return;
-            respondingToMessage = {
-                id: parent.id,
-                text: messageWithoutTasks,
-            };
         }
 
         // Start typing indicator
@@ -103,10 +100,10 @@ export const llmProcessBotMessage = async ({
                 chatId,
                 commandToTask,
                 language,
+                latestMessage,
                 participantsData,
                 respondingBotConfig: botSettings,
                 respondingBotId,
-                respondingToMessage,
                 task,
                 userData,
             });
@@ -120,10 +117,10 @@ export const llmProcessBotMessage = async ({
             const { message: botResponse, cost } = await generateResponseWithFallback({
                 chatId,
                 force: false,
+                latestMessage,
                 participantsData,
                 respondingBotConfig: botSettings,
                 respondingBotId,
-                respondingToMessage,
                 stream: true,
                 task,
                 userData,
@@ -154,10 +151,10 @@ export const llmProcessBotMessage = async ({
                         chatId,
                         commandToTask,
                         language,
+                        latestMessage,
                         participantsData,
                         respondingBotConfig: botSettings,
                         respondingBotId,
-                        respondingToMessage,
                         task: command.task,
                         userData,
                     });
@@ -292,11 +289,9 @@ export const llmProcessAutoFill = async ({
             participantsData,
             respondingBotConfig: botSettings,
             respondingBotId: VALYXA_ID,
-            respondingToMessage: {
-                text: Object.keys(data).length ?
-                    "Your goal is to auto-fill a form. Here is the existing data:\n" + JSON.stringify(data, null, 2) + "\nRespond with the missing information"
-                    : "Your goal is to auto-fill a form. The form is currently blank. Respond with the information you'd like to fill it with.",
-            },
+            taskMessage: Object.keys(data).length ?
+                "Your goal is to auto-fill a form. Here is the existing data:\n" + JSON.stringify(data, null, 2) + "\nRespond with the missing information"
+                : "Your goal is to auto-fill a form. The form is currently blank. Respond with the information you'd like to fill it with.",
             task,
             userData,
         });
@@ -326,33 +321,103 @@ export const llmProcessAutoFill = async ({
  */
 export const llmProcessStartTask = async ({
     botId,
-    label,
     messageId,
     properties,
     task,
+    taskId,
     userData,
-}: StartTaskPayload): Promise<Success> => {
-    const result: ServerLlmTaskInfo | null = null;
+}: StartTaskPayload): Promise<StartTaskResult> => {
+    let chatId: string | null = null;
     try {
         const language = userData.languages[0] ?? "en";
-        const botInfo = await getBotInfo(botId);
-        if (!botInfo) {
-            throw new CustomError("0415", "InternalError", userData.languages, { task });
+        // Use delete permissions to determine if we can perform a task
+        const { canDelete: canStartTask } = await getSingleTypePermissions("ChatMessage", [messageId], userData);
+        if (!canStartTask) {
+            throw new CustomError("0487", "Unauthorized", userData.languages, { task });
         }
-        //TODO context is dependent on model (because of context sizes). So we need to update generateResponseWithFallback so that it can do all of this stuff itself
-        // Get context
-        //TODO
-        // Get participantsData for every bot that appears in the context's messages
-        //TODO
-        const participantsData = { [VALYXA_ID]: botInfo };
-        const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger, language);
+        // Initialize objects to store queried information
+        const preMapChatData: Record<string, PreMapChatData> = {};
+        const preMapMessageData: Record<string, PreMapMessageData> = {};
+        const preMapUserData: Record<string, PreMapUserData> = {};
+        // Collect chat and participant information
+        const userId = userData.id;
+        await getChatParticipantData({
+            includeMessageInfo: true,
+            includeMessageParentInfo: true,
+            messageIds: [messageId],
+            preMapChatData,
+            preMapMessageData,
+            preMapUserData,
+            userData,
+        });
+        const messageData = preMapMessageData[messageId];
+        chatId = messageData?.chatId;
+        const chat: PreMapChatData | undefined = chatId ? preMapChatData[chatId] : undefined;
+        const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
+        if (
+            !messageData ||
+            !messageData.userId ||
+            !chatId ||
+            !chat ||
+            bots.length === 0
+        ) {
+            throw new CustomError("0415", "InternalError", userData.languages, { messageId, messageData, userId });
+        }
+        const respondingBotId = bots.find(b => b.id === botId)?.id ?? bots[0].id;
+        const respondingBotConfig = parseBotInformation(preMapUserData, respondingBotId, logger, language);
+        // Let the UI know that the task is running
+        if (chatId) {
+            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "running" }] });
+        }
+        // Generate information to run the task
         const commandToTask = await importCommandToTask(language, logger);
-        //TODO
+        const { taskToRun, cost } = await forceGetTask({
+            chatId,
+            commandToTask,
+            language,
+            latestMessage: messageId,
+            participantsData: preMapUserData,
+            respondingBotConfig,
+            respondingBotId,
+            taskMessage: Object.keys(properties).length
+                ? `Give me a command for the task "${task}", using the context of this chat. Here is the existing data:\n\`\`\`\n${JSON.stringify(properties, null, 2)}\n\`\`\`\nRespond with a full command to complete the task, with properties for all missing fields. Do not include any other text.`
+                : `Give me a command for the task "${task}", using the context of this chat. Respond with a full command to complete the task, with properties for all missing fields. Do not include any other text.`,
+            task,
+            userData,
+        });
+        if (!taskToRun) {
+            throw new CustomError("0541", "InternalError", userData.languages, { task });
+        }
+        // Reduce user's credits
+        const updatedUser = await prismaInstance.user.update({
+            where: { id: userData.id },
+            data: { premium: { update: { credits: { decrement: cost } } } },
+            select: { premium: { select: { credits: true } } },
+        });
+        if (updatedUser.premium) {
+            emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
+        }
+        // Run the task
+        const taskData = {
+            chatId,
+            language,
+            taskInfo: taskToRun,
+            userData,
+        };
+        const finalTask = await executeLlmTask({ data: taskData });
+        if (chatId) {
+            emitSocketEvent("llmTasks", chatId, { updates: [finalTask] });
+        }
+        //TODO create label and link to display and navigate to task in UI
+        // TODO should probably add info to llmTask socket event too, and not just the API result
+        return { __typename: "StartTaskResult" as const, success: finalTask.status === "completed" };
     } catch (error) {
+        if (chatId) {
+            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "failed" }] });
+        }
         logger.error("Caught error in llmProcessStartTask", { trace: "0331", error });
+        return { __typename: "StartTaskResult" as const, success: false };
     }
-    //TODO
-    return {} as any;
 };
 
 export const llmProcess = async ({ data }: Job<LlmRequestPayload>) => {

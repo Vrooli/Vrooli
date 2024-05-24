@@ -2,9 +2,9 @@
 import { RedisClientType } from "redis";
 import pkg from "../../__mocks__/@prisma/client";
 import { RedisClientMock } from "../../__mocks__/redis";
-import { PreMapMessageData } from "../../models/base/chatMessage";
 import { initializeRedis } from "../../redisConn";
 import { UI_URL } from "../../server";
+import { PreMapMessageData } from "../../utils/chat";
 import { ChatContextCollector, ChatContextManager, determineRespondingBots, MessageContextInfo, processMentions } from "./context";
 import { EstimateTokensParams } from "./service";
 import { OpenAIService } from "./services/openai";
@@ -611,9 +611,9 @@ describe("ChatContextCollector", () => {
             const chatId = "chat1";
             const model = "defaultModel";
             const languages = ["en"];
-            const latestMessage = { id: "message6" };
+            const latestMessage = "message6";
 
-            const contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
+            const contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Expect to collect context for message6, its parent (message3), and its grandparent (message1)
             expect(contextInfo.length).toBe(3);
@@ -627,7 +627,7 @@ describe("ChatContextCollector", () => {
             const model = "defaultModel";
             const languages = ["en"];
 
-            const contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages);
+            const contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages });
 
             // Since the most recent message is message6, the result should be the same as the previous test
             expect(contextInfo.length).toBe(3);
@@ -640,9 +640,9 @@ describe("ChatContextCollector", () => {
             const chatId = "chat1";
             const model = "defaultModel";
             const languages = ["en"];
-            const latestMessage = { id: "message5" }; // Starting from a deep child
+            const latestMessage = "message5"; // Starting from a deep child
 
-            let contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
+            let contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Given the context size of 350 and token count of 100 per message, expect to collect up to 3 messages
             expect(contextInfo.length).toBe(3);
@@ -650,7 +650,7 @@ describe("ChatContextCollector", () => {
             // Now let's lower the context size to 200 and try again
             jest.spyOn(lmService, "getContextSize").mockReturnValue(200 as any);
 
-            contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
+            contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Given the context size of 200 and token count of 100 per message, expect to collect up to 2 messages
             expect(contextInfo.length).toBe(2);
@@ -662,9 +662,9 @@ describe("ChatContextCollector", () => {
             const chatId = "chat1";
             const model = "defaultModel";
             const languages = ["en"];
-            const latestMessage = { id: "message5" };
+            const latestMessage = "message5";
 
-            const contextInfo = await chatContextCollector.collectMessageContextInfo(chatId, model, languages, latestMessage);
+            const contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Should be able to collect message5 and its parent (message4), but not its grandparent (message2) or any other ancestors
             expect(contextInfo.length).toBe(2);

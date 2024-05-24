@@ -30,6 +30,30 @@ export type ContextInfo = MessageContextInfo | TextContextInfo;
 
 type TokenCounts = Record<string, Record<string, number>>;
 
+export type CollectMessageContextInfoParams = {
+    /** The chat ID where the message was sent */
+    chatId?: string | null;
+    /** User's languages */
+    languages: string[];
+    /** 
+     * The message ID to start fetching context from. 
+     * The context info will be all messages leading up and including this message, 
+     * which fits within the token limits of the language model. 
+     * 
+     * NOTE 1: If you include `taskMessage`, the context info will also include this message.
+     */
+    latestMessage?: string | null;
+    /**
+     * The name of the model to use for token estimation and context size.
+     */
+    model: string;
+    /**
+     * An additional task message to include in the context info, if needed. 
+     * This is useful for things like autoFill and running routines, among other things.
+     */
+    taskMessage?: string | null;
+};
+
 /**
  * ChatContextManager manages the writing and updating of chat message data in Redis.
  * This class is responsible for maintaining the integrity and structure of chat messages
@@ -236,84 +260,82 @@ export class ChatContextCollector {
         this.languageModelService = languageModelService;
     }
 
-    async collectMessageContextInfo(
-        chatId: string | null | undefined,
-        model: string,
-        languages: string[],
-        latestMessage?: {
-            id?: string | null;
-            text?: string; // Providing text is useful when we're not responding to a message in a chat (e.g. form autoFill)
-        } | null | undefined,
-    ): Promise<ContextInfo[]> {
+    async collectMessageContextInfo({
+        chatId,
+        languages,
+        model,
+        latestMessage,
+        taskMessage,
+    }: CollectMessageContextInfoParams): Promise<ContextInfo[]> {
         const contextSize = this.languageModelService.getContextSize(model);
         let currentTokenCount = 0;
         const contextInfo: ContextInfo[] = [];
 
-        await withRedis({
-            process: async (redisClient) => {
-                // Get provided message ID, or fetch if text not provided
-                let currentMessageId: string | null = latestMessage?.id ?? null;
-                if (!currentMessageId && !latestMessage?.text?.length && chatId) {
-                    currentMessageId = await this.getLatestMessageId(redisClient, chatId);
-                }
+        // Add task message to context info if provided
+        if (taskMessage) {
+            const estimationMethod = this.languageModelService.getEstimationMethod(model);
+            const translations = [{
+                language: languages.length ? languages[0] : "en",
+                text: taskMessage,
+            }];
+            const translatedTokenCounts = (new ChatContextManager(this.languageModelService)).calculateTokenCounts(translations, estimationMethod);
+            const [estimatedTokens, language] = this.getTokenCountFromTranslatedCounts(translatedTokenCounts, estimationMethod, languages);
 
-                // If message ID is found, loop up message tree to collect context, 
-                // until context size is reached or no more messages are found
-                while (currentMessageId && currentTokenCount < contextSize) {
-                    const messageDetails = await this.getMessageDetails(redisClient, currentMessageId);
-                    if (!messageDetails) {
-                        logger.warning("Failed to find message details", { trace: "0080", currentMessageId });
-                        break; // Break the loop if message details are not found
-                    }
-                    const estimationMethod = this.languageModelService.getEstimationMethod(model);
-                    const [estimatedTokens, language] = await this.getTokenCountForLanguages(redisClient, currentMessageId, estimationMethod, languages);
+            if (estimatedTokens >= 0 && estimatedTokens <= contextSize) {
+                contextInfo.push({
+                    __type: "text",
+                    tokenSize: estimatedTokens,
+                    userId: null,
+                    language,
+                    text: taskMessage,
+                });
+            } else {
+                logger.warning("Failed to estimate tokens for provided text", { trace: "0075", text: taskMessage });
+            }
+        }
 
-                    if (estimatedTokens >= 0) {
-                        currentTokenCount += estimatedTokens;
-                        if (currentTokenCount > contextSize) {
-                            break; // Break the loop if the context size is exceeded
+        // Collect chat messages for context info, starting at `latestMessage` and going back
+        if (chatId) {
+            await withRedis({
+                process: async (redisClient) => {
+                    // Get provided message ID, or fetch if not provided
+                    let currentMessageId: string | null = latestMessage ?? await this.getLatestMessageId(redisClient, chatId);
+
+                    // If message ID is found, loop up message tree to collect context, 
+                    // until context size is reached or no more messages are found
+                    while (currentMessageId && currentTokenCount < contextSize) {
+                        const messageDetails = await this.getMessageDetails(redisClient, currentMessageId);
+                        if (!messageDetails) {
+                            logger.warning("Failed to find message details", { trace: "0080", currentMessageId });
+                            break; // Break the loop if message details are not found
                         }
+                        const estimationMethod = this.languageModelService.getEstimationMethod(model);
+                        const [estimatedTokens, language] = await this.getTokenCountForLanguages(redisClient, currentMessageId, estimationMethod, languages);
 
-                        contextInfo.push({
-                            __type: "message",
-                            messageId: currentMessageId,
-                            tokenSize: estimatedTokens,
-                            userId: messageDetails.userId ?? null,
-                            language,
-                        });
+                        if (estimatedTokens >= 0) {
+                            currentTokenCount += estimatedTokens;
+                            if (currentTokenCount > contextSize) {
+                                break; // Break the loop if the context size is exceeded
+                            }
 
-                        currentMessageId = messageDetails.parentId ?? null;
-                    } else {
-                        logger.warning("Failed to estimate tokens for message", { trace: "0083", messageDetails });
-                        break; // Break the loop if token estimation fails
+                            contextInfo.push({
+                                __type: "message",
+                                messageId: currentMessageId,
+                                tokenSize: estimatedTokens,
+                                userId: messageDetails.userId ?? null,
+                                language,
+                            });
+
+                            currentMessageId = messageDetails.parentId ?? null;
+                        } else {
+                            logger.warning("Failed to estimate tokens for message", { trace: "0083", messageDetails });
+                            break; // Break the loop if token estimation fails
+                        }
                     }
-                }
-
-                // If no message ID was found, but text was provided, collect context info for it
-                if (!currentMessageId && latestMessage?.text?.length) {
-                    const estimationMethod = this.languageModelService.getEstimationMethod(model);
-                    const translations = [{
-                        language: languages.length ? languages[0] : "en",
-                        text: latestMessage.text,
-                    }];
-                    const translatedTokenCounts = (new ChatContextManager(this.languageModelService)).calculateTokenCounts(translations, estimationMethod);
-                    const [estimatedTokens, language] = this.getTokenCountFromTranslatedCounts(translatedTokenCounts, estimationMethod, languages);
-
-                    if (estimatedTokens >= 0 && estimatedTokens <= contextSize) {
-                        contextInfo.push({
-                            __type: "text",
-                            tokenSize: estimatedTokens,
-                            userId: null,
-                            language,
-                            text: latestMessage.text,
-                        });
-                    } else {
-                        logger.warning("Failed to estimate tokens for provided text", { trace: "0075", text: latestMessage.text });
-                    }
-                }
-            },
-            trace: "0072",
-        });
+                },
+                trace: "0072",
+            });
+        }
 
         // Reverse the array to get the messages in chronological order
         contextInfo.reverse();

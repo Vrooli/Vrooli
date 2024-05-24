@@ -227,20 +227,22 @@ describe("LanguageModelService lmServices", () => {
         });
 
         const getResponseParams = async (
-            respondingToMessageId: string | null,
-            respondingToMessageContent: string | null,
+            latestMessage: string | null,
+            taskMessage: string | null,
             chatId: string,
             participantsData: Record<string, PreMapUserData> | null | undefined,
             task: LlmTask | `${LlmTask}`,
             userData: SessionUserToken,
             lmService: LanguageModelService<string, string>,
         ) => {
-            const respondingToMessage = respondingToMessageContent ? {
-                id: respondingToMessageId,
-                text: respondingToMessageContent ?? undefined,
-            } : null;
             const model = lmService.getModel();
-            const contextInfo = await (new ChatContextCollector(lmService)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
+            const contextInfo = await (new ChatContextCollector(lmService)).collectMessageContextInfo({
+                chatId,
+                model,
+                languages: userData.languages,
+                latestMessage,
+                taskMessage,
+            });
             const { messages, systemMessage } = await lmService.generateContext({
                 contextInfo,
                 force: true,
@@ -248,8 +250,8 @@ describe("LanguageModelService lmServices", () => {
                 participantsData,
                 respondingBotId: respondingBotId1,
                 respondingBotConfig: respondingBotConfig1,
-                respondingToMessage,
                 task,
+                taskMessage,
                 userData,
             });
             return { messages, model, systemMessage, userData } as GenerateResponseParams;
