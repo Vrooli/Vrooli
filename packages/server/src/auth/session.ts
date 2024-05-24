@@ -269,7 +269,10 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
             description: undefined,
             filters: [],
             labels: [],
-            reminderList: undefined,
+            reminderList: user.activeFocusMode?.mode?.reminderList ? {
+                __typename: "ReminderList" as const,
+                ...user.activeFocusMode.mode.reminderList,
+            } as any : undefined,
             resourceList: undefined,
             schedule: undefined,
             you: {

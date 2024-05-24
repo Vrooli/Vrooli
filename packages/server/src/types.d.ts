@@ -25,7 +25,12 @@ export interface SessionToken extends BasicToken {
 }
 export type SessionUserToken = Pick<SessionUser, "id" | "credits" | "handle" | "hasPremium" | "languages" | "name" | "profileImage" | "updated_at"> & {
     activeFocusMode?: {
-        mode: { id: string; },
+        mode: {
+            id: string,
+            reminderList?: {
+                id: string;
+            } | null,
+        },
         stopCondition: FocusModeStopCondition,
         stopTime?: Date | null,
     } | null;

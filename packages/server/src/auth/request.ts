@@ -215,6 +215,7 @@ export async function generateSessionJwt(
             activeFocusMode: user.activeFocusMode ? {
                 mode: {
                     id: user.activeFocusMode.mode?.id,
+                    reminderList: user.activeFocusMode?.mode?.reminderList,
                 },
                 stopCondition: user.activeFocusMode.stopCondition,
                 stopTime: user.activeFocusMode.stopTime,
@@ -317,6 +318,7 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
                     activeFocusMode: user.activeFocusMode ? {
                         mode: {
                             id: user.activeFocusMode.mode?.id,
+                            reminderList: user.activeFocusMode?.mode?.reminderList,
                         },
                         stopCondition: user.activeFocusMode.stopCondition,
                         stopTime: user.activeFocusMode.stopTime,

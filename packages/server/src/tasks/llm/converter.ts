@@ -9,7 +9,7 @@ import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
 import { SessionUserToken } from "../../types";
 
-type LlmTaskDataValue = string | number | null;
+type LlmTaskDataValue = string | number | boolean | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
 
 /** 
@@ -93,6 +93,27 @@ export const importConverter = async (language: string): Promise<LlmTaskConverte
 };
 
 /**
+ * Dynamically imports a "select" shape from a module based on the module name.
+ * @param moduleName The name of the module to import
+ * @returns The exported shape from the module
+ */
+const loadInfo = async (moduleName: string): Promise<GraphQLResolveInfo> => {
+    // Construct the path to the module based on the provided module name
+    const path = `../../endpoints/generated/${moduleName}`;
+
+    // Dynamically import the module
+    const module = await import(path);
+
+    // Access the export using the same name as the module name
+    const exportedValue = module[moduleName] as unknown as GraphQLResolveInfo;
+
+    return exportedValue;
+};
+
+const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+const CountInfo = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
+
+/**
  * Wrapper function for executing a task
  */
 type LlmTaskExec = (data: LlmTaskData) => (unknown | Promise<unknown>);
@@ -136,7 +157,7 @@ export const generateTaskExec = async (
     switch (task) {
         case "ApiAdd": {
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
-            const info = await import("../../endpoints/generated/api_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("api_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 ApiEndpoints.Mutation.apiCreate(undefined, { input }, context, info);
@@ -144,7 +165,7 @@ export const generateTaskExec = async (
         }
         case "ApiDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -152,7 +173,7 @@ export const generateTaskExec = async (
         }
         case "ApiFind": {
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
-            const info = await import("../../endpoints/generated/api_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("api_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 ApiEndpoints.Query.apis(undefined, { input }, context, info);
@@ -161,7 +182,7 @@ export const generateTaskExec = async (
         }
         case "ApiUpdate": {
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
-            const info = await import("../../endpoints/generated/api_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("api_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -170,7 +191,7 @@ export const generateTaskExec = async (
         }
         case "BotAdd": {
             const { UserEndpoints } = await import("../../endpoints/logic/user");
-            const info = await import("../../endpoints/generated/user_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("user_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 UserEndpoints.Mutation.botCreate(undefined, { input }, context, info);
@@ -178,7 +199,7 @@ export const generateTaskExec = async (
         }
         case "BotDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -186,7 +207,7 @@ export const generateTaskExec = async (
         }
         case "BotFind": {
             const { UserEndpoints } = await import("../../endpoints/logic/user");
-            const info = await import("../../endpoints/generated/user_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("user_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 UserEndpoints.Query.users(undefined, { input }, context, info);
@@ -194,7 +215,7 @@ export const generateTaskExec = async (
         }
         case "BotUpdate": {
             const { UserEndpoints } = await import("../../endpoints/logic/user");
-            const info = await import("../../endpoints/generated/user_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("user_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const existingUser = await prismaInstance.user.findUnique({
@@ -214,14 +235,14 @@ export const generateTaskExec = async (
         }
         case "MembersAdd": {
             const { MemberEndpoints } = await import("../../endpoints/logic/member");
-            const info = await import("../../endpoints/generated/member_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("member_findOne");
             return async (data) => {
                 //TODO
             };
         }
         case "MembersDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
+            const info = CountInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteMany(undefined, { input }, context, info);
@@ -229,7 +250,7 @@ export const generateTaskExec = async (
         }
         case "MembersFind": {
             const { MemberEndpoints } = await import("../../endpoints/logic/member");
-            const info = await import("../../endpoints/generated/member_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("member_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 MemberEndpoints.Query.members(undefined, { input }, context, info);
@@ -237,7 +258,7 @@ export const generateTaskExec = async (
         }
         case "MembersUpdate": {
             const { MemberEndpoints } = await import("../../endpoints/logic/member");
-            const info = await import("../../endpoints/generated/member_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("member_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -246,7 +267,7 @@ export const generateTaskExec = async (
         }
         case "NoteAdd": {
             const { NoteEndpoints } = await import("../../endpoints/logic/note");
-            const info = await import("../../endpoints/generated/note_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("note_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 NoteEndpoints.Mutation.noteCreate(undefined, { input }, context, info);
@@ -254,7 +275,7 @@ export const generateTaskExec = async (
         }
         case "NoteDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -262,7 +283,7 @@ export const generateTaskExec = async (
         }
         case "NoteFind": {
             const { NoteEndpoints } = await import("../../endpoints/logic/note");
-            const info = await import("../../endpoints/generated/note_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("note_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 NoteEndpoints.Query.notes(undefined, { input }, context, info);
@@ -270,7 +291,7 @@ export const generateTaskExec = async (
         }
         case "NoteUpdate": {
             const { NoteEndpoints } = await import("../../endpoints/logic/note");
-            const info = await import("../../endpoints/generated/note_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("note_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -279,7 +300,7 @@ export const generateTaskExec = async (
         }
         case "ProjectAdd": {
             const { ProjectEndpoints } = await import("../../endpoints/logic/project");
-            const info = await import("../../endpoints/generated/project_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("project_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 ProjectEndpoints.Mutation.projectCreate(undefined, { input }, context, info);
@@ -287,7 +308,7 @@ export const generateTaskExec = async (
         }
         case "ProjectDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -295,7 +316,7 @@ export const generateTaskExec = async (
         }
         case "ProjectFind": {
             const { ProjectEndpoints } = await import("../../endpoints/logic/project");
-            const info = await import("../../endpoints/generated/project_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("project_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 ProjectEndpoints.Query.projects(undefined, { input }, context, info);
@@ -303,7 +324,7 @@ export const generateTaskExec = async (
         }
         case "ProjectUpdate": {
             const { ProjectEndpoints } = await import("../../endpoints/logic/project");
-            const info = await import("../../endpoints/generated/project_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("project_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -312,15 +333,23 @@ export const generateTaskExec = async (
         }
         case "ReminderAdd": {
             const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
-            const info = await import("../../endpoints/generated/reminder_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("reminder_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
+                if (!input.reminderListConnect && !input.reminderListCreate) {
+                    const activeReminderList = userData?.activeFocusMode?.mode?.reminderList?.id;
+                    if (activeReminderList) {
+                        input.reminderListConnect = activeReminderList;
+                    } else {
+                        throw new CustomError("0555", "InternalError", userData.languages, { task, data, language });
+                    }
+                }
                 ReminderEndpoints.Mutation.reminderCreate(undefined, { input }, context, info);
             };
         }
         case "ReminderDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -328,7 +357,7 @@ export const generateTaskExec = async (
         }
         case "ReminderFind": {
             const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
-            const info = await import("../../endpoints/generated/reminder_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("reminder_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 ReminderEndpoints.Query.reminders(undefined, { input }, context, info);
@@ -336,7 +365,7 @@ export const generateTaskExec = async (
         }
         case "ReminderUpdate": {
             const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
-            const info = await import("../../endpoints/generated/reminder_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("reminder_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -345,7 +374,7 @@ export const generateTaskExec = async (
         }
         case "RoleAdd": {
             const { RoleEndpoints } = await import("../../endpoints/logic/role");
-            const info = await import("../../endpoints/generated/role_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("role_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 RoleEndpoints.Mutation.roleCreate(undefined, { input }, context, info);
@@ -353,7 +382,7 @@ export const generateTaskExec = async (
         }
         case "RoleDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -361,7 +390,7 @@ export const generateTaskExec = async (
         }
         case "RoleFind": {
             const { RoleEndpoints } = await import("../../endpoints/logic/role");
-            const info = await import("../../endpoints/generated/role_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("role_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 RoleEndpoints.Query.roles(undefined, { input }, context, info);
@@ -369,7 +398,7 @@ export const generateTaskExec = async (
         }
         case "RoleUpdate": {
             const { RoleEndpoints } = await import("../../endpoints/logic/role");
-            const info = await import("../../endpoints/generated/role_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("role_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -378,7 +407,7 @@ export const generateTaskExec = async (
         }
         case "RoutineAdd": {
             const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
-            const info = await import("../../endpoints/generated/routine_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("routine_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 RoutineEndpoints.Mutation.routineCreate(undefined, { input }, context, info);
@@ -386,7 +415,7 @@ export const generateTaskExec = async (
         }
         case "RoutineDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -394,7 +423,7 @@ export const generateTaskExec = async (
         }
         case "RoutineFind": {
             const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
-            const info = await import("../../endpoints/generated/routine_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("routine_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 RoutineEndpoints.Query.routines(undefined, { input }, context, info);
@@ -402,7 +431,7 @@ export const generateTaskExec = async (
         }
         case "RoutineUpdate": {
             const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
-            const info = await import("../../endpoints/generated/routine_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("routine_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -411,7 +440,7 @@ export const generateTaskExec = async (
         }
         case "ScheduleAdd": {
             const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
-            const info = await import("../../endpoints/generated/schedule_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("schedule_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 ScheduleEndpoints.Mutation.scheduleCreate(undefined, { input }, context, info);
@@ -419,7 +448,7 @@ export const generateTaskExec = async (
         }
         case "ScheduleDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -427,7 +456,7 @@ export const generateTaskExec = async (
         }
         case "ScheduleFind": {
             const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
-            const info = await import("../../endpoints/generated/schedule_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("schedule_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 ScheduleEndpoints.Query.schedules(undefined, { input }, context, info);
@@ -435,7 +464,7 @@ export const generateTaskExec = async (
         }
         case "ScheduleUpdate": {
             const { ScheduleEndpoints } = await import("../../endpoints/logic/schedule");
-            const info = await import("../../endpoints/generated/schedule_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("schedule_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -444,7 +473,7 @@ export const generateTaskExec = async (
         }
         case "SmartContractAdd": {
             const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
-            const info = await import("../../endpoints/generated/smartContract_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("smartContract_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 SmartContractEndpoints.Mutation.smartContractCreate(undefined, { input }, context, info);
@@ -452,7 +481,7 @@ export const generateTaskExec = async (
         }
         case "SmartContractDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -460,7 +489,7 @@ export const generateTaskExec = async (
         }
         case "SmartContractFind": {
             const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
-            const info = await import("../../endpoints/generated/smartContract_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("smartContract_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 SmartContractEndpoints.Query.smartContracts(undefined, { input }, context, info);
@@ -468,7 +497,7 @@ export const generateTaskExec = async (
         }
         case "SmartContractUpdate": {
             const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
-            const info = await import("../../endpoints/generated/smartContract_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("smartContract_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -477,7 +506,7 @@ export const generateTaskExec = async (
         }
         case "StandardAdd": {
             const { StandardEndpoints } = await import("../../endpoints/logic/standard");
-            const info = await import("../../endpoints/generated/standard_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("standard_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 StandardEndpoints.Mutation.standardCreate(undefined, { input }, context, info);
@@ -485,7 +514,7 @@ export const generateTaskExec = async (
         }
         case "StandardDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -493,7 +522,7 @@ export const generateTaskExec = async (
         }
         case "StandardFind": {
             const { StandardEndpoints } = await import("../../endpoints/logic/standard");
-            const info = await import("../../endpoints/generated/standard_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("standard_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 StandardEndpoints.Query.standards(undefined, { input }, context, info);
@@ -501,7 +530,7 @@ export const generateTaskExec = async (
         }
         case "StandardUpdate": {
             const { StandardEndpoints } = await import("../../endpoints/logic/standard");
-            const info = await import("../../endpoints/generated/standard_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("standard_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
@@ -510,7 +539,7 @@ export const generateTaskExec = async (
         }
         case "TeamAdd": {
             const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
-            const info = await import("../../endpoints/generated/organization_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("organization_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
                 OrganizationEndpoints.Mutation.organizationCreate(undefined, { input }, context, info);
@@ -518,7 +547,7 @@ export const generateTaskExec = async (
         }
         case "TeamDelete": {
             const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
-            const info = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
+            const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
                 DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
@@ -526,7 +555,7 @@ export const generateTaskExec = async (
         }
         case "TeamFind": {
             const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
-            const info = await import("../../endpoints/generated/organization_findMany") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("organization_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
                 OrganizationEndpoints.Query.organizations(undefined, { input }, context, info);
@@ -534,7 +563,7 @@ export const generateTaskExec = async (
         }
         case "TeamUpdate": {
             const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
-            const info = await import("../../endpoints/generated/organization_findOne") as unknown as GraphQLResolveInfo;
+            const info = await loadInfo("organization_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
