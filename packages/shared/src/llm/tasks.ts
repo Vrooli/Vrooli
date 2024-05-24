@@ -6,7 +6,7 @@ import { CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData
 
 /** Properties stored as an array of [key, value, key, value, ...] */
 type CurrentLlmTaskInfo = Omit<PartialTaskInfo, "lastUpdated" | "properties" | "task"> & {
-    properties: (string | number | null)[];
+    properties: (string | number | boolean | null)[];
 };
 
 type GetValidTasksFromMessageParams = {
@@ -44,7 +44,7 @@ type WrappedTasks = {
 type HandleTaskTransitionParams = CommandTransitionTrack & {
     curr: string,
     prev: string,
-    onCommit: (section: CommandSection, text: string | number | null) => unknown,
+    onCommit: (section: CommandSection, text: string | number | boolean | null) => unknown,
     onComplete: () => unknown, // When a full command (including any actions/props) is completed
     onCancel: () => unknown, // When a full command is cancelled. Typically only when there's a problem with the beginning slash command 
     onStart: () => unknown, // When a full command is started
@@ -131,7 +131,7 @@ export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams):
  * not a part of the command structure.
  * 
  * @param params - The current state and utility functions.
- * @returns {CommandTransitionTrack} The updated state after processing.
+ * @returns The updated state after processing.
  */
 export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
     const { buffer, curr, hasOpenBracket, onCancel } = params;
@@ -201,6 +201,291 @@ export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): Co
 };
 
 /**
+ * Manages transitions within a command section, dealing with the end of a command,
+ * or transitioning to an action or property name.
+ * 
+ * @param params - The current state and utility functions.
+ * @returns The updated state after processing.
+ */
+export const handleTaskTransitionCommand = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+    const { curr, buffer, hasOpenBracket, onCommit, onComplete, onCancel } = params;
+
+    // If we run into another slash, the command is invalid
+    if (curr === "/") {
+        onCancel();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Handle transition from command to action (might actually be property name,
+    // but we're not sure yet
+    if (isWhitespace(curr)) {
+        onCommit("command", buffer.join(""));
+        return { section: "action", buffer: [], hasOpenBracket };
+    }
+    // Commit on newline
+    if (isNewline(curr)) {
+        onCommit("command", buffer.join(""));
+        onComplete();
+        return { section: "outside", buffer: [], hasOpenBracket: false };
+    }
+    // If there is an open bracket
+    if (hasOpenBracket) {
+        if (curr === "]") {
+            onCommit("command", buffer.join(""));
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket: false };
+        }
+        if (curr === ",") {
+            onCommit("command", buffer.join(""));
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+    }
+    // Cancel on non alpha-numeric characters
+    if (!isAlphaNum(curr)) {
+        onCancel();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Cancel if the buffer is too long
+    if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
+        onCancel();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Continue buffering
+    buffer.push(curr);
+    return { section: "command", buffer, hasOpenBracket };
+};
+
+/**
+ * Handles transitions within the action part of a command, potentially moving
+ * to property name or command completion.
+ * 
+ * @param params - The current state and utility functions.
+ * @returns The updated state after processing.
+ */
+export const handleTaskTransitionAction = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+    const { curr, buffer, hasOpenBracket, onCommit, onComplete, onStart, prev } = params;
+
+    // If a newline is encountered
+    if (isNewline(curr)) {
+        // Commit as an action if the buffer is not empty
+        if (buffer.length > 0) {
+            onCommit("action", buffer.join(""));
+        }
+        onComplete();
+        return { section: "outside", buffer: [], hasOpenBracket: false };
+    }
+    // Handle whitespace
+    if (isWhitespace(curr)) {
+        // Skip if buffer is empty
+        if (buffer.length === 0) return { section: "action", buffer, hasOpenBracket };
+        // Othwerwise, commit as an action
+        onCommit("action", buffer.join(""));
+        return { section: "propName", buffer: [], hasOpenBracket };
+    }
+    // Handle slash
+    if (curr === "/") {
+        // If previous character is not a whitespace, it's not a valid action 
+        // or start of a new command
+        if (!isWhitespace(prev)) {
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+        // If there's a buffer, commit it as an action
+        if (buffer.length > 0) {
+            onCommit("action", buffer.join(""));
+        }
+        // Start a new command
+        onComplete();
+        onStart();
+        return { section: "command", buffer: [], hasOpenBracket };
+    }
+    // If it's an equals sign, commit as a property name 
+    // instead of an action
+    if (curr === "=") {
+        onCommit("propName", buffer.join(""));
+        return { section: "propValue", buffer: [], hasOpenBracket };
+    }
+    // If there is an open bracket
+    if (hasOpenBracket) {
+        if (curr === "]") {
+            onCommit("action", buffer.join(""));
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket: false };
+        }
+        if (curr === ",") {
+            onCommit("action", buffer.join(""));
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+    }
+    // Complete if it's not an alpha-numeric character
+    if (!isAlphaNum(curr)) {
+        // Commit if previous character was whitespace
+        if (isWhitespace(prev)) {
+            onCommit("action", buffer.join(""));
+        }
+        onComplete();
+        // If it's a backtick, start a code block
+        if (curr === "`") {
+            return { section: "code", buffer: [curr], hasOpenBracket };
+        }
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Complete if the buffer is too long
+    if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
+        onComplete();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Continue buffering
+    buffer.push(curr);
+    return { section: "action", buffer, hasOpenBracket };
+};
+
+/**
+ * Manages transitions when handling a property name, deciding whether to commit
+ * the property name and move to the property value or handle other transitions.
+ * 
+ * @param params - The current state and utility functions.
+ * @returns The updated state after processing.
+ */
+export const handleTaskTransitionPropName = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+    const { curr, buffer, hasOpenBracket, onCommit, onComplete, onStart, prev } = params;
+
+    // Commit on equals sign
+    if (curr === "=") {
+        onCommit("propName", buffer.join(""));
+        return { section: "propValue", buffer: [], hasOpenBracket };
+    }
+    // Handle slash
+    if (curr === "/") {
+        // If previous character is not a whitespace, it's not a valid action 
+        // or start of a new command
+        if (!isWhitespace(prev)) {
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+        // Start a new command. Do not commit the buffer, as it won't have an accompanying value
+        onComplete();
+        onStart();
+        return { section: "command", buffer: [], hasOpenBracket };
+    }
+    // Handle whitespace
+    if (isWhitespace(curr)) {
+        // Skip if buffer is empty
+        if (buffer.length === 0) return { section: "propName", buffer, hasOpenBracket };
+        // Otherwise, complete command
+        if (buffer.length > 0) {
+            onComplete();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+    }
+    // Complete on newline
+    if (isNewline(curr)) {
+        onComplete();
+        return { section: "outside", buffer: [], hasOpenBracket: false };
+    }
+    // Complete on non alpha-numeric characters
+    if (!isAlphaNum(curr)) {
+        onComplete();
+        // If previous character was whitespace and it's a backtick, start a code block
+        if (isWhitespace(prev) && curr === "`") {
+            return { section: "code", buffer: [curr], hasOpenBracket };
+        }
+        // Otherwise, move to the outside state
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Complete if the buffer is too long
+    if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
+        onComplete();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Continue buffering
+    buffer.push(curr);
+    return { section: "propName", buffer, hasOpenBracket };
+};
+
+/**
+ * Manages transitions when handling a property value, particularly when dealing with
+ * quoted strings, numbers, or the keyword 'null'.
+ * 
+ * @param params - The current state and utility functions.
+ * @returns The updated state after processing.
+ */
+export const handleTaskTransitionPropValue = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+    const { curr, buffer, hasOpenBracket, onCommit, onComplete } = params;
+
+    const backslashes = countEndSlashes(buffer);
+    const isEscaped = backslashes % 2 !== 0;
+    const isQuote = QUOTES.includes(curr);
+    const isInQuote = QUOTES.includes(buffer[0] ?? "");
+    // Check if leaving quotes
+    if (isQuote && buffer[0] === curr && !isEscaped) {
+        onCommit("propValue", buffer.slice(1).join("")); // Exclude outer quotes
+        return { section: "propName", buffer: [], hasOpenBracket };
+    }
+    // Check if entering quotes
+    if (!isInQuote && isQuote && buffer.length === 0) {
+        return { section: "propValue", buffer: [curr], hasOpenBracket };
+    }
+    // Allow anything inside quotes
+    if (isInQuote) {
+        buffer.push(curr);
+        return { section: "propValue", buffer, hasOpenBracket };
+    }
+    // Only numbers and null are allowed outside quotes
+    const bufferString = buffer.join("");
+    const withCurr = bufferString + curr;
+    const maybeNumber = !isWhitespace(curr) && !isNewline(curr) && ((buffer.length === 0 && ["-", "."].includes(curr)) || Number.isFinite(+withCurr));
+    const maybeNull = "null".startsWith(withCurr);
+    const maybeTrue = "true".startsWith(withCurr);
+    const maybeFalse = "false".startsWith(withCurr);
+    if (maybeNumber || maybeNull || maybeTrue || maybeFalse) {
+        buffer.push(curr);
+        return { section: "propValue", buffer, hasOpenBracket };
+    }
+    // If we reached whitespace, a newline, or a comma or end bracket, we'll probably commit
+    if (isWhitespace(curr) || isNewline(curr)) {
+        // We've already accounted for quotes (i.e. strings). So we can only commit 
+        // if it's a valid number or null
+        const isNumber = Number.isFinite(+bufferString) && buffer.length > 0;
+        const isNull = bufferString === "null";
+        const isTrue = bufferString === "true";
+        const isFalse = bufferString === "false";
+        if (isNumber || isNull || isTrue || isFalse) {
+            onCommit("propValue", isNumber ? +bufferString : (isNull ? null : (isTrue ? true : false)));
+            if (isNewline(curr)) {
+                onComplete();
+                return { section: "outside", buffer: [], hasOpenBracket: false };
+            }
+            // If there is an open bracket
+            if (hasOpenBracket) {
+                if (curr === "]") {
+                    onComplete();
+                    return { section: "outside", buffer: [], hasOpenBracket: false };
+                }
+                if (curr === ",") {
+                    onComplete();
+                    return { section: "outside", buffer: [], hasOpenBracket };
+                }
+            }
+            return { section: "propName", buffer: [], hasOpenBracket };
+        }
+    }
+    // Otherwise it's invalid, so complete the command
+    onComplete();
+    return { section: "outside", buffer: [], hasOpenBracket };
+};
+
+const handlerMap = {
+    outside: handleTaskTransitionOutside,
+    code: handleTaskTransitionCode,
+    command: handleTaskTransitionCommand,
+    action: handleTaskTransitionAction,
+    propName: handleTaskTransitionPropName,
+    propValue: handleTaskTransitionPropValue,
+};
+
+/**
  * Handles the transition between parsing a command, action, property name, or property value. 
  * 
  * This is not meant to be the shortest possible function, but rather one that's the easiest to understand and 
@@ -208,249 +493,8 @@ export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): Co
  * handling the transition between sections, invalid characters, and other edge cases.
  * @returns An object containing the new parsing section and buffer
  */
-export const handleTaskTransition = (params: HandleTaskTransitionParams): CommandTransitionTrack => {
-    const {
-        curr,
-        prev,
-        section,
-        buffer,
-        hasOpenBracket,
-        onCommit,
-        onComplete,
-        onCancel,
-        onStart,
-    } = params;
-
-    // Handle each section type
-    if (section === "outside") return handleTaskTransitionOutside(params);
-    if (section === "code") return handleTaskTransitionCode(params);
-    else if (section === "command") {
-        // If we run into another slash, the command is invalid
-        if (curr === "/") {
-            onCancel();
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-        // Handle transition from command to action (might actually be property name,
-        // but we're not sure yet
-        if (isWhitespace(curr)) {
-            onCommit("command", buffer.join(""));
-            return { section: "action", buffer: [], hasOpenBracket };
-        }
-        // Commit on newline
-        if (isNewline(curr)) {
-            onCommit("command", buffer.join(""));
-            onComplete();
-            return { section: "outside", buffer: [], hasOpenBracket: false };
-        }
-        // If there is an open bracket
-        if (hasOpenBracket) {
-            if (curr === "]") {
-                onCommit("command", buffer.join(""));
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket: false };
-            }
-            if (curr === ",") {
-                onCommit("command", buffer.join(""));
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-        }
-        // Cancel on non alpha-numeric characters
-        if (!isAlphaNum(curr)) {
-            onCancel();
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-        // Cancel if the buffer is too long
-        if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
-            onCancel();
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-    }
-    else if (section === "action") {
-        // If a newline is encountered
-        if (isNewline(curr)) {
-            // Commit as an action if the buffer is not empty
-            if (buffer.length > 0) {
-                onCommit("action", buffer.join(""));
-            }
-            onComplete();
-            return { section: "outside", buffer: [], hasOpenBracket: false };
-        }
-        // Handle whitespace
-        if (isWhitespace(curr)) {
-            // Skip if buffer is empty
-            if (buffer.length === 0) return { section, buffer, hasOpenBracket };
-            // Othwerwise, commit as an action
-            onCommit("action", buffer.join(""));
-            return { section: "propName", buffer: [], hasOpenBracket };
-        }
-        // Handle slash
-        if (curr === "/") {
-            // If previous character is not a whitespace, it's not a valid action 
-            // or start of a new command
-            if (!isWhitespace(prev)) {
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-            // If there's a buffer, commit it as an action
-            if (buffer.length > 0) {
-                onCommit("action", buffer.join(""));
-            }
-            // Start a new command
-            onComplete();
-            onStart();
-            return { section: "command", buffer: [], hasOpenBracket };
-        }
-        // If it's an equals sign, commit as a property name 
-        // instead of an action
-        if (curr === "=") {
-            onCommit("propName", buffer.join(""));
-            return { section: "propValue", buffer: [], hasOpenBracket };
-        }
-        // If there is an open bracket
-        if (hasOpenBracket) {
-            if (curr === "]") {
-                onCommit("action", buffer.join(""));
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket: false };
-            }
-            if (curr === ",") {
-                onCommit("action", buffer.join(""));
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-        }
-        // Complete if it's not an alpha-numeric character
-        if (!isAlphaNum(curr)) {
-            // Commit if previous character was whitespace
-            if (isWhitespace(prev)) {
-                onCommit("action", buffer.join(""));
-            }
-            onComplete();
-            // If it's a backtick, start a code block
-            if (curr === "`") {
-                return { section: "code", buffer: [curr], hasOpenBracket };
-            }
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-        // Complete if the buffer is too long
-        if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
-            onComplete();
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-    }
-    else if (section === "propName") {
-        // Commit on equals sign
-        if (curr === "=") {
-            onCommit("propName", buffer.join(""));
-            return { section: "propValue", buffer: [], hasOpenBracket };
-        }
-        // Handle slash
-        if (curr === "/") {
-            // If previous character is not a whitespace, it's not a valid action 
-            // or start of a new command
-            if (!isWhitespace(prev)) {
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-            // Start a new command. Do not commit the buffer, as it won't have an accompanying value
-            onComplete();
-            onStart();
-            return { section: "command", buffer: [], hasOpenBracket };
-        }
-        // Handle whitespace
-        if (isWhitespace(curr)) {
-            // Skip if buffer is empty
-            if (buffer.length === 0) return { section, buffer, hasOpenBracket };
-            // Otherwise, complete command
-            if (buffer.length > 0) {
-                onComplete();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-        }
-        // Complete on newline
-        if (isNewline(curr)) {
-            onComplete();
-            return { section: "outside", buffer: [], hasOpenBracket: false };
-        }
-        // Complete on non alpha-numeric characters
-        if (!isAlphaNum(curr)) {
-            onComplete();
-            // If previous character was whitespace and it's a backtick, start a code block
-            if (isWhitespace(prev) && curr === "`") {
-                return { section: "code", buffer: [curr], hasOpenBracket };
-            }
-            // Otherwise, move to the outside state
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-        // Complete if the buffer is too long
-        if (buffer.length >= MAX_COMMAND_ACTION_PROP_LENGTH) {
-            onComplete();
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-    }
-    else if (section === "propValue") {
-        const backslashes = countEndSlashes(buffer);
-        const isEscaped = backslashes % 2 !== 0;
-        const isQuote = QUOTES.includes(curr);
-        const isInQuote = QUOTES.includes(buffer[0] ?? "");
-        // Check if leaving quotes
-        if (isQuote && buffer[0] === curr && !isEscaped) {
-            onCommit("propValue", buffer.slice(1).join("")); // Exclude outer quotes
-            return { section: "propName", buffer: [], hasOpenBracket };
-        }
-        // Check if entering quotes
-        if (!isInQuote && isQuote && buffer.length === 0) {
-            return { section: "propValue", buffer: [curr], hasOpenBracket };
-        }
-        // Allow anything inside quotes
-        if (isInQuote) {
-            buffer.push(curr);
-            return { section, buffer, hasOpenBracket };
-        }
-        // Only numbers and null are allowed outside quotes
-        const bufferString = buffer.join("");
-        const withCurr = bufferString + curr;
-        const maybeNumber = !isWhitespace(curr) && !isNewline(curr) && ((buffer.length === 0 && ["-", "."].includes(curr)) || Number.isFinite(+withCurr));
-        const maybeNull = "null".startsWith(withCurr);
-        if (maybeNumber || maybeNull) {
-            buffer.push(curr);
-            return { section, buffer, hasOpenBracket };
-        }
-        // If we reached whitespace, a newline, or a comma or end bracket, we'll probably commit
-        if (isWhitespace(curr) || isNewline(curr)) {
-            // We've already accounted for quotes (i.e. strings). So we can only commit 
-            // if it's a valid number or null
-            const isNumber = Number.isFinite(+bufferString) && buffer.length > 0;
-            const isNull = bufferString === "null";
-            if (isNumber || isNull) {
-                onCommit("propValue", isNumber ? +bufferString : null);
-                if (isNewline(curr)) {
-                    onComplete();
-                    return { section: "outside", buffer: [], hasOpenBracket: false };
-                }
-                // If there is an open bracket
-                if (hasOpenBracket) {
-                    if (curr === "]") {
-                        onComplete();
-                        return { section: "outside", buffer: [], hasOpenBracket: false };
-                    }
-                    if (curr === ",") {
-                        onComplete();
-                        return { section: "outside", buffer: [], hasOpenBracket };
-                    }
-                }
-                return { section: "propName", buffer: [], hasOpenBracket };
-            }
-        }
-        // Otherwise it's invalid, so complete the command
-        onComplete();
-        return { section: "outside", buffer: [], hasOpenBracket };
-    }
-
-    // Otherwise, continue buffering
-    buffer.push(curr);
-    return { section, buffer, hasOpenBracket };
+export const handleTaskTransition = ({ section, ...rest }: HandleTaskTransitionParams): CommandTransitionTrack => {
+    return handlerMap[section](rest);
 };
 
 /**
@@ -544,7 +588,7 @@ export const extractTasks = (
     };
 
     /** When one part of the command is committed */
-    const onCommit = (section: CommandSection, text: string | number | null, index: number) => {
+    const onCommit = (section: CommandSection, text: string | number | boolean | null, index: number) => {
         if (!currentCommand) return;
         if (section === "command") {
             currentCommand.command = text + "";

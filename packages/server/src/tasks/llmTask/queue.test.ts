@@ -88,7 +88,7 @@ describe("changeLlmTaskStatus", () => {
         const result = await changeLlmTaskStatus("jobId123", "canceled", "userId456");
 
         expect(result).toEqual({ success: true, message: "Task canceled." });
-        expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "canceled" });
+        expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "suggested" }); // A canceled task switches to "suggested", since it can be rescheduled
         expect(mockJob.remove).toHaveBeenCalled();
     });
 

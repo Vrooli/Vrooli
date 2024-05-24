@@ -28,7 +28,7 @@ export type LlmTaskInfo = {
      * Data passed in when executing the task.
      */
     properties: {
-        [key: string]: string | number | null;
+        [key: string]: string | boolean | number | null;
     } | null;
     /**
      * The task being performed, as a language-independent type.

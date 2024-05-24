@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { uuid } from "../id/uuid";
-import { detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, handleTaskTransition, handleTaskTransitionCode, handleTaskTransitionOutside, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
+import { detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
 import { CommandToTask, MaybeLlmTaskInfo, PartialTaskInfo } from "./types";
 
 describe("isNewline", () => {
@@ -1178,7 +1178,332 @@ describe("handleTaskTransitionCode", () => {
     });
 });
 
-describe("handleTaskTransition", () => {
+describe("handleTaskTransitionCommand", () => {
+    const section = "command";
+    let onCancel, onCommit, onComplete;
+    let rest;
+    beforeEach(() => {
+        onCancel = jest.fn();
+        onCommit = jest.fn();
+        onComplete = jest.fn();
+        rest = { onCancel, onCommit, onComplete, hasOpenBracket: false };
+    });
+
+    describe("continues buffering", () => {
+        test("letter", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "a",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+        });
+        test("number", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "1",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+        });
+    });
+
+    describe("commits", () => {
+        test("newline", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "\n",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("command", buffer.join(""));
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+    });
+
+    describe("resets", () => {
+        test("other alphabets", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "你",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("emojis", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "👋",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("symbols", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "!",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+    });
+
+    describe("changes to action state", () => {
+        test("space", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: " ",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("command", buffer.join(""));
+            expect(result).toMatchObject({ section: "action", buffer: [] });
+        });
+        test("tab", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionCommand({
+                curr: "\t",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("command", buffer.join(""));
+            expect(result).toMatchObject({ section: "action", buffer: [] });
+        });
+    });
+});
+
+describe("handleTaskTransitionAction", () => {
+    const section = "action";
+    let onCancel, onCommit, onComplete;
+    let rest;
+    beforeEach(() => {
+        onCancel = jest.fn();
+        onCommit = jest.fn();
+        onComplete = jest.fn();
+        rest = { onCancel, onCommit, onComplete, hasOpenBracket: false };
+    });
+
+    describe("continues buffering", () => {
+        test("letter", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionAction({
+                curr: "a",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+        });
+        test("number", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionAction({
+                curr: "1",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+        });
+    });
+
+    describe("cancels", () => {
+        test("other alphabets", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionAction({
+                curr: "你",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("emojis", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionAction({
+                curr: "👋",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("symbols", () => {
+            const buffer = "test".split("");
+            const result = handleTaskTransitionAction({
+                curr: "!",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("too long", () => {
+            const buffer = "test".repeat(10).split("");
+            const result = handleTaskTransitionAction({
+                curr: "a",
+                ...withBuffer(buffer, rest),
+                bufferLengthLimit: 4,
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(onComplete).toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+    });
+
+    describe("commits and moves to propName", () => {
+        test("space", () => {
+            const buffer = "add".split("");
+            const result = handleTaskTransitionAction({
+                curr: " ",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("action", buffer.join(""));
+            expect(result).toMatchObject({ section: "propName", buffer: [] });
+        });
+        test("tab", () => {
+            const buffer = "add".split("");
+            const result = handleTaskTransitionAction({
+                curr: "\t",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("action", buffer.join(""));
+            expect(result).toMatchObject({ section: "propName", buffer: [] });
+        });
+    });
+
+    describe("commits and moves outside", () => {
+        test("newline", () => {
+            const buffer = "add".split("");
+            const result = handleTaskTransitionAction({
+                curr: "\n",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("action", buffer.join(""));
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+    });
+
+    test("commits as property name on equals sign", () => {
+        const buffer = "name".split("");
+        const result = handleTaskTransitionAction({
+            curr: "=",
+            ...withBuffer(buffer, rest),
+        });
+        expect(onCommit).toHaveBeenCalledWith("propName", buffer.join(""));
+        expect(result).toMatchObject({ section: "propValue", buffer: [] });
+    });
+});
+
+describe("handleTaskTransitionPropName", () => {
+    const section = "propName";
+    let onCancel, onCommit, onComplete;
+    let rest;
+    beforeEach(() => {
+        onCancel = jest.fn();
+        onCommit = jest.fn();
+        onComplete = jest.fn();
+        rest = { onCancel, onCommit, onComplete, hasOpenBracket: false };
+    });
+
+    describe("continues buffering", () => {
+        test("letter", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "a",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+        });
+        test("number", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "1",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+        });
+    });
+
+    describe("cancels", () => {
+        test("space", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: " ",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("tab", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "\t",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("newline", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "\n",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("other alphabets", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "你",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("emojis", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "👋",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("symbols", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "!",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+        test("slash", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "/",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
+        });
+    });
+
+    describe("commits", () => {
+        test("equals sign", () => {
+            const buffer = "name".split("");
+            const result = handleTaskTransitionPropName({
+                curr: "=",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).toHaveBeenCalledWith("propName", buffer.join(""));
+            expect(result).toMatchObject({ section: "propValue", buffer: [] });
+        });
+    });
+});
+
+describe("handleTaskTransitionPropValue", () => {
+    const section = "propValue";
     let onCommit, onComplete, onCancel, onStart;
     let rest;
     beforeEach(() => {
@@ -1189,927 +1514,713 @@ describe("handleTaskTransition", () => {
         rest = { onCommit, onComplete, onCancel, onStart, hasOpenBracket: false };
     });
 
-    test("adds letter to command buffer", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "a",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+    describe("continues buffering", () => {
+        describe("empty buffer", () => {
+            test("single quote", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "'",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+            });
+            test("double quote", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\"",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "command", buffer: [...buffer.split(""), "a"] });
-    });
-    test("adds number to command buffer", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "1",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("number, or might be a number with continued buffering", () => {
+            test("first digit", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "1",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "1"] });
+            });
+            test("first negative sign", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "-",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "-"] });
+            });
+            test("first digit after negative sign", () => {
+                const buffer = "-".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "9",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "9"] });
+            });
+            test("first period with empty buffer", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: ".",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "."] });
+            });
+            test("first period after positive number", () => {
+                const buffer = "3".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: ".",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "."] });
+            });
+            test("first period after negative number", () => {
+                const buffer = "-3".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: ".",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "."] });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "command", buffer: [...buffer.split(""), "1"] });
-    });
-    test("commmits on newline", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("null, or might be null with continued buffering", () => {
+            test("first n", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "n",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "n"] });
+            });
+            test("first u", () => {
+                const buffer = "n".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "u",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "u"] });
+            });
+            test("first l", () => {
+                const buffer = "nu".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "l",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "l"] });
+            });
+            // See "cancels" and "commits" sections for other null tests
         });
-        expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("resets to outside on other alphabets", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("boolean, or might be boolean with continued buffering", () => {
+            // True
+            test("first t", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "t",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "t"] });
+            });
+            test("first r", () => {
+                const buffer = "t".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "r",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "r"] });
+            });
+            test("first u", () => {
+                const buffer = "tr".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "u",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "u"] });
+            });
+            // False
+            test("first f", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "f",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "f"] });
+            });
+            test("first a", () => {
+                const buffer = "f".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "a",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+            });
+            test("first l", () => {
+                const buffer = "fa".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "l",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "l"] });
+            });
+            test("first s", () => {
+                const buffer = "fal".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "s",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section, buffer: [...buffer, "s"] });
+            });
+            // See "cancels" and "commits" sections for other boolean tests
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("resets to outside on emojis", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("valid character in quote", () => {
+            describe("single quote start", () => {
+                test("letter", () => {
+                    const buffer = "'".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "a",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                });
+                test("letter with other text already in quote", () => {
+                    const buffer = "'fdsaf".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "a",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                });
+                test("other alphabets", () => {
+                    const buffer = "'你".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "你",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "你"] });
+                });
+                test("emoji", () => {
+                    const buffer = "'👋".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "👋",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                });
+                test("symbol", () => {
+                    const buffer = "'!@#".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "!",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "!"] });
+                });
+                test("slash", () => {
+                    const buffer = "'/".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "/",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "/"] });
+                });
+                describe("whitespace", () => {
+                    test("space", () => {
+                        const buffer = "'".split("");
+                        const result = handleTaskTransitionPropValue({
+                            curr: " ",
+                            ...withBuffer(buffer, rest),
+                        });
+                        expect(onCommit).not.toHaveBeenCalled();
+                        expect(result).toMatchObject({ section, buffer: [...buffer, " "] });
+                    });
+                    test("tab", () => {
+                        const buffer = "'".split("");
+                        const result = handleTaskTransitionPropValue({
+                            curr: "\t",
+                            ...withBuffer(buffer, rest),
+                        });
+                        expect(onCommit).not.toHaveBeenCalled();
+                        expect(result).toMatchObject({ section, buffer: [...buffer, "\t"] });
+                    });
+                    test("newline", () => {
+                        const buffer = "'".split("");
+                        const result = handleTaskTransitionPropValue({
+                            curr: "\n",
+                            ...withBuffer(buffer, rest),
+                        });
+                        expect(onCommit).not.toHaveBeenCalled();
+                        expect(result).toMatchObject({ section, buffer: [...buffer, "\n"] });
+                    });
+                });
+                test("double quote", () => {
+                    const buffer = "'".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "\"",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                });
+                test("escape character", () => {
+                    const buffer = "'".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "\\",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "\\"] });
+                });
+                test("escaped single quote", () => {
+                    const buffer = "'\\".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "'",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                });
+                test("escaped double quote", () => {
+                    const buffer = "'\\".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "\"",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                });
+                test("odd number of escape characters", () => {
+                    const buffer = "'\\\\\\".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "'",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section: "propValue", buffer: [...buffer, "'"] });
+                });
+            });
+            describe("double quote start", () => {
+                test("letter", () => {
+                    const buffer = "\"".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "a",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                });
+                test("letter with other text already in quote", () => {
+                    const buffer = "\"fdsaf".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "a",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "a"] });
+                });
+                test("other alphabets", () => {
+                    const buffer = "\"你".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "你",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "你"] });
+                });
+                test("emoji", () => {
+                    const buffer = "\"👋".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "👋",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "👋"] });
+                });
+                test("single quote", () => {
+                    const buffer = "\"".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "'",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                });
+                test("escape character", () => {
+                    const buffer = "\"".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "\\",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "\\"] });
+                });
+                test("escaped single quote", () => {
+                    const buffer = "\"\\".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "'",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "'"] });
+                });
+                test("escaped double quote", () => {
+                    const buffer = "\"\\".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "\"",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section, buffer: [...buffer, "\""] });
+                });
+                test("odd number of escape characters", () => {
+                    const buffer = "'\\\\\\".split("");
+                    const result = handleTaskTransitionPropValue({
+                        curr: "\"",
+                        ...withBuffer(buffer, rest),
+                    });
+                    expect(onCommit).not.toHaveBeenCalled();
+                    expect(result).toMatchObject({ section: "propValue", buffer: [...buffer, "\""] });
+                });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("resets to outside on symbols", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 
-    // Pending (when we're not sure if it's an action or a property yet) tests
-    test("starts pending actionwhen we encounter the first space after a command - space", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+    describe("cancels", () => {
+        describe("invalid number", () => {
+            test("double negative", () => {
+                const buffer = "-".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "-",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("negative after number", () => {
+                const buffer = "1".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "-",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("double period, sequential", () => {
+                const buffer = "3.".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: ".",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("double period, number inbetween", () => {
+                const buffer = "1.2".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: ".",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("letter after number", () => {
+                const buffer = "1".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "a",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("other alphabets after number", () => {
+                const buffer = "1".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "你",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("emoji after number", () => {
+                const buffer = "1".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "👋",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("symbol after number", () => {
+                const buffer = "1".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "!",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
         });
-        expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toMatchObject({ section: "action", buffer: [] });
-    });
-    test("starts pending action when we encounter the first space after a command - tab", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "\t",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("invalid null", () => {
+            test("double n", () => {
+                const buffer = "n".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "n",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("double u", () => {
+                const buffer = "nu".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "u",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("capital N", () => {
+                const buffer = "N".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "N",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
         });
-        expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toMatchObject({ section: "action", buffer: [] });
-    });
-    test("does not start pending action for newline", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("invalid boolean", () => {
+            test("double f", () => {
+                const buffer = "f".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "f",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("double t", () => {
+                const buffer = "t".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "t",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("capital F", () => {
+                const buffer = "F".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "F",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
         });
-        expect(onCommit).toHaveBeenCalledWith("command", buffer);
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("does not start pending action for other alphabets", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("whitespace before quote", () => {
+            test("space", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: " ",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("tab", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\t",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
+            test("newline", () => {
+                const buffer = "".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\n",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).not.toHaveBeenCalled();
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("does not start pending action for emojis", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        test("letter before quote (that can't be a possible null/boolean value)", () => {
+            const buffer = "".split("");
+            const result = handleTaskTransitionPropValue({
+                curr: "a",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("does not start pending action for symbols", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "command",
-            buffer: buffer.split(""),
-            ...rest,
+        test("other alphabets before quote", () => {
+            const buffer = "".split("");
+            const result = handleTaskTransitionPropValue({
+                curr: "你",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels pending action on other alphabets", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
+        test("emoji before quote", () => {
+            const buffer = "".split("");
+            const result = handleTaskTransitionPropValue({
+                curr: "👋",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels pending action on emojis", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
+        test("symbol before quote", () => {
+            const buffer = "".split("");
+            const result = handleTaskTransitionPropValue({
+                curr: "!",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels pending action on symbols", () => {
-        const buffer = "test";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
+        test("slash before quote", () => {
+            const buffer = "".split("");
+            const result = handleTaskTransitionPropValue({
+                curr: "/",
+                ...withBuffer(buffer, rest),
+            });
+            expect(onCommit).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ section: "outside", buffer: [] });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-
-    // Action tests
-    test("commits pending action buffer to action on whitespace - space", () => {
-        const buffer = "add";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("action", buffer);
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits pending action buffer to action on whitespace - tab", () => {
-        const buffer = "add";
-        const result = handleTaskTransition({
-            curr: "\t",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("action", buffer);
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits pending action buffer to action on newline", () => {
-        const buffer = "add";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("action", buffer);
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-
-    // Property name tests
-    test("commits pending action buffer to property name on equals sign", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "=",
-            prev: buffer[buffer.length - 1],
-            section: "action",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propName", buffer);
-        expect(result).toMatchObject({ section: "propValue", buffer: [] });
-    });
-    test("commits property name buffer to property name on equals sign", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "=",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propName", buffer);
-        expect(result).toMatchObject({ section: "propValue", buffer: [] });
-    });
-    test("cancels property name buffer on whitespace - space", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property name buffer on whitespace - tab", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "\t",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property name buffer on newline", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property name buffer on other alphabets", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property name buffer on emojis", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property name buffer on symbols", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property name buffer on slash", () => {
-        const buffer = "name";
-        const result = handleTaskTransition({
-            curr: "/",
-            prev: buffer[buffer.length - 1],
-            section: "propName",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 
-    // Property value tests
-    test("starts property value on single quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "'",
-            prev: buffer[buffer.length - 1],
-            section: "propValue", // Should already be marked as propValue because of the equals sign
-            buffer: buffer.split(""),
-            ...rest,
+    describe("commits", () => {
+        describe("single quote", () => {
+            test("empty quote (i.e. only single quote in buffer)", () => {
+                const buffer = "'".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "'",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("quote with text", () => {
+                const buffer = "'test".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "'",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "test");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("quote that looks like a number", () => {
+                const buffer = "'123".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "'",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "123");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("ending quote with even number of escape characters", () => {
+                const buffer = "'\\\\".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "'",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "\\\\");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        // Includes the quote in the buffer
-        expect(result).toMatchObject({ section: "propValue", buffer: ["'"] });
-    });
-    test("starts property value on double quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "\"",
-            prev: buffer[buffer.length - 1],
-            section: "propValue", // Should already be marked as propValue because of the equals sign
-            buffer: buffer.split(""),
-            ...rest,
+        describe("double quote", () => {
+            test("empty quote (i.e. only double quote in buffer)", () => {
+                const buffer = "\"".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\"",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("quote with text", () => {
+                const buffer = "\"test".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\"",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "test");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("quote that looks like a number", () => {
+                const buffer = "\"123".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\"",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "123");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("ending quote with even number of escape characters", () => {
+                const buffer = "\"\\\\".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\"",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", "\\\\");
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        // Includes the quote in the buffer
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "\""] });
-    });
-    test("continues property value if buffer + curr might be a number - test 1", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "1",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
+        describe("number property on whitespace", () => {
+            test("space", () => {
+                const buffer = "000123".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: " ",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", 123);
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("tab", () => {
+                const buffer = "1.23".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\t",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", 1.23);
+                expect(result).toMatchObject({ section: "propName", buffer: [] });
+            });
+            test("newline", () => {
+                const buffer = "-123.".split("");
+                const result = handleTaskTransitionPropValue({
+                    curr: "\n",
+                    ...withBuffer(buffer, rest),
+                });
+                expect(onCommit).toHaveBeenCalledWith("propValue", -123);
+                expect(result).toMatchObject({ section: "outside", buffer: [] });
+            });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "1"] });
-    });
-    test("continues property value if buffer + curr might be a number - test 2", () => {
-        const buffer = "-";
-        const result = handleTaskTransition({
-            curr: "1",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "1"] });
-    });
-    test("continues property value if buffer + curr might be a number - test 3", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: ".",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "."] });
-    });
-    test("continues property value if buffer + curr might be a number - test 4", () => {
-        const buffer = "3";
-        const result = handleTaskTransition({
-            curr: ".",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "."] });
-    });
-    test("cancels property value if buffer + curr is an invalid number - test 1", () => {
-        const buffer = "-";
-        const result = handleTaskTransition({
-            curr: "-",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if buffer + curr is an invalid number - test 2", () => {
-        const buffer = "1";
-        const result = handleTaskTransition({
-            curr: "-",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if buffer + curr is an invalid number - test 3", () => {
-        const buffer = "3.";
-        const result = handleTaskTransition({
-            curr: ".",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if buffer + curr is an invalid number - test 4", () => {
-        const buffer = "1.2";
-        const result = handleTaskTransition({
-            curr: ".",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("continues property value if buffer + curr might be null - test 1", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "n",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: ["n"] });
-    });
-    test("continues property value if buffer + curr might be null - test 2", () => {
-        const buffer = "nul";
-        const result = handleTaskTransition({
-            curr: "l",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "l"] });
-    });
-    test("cancels property value if buffer + curr is not null", () => {
-        const buffer = "null";
-        const result = handleTaskTransition({
-            curr: "l",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if letter before quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "a",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if whitespace before quote - space", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if whitespace before quote - tab", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "\t",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if newline before quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if other alphabets before quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if emojis before quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if symbols before quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels property value if slash before quote", () => {
-        const buffer = "";
-        const result = handleTaskTransition({
-            curr: "/",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("continues property value if already in quotes - letter with single quote start", () => {
-        const buffer = "'";
-        const result = handleTaskTransition({
-            curr: "a",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "a"] });
-    });
-    test("continues property value if already in quotes - letter with double quote start", () => {
-        const buffer = "\"";
-        const result = handleTaskTransition({
-            curr: "a",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "a"] });
-    });
-    test("continues property value if already in quotes - letter with single quote start and other text in buffer", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "a",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "a"] });
-    });
-    test("continues property value if already in quotes - other language", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "你"] });
-    });
-    test("continues property value if already in quotes - emoji", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "👋"] });
-    });
-    test("continues property value if already in quotes - symbol", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "!"] });
-    });
-    test("continues property value if already in quotes - slash", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "/",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "/"] });
-    });
-    test("continues property value if already in quotes - newline", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "\n"] });
-    });
-    test("continues property value if already in quotes - space", () => {
-        const buffer = "\"test";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), " "] });
-    });
-    test("continues property value if already in quotes - tab", () => {
-        const buffer = "\"test";
-        const result = handleTaskTransition({
-            curr: "\t",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "\t"] });
-    });
-    test("continues property value when curr is a different quote type than the starting quote - double with single start", () => {
-        const buffer = "'";
-        const result = handleTaskTransition({
-            curr: "\"",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: ["'", "\""] });
-    });
-    test("continues property value when curr is a different quote type than the starting quote - single with double start", () => {
-        const buffer = "\"";
-        const result = handleTaskTransition({
-            curr: "'",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: ["\"", "'"] });
-    });
-    test("continues property value for escaped characters - curr is escape character, buffer is quote", () => {
-        const buffer = "'";
-        const result = handleTaskTransition({
-            curr: "\\",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: ["'", "\\"] });
-    });
-    test("continues property value for escaped characters - curr is single quote, buffer is double quote and escape character", () => {
-        const buffer = "\"\\";
-        const result = handleTaskTransition({
-            curr: "\"",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: ["\"", "\\", "\""] });
-    });
-    test("continues property value for escaped characters - curr is single quote, buffer is single quote and escape character", () => {
-        const buffer = "'\\";
-        const result = handleTaskTransition({
-            curr: "'",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: ["'", "\\", "'"] });
-    });
-    test("completes property value for an even number of escape characters", () => {
-        const buffer = "'\\\\";
-        const result = handleTaskTransition({
-            curr: "'",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", "\\\\");
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("continues property value for an odd number of escape characters", () => {
-        const buffer = "'\\\\\\";
-        const result = handleTaskTransition({
-            curr: "'",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "propValue", buffer: [...buffer.split(""), "'"] });
-    });
-    test("commits property value on closing quote - single quote", () => {
-        const buffer = "'test";
-        const result = handleTaskTransition({
-            curr: "'",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", "test");
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits property value on closing quote - double quote", () => {
-        const buffer = "\"test";
-        const result = handleTaskTransition({
-            curr: "\"",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", "test");
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits number property value on space - test 1", () => {
-        const buffer = "123";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", 123);
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits number property value on space - test 2", () => {
-        const buffer = "-123";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", -123);
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits number property value on space - test 3", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: " ",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", -1.23);
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits number property value on tab", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: "\t",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", -1.23);
-        expect(result).toMatchObject({ section: "propName", buffer: [] });
-    });
-    test("commits number property value on newline", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: "\n",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).toHaveBeenCalledWith("propValue", -1.23);
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels number property value on letter", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: "a",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels number property value on other alphabet", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: "你",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels number property value on emoji", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: "👋",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
-    });
-    test("cancels number property value on symbol", () => {
-        const buffer = "-1.23";
-        const result = handleTaskTransition({
-            curr: "!",
-            prev: buffer[buffer.length - 1],
-            section: "propValue",
-            buffer: buffer.split(""),
-            ...rest,
-        });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ section: "outside", buffer: [] });
     });
 });
 
