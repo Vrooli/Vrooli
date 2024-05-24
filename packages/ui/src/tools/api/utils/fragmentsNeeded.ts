@@ -13,7 +13,6 @@ export const fragmentsNeeded = (
     partialTag: string,
 ) => {
     const temp1 = fragments.map(([fragmentName]) => fragmentName);
-    console.log("fragments needed start", temp1, temp1.length);
 
     const getDependentFragments = (fragmentName: string, fragments: [string, string][]) => {
         const fragmentTag = fragments.find(([name]) => name === fragmentName)?.[1];
@@ -35,7 +34,6 @@ export const fragmentsNeeded = (
     const inPartial = fragments.filter(([fragmentName]) => partialTag.includes(fragmentName));
 
     const allFragmentsUsed = new Set(inPartial.map(([fragmentName]) => fragmentName));
-    console.log("fragments needed inPartial", Array.from(allFragmentsUsed), allFragmentsUsed.size);
 
     inPartial.forEach(([fragmentName]) => {
         const dependentFragments = getDependentFragments(fragmentName, fragments);
@@ -45,6 +43,5 @@ export const fragmentsNeeded = (
     });
 
     const temp2 = fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName)).map(([fragmentName]) => fragmentName);
-    console.log("fragments needed result", temp2, temp2.length);
     return fragments.filter(([fragmentName]) => allFragmentsUsed.has(fragmentName));
 };

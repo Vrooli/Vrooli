@@ -1,4 +1,4 @@
-import { AutoFillResult, ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
+import { AutoFillResult, ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou, StartTaskResult } from "@local/shared";
 import { GqlPartial } from "../types";
 import { rel } from "../utils";
 
@@ -64,5 +64,14 @@ export const autoFillResult: GqlPartial<AutoFillResult> = {
     __typename: "AutoFillResult",
     common: {
         data: true,
+    },
+};
+
+export const startTaskResult: GqlPartial<StartTaskResult> = {
+    __typename: "StartTaskResult",
+    common: {
+        resultLabel: true,
+        resultLink: true,
+        success: true,
     },
 };

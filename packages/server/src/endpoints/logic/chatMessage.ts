@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, CancelTaskInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, StartTaskInput, Success, uuidValidate } from "@local/shared";
+import { AutoFillInput, AutoFillResult, CancelTaskInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, StartTaskInput, StartTaskResult, Success, uuidValidate } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -27,7 +27,7 @@ export type EndpointsChatMessage = {
         chatMessageUpdate: GQLEndpoint<ChatMessageUpdateInput, UpdateOneResult<ChatMessage>>;
         regenerateResponse: GQLEndpoint<RegenerateResponseInput, Success>;
         autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
-        startTask: GQLEndpoint<StartTaskInput, Success>;
+        startTask: GQLEndpoint<StartTaskInput, StartTaskResult>;
         cancelTask: GQLEndpoint<CancelTaskInput, Success>;
     }
 }
@@ -64,10 +64,10 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             if (!uuidValidate(input.messageId)) {
                 throw new CustomError("0423", "InvalidArgs", userData.languages, { input });
             }
-            const { canDelete } = await getSingleTypePermissions("ChatMessage", [input.messageId], userData);
+            const { canDelete: canRegenerateResponse } = await getSingleTypePermissions("ChatMessage", [input.messageId], userData);
             // Use delete permissions to determine if we can regenerate a response, 
             // even though we keep the old message
-            if (!canDelete) {
+            if (!canRegenerateResponse) {
                 throw new CustomError("0424", "Unauthorized", userData.languages, { input });
             }
             // Initialize objects to store queried information

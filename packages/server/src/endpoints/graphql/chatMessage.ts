@@ -189,6 +189,12 @@ export const typeDef = gql`
         taskId: ID!
     }
 
+    type StartTaskResult {
+        resultLabel: String
+        resultLink: String
+        success: Boolean!
+    }
+
     input CancelTaskInput {
         taskId: ID!
     }
@@ -204,7 +210,7 @@ export const typeDef = gql`
         chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
         regenerateResponse(input: RegenerateResponseInput!): Success!
         autoFill(input: AutoFillInput!): AutoFillResult!
-        startTask(input: StartTaskInput!): Success!
+        startTask(input: StartTaskInput!): StartTaskResult!
         cancelTask(input: CancelTaskInput!): Success!
     }
 `;

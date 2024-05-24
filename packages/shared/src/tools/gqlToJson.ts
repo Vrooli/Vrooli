@@ -206,6 +206,8 @@ const parseGqlTypes = (): string => {
                 return "string";
             case "Scalars['Upload']":
                 return "unknown";
+            case "Scalars['JSONObject']":
+                return "Record<string, unknown>";
             default:
                 throw new Error(`Unknown scalar type: ${match}`);
         }

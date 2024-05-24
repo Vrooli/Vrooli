@@ -2298,7 +2298,7 @@ export type Mutation = {
   standardUpdate: Standard;
   standardVersionCreate: StandardVersion;
   standardVersionUpdate: StandardVersion;
-  startTask: Success;
+  startTask: StartTaskResult;
   switchCurrentAccount: Session;
   tagCreate: Tag;
   tagUpdate: Tag;
@@ -9056,6 +9056,13 @@ export type StartTaskInput = {
   taskId: Scalars['ID'];
 };
 
+export type StartTaskResult = {
+  __typename: 'StartTaskResult';
+  resultLabel?: Maybe<Scalars['String']>;
+  resultLink?: Maybe<Scalars['String']>;
+  success: Scalars['Boolean'];
+};
+
 export enum StatPeriodType {
   Daily = 'Daily',
   Hourly = 'Hourly',
@@ -10741,6 +10748,7 @@ export type ResolversTypes = {
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: ResolverTypeWrapper<StandardYou>;
   StartTaskInput: StartTaskInput;
+  StartTaskResult: ResolverTypeWrapper<StartTaskResult>;
   StatPeriodType: StatPeriodType;
   StatsApi: ResolverTypeWrapper<StatsApi>;
   StatsApiEdge: ResolverTypeWrapper<StatsApiEdge>;
@@ -11429,6 +11437,7 @@ export type ResolversParentTypes = {
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: StandardYou;
   StartTaskInput: StartTaskInput;
+  StartTaskResult: StartTaskResult;
   StatsApi: StatsApi;
   StatsApiEdge: StatsApiEdge;
   StatsApiSearchInput: StatsApiSearchInput;
@@ -12434,7 +12443,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   standardUpdate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardUpdateArgs, 'input'>>;
   standardVersionCreate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionCreateArgs, 'input'>>;
   standardVersionUpdate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionUpdateArgs, 'input'>>;
-  startTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStartTaskArgs, 'input'>>;
+  startTask?: Resolver<ResolversTypes['StartTaskResult'], ParentType, ContextType, RequireFields<MutationStartTaskArgs, 'input'>>;
   switchCurrentAccount?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationSwitchCurrentAccountArgs, 'input'>>;
   tagCreate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagCreateArgs, 'input'>>;
   tagUpdate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagUpdateArgs, 'input'>>;
@@ -14578,6 +14587,13 @@ export type StandardYouResolvers<ContextType = any, ParentType extends Resolvers
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type StartTaskResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StartTaskResult'] = ResolversParentTypes['StartTaskResult']> = {
+  resultLabel?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  resultLink?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  success?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type StatsApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsApi'] = ResolversParentTypes['StatsApi']> = {
   calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -15426,6 +15442,7 @@ export type Resolvers<ContextType = any> = {
   StandardVersionSearchResult?: StandardVersionSearchResultResolvers<ContextType>;
   StandardVersionTranslation?: StandardVersionTranslationResolvers<ContextType>;
   StandardYou?: StandardYouResolvers<ContextType>;
+  StartTaskResult?: StartTaskResultResolvers<ContextType>;
   StatsApi?: StatsApiResolvers<ContextType>;
   StatsApiEdge?: StatsApiEdgeResolvers<ContextType>;
   StatsApiSearchResult?: StatsApiSearchResultResolvers<ContextType>;

@@ -682,6 +682,48 @@
         }
       }
     },
+    "/autoFill": {
+      "get": {
+        "operationId": "endpointGetAutoFill",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/startTask": {
+      "post": {
+        "operationId": "endpointPostStartTask",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/cancelTask": {
+      "post": {
+        "operationId": "endpointPostCancelTask",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
     "/chatParticipant/{id}": {
       "get": {
         "operationId": "endpointGetChatParticipant",
@@ -1697,6 +1739,34 @@
     "/phone": {
       "post": {
         "operationId": "endpointPostPhone",
+        "tags": [
+          "phone"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/phone/verificationText": {
+      "post": {
+        "operationId": "endpointPostPhoneVerificationText",
+        "tags": [
+          "phone"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/phone/validateText": {
+      "post": {
+        "operationId": "endpointPostPhoneValidateText",
         "tags": [
           "phone"
         ],
@@ -5761,6 +5831,96 @@
         "title": "ApiYou",
         "type": "object"
       },
+      "AutoFillInput": {
+        "properties": {
+          "data": {
+            "title": "AutoFillInput.data"
+          },
+          "task": {
+            "enum": [
+              "ApiAdd",
+              "ApiDelete",
+              "ApiFind",
+              "ApiUpdate",
+              "BotAdd",
+              "BotDelete",
+              "BotFind",
+              "BotUpdate",
+              "MembersAdd",
+              "MembersDelete",
+              "MembersFind",
+              "MembersUpdate",
+              "NoteAdd",
+              "NoteDelete",
+              "NoteFind",
+              "NoteUpdate",
+              "ProjectAdd",
+              "ProjectDelete",
+              "ProjectFind",
+              "ProjectUpdate",
+              "ReminderAdd",
+              "ReminderDelete",
+              "ReminderFind",
+              "ReminderUpdate",
+              "RoleAdd",
+              "RoleDelete",
+              "RoleFind",
+              "RoleUpdate",
+              "RoutineAdd",
+              "RoutineDelete",
+              "RoutineFind",
+              "RoutineUpdate",
+              "ScheduleAdd",
+              "ScheduleDelete",
+              "ScheduleFind",
+              "ScheduleUpdate",
+              "SmartContractAdd",
+              "SmartContractDelete",
+              "SmartContractFind",
+              "SmartContractUpdate",
+              "StandardAdd",
+              "StandardDelete",
+              "StandardFind",
+              "StandardUpdate",
+              "Start",
+              "TeamAdd",
+              "TeamDelete",
+              "TeamFind",
+              "TeamUpdate"
+            ],
+            "title": "AutoFillInput.task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "task"
+        ],
+        "additionalProperties": false,
+        "title": "AutoFillInput",
+        "type": "object"
+      },
+      "AutoFillResult": {
+        "properties": {
+          "__typename": {
+            "title": "AutoFillResult.__typename",
+            "enum": [
+              "AutoFillResult"
+            ],
+            "type": "string"
+          },
+          "data": {
+            "title": "AutoFillResult.data"
+          }
+        },
+        "required": [
+          "__typename",
+          "data"
+        ],
+        "additionalProperties": false,
+        "title": "AutoFillResult",
+        "type": "object"
+      },
       "Award": {
         "properties": {
           "__typename": {
@@ -6900,6 +7060,20 @@
         ],
         "additionalProperties": false,
         "title": "BotUpdateInput",
+        "type": "object"
+      },
+      "CancelTaskInput": {
+        "properties": {
+          "taskId": {
+            "title": "CancelTaskInput.taskId",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "additionalProperties": false,
+        "title": "CancelTaskInput",
         "type": "object"
       },
       "Chat": {
@@ -9856,6 +10030,7 @@
               "NoteVersion",
               "Notification",
               "Organization",
+              "Phone",
               "Post",
               "Project",
               "ProjectVersion",
@@ -9931,10 +10106,15 @@
           "emailAddress": {
             "title": "EmailCreateInput.emailAddress",
             "type": "string"
+          },
+          "id": {
+            "title": "EmailCreateInput.id",
+            "type": "string"
           }
         },
         "required": [
-          "emailAddress"
+          "emailAddress",
+          "id"
         ],
         "additionalProperties": false,
         "title": "EmailCreateInput",
@@ -20299,6 +20479,7 @@
           },
           "paymentType": {
             "enum": [
+              "Credits",
               "Donation",
               "PremiumMonthly",
               "PremiumYearly"
@@ -20552,12 +20733,17 @@
       },
       "PhoneCreateInput": {
         "properties": {
+          "id": {
+            "title": "PhoneCreateInput.id",
+            "type": "string"
+          },
           "phoneNumber": {
             "title": "PhoneCreateInput.phoneNumber",
             "type": "string"
           }
         },
         "required": [
+          "id",
           "phoneNumber"
         ],
         "additionalProperties": false,
@@ -40413,7 +40599,7 @@
           },
           "credits": {
             "title": "SessionUser.credits",
-            "type": "number"
+            "type": "string"
           },
           "focusModes": {
             "items": {
@@ -44101,6 +44287,127 @@
         "title": "StandardYou",
         "type": "object"
       },
+      "StartTaskInput": {
+        "properties": {
+          "botId": {
+            "title": "StartTaskInput.botId",
+            "type": "string"
+          },
+          "label": {
+            "title": "StartTaskInput.label",
+            "type": "string"
+          },
+          "messageId": {
+            "title": "StartTaskInput.messageId",
+            "type": "string"
+          },
+          "properties": {
+            "title": "StartTaskInput.properties"
+          },
+          "task": {
+            "enum": [
+              "ApiAdd",
+              "ApiDelete",
+              "ApiFind",
+              "ApiUpdate",
+              "BotAdd",
+              "BotDelete",
+              "BotFind",
+              "BotUpdate",
+              "MembersAdd",
+              "MembersDelete",
+              "MembersFind",
+              "MembersUpdate",
+              "NoteAdd",
+              "NoteDelete",
+              "NoteFind",
+              "NoteUpdate",
+              "ProjectAdd",
+              "ProjectDelete",
+              "ProjectFind",
+              "ProjectUpdate",
+              "ReminderAdd",
+              "ReminderDelete",
+              "ReminderFind",
+              "ReminderUpdate",
+              "RoleAdd",
+              "RoleDelete",
+              "RoleFind",
+              "RoleUpdate",
+              "RoutineAdd",
+              "RoutineDelete",
+              "RoutineFind",
+              "RoutineUpdate",
+              "ScheduleAdd",
+              "ScheduleDelete",
+              "ScheduleFind",
+              "ScheduleUpdate",
+              "SmartContractAdd",
+              "SmartContractDelete",
+              "SmartContractFind",
+              "SmartContractUpdate",
+              "StandardAdd",
+              "StandardDelete",
+              "StandardFind",
+              "StandardUpdate",
+              "Start",
+              "TeamAdd",
+              "TeamDelete",
+              "TeamFind",
+              "TeamUpdate"
+            ],
+            "title": "StartTaskInput.task",
+            "type": "string"
+          },
+          "taskId": {
+            "title": "StartTaskInput.taskId",
+            "type": "string"
+          }
+        },
+        "required": [
+          "botId",
+          "label",
+          "messageId",
+          "properties",
+          "task",
+          "taskId"
+        ],
+        "additionalProperties": false,
+        "title": "StartTaskInput",
+        "type": "object"
+      },
+      "StartTaskResult": {
+        "properties": {
+          "__typename": {
+            "title": "StartTaskResult.__typename",
+            "enum": [
+              "StartTaskResult"
+            ],
+            "type": "string"
+          },
+          "resultLabel": {
+            "title": "StartTaskResult.resultLabel",
+            "nullable": true,
+            "type": "string"
+          },
+          "resultLink": {
+            "title": "StartTaskResult.resultLink",
+            "nullable": true,
+            "type": "string"
+          },
+          "success": {
+            "title": "StartTaskResult.success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "__typename",
+          "success"
+        ],
+        "additionalProperties": false,
+        "title": "StartTaskResult",
+        "type": "object"
+      },
       "StatsApi": {
         "properties": {
           "__typename": {
@@ -46583,6 +46890,11 @@
             "nullable": true,
             "type": "number"
           },
+          "offset": {
+            "title": "TagSearchInput.offset",
+            "nullable": true,
+            "type": "number"
+          },
           "searchString": {
             "title": "TagSearchInput.searchString",
             "nullable": true,
@@ -46592,8 +46904,12 @@
             "anyOf": [
               {
                 "enum": [
-                  "New",
-                  "Top"
+                  "EmbedDateCreatedAsc",
+                  "EmbedDateCreatedDesc",
+                  "EmbedDateUpdatedAsc",
+                  "EmbedDateUpdatedDesc",
+                  "EmbedTopAsc",
+                  "EmbedTopDesc"
                 ],
                 "title": "TagSearchInput.sortBy",
                 "type": "string"
@@ -47903,6 +48219,22 @@
             ],
             "title": "User.paymentHistory"
           },
+          "phones": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Phone"
+                },
+                "title": "User.phones",
+                "type": "array"
+              },
+              {
+                "title": "User.phones",
+                "nullable": true
+              }
+            ],
+            "title": "User.phones"
+          },
           "premium": {
             "anyOf": [
               {
@@ -48877,6 +49209,25 @@
         "title": "ValidateSessionInput",
         "type": "object"
       },
+      "ValidateVerificationTextInput": {
+        "properties": {
+          "phoneNumber": {
+            "title": "ValidateVerificationTextInput.phoneNumber",
+            "type": "string"
+          },
+          "verificationCode": {
+            "title": "ValidateVerificationTextInput.verificationCode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phoneNumber",
+          "verificationCode"
+        ],
+        "additionalProperties": false,
+        "title": "ValidateVerificationTextInput",
+        "type": "object"
+      },
       "VersionYou": {
         "properties": {
           "__typename": {
@@ -49348,6 +49699,23 @@
         ],
         "additionalProperties": false,
         "title": "DateScalarConfig",
+        "type": "object"
+      },
+      "JsonObjectScalarConfig": {
+        "properties": {
+          "name": {
+            "title": "JsonObjectScalarConfig.name",
+            "enum": [
+              "JSONObject"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "title": "JsonObjectScalarConfig",
         "type": "object"
       },
       "UploadScalarConfig": {

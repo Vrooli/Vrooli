@@ -75,9 +75,9 @@ export const chatCreateNestedMessages = (
         // For example, if we're at message 4 and message 3 was visited, use message 2.
         if (!parentId && canVisitMore()) {
             for (let i = 1; i <= messages.length; i++) {
-                let index = (currMessageIndex - i + messages.length) % messages.length;
+                const index = (currMessageIndex - i + messages.length) % messages.length;
                 if (!allVisited.has(messages[index].id) && !currVisited.includes(messages[index].id)) {
-                    console.log('had no parent id. Looped backwards for id', messages[index].id)
+                    console.log("had no parent id. Looped backwards for id", messages[index].id);
                     parentId = messages[index].id;
                     break;
                 }
@@ -130,7 +130,7 @@ export const chatCreateNestedMessages = (
             // message which hasn't been visited
             if (canVisitMore()) {
                 for (let i = 1; i <= messages.length; i++) {
-                    let index = (currMessageIndex - i + messages.length) % messages.length;
+                    const index = (currMessageIndex - i + messages.length) % messages.length;
                     if (!hasBeenVisited(messages[index].id)) {
                         currMessageIndex = index;
                         break;
@@ -146,7 +146,7 @@ export const chatCreateNestedMessages = (
             // Recursive
             createNested();
         }
-    }
+    };
 
     // Call the recursive function until all messages have been visited
     while (canVisitMore()) {
@@ -159,7 +159,7 @@ export const chatCreateNestedMessages = (
     }
     // If only one create object was generated, return it directly
     if (createObjects.length === 1) {
-        return { create: createObjects[0] }
+        return { create: createObjects[0] };
     }
     // Otherwise, return the array of create objects
     return { create: createObjects };
@@ -246,8 +246,8 @@ export const ChatModel: ChatModelLogic = ({
                                         select: {
                                             id: true,
                                             isBot: true,
-                                        }
-                                    }
+                                        },
+                                    },
                                 },
                                 take: 2,
                             },
@@ -255,8 +255,8 @@ export const ChatModel: ChatModelLogic = ({
                                 orderBy: { sequence: "desc" },
                                 take: 1,
                                 select: { id: true },
-                            }
-                        }
+                            },
+                        },
                     });
                     // Calculate branchability
                     branchInfo = chats.reduce((acc, chat) => {
@@ -365,7 +365,7 @@ export const ChatModel: ChatModelLogic = ({
                         }, data, ...rest,
                     }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {

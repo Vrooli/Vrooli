@@ -93,7 +93,7 @@ export const endpoints = {
         };
     },
     chatMessage: async () => {
-        const { chatMessage: chatMessagePartial, chatMessageSearchTreeResult: chatMessageSearchTreeResultPartial, autoFillResult: autoFillResultPartial } = await import("./partial/chatMessage");
+        const { chatMessage: chatMessagePartial, chatMessageSearchTreeResult: chatMessageSearchTreeResultPartial, autoFillResult: autoFillResultPartial, startTaskResult: startTaskResultPartial } = await import("./partial/chatMessage");
         const { success: successPartial } = await import("./partial/success");
         return {
             findOne: toQuery("chatMessage", "FindByIdInput", chatMessagePartial, "full"),
@@ -103,7 +103,7 @@ export const endpoints = {
             update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessagePartial, "full"),
             regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", successPartial, "full"),
             autoFill: toMutation("autoFill", "AutoFillInput", autoFillResultPartial, "full"),
-            startTask: toMutation("startTask", "StartTaskInput", successPartial, "full"),
+            startTask: toMutation("startTask", "StartTaskInput", startTaskResultPartial, "full"),
             cancelTask: toMutation("cancelTask", "CancelTaskInput", successPartial, "full"),
         };
     },
