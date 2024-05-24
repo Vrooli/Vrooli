@@ -43,8 +43,8 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
 
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Anthropic API.
         const alternatingMessages: LanguageModelMessage[] = [];
-        const messagesWithResponding = params.respondingToMessage
-            ? [...messages, { role: "user" as const, content: params.respondingToMessage.text }]
+        const messagesWithResponding = params.taskMessage
+            ? [...messages, { role: "user" as const, content: params.taskMessage }]
             : messages;
         let lastRole: LanguageModelMessage["role"] = "assistant";
         for (const { role, content } of messagesWithResponding) {
@@ -104,7 +104,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                 output: completion.usage.output_tokens,
             },
         });
-        return { message, cost };
+        return { attempts: 1, cost, message };
     }
 
     async *generateResponseStreaming({

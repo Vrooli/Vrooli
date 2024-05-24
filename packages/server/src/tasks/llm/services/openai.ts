@@ -48,8 +48,8 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
             { role: "system" as const, content: systemMessage },
             // Add previous messages
             ...messages.map(({ role, content }) => ({ role, content })),
-            // Add message we're responding to
-            ...(params.respondingToMessage ? [{ role: "user" as const, content: params.respondingToMessage.text }] : []),
+            // Add task message
+            ...(params.taskMessage ? [{ role: "user" as const, content: params.taskMessage }] : []),
         ] as LanguageModelMessage[];
 
         return { messages: messagesWithContext, systemMessage };
@@ -83,7 +83,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
                 output: completion.usage?.completion_tokens ?? this.estimateTokens({ model, text: message }).tokens,
             },
         });
-        return { message, cost };
+        return { attempts: 1, cost, message };
     }
 
     async *generateResponseStreaming({

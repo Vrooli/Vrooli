@@ -1,4 +1,4 @@
-import { BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, ServerLlmTaskInfo, getLlmConfigLocation, getStructuredTaskConfig, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, ServerLlmTaskInfo, getStructuredTaskConfig, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -7,7 +7,7 @@ import { SessionUserToken } from "../../types";
 import { objectToYaml } from "../../utils";
 import { bestTranslation } from "../../utils/bestTranslation";
 import { PreMapUserData } from "../../utils/chat";
-import { ChatContextCollector, ContextInfo, MessageContextInfo } from "./context";
+import { ChatContextCollector, CollectMessageContextInfoParams, ContextInfo, MessageContextInfo } from "./context";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry";
 
 type SimpleChatMessageData = {
@@ -53,11 +53,8 @@ export type GenerateContextParams = {
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
-    respondingToMessage: {
-        id?: string | null;
-        text: string;
-    } | null;
     task: LlmTask | `${LlmTask}`;
+    taskMessage?: string | null;
     userData: SessionUserToken;
 }
 export type GenerateResponseParams = {
@@ -67,7 +64,11 @@ export type GenerateResponseParams = {
     userData: Pick<SessionUserToken, "languages" | "name">;
 }
 export type GenerateResponseResult = {
+    /** How many attempts it took to generate a reponse */
+    attempts: number;
+    /** The generated message */
     message: string;
+    /** How many API credits were used to generate the response */
     cost: number;
 }
 export type GenerateResponseStreamingResult = {
@@ -168,7 +169,6 @@ export const getDefaultConfigObject = async ({
     // Remove empty values from the translation object
     translation = Object.fromEntries(Object.entries(translation).filter(([_, value]) => value !== ""));
 
-    const temp = await getLlmConfigLocation();
     const taskConfig = await getStructuredTaskConfig(task, force, userData.languages[0] ?? "en", logger);
     const configObject = {
         ai_assistant: {
@@ -327,8 +327,7 @@ export const fetchMessagesFromDatabase = async (messageIds: string[]): Promise<S
     return messages;
 };
 
-type GenerateResponseWithFallbackParams = {
-    chatId?: string | null;
+type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, "chatId" | "latestMessage" | "taskMessage"> & {
     /** 
     * Determines if context should be written to force the response to be a command 
     */
@@ -336,10 +335,6 @@ type GenerateResponseWithFallbackParams = {
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
-    respondingToMessage: {
-        id?: string | null;
-        text: string;
-    } | null;
     /** If we should use a stream to show the response as its being generated */
     stream: boolean;
     task: LlmTask | `${LlmTask}`;
@@ -353,18 +348,21 @@ type GenerateResponseWithFallbackParams = {
 export const generateResponseWithFallback = async ({
     chatId,
     force,
+    latestMessage,
     participantsData,
     respondingBotConfig,
     respondingBotId,
-    respondingToMessage,
     stream,
     task,
+    taskMessage,
     userData,
 }: GenerateResponseWithFallbackParams): Promise<GenerateResponseResult> => {
     const retryLimit = 3; // Set a limit to prevent infinite loops
     let attempts = 0;
 
     while (attempts < retryLimit) {
+        attempts++;
+
         const serviceId = LlmServiceRegistry.get().getBestService(respondingBotConfig.model);
         if (!serviceId) {
             throw new CustomError("0252", "InternalError", userData.languages, { respondingBotConfig });
@@ -374,7 +372,14 @@ export const generateResponseWithFallback = async ({
             // Try using the service to generate a response
             const serviceInstance = LlmServiceRegistry.get().getService(serviceId) as LanguageModelService<string, string>;
             const model = serviceInstance.getModel(respondingBotConfig?.model);
-            const contextInfo = await (new ChatContextCollector(serviceInstance)).collectMessageContextInfo(chatId, model, userData.languages, respondingToMessage);
+            const languages = userData.languages;
+            const contextInfo = await (new ChatContextCollector(serviceInstance)).collectMessageContextInfo({
+                chatId,
+                languages,
+                latestMessage,
+                model,
+                taskMessage,
+            });
             const { messages, systemMessage } = await serviceInstance.generateContext({
                 contextInfo,
                 force,
@@ -382,8 +387,8 @@ export const generateResponseWithFallback = async ({
                 participantsData,
                 respondingBotId,
                 respondingBotConfig,
-                respondingToMessage,
                 task,
+                taskMessage,
                 userData,
             });
             let responseMessage = "";
@@ -423,7 +428,7 @@ export const generateResponseWithFallback = async ({
                 responseMessage = response.message;
                 finalCost = response.cost;
             }
-            return { message: responseMessage, cost: finalCost };
+            return { attempts, cost: finalCost, message: responseMessage };
         } catch (error) {
             const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);
             // If the service is still active, then the error was likely due 
@@ -433,25 +438,18 @@ export const generateResponseWithFallback = async ({
             }
             // Otherwise, we'll retry with the next best service
         }
-
-        attempts++;
     }
 
     throw new CustomError("0253", "InternalError", userData.languages, { respondingBotConfig });
 };
 
-export type ForceGetTaskParams = {
-    chatId?: string | null,
+export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" | "latestMessage" | "taskMessage"> & {
     commandToTask: CommandToTask,
     existingData?: ExistingTaskData | null,
     language: string,
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings,
     respondingBotId: string,
-    respondingToMessage: {
-        id?: string | null,
-        text: string,
-    } | null,
     task: LlmTask | `${LlmTask}`,
     userData: SessionUserToken,
 }
@@ -465,11 +463,12 @@ export const forceGetTask = async ({
     commandToTask,
     existingData,
     language,
+    latestMessage,
     participantsData,
     respondingBotConfig,
     respondingBotId,
-    respondingToMessage,
     task,
+    taskMessage,
     userData,
 }: ForceGetTaskParams): Promise<{
     taskToRun: ServerLlmTaskInfo | null,
@@ -477,23 +476,25 @@ export const forceGetTask = async ({
     messageWithoutTasks: string | null,
     cost: number
 }> => {
-    let retryCount = 0;
-    const MAX_RETRIES = 3; // Set a maximum number of retries to avoid infinite loops
+    const MAX_ATTEMPTS = 3; // Set a maximum number of LLM calls to avoid infinite loops and excessive costs
+    let totalAttempts = 0;
     let totalCost = 0;
 
-    while (retryCount < MAX_RETRIES) {
-        const { message, cost } = await generateResponseWithFallback({
+    while (totalAttempts < MAX_ATTEMPTS) {
+        const { attempts, cost, message } = await generateResponseWithFallback({
             chatId,
             force: true, // Force the bot to respond with a task
+            latestMessage,
             participantsData,
             respondingBotConfig,
             respondingBotId,
-            respondingToMessage,
             stream: false,
             task,
+            taskMessage,
             userData,
         });
-        totalCost += cost;
+        totalAttempts += Math.max(attempts, 1); // Ensure we always increment by at least 1
+        totalCost += Math.max(cost, 0); // Ensure we don't give negative costs
 
         // Check for tasks in the start response
         const { tasksToRun, tasksToSuggest, messageWithoutTasks } = await getValidTasksFromMessage({
@@ -510,9 +511,7 @@ export const forceGetTask = async ({
             // Only use the first task found
             return { taskToRun: tasksToRun[0], tasksToSuggest, messageWithoutTasks, cost };
         } else {
-            // Increment the retry count if no task is found
-            retryCount++;
-            logger.warning(`No task found in start response. Retrying... (${retryCount}/${MAX_RETRIES})`, { trace: "0349", chatId, respondingBotId, task });
+            logger.warning(`No task found in start response. Retrying... (${totalAttempts}/${MAX_ATTEMPTS})`, { trace: "0349", chatId, respondingBotId, task });
         }
     }
 
