@@ -1,22 +1,23 @@
-import { SessionUserToken } from "@local/server";
 import { HOURS_1_S, MINUTES_1_MS, ServerLlmTaskInfo } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
+import { emitSocketEvent } from "../../sockets/events";
+import { SessionUserToken } from "../../types";
 
-type LlmTaskStatus = "scheduled" | "running" | "canceled" | "completed" | "failed";
+type LlmTaskStatus = "suggested" | "scheduled" | "running" | "completed" | "failed";
 export type LlmTaskProcessPayload = {
-    /** The task to be run */
-    taskInfo: ServerLlmTaskInfo;
     /** The chat the command was triggered in */
     chatId?: string | null;
     /** The language the command was triggered in */
     language: string;
-    /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
     /** The status of the job process */
     status: LlmTaskStatus;
+    /** The task to be run */
+    taskInfo: ServerLlmTaskInfo;
+    /** The user who's running the command (not the bot) */
+    userData: SessionUserToken;
 }
 
 let logger: winston.Logger;
@@ -111,14 +112,20 @@ export const changeLlmTaskStatus = async (
                 await job.update({ ...job.data, status: "scheduled" });
                 await llmTaskQueue.add(job.data);
                 logger.info(`LLM task with jobId ${jobId} rescheduled.`);
+                if (job.data.chatId) {
+                    emitSocketEvent("llmTasks", job.data.chatId, { updates: [{ id: job.data.taskInfo.id, status: "failed" }] });
+                }
                 return { success: true, message: "Task rescheduled." };
             } else {
                 throw new Error(`LLM task with jobId ${jobId} cannot be rescheduled from state ${currentState}.`);
             }
         } else if (status === "canceled") {
-            await job.update({ ...job.data, status: "canceled" });
+            await job.update({ ...job.data, status: "suggested" });
             await job.remove();
             logger.info(`LLM task with jobId ${jobId} canceled.`);
+            if (job.data.chatId) {
+                emitSocketEvent("llmTasks", job.data.chatId, { updates: [{ id: job.data.taskInfo.id, status: "suggested" }] });
+            }
             return { success: true, message: "Task canceled." };
         }
     } catch (error) {

@@ -322,7 +322,17 @@ describe('processLlmTasks', () => {
         expect(updateTasksForMessage).toHaveBeenCalledWith('msg1', expect.any(Array));
 
         const storedTasks = getCookieTasksForMessage('msg1');
-        expect(storedTasks).toEqual({ tasks: updates });
+        expect(storedTasks).toEqual({
+            tasks: updates.map(update => ({
+                ...update,
+                lastUpdated: expect.any(String) // Adds a `lastUpdated` date
+            }))
+        });
+        storedTasks?.tasks?.forEach(task => {
+            // Check that each task has a lastUpdated field that is a valid ISO date string
+            const date = new Date(task.lastUpdated);
+            expect(date.toISOString()).toBe(task.lastUpdated);
+        });
     });
 
     it('should apply partial tasks to existing tasks', () => {
@@ -343,8 +353,8 @@ describe('processLlmTasks', () => {
         const storedTasks = getCookieTasksForMessage('msg1');
         expect(storedTasks).toEqual({
             tasks: [
-                { id: 'task1', messageId: 'msg1', status: 'completed' },
-                { id: 'task2', messageId: 'msg1', status: 'failed' },
+                { id: 'task1', messageId: 'msg1', status: 'completed', lastUpdated: expect.any(String) },
+                { id: 'task2', messageId: 'msg1', status: 'failed', lastUpdated: expect.any(String) },
             ]
         });
     });
@@ -363,13 +373,13 @@ describe('processLlmTasks', () => {
         expect(updateTasksForMessage).toHaveBeenCalledWith('msg2', expect.any(Array));
 
         const storedTasks1 = getCookieTasksForMessage('msg1');
-        expect(storedTasks1).toEqual({ tasks: [{ id: 'task1', messageId: 'msg1', status: 'completed' }] });
+        expect(storedTasks1).toEqual({ tasks: [{ id: 'task1', messageId: 'msg1', status: 'completed', lastUpdated: expect.any(String) }] });
 
         const storedTasks2 = getCookieTasksForMessage('msg2');
         expect(storedTasks2).toEqual({
             tasks: [
-                { id: 'task2', messageId: 'msg2', status: 'suggested' },
-                { id: 'task4', messageId: 'msg2', status: 'failed' },
+                { id: 'task2', messageId: 'msg2', status: 'suggested' }, // Wasn't updated, so no `lastUpdated` change
+                { id: 'task4', messageId: 'msg2', status: 'failed', lastUpdated: expect.any(String) },
             ]
         });
     });

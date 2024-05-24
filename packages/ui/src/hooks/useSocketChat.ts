@@ -134,11 +134,15 @@ export const processLlmTasks = (
             // Merge the update into the existing task
             combinedTasksByMessageId[update.messageId][existingTaskIndex] = {
                 ...combinedTasksByMessageId[update.messageId][existingTaskIndex],
-                ...update
+                ...update,
+                lastUpdated: new Date().toISOString(),
             };
         } else {
             // Handle case where update is for a new task not yet in tasks
-            combinedTasksByMessageId[update.messageId].push(update as LlmTaskInfo);
+            combinedTasksByMessageId[update.messageId].push({
+                ...update,
+                lastUpdated: new Date().toISOString(),
+            } as LlmTaskInfo);
         }
     });
 
