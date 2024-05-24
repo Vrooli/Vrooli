@@ -41,6 +41,17 @@ type WrappedTasks = {
     wrapperEnd: number,
 };
 
+type HandleTaskTransitionParams = CommandTransitionTrack & {
+    curr: string,
+    prev: string,
+    onCommit: (section: CommandSection, text: string | number | null) => unknown,
+    onComplete: () => unknown, // When a full command (including any actions/props) is completed
+    onCancel: () => unknown, // When a full command is cancelled. Typically only when there's a problem with the beginning slash command 
+    onStart: () => unknown, // When a full command is started
+};
+
+type TaskTransitionHelperParams = Omit<HandleTaskTransitionParams, "section">;
+
 /** Maximum length for a command, action, or property name */
 const MAX_COMMAND_ACTION_PROP_LENGTH = 32;
 const QUOTES = ["\"", "'"];
@@ -68,6 +79,128 @@ function countEndSlashes(charArray: string[]): number {
 }
 
 /**
+ * Handles the transition logic when the parser is outside of any specific command,
+ * action, or property block. It determines whether to start a new command or handle
+ * other structures like code blocks.
+ * 
+ * @returns The updated state after processing.
+ */
+export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+    const { buffer, curr, hasOpenBracket, onStart, prev } = params;
+
+    // Start a command if there's a slash without a previous character, 
+    // or if the previous character is whitespace, newline, or open bracket (for wrapped commands)
+    if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev) || prev === "[")) {
+        onStart();
+        return {
+            section: "command",
+            buffer: [], // Don't include the slash in the buffer
+            hasOpenBracket: hasOpenBracket || prev === "[", // Keep bracket status, or start a new one if the open bracket was found
+        };
+    }
+    // Reset buffer when there's whitespace=
+    if (isWhitespace(curr)) {
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Reset buffer and hasOpenBracket when there's a newline
+    if (isNewline(curr)) {
+        return { section: "outside", buffer: [], hasOpenBracket: false };
+    }
+    // Start a code block if the end of buffer + curr "<code>"
+    if ((buffer.length >= 5 && curr === ">" && buffer[buffer.length - 1] === "e" && buffer[buffer.length - 2] === "d" && buffer[buffer.length - 3] === "o" && buffer[buffer.length - 4] === "c" && buffer[buffer.length - 5] === "<")) {
+        return { section: "code", buffer: ["<", "c", "o", "d", "e", ">"], hasOpenBracket };
+    }
+    // Start a code block if curr is not a backtick, and the buffer ends with 1 or 3 backticks 
+    // (Any other combination of sequential backticks is invalid)
+    if (curr !== "`" && buffer.length >= 1 && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] !== "`") {
+        return { section: "code", buffer: ["`", curr], hasOpenBracket };
+    }
+    if (curr !== "`" && buffer.length >= 3 && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`" && buffer[buffer.length - 3] === "`" && buffer[buffer.length - 4] !== "`") {
+        return { section: "code", buffer: ["`", "`", "`", curr], hasOpenBracket };
+    }
+    // Continue buffering
+    buffer.push(curr);
+    return { section: "outside", buffer, hasOpenBracket };
+};
+
+/**
+ * Manages the transitions within code blocks, handling different types of code
+ * markers like single backticks, triple backticks, or HTML-style code tags.
+ * 
+ * NOTE: This function never calls `onComplete`, `onStart`, or `onCommit`, as code blocks are 
+ * not a part of the command structure.
+ * 
+ * @param params - The current state and utility functions.
+ * @returns {CommandTransitionTrack} The updated state after processing.
+ */
+export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+    const { buffer, curr, hasOpenBracket, onCancel } = params;
+
+    // Shouldn't be here if the buffer is empty or malformed
+    if (buffer.length === 0 || !["`", "<"].includes(buffer[0] as string)) {
+        onCancel();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // Determine which type of code block we're in
+    let codeType: "single" | "multi" | "tag" | null = null;
+    if (buffer[0] === "<") {
+        codeType = "tag";
+    } else if (
+        (buffer.length > 2 && buffer[0] === "`" && buffer[1] === "`" && buffer[2] === "`") ||
+        (buffer.length === 2 && buffer[0] === "`" && buffer[1] === "`" && curr === "`")
+    ) {
+        codeType = "multi";
+    } else if (buffer[0] === "`") {
+        codeType = "single";
+    }
+    // If we couldn't determine the code type, cancel the code block
+    if (!codeType) {
+        onCancel();
+        return { section: "outside", buffer: [], hasOpenBracket };
+    }
+    // If we're in a single code block, cancel on newline
+    if (codeType === "single" && isNewline(curr)) {
+        onCancel();
+        return { section: "outside", buffer: [], hasOpenBracket: false };
+    }
+    // If we're in a multi code block, cancel when encountering the closing backticks
+    if (codeType === "multi") {
+        // Cancel at fourth backtick in a row
+        if (buffer.length === 3 && buffer.every(b => b === "`") && curr === "`") {
+            onCancel();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+        // Cancel when closing triple backticks found
+        if (buffer.length > 3 && curr === "`" && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`") {
+            onCancel();
+            return { section: "outside", buffer: [], hasOpenBracket };
+        }
+    }
+    // If we're in a tag code block
+    if (codeType === "tag") {
+        // When the buffer is short, stop if the tag never forms
+        if (buffer.length < 6) {
+            // Cancel if we run into any characters not in "<code>"
+            if (!"<code>".startsWith([...buffer, curr].join(""))) {
+                onCancel();
+                return { section: "outside", buffer: [], hasOpenBracket };
+            }
+        }
+        // When the buffer is longer, stop if the tag is complete
+        if (buffer.length >= 13) {
+            // Cancel if it end with "</code>"
+            if (buffer.slice(-6).join("") === "</code" && curr === ">") {
+                onCancel();
+                return { section: "outside", buffer: [], hasOpenBracket };
+            }
+        }
+    }
+    // Continue buffering
+    buffer.push(curr);
+    return { section: "code", buffer, hasOpenBracket };
+};
+
+/**
  * Handles the transition between parsing a command, action, property name, or property value. 
  * 
  * This is not meant to be the shortest possible function, but rather one that's the easiest to understand and 
@@ -75,114 +208,22 @@ function countEndSlashes(charArray: string[]): number {
  * handling the transition between sections, invalid characters, and other edge cases.
  * @returns An object containing the new parsing section and buffer
  */
-export const handleTaskTransition = ({
-    curr,
-    prev,
-    section,
-    buffer,
-    hasOpenBracket,
-    onCommit,
-    onComplete,
-    onCancel,
-    onStart,
-}: CommandTransitionTrack & {
-    curr: string,
-    prev: string,
-    onCommit: (section: CommandSection, text: string | number | null) => unknown,
-    onComplete: () => unknown, // When a full command (including any actions/props) is completed
-    onCancel: () => unknown, // When a full command is cancelled. Typically only when there's a problem with the beginning slash command 
-    onStart: () => unknown, // When a full command is started
-}): CommandTransitionTrack => {
+export const handleTaskTransition = (params: HandleTaskTransitionParams): CommandTransitionTrack => {
+    const {
+        curr,
+        prev,
+        section,
+        buffer,
+        hasOpenBracket,
+        onCommit,
+        onComplete,
+        onCancel,
+        onStart,
+    } = params;
+
     // Handle each section type
-    if (section === "outside") {
-        // Start a command if there's a slash without a previous character, 
-        // or if the previous character is whitespace, newline, or open bracket (for wrapped commands)
-        if (curr === "/" && (!prev || isWhitespace(prev) || isNewline(prev) || prev === "[")) {
-            onStart();
-            return {
-                section: "command",
-                buffer: [], // Don't include the slash in the buffer
-                hasOpenBracket: hasOpenBracket || prev === "[", // Keep bracket status, or start a new one if the open bracket was found
-            };
-        }
-        // Reset buffer when there's whitespace=
-        if (isWhitespace(curr)) {
-            return { section, buffer: [], hasOpenBracket };
-        }
-        if (isNewline(curr)) {
-            return { section, buffer: [], hasOpenBracket: false };
-        }
-        // Reset buffer and hasOpenBracket when there's a newline
-        // Start a code block if the buffer + curr is "`" or "```" or "<code>"
-        if (
-            (buffer.length === 0 && curr === "`") ||
-            (buffer.length === 2 && buffer[0] === "`" && buffer[1] === "`" && curr === "`") ||
-            (buffer.length === 5 && buffer[0] === "<" && buffer[1] === "c" && buffer[2] === "o" && buffer[3] === "d" && buffer[4] === "e" && curr === ">")
-        ) {
-            buffer.push(curr);
-            return { section: "code", buffer, hasOpenBracket }; // Keep in buffer so we can match the closing backticks/tag
-        }
-    }
-    else if (section === "code") {
-        // Shouldn't be here if the buffer is empty
-        if (buffer.length === 0) {
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-        // Determine which type of code block we're in
-        let codeType: "single" | "multi" | "tag" | null = null;
-        if (buffer[0] === "<") {
-            codeType = "tag";
-        } else if (
-            (buffer.length > 2 && buffer[0] === "`" && buffer[1] === "`" && buffer[2] === "`") ||
-            (buffer.length === 2 && buffer[0] === "`" && buffer[1] === "`" && curr === "`")
-        ) {
-            codeType = "multi";
-        } else if (buffer.length === 1 && buffer[0] === "`") {
-            codeType = "single";
-        }
-        // If we couldn't determine the code type, cancel the code block
-        if (!codeType) {
-            onCancel();
-            return { section: "outside", buffer: [], hasOpenBracket };
-        }
-        // If we're in a single code block, cancel on newline
-        if (codeType === "single" && isNewline(curr)) {
-            onCancel();
-            return { section: "outside", buffer: [], hasOpenBracket: false };
-        }
-        // If we're in a multi code block, cancel when encountering the closing backticks
-        if (codeType === "multi") {
-            // Cancel at fourth backtick in a row
-            if (buffer.length === 3 && buffer.every(b => b === "`") && curr === "`") {
-                onCancel();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-            // Cancel when closing triple backticks found
-            if (buffer.length > 3 && curr === "`" && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`") {
-                onCancel();
-                return { section: "outside", buffer: [], hasOpenBracket };
-            }
-        }
-        // If we're in a tag code block
-        if (codeType === "tag") {
-            // When the buffer is short, stop if the tag never forms
-            if (buffer.length < 6) {
-                // Cancel if we run into any characters not in "<code>"
-                if (!"<code>".startsWith([...buffer, curr].join(""))) {
-                    onCancel();
-                    return { section: "outside", buffer: [], hasOpenBracket };
-                }
-            }
-            // When the buffer is longer, stop if the tag is complete
-            if (buffer.length >= 13) {
-                // Cancel if it end with "</code>"
-                if (buffer.slice(-6).join("") === "</code" && curr === ">") {
-                    onCancel();
-                    return { section: "outside", buffer: [], hasOpenBracket };
-                }
-            }
-        }
-    }
+    if (section === "outside") return handleTaskTransitionOutside(params);
+    if (section === "code") return handleTaskTransitionCode(params);
     else if (section === "command") {
         // If we run into another slash, the command is invalid
         if (curr === "/") {
