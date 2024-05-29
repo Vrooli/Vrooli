@@ -1,10 +1,11 @@
-import { HOURS_1_S, LlmTask } from "@local/shared";
+import { HOURS_1_S, LlmTask, MINUTES_1_MS, Success } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
 import { SessionUserToken } from "../../types.js";
 import { PreMapMessageData, PreMapUserData } from "../../utils/chat.js";
+import { addJobToQueue } from "../queueHelper.js";
 
 /**
  * Payload for generating a bot response in a chat
@@ -153,15 +154,24 @@ export const setupLlmQueue = async () => {
  * Responds to a chat message. Handles response generation and processing, 
  * websocket events, and any other logic
  */
-export const requestBotResponse = (props: Omit<RequestBotMessagePayload, "__process">) => {
-    llmQueue.add({ ...props, __process: "BotMessage" as const }, { timeout: 1000 * 60 * 3 });
+export const requestBotResponse = (
+    props: Omit<RequestBotMessagePayload, "__process">,
+): Promise<Success> => {
+    return addJobToQueue(llmQueue,
+        { ...props, __process: "BotMessage" as const },
+        { timeout: MINUTES_1_MS });
 };
-
 
 /**
  * Requests autofill for a form. Handles response generation and processing,
  * websocket events, and any other logic
  */
-export const requestAutoFill = (props: Omit<RequestAutoFillPayload, "__process">) => {
-    llmQueue.add({ ...props, __process: "AutoFill" as const }, { timeout: 1000 * 60 * 3 });
+export const requestAutoFill = (
+    props: Omit<RequestAutoFillPayload, "__process">,
+): Promise<Success> => {
+    return addJobToQueue(llmQueue,
+        { ...props, __process: "AutoFill" as const },
+        { timeout: MINUTES_1_MS });
+};
+
 };

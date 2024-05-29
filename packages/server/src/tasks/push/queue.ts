@@ -1,8 +1,9 @@
-import { HOURS_1_S } from "@local/shared";
+import { HOURS_1_S, Success } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
+import { addJobToQueue } from "../queueHelper";
 
 export type PushSubscription = {
     endpoint: string;
@@ -68,8 +69,12 @@ export const setupPushQueue = async () => {
     }
 };
 
-export const sendPush = (subscription: PushSubscription, payload: PushPayload, delay = 0) => {
-    pushQueue.add({
+export const sendPush = (
+    subscription: PushSubscription,
+    payload: PushPayload,
+    delay = 0,
+): Promise<Success> => {
+    return addJobToQueue(pushQueue, {
         ...payload,
         ...subscription,
     }, { delay });

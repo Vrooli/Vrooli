@@ -1,10 +1,11 @@
-import { HOURS_1_S, MINUTES_1_MS, ServerLlmTaskInfo } from "@local/shared";
+import { HOURS_1_S, LlmTaskStatus, LlmTaskStatusInfo, MINUTES_1_MS, ServerLlmTaskInfo, Success } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
 import { emitSocketEvent } from "../../sockets/events";
 import { SessionUserToken } from "../../types";
+import { addJobToQueue } from "../queueHelper";
 
 type LlmTaskStatus = "suggested" | "scheduled" | "running" | "completed" | "failed";
 export type LlmTaskProcessPayload = {
@@ -69,11 +70,8 @@ export const setupLlmTaskQueue = async () => {
     }
 };
 
-export const processLlmTask = (data: Omit<LlmTaskProcessPayload, "status">) => {
-    llmTaskQueue.add(
-        { ...data, status: "scheduled" },
-        { jobId: data.taskInfo.id, timeout: MINUTES_1_MS },
-    );
+export const processLlmTask = async (data: Omit<LlmTaskProcessPayload, "status">): Promise<Success> => {
+    return addJobToQueue(llmTaskQueue, { ...data, status: "Scheduled" }, { jobId: data.taskInfo.id, timeout: MINUTES_1_MS });
 };
 
 /**

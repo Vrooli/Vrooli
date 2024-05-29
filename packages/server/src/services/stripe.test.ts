@@ -1011,8 +1011,8 @@ describe("handleCustomerSourceExpiring", () => {
 
         expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(emailQueue.add).toHaveBeenCalledTimes(2);
-        expect(emailQueue.add).toHaveBeenNthCalledWith(1, expect.objectContaining({ to: ["user1@example.com"] }));
-        expect(emailQueue.add).toHaveBeenNthCalledWith(2, expect.objectContaining({ to: ["user2@example.com"] }));
+        expect(emailQueue.add.mock.calls[0][0].to).toEqual(["user1@example.com"]);
+        expect(emailQueue.add.mock.calls[1][0].to).toEqual(["user2@example.com"]);
     });
 
     test("should return an error when the user is not found", async () => {
@@ -1238,7 +1238,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
         await handleCustomerSubscriptionUpdated({ event: mockEvent, res });
 
         expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
-        expect(emailQueue.add).toHaveBeenCalledWith(expect.objectContaining({ to: ["user@example.com"] }));
+        expect(emailQueue.add.mock.calls[0][0].to).toEqual(["user@example.com"]);
     });
 
     test("should update expiry time to past and not send thank you email for inactive premium status", async () => {
@@ -1249,7 +1249,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
         await handleCustomerSubscriptionUpdated({ event: mockEvent, res });
 
         expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
-        expect(emailQueue.add).toHaveBeenCalledWith(expect.objectContaining({ to: ["user@example.com"] }));
+        expect(emailQueue.add.mock.calls[0][0].to).toEqual(["user@example.com"]);
     });
 
     test("should return error when user is not found", async () => {

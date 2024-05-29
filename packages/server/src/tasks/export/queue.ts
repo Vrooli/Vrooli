@@ -1,8 +1,10 @@
-import { HOURS_1_S } from "@local/shared";
+import { SessionUserToken } from "@local/server";
+import { HOURS_1_S, Success } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
+import { addJobToQueue } from "../queueHelper";
 
 export type ExportProcessPayload = {
 
@@ -57,6 +59,6 @@ export const setupExportQueue = async () => {
     }
 };
 
-export const exportData = (data: ExportProcessPayload) => {
-    exportQueue.add(data); //TODO
+export const exportData = (data: ExportProcessPayload): Promise<Success> => {
+    return addJobToQueue(exportQueue, data, {});
 };

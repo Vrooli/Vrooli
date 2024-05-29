@@ -488,7 +488,6 @@ describe("handleTaskTransitionOutside", () => {
                 hasOpenBracket: true,
             });
             expect(onCommit).not.toHaveBeenCalled();
-            console.log("yeee resets on newline", result);
             expect(result).toMatchObject({ hasOpenBracket: false });
         });
         test("does not reset on space", () => {
@@ -710,7 +709,6 @@ describe("handleTaskTransitionCode", () => {
             describe("more than tick in buffer", () => {
                 test("letter", () => {
                     const buffer = "`fdsaf".split("");
-                    console.log("yeeee in more than tick in buffer");
                     const result = handleTaskTransitionCode({
                         curr: "a",
                         ...withBuffer(buffer, rest),
@@ -3374,8 +3372,6 @@ describe("extractTasks", () => {
 
     describe("real world examples", () => {
         test("test 1", () => {
-            const test = extractTasks("/add name='Get Oat Milk' description='Reminder to buy oat milk' dueDate='2023-10-06T09:00:00Z' isComplete=false", commandToTask);
-            console.log("yeeeeeet real world example 1", test);
             extractTasksTester({
                 input: "/add name='Get Oat Milk' description='Reminder to buy oat milk' dueDate='2023-10-06T09:00:00Z' isComplete=false",
                 expected: [{

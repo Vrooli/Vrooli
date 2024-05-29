@@ -1,9 +1,10 @@
-import { BUSINESS_NAME, HOURS_1_S } from "@local/shared";
+import { BUSINESS_NAME, HOURS_1_S, Success } from "@local/shared";
 import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
 import { CustomError } from "../../events/error";
+import { addJobToQueue } from "../queueHelper";
 
 export type SmsProcessPayload = {
     to: string[];
@@ -59,18 +60,18 @@ export const setupSmsQueue = async () => {
     }
 };
 
-export const sendSms = (to: string[], body: string) => {
+export const sendSms = (to: string[], body: string): Promise<Success> => {
     // Must include at least one "to" number
     if (to.length === 0) {
         throw new CustomError("0353", "InternalError", ["en"]);
     }
-    smsQueue.add({ to, body });
+    return addJobToQueue(smsQueue, { to, body }, {});
 };
 
 /** Adds a verification code text to a task queue */
-export const sendSmsVerification = (phoneNumber: string, code: string) => {
-    smsQueue.add({
+export const sendSmsVerification = (phoneNumber: string, code: string): Promise<Success> => {
+    return addJobToQueue(smsQueue, {
         to: [phoneNumber],
         body: `${code} is your ${BUSINESS_NAME} verification code`,
-    });
+    }, {});
 };
