@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, Session, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -30,13 +30,11 @@ import { TFunction } from "i18next";
 import { AddIcon, CopyIcon, ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { parseSearchParams, useLocation } from "route";
+import { useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
-import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
@@ -138,9 +136,17 @@ export const transformChatValues = (values: ChatShape, existing: ChatShape, isCr
  * Finds messages that are yours or are unsent (i.e. bot's initial message), 
  * to make sure you don't attempt to modify other people's messages
  */
-export const withoutOtherMessages = (chat: ChatShape, session?: Session) => ({
+export const withModifiableMessages = (chat: ChatShape, session?: Session) => ({
     ...chat,
     messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.status === "unsent") ?? [],
+});
+
+/**
+ * Finds messages that are only yours
+ */
+export const withYourMessages = (chat: ChatShape, session?: Session) => ({
+    ...chat,
+    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id) ?? [],
 });
 
 const ChatForm = ({
@@ -188,12 +194,12 @@ const ChatForm = ({
     useEffect(() => {
         if (isOpen === false || values.id !== DUMMY_ID || chatCreateStatus.current !== "notStarted") return;
         chatCreateStatus.current = "inProgress";
-        // Search params are often used to set chat name, but might not include translation ID
+        // Search params are often used to set chat name, but might not include some fields we need to make the yup validation happy
         const withSearchParams = { ...values, ...parseSearchParams() };
         withSearchParams.translations = withSearchParams.translations?.map(t => ({ ...t, id: t.id ?? DUMMY_ID })) ?? [];
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages(withSearchParams, session), withoutOtherMessages(existing, session), true),
+            inputs: transformChatValues(withModifiableMessages(withSearchParams, session), withYourMessages(existing, session), true),
             onSuccess: (data) => {
                 handleUpdate({ ...data, messages: [] });
                 if (display === "page") setLocation(getObjectUrl(data), { replace: true });
@@ -268,7 +274,7 @@ const ChatForm = ({
             });
             fetchLazyWrapper<ChatUpdateInput, Chat>({
                 fetch,
-                inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
+                inputs: transformChatValues(withModifiableMessages(updatedChat ?? values, session), withYourMessages(existing, session), false),
                 onSuccess: (data) => {
                     handleUpdate({ ...data, messages: [] });
                     resolve(data);
@@ -293,6 +299,7 @@ const ChatForm = ({
         addMessages: messageTree.addMessages,
         chat: existing,
         editMessage: messageTree.editMessage,
+        messageTasks: messageTree.messageTasks,
         participants,
         removeMessages: messageTree.removeMessages,
         setParticipants,

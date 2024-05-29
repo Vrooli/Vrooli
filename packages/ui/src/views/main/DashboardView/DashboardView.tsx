@@ -1,4 +1,4 @@
-import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -26,7 +26,6 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { CalendarEvent } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
@@ -35,7 +34,7 @@ import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
-import { chatInitialValues, transformChatValues, VALYXA_INFO, withoutOtherMessages } from "views/objects/chat";
+import { chatInitialValues, transformChatValues, VALYXA_INFO, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 
 const CHAT_DEFAULTS = {
@@ -108,7 +107,7 @@ export const DashboardView = ({
         const chatToUse = resetChat ? chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS) : chat;
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages(chatToUse, session), withoutOtherMessages(chatToUse, session), true),
+            inputs: transformChatValues(withModifiableMessages(chatToUse, session), withYourMessages(chatToUse, session), true),
             onSuccess: (data) => {
                 setChat({ ...data, messages: [] });
                 setUsersTyping([]);
@@ -345,7 +344,7 @@ export const DashboardView = ({
             });
             fetchLazyWrapper<ChatUpdateInput, Chat>({
                 fetch,
-                inputs: transformChatValues(withoutOtherMessages(updatedChat ?? chat, session), withoutOtherMessages(chat, session), false),
+                inputs: transformChatValues(withModifiableMessages(updatedChat ?? chat, session), withYourMessages(chat, session), false),
                 onSuccess: (data) => {
                     setChat({ ...data, messages: [] });
                     resolve(data);
@@ -369,6 +368,7 @@ export const DashboardView = ({
         addMessages: messageTree.addMessages,
         chat,
         editMessage: messageTree.editMessage,
+        messageTasks: messageTree.messageTasks,
         participants,
         removeMessages: messageTree.removeMessages,
         setParticipants,
