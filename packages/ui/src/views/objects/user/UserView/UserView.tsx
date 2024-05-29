@@ -178,19 +178,45 @@ export const UserView = ({
         // Create search params to initialize new chat. 
         // If the chat isn't new, this will initialize the chat if the one 
         // we're looking for doesn't exist (i.e. it was deleted)
-        openLink(setLocation, url, {
+        const initialChatData = {
             invites: [{
                 __typename: "ChatInvite" as const,
                 id: uuid(),
                 user: { __typename: "User", id: user.id } as Partial<User>,
-            }] as Partial<ChatInvite>[],
+            }] as Partial<ChatShape["invites"]>,
             translations: [{
                 __typename: "ChatTranslation" as const,
                 language: getUserLanguages(session)[0],
                 name: user.name,
                 description: "",
-            }],
-        });
+            }] as Partial<ChatShape["translations"]>,
+        };
+        // For bots, add a start message
+        if (user.isBot) {
+            const bestLanguage = getUserLanguages(session)[0];
+            const { translations } = findBotData(bestLanguage, user);
+            const bestTranslation = translations.length > 0
+                ? translations.find(t => t.language === bestLanguage) ?? translations[0]
+                : undefined;
+            const startingMessage = bestTranslation?.startingMessage ?? "";
+            if (startingMessage.length > 0) {
+                (initialChatData as unknown as { messages: Partial<ChatShape["messages"]> }).messages = [{
+                    id: uuid(),
+                    status: "unsent",
+                    translations: [{
+                        __typename: "ChatMessageTranslation" as const,
+                        id: uuid(),
+                        language,
+                        text: startingMessage,
+                    }],
+                    user: {
+                        __typename: "User" as const,
+                        id: user.id,
+                    },
+                }] as Partial<ChatShape["messages"]>;
+            }
+        }
+        openLink(setLocation, url, initialChatData);
     }, [session, setLocation, user]);
 
     return (
