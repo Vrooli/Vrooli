@@ -41,5 +41,5 @@ export const onSocketEvent = <T extends OnSocketEvent>(
 
     return () => {
         socket.off(event, handler as never);
-    }
+    };
 };

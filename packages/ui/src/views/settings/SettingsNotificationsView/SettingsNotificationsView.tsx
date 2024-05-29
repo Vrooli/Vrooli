@@ -1,5 +1,5 @@
 import { Email, endpointGetNotificationSettings, endpointPutNotificationSettings, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput, PushDevice } from "@local/shared";
-import { Box, Divider, Stack } from "@mui/material";
+import { Box, Button, Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -75,22 +75,54 @@ const SettingsNotificationForm = ({
                         Icon={NotificationsAllIcon}
                         title={t("Notification", { count: 2 })}
                         variant="subheader"
-                        sxs={{ stack: { marginBottom: 4 } }}
+                        sxs={{ stack: { marginBottom: 2 } }}
                     />
-                    <ListContainer>
+                    <ListContainer sx={{ marginBottom: 6 }}>
                         <SettingsToggleListItem
                             title={t("Notification", { count: 2 })}
                             description={t("PushNotificationToggleDescription")}
                             name="enabled"
                         />
                     </ListContainer>
-                    <IntegerInput
+                    <Title
+                        title={"Daily Notification Limit"}
+                        variant="subsection"
+                        help={"Limit the number of notifications you receive each day. This limit applies to all notifications, across all categories."}
+                    />
+                    {/* <IntegerInput
                         disabled={!values.enabled}
                         label={t("DailyLimit")}
                         min={0}
                         name="dailyLimit"
-                    // tooltip={t('DailyLimitNotificationDescription')}
-                    />
+                        sx={{
+                            justifyContent: "flex-start",
+                            marginLeft: 1,
+                            marginRight: 1,
+                        }}
+                    /> */}
+                    <Box sx={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                        <IntegerInput
+                            disabled={!values.enabled}
+                            label={t("DailyLimit")}
+                            min={0}
+                            name="dailyLimit"
+                            sx={{
+                                justifyContent: "flex-start",
+                                marginLeft: 1,
+                                marginRight: 1,
+                                width: "auto", // ensure the input doesn't stretch
+                                flexGrow: 1,
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            sx={{ ml: 2 }}
+                            onClick={() => { /* Logic to disable the daily limit */ }}
+                            disabled={!values.enabled}
+                        >
+                            Disable Limit
+                        </Button>
+                    </Box>
                 </Box>
                 <Divider />
                 <Box>
@@ -98,7 +130,7 @@ const SettingsNotificationForm = ({
                         Icon={PhoneIcon}
                         title={t("Device", { count: 2 })}
                         variant="subheader"
-                        sxs={{ stack: { marginBottom: 4 } }}
+                        sxs={{ stack: { marginBottom: 2 } }}
                     />
                     <PushList
                         handleUpdate={updatePushDevices}
@@ -120,14 +152,14 @@ const SettingsNotificationForm = ({
                         Icon={EmailIcon}
                         title={t("Email", { count: 2 })}
                         variant="subheader"
-                        sxs={{ stack: { marginBottom: 4 } }}
+                        sxs={{ stack: { marginBottom: 2 } }}
                     />
                     <EmailList
                         handleUpdate={updateEmails}
                         list={profile?.emails ?? []}
                         numOtherVerified={numVerifiedPhones + numVerifiedWallets}
                     />
-                    <ListContainer>
+                    <ListContainer sx={{ marginTop: 4 }}>
                         <SettingsToggleListItem
                             title={t("EmailNotification", { count: 2 })}
                             description={t("EmailNotificationToggleDescription")}
