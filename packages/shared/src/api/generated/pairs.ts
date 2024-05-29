@@ -310,6 +310,12 @@ export const endpointPostCancelTask = {
     tag: "chatMessage",
 } as const;
 
+export const endpointGetCheckTaskStatuses = {
+    endpoint: "/checkTaskStatuses",
+    method: "GET",
+    tag: "chatMessage",
+} as const;
+
 export const endpointGetChatParticipant = {
     endpoint: "/chatParticipant/:id",
     method: "GET",

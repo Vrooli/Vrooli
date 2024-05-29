@@ -27,7 +27,7 @@ export type EndpointsChatMessage = {
         chatMessageUpdate: GQLEndpoint<ChatMessageUpdateInput, UpdateOneResult<ChatMessage>>;
         regenerateResponse: GQLEndpoint<RegenerateResponseInput, Success>;
         autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
-        startTask: GQLEndpoint<StartTaskInput, StartTaskResult>;
+        startTask: GQLEndpoint<StartTaskInput, Success>;
         cancelTask: GQLEndpoint<CancelTaskInput, Success>;
         checkTaskStatuses: GQLEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
     }
@@ -145,14 +145,13 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 
-            return llmProcessStartTask({ ...input, userData, __process: "StartTask" });
+            return requestStartTask({ ...input, userData });
         },
         cancelTask: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 
-            const result = await changeLlmTaskStatus(input.taskId, "canceled", userData.id);
-            return { __typename: "Success" as const, success: result.success };
+            return changeLlmTaskStatus(input.taskId, "Suggested", userData.id);
         },
         checkTaskStatuses: async (_, { input }, { req }) => {
             await rateLimit({ maxUser: 1000, req });

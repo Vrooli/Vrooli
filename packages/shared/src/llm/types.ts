@@ -1,4 +1,4 @@
-import { LlmTask } from "../api/generated/graphqlTypes";
+import { LlmTask, LlmTaskStatus } from "../api/generated/graphqlTypes";
 
 /**
  * A task that an AI can, is, or has performed, along with 
@@ -31,13 +31,27 @@ export type LlmTaskInfo = {
         [key: string]: string | boolean | number | null;
     } | null;
     /**
+     * Label for result of task, if applicable. 
+     * 
+     * For example, if the task is to create a note, the resultLabel could be
+     * the note's title.
+     */
+    resultLabel?: string
+    /**
+     * Link to open the result of the task, if applicable.
+     * 
+     * For example, if the task is to create a note, the resultLink could be
+     * the link to view the note.
+     */
+    resultLink?: string;
+    /**
      * The task being performed, as a language-independent type.
      */
     task: LlmTask | `${LlmTask}`;
     /**
      * The latest status of the command.
      */
-    status: "suggested" | "running" | "canceling" | "completed" | "failed"
+    status: LlmTaskStatus | `${LlmTaskStatus}`;
 };
 
 export type ExistingTaskData = Record<string, string | number | boolean | null>;

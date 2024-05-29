@@ -174,4 +174,14 @@ export const requestAutoFill = (
         { timeout: MINUTES_1_MS });
 };
 
+/**
+ * Requests a specific task to be started. Handles response generation and processing,
+ * websocket events, and any other logic
+ */
+export const requestStartTask = (
+    props: Omit<StartTaskPayload, "__process">,
+): Promise<Success> => {
+    return addJobToQueue(llmQueue,
+        { ...props, __process: "StartTask" as const },
+        { timeout: MINUTES_1_MS });
 };

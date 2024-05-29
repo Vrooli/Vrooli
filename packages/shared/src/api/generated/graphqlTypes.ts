@@ -957,6 +957,15 @@ export type ChatYou = {
   canUpdate: Scalars['Boolean'];
 };
 
+export type CheckTaskStatusesInput = {
+  taskIds: Array<Scalars['ID']>;
+};
+
+export type CheckTaskStatusesResult = {
+  __typename: 'CheckTaskStatusesResult';
+  statuses: Array<LlmTaskStatusInfo>;
+};
+
 export type Comment = {
   __typename: 'Comment';
   bookmarkedBy?: Maybe<Array<User>>;
@@ -1805,6 +1814,21 @@ export enum LlmTask {
   TeamUpdate = 'TeamUpdate'
 }
 
+export enum LlmTaskStatus {
+  Canceling = 'Canceling',
+  Completed = 'Completed',
+  Failed = 'Failed',
+  Running = 'Running',
+  Scheduled = 'Scheduled',
+  Suggested = 'Suggested'
+}
+
+export type LlmTaskStatusInfo = {
+  __typename: 'LlmTaskStatusInfo';
+  id: Scalars['ID'];
+  status?: Maybe<LlmTaskStatus>;
+};
+
 export type LogOutInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
@@ -2175,6 +2199,7 @@ export type Mutation = {
   chatMessageUpdate: ChatMessage;
   chatParticipantUpdate: ChatParticipant;
   chatUpdate: Chat;
+  checkTaskStatuses: CheckTaskStatusesResult;
   commentCreate: Comment;
   commentUpdate: Comment;
   copy: CopyResult;
@@ -2298,7 +2323,7 @@ export type Mutation = {
   standardUpdate: Standard;
   standardVersionCreate: StandardVersion;
   standardVersionUpdate: StandardVersion;
-  startTask: StartTaskResult;
+  startTask: Success;
   switchCurrentAccount: Session;
   tagCreate: Tag;
   tagUpdate: Tag;
@@ -2449,6 +2474,11 @@ export type MutationChatParticipantUpdateArgs = {
 
 export type MutationChatUpdateArgs = {
   input: ChatUpdateInput;
+};
+
+
+export type MutationCheckTaskStatusesArgs = {
+  input: CheckTaskStatusesInput;
 };
 
 
@@ -9056,13 +9086,6 @@ export type StartTaskInput = {
   taskId: Scalars['ID'];
 };
 
-export type StartTaskResult = {
-  __typename: 'StartTaskResult';
-  resultLabel?: Maybe<Scalars['String']>;
-  resultLink?: Maybe<Scalars['String']>;
-  success: Scalars['Boolean'];
-};
-
 export enum StatPeriodType {
   Daily = 'Daily',
   Hourly = 'Hourly',
@@ -10168,6 +10191,8 @@ export type ResolversTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ResolverTypeWrapper<ChatYou>;
+  CheckTaskStatusesInput: CheckTaskStatusesInput;
+  CheckTaskStatusesResult: ResolverTypeWrapper<CheckTaskStatusesResult>;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
   CommentFor: CommentFor;
@@ -10245,6 +10270,8 @@ export type ResolversTypes = {
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
   LlmTask: LlmTask;
+  LlmTaskStatus: LlmTaskStatus;
+  LlmTaskStatusInfo: ResolverTypeWrapper<LlmTaskStatusInfo>;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
@@ -10748,7 +10775,6 @@ export type ResolversTypes = {
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: ResolverTypeWrapper<StandardYou>;
   StartTaskInput: StartTaskInput;
-  StartTaskResult: ResolverTypeWrapper<StartTaskResult>;
   StatPeriodType: StatPeriodType;
   StatsApi: ResolverTypeWrapper<StatsApi>;
   StatsApiEdge: ResolverTypeWrapper<StatsApiEdge>;
@@ -10939,6 +10965,8 @@ export type ResolversParentTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ChatYou;
+  CheckTaskStatusesInput: CheckTaskStatusesInput;
+  CheckTaskStatusesResult: CheckTaskStatusesResult;
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
   CommentSearchInput: CommentSearchInput;
@@ -11003,6 +11031,7 @@ export type ResolversParentTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: LabelYou;
+  LlmTaskStatusInfo: LlmTaskStatusInfo;
   LogOutInput: LogOutInput;
   Meeting: Meeting;
   MeetingCreateInput: MeetingCreateInput;
@@ -11437,7 +11466,6 @@ export type ResolversParentTypes = {
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: StandardYou;
   StartTaskInput: StartTaskInput;
-  StartTaskResult: StartTaskResult;
   StatsApi: StatsApi;
   StatsApiEdge: StatsApiEdge;
   StatsApiSearchInput: StatsApiSearchInput;
@@ -11892,6 +11920,11 @@ export type ChatYouResolvers<ContextType = any, ParentType extends ResolversPare
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type CheckTaskStatusesResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CheckTaskStatusesResult'] = ResolversParentTypes['CheckTaskStatusesResult']> = {
+  statuses?: Resolver<Array<ResolversTypes['LlmTaskStatusInfo']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type CommentResolvers<ContextType = any, ParentType extends ResolversParentTypes['Comment'] = ResolversParentTypes['Comment']> = {
   bookmarkedBy?: Resolver<Maybe<Array<ResolversTypes['User']>>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12149,6 +12182,12 @@ export type LabelYouResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type LlmTaskStatusInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['LlmTaskStatusInfo'] = ResolversParentTypes['LlmTaskStatusInfo']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['LlmTaskStatus']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type MeetingResolvers<ContextType = any, ParentType extends ResolversParentTypes['Meeting'] = ResolversParentTypes['Meeting']> = {
   attendees?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   attendeesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12320,6 +12359,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   chatMessageUpdate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageUpdateArgs, 'input'>>;
   chatParticipantUpdate?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType, RequireFields<MutationChatParticipantUpdateArgs, 'input'>>;
   chatUpdate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatUpdateArgs, 'input'>>;
+  checkTaskStatuses?: Resolver<ResolversTypes['CheckTaskStatusesResult'], ParentType, ContextType, RequireFields<MutationCheckTaskStatusesArgs, 'input'>>;
   commentCreate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentCreateArgs, 'input'>>;
   commentUpdate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentUpdateArgs, 'input'>>;
   copy?: Resolver<ResolversTypes['CopyResult'], ParentType, ContextType, RequireFields<MutationCopyArgs, 'input'>>;
@@ -12443,7 +12483,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   standardUpdate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardUpdateArgs, 'input'>>;
   standardVersionCreate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionCreateArgs, 'input'>>;
   standardVersionUpdate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionUpdateArgs, 'input'>>;
-  startTask?: Resolver<ResolversTypes['StartTaskResult'], ParentType, ContextType, RequireFields<MutationStartTaskArgs, 'input'>>;
+  startTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStartTaskArgs, 'input'>>;
   switchCurrentAccount?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationSwitchCurrentAccountArgs, 'input'>>;
   tagCreate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagCreateArgs, 'input'>>;
   tagUpdate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagUpdateArgs, 'input'>>;
@@ -14587,13 +14627,6 @@ export type StandardYouResolvers<ContextType = any, ParentType extends Resolvers
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type StartTaskResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StartTaskResult'] = ResolversParentTypes['StartTaskResult']> = {
-  resultLabel?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  resultLink?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  success?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type StatsApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsApi'] = ResolversParentTypes['StatsApi']> = {
   calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -15196,6 +15229,7 @@ export type Resolvers<ContextType = any> = {
   ChatSearchResult?: ChatSearchResultResolvers<ContextType>;
   ChatTranslation?: ChatTranslationResolvers<ContextType>;
   ChatYou?: ChatYouResolvers<ContextType>;
+  CheckTaskStatusesResult?: CheckTaskStatusesResultResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
@@ -15224,6 +15258,7 @@ export type Resolvers<ContextType = any> = {
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;
   LabelTranslation?: LabelTranslationResolvers<ContextType>;
   LabelYou?: LabelYouResolvers<ContextType>;
+  LlmTaskStatusInfo?: LlmTaskStatusInfoResolvers<ContextType>;
   Meeting?: MeetingResolvers<ContextType>;
   MeetingEdge?: MeetingEdgeResolvers<ContextType>;
   MeetingInvite?: MeetingInviteResolvers<ContextType>;
@@ -15442,7 +15477,6 @@ export type Resolvers<ContextType = any> = {
   StandardVersionSearchResult?: StandardVersionSearchResultResolvers<ContextType>;
   StandardVersionTranslation?: StandardVersionTranslationResolvers<ContextType>;
   StandardYou?: StandardYouResolvers<ContextType>;
-  StartTaskResult?: StartTaskResultResolvers<ContextType>;
   StatsApi?: StatsApiResolvers<ContextType>;
   StatsApiEdge?: StatsApiEdgeResolvers<ContextType>;
   StatsApiSearchResult?: StatsApiSearchResultResolvers<ContextType>;

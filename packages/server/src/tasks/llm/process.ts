@@ -1,4 +1,4 @@
-import { AutoFillResult, BotSettings, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, StartTaskResult, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, toBotSettings } from "@local/shared";
+import { AutoFillResult, BotSettings, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, toBotSettings } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -12,7 +12,7 @@ import { Trigger } from "../../events/trigger";
 import { emitSocketEvent } from "../../sockets/events";
 import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
-import { executeLlmTask, processLlmTask } from "../llmTask";
+import { processLlmTask } from "../llmTask";
 import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload, StartTaskPayload } from "./queue";
 import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service";
@@ -233,13 +233,13 @@ export const llmProcessBotMessage = async ({
                         ...command,
                         lastUpdated: new Date().toISOString(),
                         messageId: fullResponseMessage.id,
-                        status: "running" as const,
+                        status: "Running" as const,
                     })),
                     ...botTasksToSuggest.map((command) => ({
                         ...command,
                         lastUpdated: new Date().toISOString(),
                         messageId: fullResponseMessage.id,
-                        status: "suggested" as const,
+                        status: "Suggested" as const,
                     })),
                 ],
             });
@@ -326,7 +326,7 @@ export const llmProcessStartTask = async ({
     task,
     taskId,
     userData,
-}: StartTaskPayload): Promise<StartTaskResult> => {
+}: StartTaskPayload) => {
     let chatId: string | null = null;
     try {
         const language = userData.languages[0] ?? "en";
@@ -365,9 +365,9 @@ export const llmProcessStartTask = async ({
         }
         const respondingBotId = bots.find(b => b.id === botId)?.id ?? bots[0].id;
         const respondingBotConfig = parseBotInformation(preMapUserData, respondingBotId, logger, language);
-        // Let the UI know that the task is running
+        // Let the UI know that the task is Running
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "running" }] });
+            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "Running" }] });
         }
         // Generate information to run the task
         const commandToTask = await importCommandToTask(language, logger);
@@ -401,22 +401,16 @@ export const llmProcessStartTask = async ({
         const taskData = {
             chatId,
             language,
-            taskInfo: taskToRun,
+            taskInfo: { ...taskToRun, messageId },
             userData,
         };
-        const finalTask = await executeLlmTask({ data: taskData });
-        if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [finalTask] });
-        }
-        //TODO create label and link to display and navigate to task in UI
-        // TODO should probably add info to llmTask socket event too, and not just the API result
-        return { __typename: "StartTaskResult" as const, success: finalTask.status === "completed" };
+        processLlmTask(taskData);
     } catch (error) {
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "failed" }] });
+            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "Failed" }] });
         }
         logger.error("Caught error in llmProcessStartTask", { trace: "0331", error });
-        return { __typename: "StartTaskResult" as const, success: false };
+        return { __typename: "Success" as const, success: false };
     }
 };
 
