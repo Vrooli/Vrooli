@@ -1,55 +1,55 @@
-import { ServerLlmTaskInfo } from "@local/shared";
+import { LlmTaskInfo, ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
 import { generateTaskExec } from "../llm/converter";
-import { LlmTaskProcessPayload } from "./queue";
+import { LlmTaskProcessPayload, changeLlmTaskStatus } from "./queue";
 
 type ExecuteLlmTaskParams = {
     data: Omit<LlmTaskProcessPayload, "status">;
-    /** If provided, updates bull queue data */
-    update?: (data: LlmTaskProcessPayload) => Promise<unknown>;
 }
-export type ExecuteLlmTaskResult = ServerLlmTaskInfo & { status: "completed" | "failed" };
+export type ExecuteLlmTaskResult = ServerLlmTaskInfo & Pick<LlmTaskInfo, "resultLabel" | "resultLink"> & {
+    status: "Completed" | "Failed"
+};
 
 export const executeLlmTask = async ({
     data,
-    update,
 }: ExecuteLlmTaskParams): Promise<ExecuteLlmTaskResult> => {
     const { chatId, language, taskInfo, userData } = data;
     let success = false;
+    let resultLabel: string | undefined;
+    let resultLink: string | undefined;
     try {
         // Notify UI that command is being processed
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskInfo.id, status: "running" }] });
+            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskInfo.id, status: "Running" }] });
         }
 
         // Convert command to task and execute
         const taskExec = await generateTaskExec(taskInfo.task, language, userData);
-        taskExec(taskInfo.properties ?? {});
+        const taskResult = await taskExec(taskInfo.properties ?? {});
+        resultLabel = taskResult.label ?? undefined;
+        resultLink = taskResult.link ?? undefined;
         success = true;
     } catch (error) {
         logger.error("Caught error in executeLlmTask", { trace: "0498", error, taskInfo, language, userId: (userData as unknown as LlmTaskProcessPayload["userData"])?.id });
-        if (update) {
-            await update({ ...data, status: "failed" });
-        }
-
+        await changeLlmTaskStatus(taskInfo.id, "Failed", userData.id);
     }
     const result = {
         ...(taskInfo as LlmTaskProcessPayload["taskInfo"]),
         lastUpdated: new Date().toISOString(),
-        status: success ? "completed" as const : "failed" as const,
+        resultLabel,
+        resultLink,
+        status: success ? "Completed" as const : "Failed" as const,
     };
     if (chatId && taskInfo !== null) {
-        emitSocketEvent("llmTasks", chatId, { updates: [result] });
+        emitSocketEvent("llmTasks", chatId, { tasks: [result] });
     }
-    if (update) {
-        await update({ ...data, status: result.status });
-    }
+    await changeLlmTaskStatus(taskInfo.id, result.status, userData.id);
     return result;
 };
 
-export const llmTaskProcess = async ({ data, update }: Job<LlmTaskProcessPayload>) => {
-    await update({ ...data, status: "running" });
-    await executeLlmTask({ data, update });
+export const llmTaskProcess = async ({ data }: Job<LlmTaskProcessPayload>) => {
+    await changeLlmTaskStatus(data.taskInfo.id, "Running", data.userData.id);
+    await executeLlmTask({ data });
 };

@@ -37,8 +37,8 @@ describe("processLlmTask", () => {
         const actualData = llmTaskQueue.add.mock.calls[0][0];
 
         // Validate that the data in the queue matches the provided payload 
-        // plus a status of "scheduled"
-        expect(actualData).toMatchObject({ ...testTask, status: "scheduled" });
+        // plus a status of "Scheduled"
+        expect(actualData).toMatchObject({ ...testTask, status: "Scheduled" });
 
         // Additionally, check if the jobId and timeout options are set correctly
         const options = llmTaskQueue.add.mock.calls[0][1];
@@ -47,81 +47,89 @@ describe("processLlmTask", () => {
 });
 
 describe("changeLlmTaskStatus", () => {
-    let llmTaskQueue;
-
-    beforeAll(async () => {
-        llmTaskQueue = new Bull("command");
-        await setupLlmTaskQueue();
-    });
-
     beforeEach(() => {
         Bull.resetMock();
     });
 
-    test("should reschedule a failed task", async () => {
-        // Add a mock job with status "failed"
+    test("should update a failed task that exists", async () => {
+        // Add a mock job with status "Failed"
         const mockJob = {
             id: "jobId123",
-            data: { userData: { id: "userId456" }, status: "failed" },
+            data: { userData: { id: "userId456" }, status: "Failed" },
             getState: jest.fn().mockResolvedValue("failed"),
             update: jest.fn(),
         };
         Bull.__addMockJob(mockJob);
 
-        const result = await changeLlmTaskStatus("jobId123", "scheduled", "userId456");
+        const result = await changeLlmTaskStatus("jobId123", "Scheduled", "userId456");
 
-        expect(result).toEqual({ success: true, message: "Task rescheduled." });
-        expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "scheduled" });
-        expect(llmTaskQueue.add).toHaveBeenCalledWith(mockJob.data);
+        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "Scheduled" });
     });
 
-    test("should cancel a task that exists", async () => {
-        // Add a mock job with status "scheduled"
+    test("should consider it a success when updating to 'Failed' and the task doesn't exist", async () => {
+        const result = await changeLlmTaskStatus("jobId123", "Failed", "userId456");
+
+        expect(result).toEqual({ __typename: "Success" as const, success: true });
+    });
+
+    test("should consider it a success when updating to 'Completed' and the task doesn't exist", async () => {
+        const result = await changeLlmTaskStatus("jobId123", "Completed", "userId456");
+
+        expect(result).toEqual({ __typename: "Success" as const, success: true });
+    });
+
+    test("should consider it a success when updating to 'Suggested' and the task doesn't exist", async () => {
+        const result = await changeLlmTaskStatus("jobId123", "Suggested", "userId456");
+
+        expect(result).toEqual({ __typename: "Success" as const, success: true });
+    });
+
+    test("should consider it a fail when updating to 'Running' and the task doesn't exist", async () => {
+        const result = await changeLlmTaskStatus("jobId123", "Running", "userId456");
+
+        expect(result).toEqual({ __typename: "Success" as const, success: false });
+    });
+
+    test("should update a scheduled task that exists", async () => {
+        // Add a mock job with status "Scheduled"
         const mockJob = {
             id: "jobId123",
-            data: { userData: { id: "userId456" }, status: "scheduled" },
+            data: { userData: { id: "userId456" }, status: "Scheduled" },
             update: jest.fn(),
-            remove: jest.fn(),
         };
         Bull.__addMockJob(mockJob);
 
-        const result = await changeLlmTaskStatus("jobId123", "canceled", "userId456");
+        const result = await changeLlmTaskStatus("jobId123", "Running", "userId456");
 
-        expect(result).toEqual({ success: true, message: "Task canceled." });
-        expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "suggested" }); // A canceled task switches to "suggested", since it can be rescheduled
-        expect(mockJob.remove).toHaveBeenCalled();
-    });
-
-    test("should consider it a success if trying to cancel a task that does not exist", async () => {
-        const result = await changeLlmTaskStatus("jobId123", "canceled", "userId123");
-
-        expect(result).toEqual({ success: true, message: "Task not found but considered canceled." });
+        expect(result).toEqual({ __typename: "Success" as const, success: true });
+        expect(mockJob.update).toHaveBeenCalledWith({ ...mockJob.data, status: "Running" });
     });
 
     test("should fail to reschedule a task if not in the correct state", async () => {
-        // Add a mock job with status "completed"
+        // Add a mock job with status "Completed"
         const mockJob = {
             id: "jobId123",
-            data: { userData: { id: "userId456" }, status: "completed" },
+            data: { userData: { id: "userId456" }, status: "Completed" },
             getState: jest.fn().mockResolvedValue("completed"),
         };
         Bull.__addMockJob(mockJob);
 
-        const result = await changeLlmTaskStatus("jobId123", "scheduled", "userId456");
+        const result = await changeLlmTaskStatus("jobId123", "Scheduled", "userId456");
 
-        expect(result).toEqual({ success: false, message: "LLM task with jobId jobId123 cannot be rescheduled from state completed." });
+        expect(result).toEqual({ __typename: "Success" as const, success: false });
     });
 
     test("should not allow unauthorized user to change task status", async () => {
-        // Add a mock job with status "scheduled"
+        // Add a mock job with status "Scheduled"
         const mockJob = {
             id: "jobId123",
-            data: { userData: { id: "userId456" }, status: "scheduled" },
+            data: { userData: { id: "userId456" }, status: "Scheduled" },
         };
         Bull.__addMockJob(mockJob);
 
-        const result = await changeLlmTaskStatus("jobId123", "canceled", "unauthorizedUserId");
+        const result = await changeLlmTaskStatus("jobId123", "Running", "unauthorizedUserId");
 
-        expect(result).toEqual({ success: false, message: "User unauthorizedUserId is not authorized to change the status of job jobId123." });
+        expect(result).toEqual({ __typename: "Success" as const, success: false });
     });
 });

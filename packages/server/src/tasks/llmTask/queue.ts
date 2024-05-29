@@ -3,18 +3,16 @@ import Bull from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
-import { emitSocketEvent } from "../../sockets/events";
 import { SessionUserToken } from "../../types";
 import { addJobToQueue } from "../queueHelper";
 
-type LlmTaskStatus = "suggested" | "scheduled" | "running" | "completed" | "failed";
 export type LlmTaskProcessPayload = {
     /** The chat the command was triggered in */
     chatId?: string | null;
     /** The language the command was triggered in */
     language: string;
     /** The status of the job process */
-    status: LlmTaskStatus;
+    status: LlmTaskStatus | `${LlmTaskStatus}`;
     /** The task to be run */
     taskInfo: ServerLlmTaskInfo;
     /** The user who's running the command (not the bot) */
@@ -83,70 +81,58 @@ export const processLlmTask = async (data: Omit<LlmTaskProcessPayload, "status">
  */
 export const changeLlmTaskStatus = async (
     jobId: string,
-    status: "scheduled" | "canceled" | "running",
+    status: `${LlmTaskStatus}`,
     userId: string,
-): Promise<{ success: boolean, message: string }> => {
+): Promise<Success> => {
     try {
         const job = await llmTaskQueue.getJob(jobId);
         if (!job) {
-            // Job not found in queue, handle based on desired status
-            if (status === "canceled") {
-                logger.info(`LLM task with jobId ${jobId} not found, but considered canceled.`);
-                return { success: true, message: "Task not found but considered canceled." };
-            } else {
-                throw new Error(`LLM task with jobId ${jobId} not found.`);
+            // If job isn't found but we're changing to a start or end state, consider it a success
+            if (["Completed", "Failed", "Suggested"].includes(status)) {
+                logger.info(`LLM task with jobId ${jobId} not found, but considered a success.`);
+                return { __typename: "Success" as const, success: true };
+            }
+            // Otherwise, consider it an error 
+            else {
+                logger.error(`LLM task with jobId ${jobId} not found.`);
+                return { __typename: "Success" as const, success: false };
             }
         }
 
         // Check if the user has permission to change the status
         if (job.data.userData.id !== userId) {
-            throw new Error(`User ${userId} is not authorized to change the status of job ${jobId}.`);
+            logger.error(`User ${userId} is not authorized to change the status of job ${jobId}.`);
+            return { __typename: "Success" as const, success: false };
         }
 
-        if (status === "scheduled") {
-            const currentState = await job.getState();
-            if (currentState === "failed" || currentState === "waiting") {
-                // Add the job back to the queue if it failed or is waiting
-                await job.update({ ...job.data, status: "scheduled" });
-                await llmTaskQueue.add(job.data);
-                logger.info(`LLM task with jobId ${jobId} rescheduled.`);
-                if (job.data.chatId) {
-                    emitSocketEvent("llmTasks", job.data.chatId, { updates: [{ id: job.data.taskInfo.id, status: "failed" }] });
-                }
-                return { success: true, message: "Task rescheduled." };
-            } else {
-                throw new Error(`LLM task with jobId ${jobId} cannot be rescheduled from state ${currentState}.`);
-            }
-        } else if (status === "canceled") {
-            await job.update({ ...job.data, status: "suggested" });
-            await job.remove();
-            logger.info(`LLM task with jobId ${jobId} canceled.`);
-            if (job.data.chatId) {
-                emitSocketEvent("llmTasks", job.data.chatId, { updates: [{ id: job.data.taskInfo.id, status: "suggested" }] });
-            }
-            return { success: true, message: "Task canceled." };
-        }
+        // Update the job status
+        await job.update({ ...job.data, status });
+        return { __typename: "Success" as const, success: true };
     } catch (error) {
         logger.error(`Failed to change status for LLM task with jobId ${jobId}.`, { error });
-        return { success: false, message: (error as { message?: string }).message || "Failed to change status." };
+        return { __typename: "Success" as const, success: false };
     }
-    logger.error(`Failed to change status for LLM task with jobId ${jobId}.`);
-    return { success: false, message: "Failed to change status." };
 };
 
-export const getLlmTaskStatus = async (jobId: string) => {
-    try {
-        const job = await llmTaskQueue.getJob(jobId);
-        if (job) {
-            const state = await job.getState();
-            const progress = await job.progress();
-            const result = await job.finished().catch(err => ({ error: err.message }));
-            return { state, progress, result };
-        } else {
-            return { state: "not found" };
+/**
+ * Get the statuses of multiple LLM tasks.
+ * @param taskIds Array of task IDs for which to fetch the statuses.
+ * @returns Promise that resolves to an array of objects with task ID and status.
+ */
+export const getLlmTaskStatuses = async (taskIds: string[]): Promise<LlmTaskStatusInfo[]> => {
+    const taskStatusInfos = await Promise.all(taskIds.map(async (taskId) => {
+        try {
+            const job = await llmTaskQueue.getJob(taskId);
+            if (job) {
+                return { __typename: "LlmTaskStatusInfo" as const, id: taskId, status: job.data.status as LlmTaskStatus };
+            } else {
+                return { __typename: "LlmTaskStatusInfo" as const, id: taskId, status: null };  // Task not found, return null status
+            }
+        } catch (error) {
+            console.error(`Failed to retrieve job ${taskId}:`, error);
+            return { __typename: "LlmTaskStatusInfo" as const, id: taskId, status: null };  // Return null if there is an error fetching the job
         }
-    } catch (error) {
-        logger.error(`Failed to get status for LLM task with jobId ${jobId}.`, { error });
-        throw error;
-    }
+    }));
+
+    return taskStatusInfos;
 };
