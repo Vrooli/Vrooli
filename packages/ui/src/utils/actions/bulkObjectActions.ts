@@ -1,9 +1,9 @@
-import { BookmarkFor, CommonKey, CopyType, DeleteType, ReportFor, Session } from "@local/shared";
+import { BookmarkFor, CommonKey, CopyType, DeleteType, ListObject, ReportFor, Session } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "icons";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { ListObject, getYou } from "utils/display/listTools";
+import { getYou } from "utils/display/listTools";
 
 /**
  * All available bulk actions

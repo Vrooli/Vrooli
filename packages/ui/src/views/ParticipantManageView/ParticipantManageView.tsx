@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteStatus, DUMMY_ID, noop, User, uuidValidate } from "@local/shared";
+import { ChatInvite, ChatInviteStatus, DUMMY_ID, ListObject, noop, User, uuidValidate } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -13,7 +13,6 @@ import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { ListObject } from "utils/display/listTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatInvitesUpsert } from "views/objects/chatInvite";

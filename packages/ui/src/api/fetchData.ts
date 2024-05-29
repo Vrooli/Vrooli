@@ -1,5 +1,5 @@
+import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
 import { Method, ServerResponse } from "api";
-import { ParseSearchParamsResult, stringifySearchParams } from "route";
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");

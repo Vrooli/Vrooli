@@ -1,9 +1,8 @@
-import { Count, DeleteManyInput, DeleteType, endpointPostDeleteMany, exists, User } from "@local/shared";
+import { Count, DeleteManyInput, DeleteType, endpointPostDeleteMany, exists, ListObject, User } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
 import { useCallback, useState } from "react";
 import { BulkObjectActionComplete } from "utils/actions/bulkObjectActions";
-import { ListObject } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { ConfirmationLevel, ObjectsToDeleteConfirmLevel } from "./useDeleter";
 import { useLazyFetch } from "./useLazyFetch";

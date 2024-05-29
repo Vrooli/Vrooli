@@ -1,4 +1,4 @@
-import { endpointGetFeedPopular, PopularSearchInput, PopularSearchResult } from "@local/shared";
+import { AutocompleteOption, endpointGetFeedPopular, getObjectUrl, PopularSearchInput, PopularSearchResult, ShortcutOption } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -9,10 +9,8 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { AutocompleteOption, ShortcutOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 

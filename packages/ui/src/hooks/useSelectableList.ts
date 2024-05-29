@@ -1,5 +1,5 @@
+import { ListObject } from "@local/shared";
 import { useCallback, useState } from "react";
-import { ListObject } from "utils/display/listTools";
 
 type UseSelectableListReturn<T extends ListObject> = {
     isSelecting: boolean;

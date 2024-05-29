@@ -1,10 +1,10 @@
+import { getObjectUrl } from "@local/shared";
 import { Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo } from "react";
 import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { OwnerLabelProps } from "../types";
 
 /**

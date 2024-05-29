@@ -1,7 +1,7 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { GqlModelType, uuidValidate } from "@local/shared";
+import { GqlModelType, ListObject, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -18,9 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
-import { getObjectUrlBase } from "utils/navigation/openObject";
 import { SearchType, myStuffTabParams } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
 

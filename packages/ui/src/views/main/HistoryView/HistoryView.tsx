@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, ListObject, getObjectUrlBase } from "@local/shared";
 import { IconButton, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -9,8 +9,6 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { ListObject } from "utils/display/listTools";
-import { getObjectUrlBase } from "utils/navigation/openObject";
 import { SearchType, historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 

@@ -1,4 +1,4 @@
-import { uuidValidate } from "@local/shared";
+import { ListObject, uuidValidate } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -8,7 +8,6 @@ import { Field } from "formik";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
-import { ListObject } from "utils/display/listTools";
 import { memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 

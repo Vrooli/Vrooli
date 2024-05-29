@@ -1,5 +1,5 @@
+import { ListObject } from "@local/shared";
 import { useCallback, useState } from "react";
-import { ListObject } from "utils/display/listTools";
 
 /** Hook for providing context menu logic for object lists */
 export const useObjectContextMenu = () => {

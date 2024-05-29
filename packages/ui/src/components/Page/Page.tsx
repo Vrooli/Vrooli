@@ -1,9 +1,9 @@
-import { LINKS } from "@local/shared";
+import { LINKS, stringifySearchParams } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { SessionContext } from "contexts/SessionContext";
 import { useContext } from "react";
-import { Redirect, stringifySearchParams, useLocation } from "route";
+import { Redirect, useLocation } from "route";
 import { PubSub } from "utils/pubsub";
 import { PageProps } from "views/types";
 

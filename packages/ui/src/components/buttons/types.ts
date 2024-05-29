@@ -1,8 +1,8 @@
-import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
+import { BookmarkFor, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
 import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { FormErrors, NavigableObject, PartialWithType, SvgProps, SxType } from "types";
+import { FormErrors, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";

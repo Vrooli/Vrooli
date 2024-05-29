@@ -1,57 +1,9 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, DUMMY_ID, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, DUMMY_ID, exists, isOfType, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View, YouInflated } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
-import { AutocompleteOption } from "types";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
 import { getTranslation, getUserLanguages } from "./translationTools";
-
-/** Any object that can be displayed using ObjectListItemBase. 
- * Typically objects from the API (e.g. users, routines), but can also be events (which 
- * are calculated from schedules).
- * 
- * NOTE: This type supports partially-loaded objects, as would be the case when waiting 
- * for full data to load. This means the only known property is the __typename.
- * 
- * NOTE 2: Ideally this would be a Partial union, but a union on so many types causes a 
- * heap out of memory error  */
-export type ListObject = {
-    __typename: `${GqlModelType}` | "CalendarEvent";
-    id?: string;
-    completedAt?: number | null;
-    startedAt?: number | null;
-    name?: string | null;
-    projectVersion?: ListObject | null;
-    root?: ListObject | null;
-    routineVersion?: ListObject | null;
-    to?: ListObject | null;
-    translations?: {
-        id: string;
-        language: string;
-        name?: string | null;
-    }[] | null;
-    user?: ListObject | null;
-    versions?: ListObject[] | null;
-    you?: Partial<YouInflated> | null;
-};
-
-/**
- * All possible permissions/user-statuses any object can have
- */
-export type YouInflated = {
-    canComment: boolean;
-    canCopy: boolean;
-    canDelete: boolean;
-    canRead: boolean;
-    canReport: boolean;
-    canShare: boolean;
-    canBookmark: boolean;
-    canUpdate: boolean;
-    canReact: boolean;
-    isBookmarked: boolean;
-    isViewed: boolean;
-    reaction: string | null; // Your reaction to object, or thumbs up/down if vote instead of reaction
-}
 
 /**
  * Most possible counts (including score) any object can have

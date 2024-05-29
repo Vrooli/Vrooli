@@ -2,7 +2,6 @@ import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
 import { ThemeType } from "./cookies";
-import { ChatMessageShape } from "./shape/models/chatMessage";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
     messageKey: KeyList;
@@ -52,19 +51,9 @@ export type SideMenuPub = {
     isOpen: boolean;
 }
 
-export type ChatMessagePub = {
-    chatId: string;
-    data: {
-        newMessage?: ChatMessageShape;
-        updatedMessage?: ChatMessageShape;
-        deletedMessage?: string;
-    }
-}
-
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
     celebration: CelebrationPub;
-    chatMessage: ChatMessagePub;
     commandPalette: void;
     cookies: void;
     fastUpdate: { on?: boolean, duration?: number };

@@ -5,8 +5,7 @@
  * unclear whether EU's Cookie Law applies to localStorage, but it is better to
  * be safe than sorry.
  */
-import { ActiveFocusMode, FocusMode, GqlModelType, LlmTaskInfo } from "@local/shared";
-import { NavigableObject } from "types";
+import { ActiveFocusMode, FocusMode, GqlModelType, LlmTaskInfo, NavigableObject } from "@local/shared";
 import { getDeviceInfo } from "./display/device";
 import { chatMatchHash } from "./hash";
 import { LocalStorageLruCache } from "./localStorageLruCache";

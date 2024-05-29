@@ -1,11 +1,10 @@
-import { ResourceListFor, StandardVersion, Tag } from "@local/shared";
+import { ListObject, ResourceListFor, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
-import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
 import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
 

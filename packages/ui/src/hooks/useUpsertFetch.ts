@@ -1,6 +1,5 @@
-import { noop, OrArray } from "@local/shared";
+import { ListObject, noop, OrArray } from "@local/shared";
 import { Method } from "api";
-import { ListObject } from "utils/display/listTools";
 import { MakeLazyRequest, useLazyFetch, UseLazyFetchProps } from "./useLazyFetch";
 
 type CommonProps<IsMutate extends boolean> = {

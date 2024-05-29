@@ -1,5 +1,5 @@
+import { stringifySearchParams } from "@local/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { stringifySearchParams } from "./searchParams";
 import { SetLocation } from "./types";
 
 export type Href = string;

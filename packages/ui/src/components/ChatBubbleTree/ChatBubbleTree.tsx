@@ -1,4 +1,4 @@
-import { ChatSocketEventPayloads, LlmTaskInfo, noop } from "@local/shared";
+import { ChatSocketEventPayloads, ListObject, LlmTaskInfo, noop } from "@local/shared";
 import { Box, IconButton, Typography, useTheme } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
 import { Dimensions } from "components/graphs/types";
@@ -8,7 +8,7 @@ import { ArrowDownIcon } from "icons";
 import { Dispatch, RefObject, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { BranchMap } from "utils/cookies";
-import { ListObject, getDisplay } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {

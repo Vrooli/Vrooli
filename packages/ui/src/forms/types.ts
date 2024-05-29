@@ -1,9 +1,8 @@
-import { InputType, Node, OrArray } from "@local/shared";
+import { InputType, ListObject, Node, OrArray } from "@local/shared";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { CodeInputProps as CP, DropzoneProps as DP, LanguageInputProps as LP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
-import { ListObject } from "utils/display/listTools";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { TagShape } from "utils/shape/models/tag";
 import { NodeWithEndCrudProps, NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";

@@ -195,7 +195,6 @@
     "Data": "Data",
     "DataSettingsDescription": "Manage your public and private data.",
     "DataSettingsPageText": "This page allows you to download and or delete your public and private data. Select the data types, date range, and format you would like to use. Then press the *download* or *delete* button.\n\n**Deleting your data will permanently remove it from our servers. This action cannot be undone.**",
-    "DataSettingsPageText2": "Switch to privacy settings",
     "DateCreatedAsc": "Oldest",
     "DateCreatedDesc": "Newest",
     "DateCompletedAsc": "Completed ↑",

@@ -1,7 +1,7 @@
-import { Routine } from "@local/shared";
+import { ListObject, Routine } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
 import { SvgComponent, SxType } from "types";
-import { DisplayAdornment, ListObject } from "utils/display/listTools";
+import { DisplayAdornment } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {

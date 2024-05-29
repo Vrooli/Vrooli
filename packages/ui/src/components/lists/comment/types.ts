@@ -1,5 +1,4 @@
-import { Comment, CommentThread } from "@local/shared";
-import { NavigableObject } from "types";
+import { Comment, CommentThread, NavigableObject } from "@local/shared";
 
 export interface CommentConnectorProps {
     isOpen: boolean;

@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DUMMY_ID, DeleteManyInput, DeleteType, Resource, ResourceList as ResourceListType, ResourceUsedFor, endpointPostDeleteMany } from "@local/shared";
+import { CommonKey, Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, endpointPostDeleteMany } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -26,7 +26,7 @@ import { CardBox, multiLineEllipsis } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getResourceIcon } from "utils/display/getResourceIcon";
-import { ListObject, getDisplay } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";

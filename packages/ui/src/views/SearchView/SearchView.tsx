@@ -1,4 +1,4 @@
-import { GqlModelType, LINKS } from "@local/shared";
+import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared";
 import { IconButton, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -12,9 +12,7 @@ import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { ListObject } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
-import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { SearchType, searchViewTabParams } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";

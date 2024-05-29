@@ -1,4 +1,4 @@
-import { ApiVersion, Count, DeleteManyInput, DeleteType, GqlModelType, NoteVersion, Organization, ProjectVersion, ProjectVersionDirectory, RoutineVersion, SmartContractVersion, StandardVersion, TimeFrame, endpointPostDeleteMany, isOfType } from "@local/shared";
+import { ApiVersion, Count, DeleteManyInput, DeleteType, GqlModelType, ListObject, NoteVersion, Organization, ProjectVersion, ProjectVersionDirectory, RoutineVersion, SmartContractVersion, StandardVersion, TimeFrame, endpointPostDeleteMany, getObjectUrl, isOfType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SortButton } from "components/buttons/SortButton/SortButton";
@@ -26,9 +26,8 @@ import { useLocation } from "route";
 import { CardBox, multiLineEllipsis } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { ListObject, getDisplay } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { DirectoryListSortBy, initializeDirectoryList } from "../common";
 import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, DirectoryListProps, DirectoryListVerticalProps } from "../types";

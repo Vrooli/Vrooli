@@ -1,8 +1,8 @@
+import { stringifySearchParams } from "@local/shared";
 import { Box, Button, Checkbox, Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import BunnyCrash from "assets/img/BunnyCrash.svg";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CopyIcon, HomeIcon, RefreshIcon } from "icons";
 import { Component } from "react";
-import { stringifySearchParams } from "route";
 import { SlideImage } from "styles";
 import { ErrorBoundaryProps } from "../../views/types";
 

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, endpointPostBookmark, noop, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, ListObject, endpointPostBookmark, getObjectUrlBase, noop, uuid } from "@local/shared";
 import { Box, IconButton, SwipeableDrawer, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SelectorBase } from "components/inputs/Selector/Selector";
@@ -17,8 +17,6 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { ListObject } from "utils/display/listTools";
-import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, chatTabParams } from "utils/search/objectToSearch";
 import { BookmarkShape, shapeBookmark } from "utils/shape/models/bookmark";

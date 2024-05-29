@@ -1,3 +1,4 @@
+import { parseSearchParams } from "@local/shared";
 import { Box, Button, Grid, Tooltip, Typography, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { GeneratedGrid } from "components/inputs/generated";
@@ -8,7 +9,7 @@ import { FieldData, FormSchema } from "forms/types";
 import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addSearchParams, parseSearchParams, removeSearchParams, useLocation } from "route";
+import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";

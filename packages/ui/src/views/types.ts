@@ -1,7 +1,6 @@
-import { OrArray, RoutineVersion } from "@local/shared";
+import { ListObject, OrArray, RoutineVersion } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
-import { ListObject } from "utils/display/listTools";
 import { ChatShape } from "utils/shape/models/chat";
 import { MemberInviteShape } from "utils/shape/models/memberInvite";
 

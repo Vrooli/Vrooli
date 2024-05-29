@@ -1,13 +1,10 @@
-import { DUMMY_ID, GqlModelType, LINKS, OrArray } from "@local/shared";
+import { DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { FormProps } from "forms/types";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { NavigableObject } from "types";
 import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/cookies";
-import { ListObject } from "utils/display/listTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 
 type TType = OrArray<{ __typename: ListObject["__typename"], id: string }>;

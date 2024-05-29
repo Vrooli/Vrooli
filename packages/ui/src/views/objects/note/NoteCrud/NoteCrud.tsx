@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, NoteVersion, NoteVersionCreateInput, noteVersionTranslationValidation, NoteVersionUpdateInput, noteVersionValidation, orDefault, Session, Success } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -30,7 +30,7 @@ import { useLocation } from "route";
 import { FormContainer, FormSection } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";

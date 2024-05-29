@@ -1,4 +1,4 @@
-import { endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, uuid, uuidValidate } from "@local/shared";
+import { base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -16,7 +16,7 @@ import { DecisionStep, DirectoryStep, EndStep, ProjectStep, RoutineListStep, Rou
 import { ProjectStepType, RoutineStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { base36ToUuid, tryOnClose } from "utils/navigation/urlTools";
+import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRunPercentComplete, locationArraysMatch, routineVersionHasSubroutines, runInputsUpdate } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
@@ -392,7 +392,7 @@ export const RunView = ({
     const params = useReactSearch(null);
     const { runId, testMode } = useMemo(() => {
         return {
-            runId: (typeof params.run === "string" && uuidValidate(base36ToUuid(params.run, false))) ? base36ToUuid(params.run) : undefined,
+            runId: (typeof params.run === "string" && uuidValidate(base36ToUuid(params.run))) ? base36ToUuid(params.run) : undefined,
             testMode: params.run === "test",
         };
     }, [params]);

@@ -1,9 +1,10 @@
+import { ListObject } from "@local/shared";
 import { Box } from "@mui/material";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { useTranslation } from "react-i18next";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { StatsObjectViewProps } from "../types";
 
 const titleId = "stats-object-dialog-title";

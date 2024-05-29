@@ -1,6 +1,7 @@
 /**
  * Search list for a single object type
  */
+import { ListObject, NavigableObject } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -9,8 +10,7 @@ import { PlusIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { ArgsType, NavigableObject } from "types";
-import { ListObject } from "utils/display/listTools";
+import { ArgsType } from "types";
 import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { ObjectListActions, SearchListProps } from "../types";

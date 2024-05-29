@@ -1,8 +1,7 @@
-import { BookmarkFor, ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType } from "@local/shared";
+import { BookmarkFor, ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
 import { SvgComponent } from "types";
-import { YouInflated } from "utils/display/listTools";
 import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
 import { apiVersionSearchParams } from "./schemas/apiVersion";

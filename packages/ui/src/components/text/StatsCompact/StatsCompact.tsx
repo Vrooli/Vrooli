@@ -1,10 +1,10 @@
-import { ReactionFor } from "@local/shared";
+import { ListObject, ReactionFor } from "@local/shared";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { VisibleIcon } from "icons";
 import { useMemo } from "react";
-import { getCounts, getYou, ListObject } from "utils/display/listTools";
+import { getCounts, getYou } from "utils/display/listTools";
 import { StatsCompactProps } from "../types";
 
 /**

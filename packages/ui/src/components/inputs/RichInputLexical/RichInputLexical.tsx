@@ -1,7 +1,7 @@
+import { ListObject } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import "highlight.js/styles/monokai-sublime.css";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ListObject } from "utils/display/listTools";
 import { Headers } from "utils/display/stringTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";

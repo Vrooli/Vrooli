@@ -1,8 +1,8 @@
-import { CommonKey } from "@local/shared";
+import { CommonKey, parseSearchParams } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addSearchParams, parseSearchParams, useLocation } from "route";
+import { addSearchParams, useLocation } from "route";
 import { getCookie, setCookie } from "utils/cookies";
 import { TabParam, TabsInfo } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";

@@ -1,7 +1,7 @@
+import { ListObject, getObjectUrl } from "@local/shared";
 import { FC, useCallback, useEffect, useRef } from "react";
-import { ListObject, getDisplay } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "utils/display/stringTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { TextInput } from "../TextInput/TextInput";
 import { RichInputAction, RichInputMarkdownProps } from "../types";

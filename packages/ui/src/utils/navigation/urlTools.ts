@@ -1,51 +1,5 @@
-import { handleRegex, LINKS, uuidValidate } from "@local/shared";
+import { base36ToUuid, handleRegex, LINKS, uuidValidate } from "@local/shared";
 import { getLastPathnamePart, SetLocation } from "route";
-import { PubSub } from "utils/pubsub";
-
-/**
- * Converts a string to a BigInt
- * @param value String to convert
- * @param radix Radix (base) to use
- * @returns 
- */
-function toBigInt(value: string, radix: number) {
-    return [...value.toString()]
-        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
-}
-
-/**
- * Converts a UUID into a shorter, base 36 string without dashes. 
- * Useful for displaying UUIDs in a more compact format, such as in a URL.
- * @param uuid v4 UUID to convert
- * @returns base 36 string without dashes
- */
-export const uuidToBase36 = (uuid: string): string => {
-    try {
-        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
-        return base36 === "0" ? "" : base36;
-    } catch (error) {
-        PubSub.get().publish("snack", { messageKey: "CouldNotConvertId", severity: "Error", data: { uuid } });
-        return "";
-    }
-};
-
-/**
- * Converts a base 36 string without dashes into a UUID.
- * @param base36 base 36 string without dashes
- * @param showError Whether to show an error snack if the conversion fails
- * @returns v4 UUID
- */
-export const base36ToUuid = (base36: string, showError = true): string => {
-    try {
-        // Convert to base 16. If the ID is less than 32 characters, pad start with 0s. 
-        // Then, insert dashes
-        const uuid = toBigInt(base36, 36).toString(16).padStart(32, "0").replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
-        return uuid === "0" ? "" : uuid;
-    } catch (error) {
-        if (showError) PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error", data: { base36 } });
-        return "";
-    }
-};
 
 export type UrlInfo = {
     handleRoot?: string,
@@ -108,7 +62,7 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
         if (isHandle(secondLastPart)) {
             returnObject.handleRoot = secondLastPart.replace("@", "");
             hasRoot = true;
-        } else if (uuidValidate(base36ToUuid(secondLastPart, false))) {
+        } else if (uuidValidate(base36ToUuid(secondLastPart))) {
             returnObject.idRoot = base36ToUuid(secondLastPart);
             hasRoot = true;
         }
@@ -116,16 +70,16 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
         if (isHandle(lastPart)) {
             if (hasRoot) returnObject.handle = lastPart.replace("@", "");
             else returnObject.handleRoot = lastPart;
-        } else if (uuidValidate(base36ToUuid(lastPart, false))) {
-            if (hasRoot) returnObject.id = base36ToUuid(lastPart, false);
-            else returnObject.idRoot = base36ToUuid(lastPart, false);
+        } else if (uuidValidate(base36ToUuid(lastPart))) {
+            if (hasRoot) returnObject.id = base36ToUuid(lastPart);
+            else returnObject.idRoot = base36ToUuid(lastPart);
         }
     } else {
         // If the URL is for a non-versioned object, check if the last part is a handle or ID
         if (isHandle(lastPart)) {
             returnObject.handle = lastPart.replace("@", "");
-        } else if (uuidValidate(base36ToUuid(lastPart, false))) {
-            returnObject.id = base36ToUuid(lastPart, false);
+        } else if (uuidValidate(base36ToUuid(lastPart))) {
+            returnObject.id = base36ToUuid(lastPart);
         }
     }
     // Return the object

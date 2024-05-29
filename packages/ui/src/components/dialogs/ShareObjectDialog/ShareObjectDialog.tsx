@@ -1,6 +1,7 @@
 /**
  * Dialog for sharing an object
  */
+import { getObjectUrl } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from "@mui/material";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "icons";
@@ -8,7 +9,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import { getDisplay } from "utils/display/listTools";
-import { getObjectUrl, ObjectType } from "utils/navigation/openObject";
+import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { ShareObjectDialogProps } from "../types";

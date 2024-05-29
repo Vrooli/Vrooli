@@ -1,9 +1,9 @@
-import { Bookmark, BookmarkFor, CommentFor, CommonKey, CopyResult, CopyType, DeleteType, getReactionScore, ReactionFor, ReportFor, Session, Success } from "@local/shared";
+import { Bookmark, BookmarkFor, CommentFor, CommonKey, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, getReactionScore } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, UpvoteWideIcon } from "icons";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { getYou, ListObject } from "utils/display/listTools";
+import { getYou } from "utils/display/listTools";
 
 /**
  * All available actions an object can possibly have

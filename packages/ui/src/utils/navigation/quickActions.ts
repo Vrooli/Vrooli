@@ -1,6 +1,5 @@
-import { endpointPutProfile, LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
+import { ActionOption, endpointPutProfile, LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
 import { errorToMessage, fetchWrapper } from "api";
-import { ActionOption } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";

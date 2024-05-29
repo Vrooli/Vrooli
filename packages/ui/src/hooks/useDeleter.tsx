@@ -1,11 +1,11 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, GqlModelType, LINKS, Role, Success, User } from "@local/shared";
+import { DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, Role, Success, User, endpointPostDeleteOne } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
 import { useCallback, useState } from "react";
 import { useLocation } from "route";
 import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
 
