@@ -199,6 +199,28 @@ export const typeDef = gql`
         taskId: ID!
     }
 
+    input CheckTaskStatusesInput {
+        taskIds: [ID!]!
+    }
+
+    enum LlmTaskStatus {
+        Canceling
+        Completed
+        Failed
+        Running
+        Scheduled
+        Suggested
+    }
+
+    type LlmTaskStatusInfo {
+        id: ID!
+        status: LlmTaskStatus
+    }
+
+    type CheckTaskStatusesResult {
+        statuses: [LlmTaskStatusInfo!]!
+    }
+
     extend type Query {
         chatMessage(input: FindByIdInput!): ChatMessage
         chatMessages(input: ChatMessageSearchInput!): ChatMessageSearchResult!
@@ -212,6 +234,7 @@ export const typeDef = gql`
         autoFill(input: AutoFillInput!): AutoFillResult!
         startTask(input: StartTaskInput!): StartTaskResult!
         cancelTask(input: CancelTaskInput!): Success!
+        checkTaskStatuses(input: CheckTaskStatusesInput!): CheckTaskStatusesResult!
     }
 `;
 

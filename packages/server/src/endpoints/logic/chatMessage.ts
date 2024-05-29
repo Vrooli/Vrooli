@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, CancelTaskInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, StartTaskInput, StartTaskResult, Success, uuidValidate } from "@local/shared";
+import { AutoFillInput, AutoFillResult, CancelTaskInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, CheckTaskStatusesInput, CheckTaskStatusesResult, FindByIdInput, RegenerateResponseInput, StartTaskInput, Success, uuidValidate } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -9,9 +9,9 @@ import { ModelMap } from "../../models/base";
 import { ChatMessageModelLogic } from "../../models/base/types";
 import { emitSocketEvent } from "../../sockets/events";
 import { determineRespondingBots } from "../../tasks/llm/context";
-import { llmProcessAutoFill, llmProcessStartTask } from "../../tasks/llm/process";
-import { requestBotResponse } from "../../tasks/llm/queue";
-import { changeLlmTaskStatus } from "../../tasks/llmTask";
+import { llmProcessAutoFill } from "../../tasks/llm/process";
+import { requestBotResponse, requestStartTask } from "../../tasks/llm/queue";
+import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
@@ -29,6 +29,7 @@ export type EndpointsChatMessage = {
         autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
         startTask: GQLEndpoint<StartTaskInput, StartTaskResult>;
         cancelTask: GQLEndpoint<CancelTaskInput, Success>;
+        checkTaskStatuses: GQLEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
     }
 }
 
@@ -152,6 +153,12 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
 
             const result = await changeLlmTaskStatus(input.taskId, "canceled", userData.id);
             return { __typename: "Success" as const, success: result.success };
+        },
+        checkTaskStatuses: async (_, { input }, { req }) => {
+            await rateLimit({ maxUser: 1000, req });
+
+            const statuses = await getLlmTaskStatuses(input.taskIds);
+            return { __typename: "CheckTaskStatusesResult", statuses };
         },
     },
 };

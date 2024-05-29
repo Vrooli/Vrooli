@@ -50,7 +50,7 @@ export const ApiModel: ApiModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ApiVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Api", relation: "tags", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Api", data, ...rest }),
-                }
+                };
             },
         },
         trigger: {

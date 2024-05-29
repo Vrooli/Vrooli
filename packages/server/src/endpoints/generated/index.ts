@@ -50,6 +50,7 @@ export * from "./chatMessage_regenerateResponse";
 export * from "./chatMessage_autoFill";
 export * from "./chatMessage_startTask";
 export * from "./chatMessage_cancelTask";
+export * from "./chatMessage_checkTaskStatuses";
 export * from "./chatParticipant_findOne";
 export * from "./chatParticipant_findMany";
 export * from "./chatParticipant_update";

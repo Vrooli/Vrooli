@@ -1,8 +1,8 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, DUMMY_ID, LlmTaskInfo, Session, endpointGetChatMessageTree } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTaskInfo, Session, endpointGetChatMessageTree, endpointGetCheckTaskStatuses } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap, getCookieMessageTree, getCookieTasksForMessage, setCookieMessageTree } from "utils/cookies";
+import { BranchMap, getCookieMessageTree, getCookieTasksForMessage, setCookieMessageTree, setCookieTaskForMessage } from "utils/cookies";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
@@ -280,6 +280,8 @@ export const useMessageTree = (chatId: string) => {
 
     // We query messages separate from the chat, since we must traverse the message tree
     const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+    // We also query tasks which are in a running state, to see if they were completed when we were offline
+    const [getTaskData, { data: taskData, loading: isTaskLoading }] = useLazyFetch<CheckTaskStatusesInput, CheckTaskStatusesResult>(endpointGetCheckTaskStatuses);
 
     // The message tree structure
     const [tree, setTree] = useState<MessageTree<ChatMessageShape>>({ map: new Map(), roots: [] });
@@ -289,10 +291,61 @@ export const useMessageTree = (chatId: string) => {
     const [messageTasks, setMessageTasks] = useState<Record<string, LlmTaskInfo[]>>({});
     const updateTasksForMessage = useCallback((messageId: string, tasks: LlmTaskInfo[]) => {
         setMessageTasks(prevTasks => {
-            prevTasks[messageId] = tasks;
-            return prevTasks;
+            const messageTasksCopy = { ...prevTasks };
+            messageTasksCopy[messageId] = tasks;
+            return messageTasksCopy;
         });
     }, []);
+
+    const hasCheckedRunningTasks = useRef(false);
+    useEffect(() => {
+        if (hasCheckedRunningTasks.current || !session) return;
+        const runningTasks = Object.values(messageTasks).flat().filter(task => task.status === "Running" || task.status === "Canceling");
+        console.log("yeeeet might get task data", runningTasks, Object.values(messageTasks).flat(), messageTasks);
+        if (runningTasks.length === 0) return;
+        hasCheckedRunningTasks.current = true;
+        console.log("yeeet getting task data", runningTasks.map(task => task.id));
+        getTaskData({ taskIds: runningTasks.map(task => task.id) });
+    }, [chatId, getTaskData, messageTasks, session]);
+    useEffect(() => {
+        if (!taskData) return;
+        console.log("yeeeet setting message tasks in taskdata status fetch useeffect", taskData.statuses);
+        setMessageTasks(prevTasks => {
+            const messageTasksCopy = { ...prevTasks };
+
+            // Iterate over the taskData which contains the latest statuses
+            taskData.statuses.forEach(taskStatusInfo => {
+                const { id, status } = taskStatusInfo;
+                // Skip null statuses TODO maybe should set these to suggested/error instead?
+                if (!status) return;
+                // Find which message this task belongs to by iterating over messageTasks
+                Object.entries(messageTasksCopy).forEach(([messageId, tasks]) => {
+                    const taskIndex = tasks.findIndex(task => task.id === id);
+                    if (taskIndex > -1) {
+                        const updatedTask = {
+                            ...tasks[taskIndex],
+                            status, // Update the status
+                            lastUpdated: new Date().toISOString(), // Record the update time
+                        };
+
+                        // Set the updated task in the local tasks structure
+                        messageTasksCopy[messageId] = [
+                            ...tasks.slice(0, taskIndex),
+                            updatedTask,
+                            ...tasks.slice(taskIndex + 1),
+                        ];
+
+                        // Update the cache
+                        setCookieTaskForMessage(messageId, updatedTask);
+                    }
+                });
+            });
+
+            // Update the state with all modified tasks
+            return messageTasksCopy;
+        });
+    }, [taskData, updateTasksForMessage]);
+
 
     /**
      * Clears all messages from the tree, resetting the state to its initial state.
@@ -312,6 +365,7 @@ export const useMessageTree = (chatId: string) => {
     const addMessages = useCallback((newMessages: ChatMessageShape[]) => {
         if (!newMessages || newMessages.length === 0) return;
         setMessageTasks(prevTasks => {
+            const messageTasksCopy = { ...prevTasks };
             setTree(({ map: prevMessageMap, roots: prevRoots }) => {
                 const map = new Map(prevMessageMap);
                 const roots = [...prevRoots];
@@ -326,7 +380,7 @@ export const useMessageTree = (chatId: string) => {
                     // Also find tasks associated with the message
                     const tasks = getCookieTasksForMessage(message.id);
                     if (tasks) {
-                        prevTasks[message.id] = tasks.tasks;
+                        messageTasksCopy[message.id] = tasks.tasks;
                     }
                 });
 
@@ -355,15 +409,15 @@ export const useMessageTree = (chatId: string) => {
                 // Sort roots
                 sortSiblings(map, roots);
 
-                console.log("at the end of addMessages", prevTasks);
                 return { map, roots };
             });
-            return prevTasks;
+            return messageTasksCopy;
         });
     }, []);
 
     const removeMessages = useCallback((messageIds: string[]) => {
         setMessageTasks(prevTasks => {
+            const messageTasksCopy = { ...prevTasks };
             setTree(({ map: prevMessageMap, roots: prevRoots }) => {
                 const map = new Map(prevMessageMap);
                 let roots = [...prevRoots];
@@ -390,14 +444,14 @@ export const useMessageTree = (chatId: string) => {
                     roots = roots.filter(rootId => rootId !== messageId);
 
                     // Update tasks
-                    if (prevTasks[messageId]) {
-                        delete prevTasks[messageId];
+                    if (messageTasksCopy[messageId]) {
+                        delete messageTasksCopy[messageId];
                     }
                 });
 
                 return { map, roots };
             });
-            return prevTasks;
+            return messageTasksCopy;
         });
     }, []);
 

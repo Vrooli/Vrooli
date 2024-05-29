@@ -724,6 +724,20 @@
         }
       }
     },
+    "/checkTaskStatuses": {
+      "get": {
+        "operationId": "endpointGetCheckTaskStatuses",
+        "tags": [
+          "chatMessage"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
     "/chatParticipant/{id}": {
       "get": {
         "operationId": "endpointGetChatParticipant",
@@ -9162,6 +9176,48 @@
         "title": "ChatYou",
         "type": "object"
       },
+      "CheckTaskStatusesInput": {
+        "properties": {
+          "taskIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "CheckTaskStatusesInput.taskIds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "taskIds"
+        ],
+        "additionalProperties": false,
+        "title": "CheckTaskStatusesInput",
+        "type": "object"
+      },
+      "CheckTaskStatusesResult": {
+        "properties": {
+          "__typename": {
+            "title": "CheckTaskStatusesResult.__typename",
+            "enum": [
+              "CheckTaskStatusesResult"
+            ],
+            "type": "string"
+          },
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/LlmTaskStatusInfo"
+            },
+            "title": "CheckTaskStatusesResult.statuses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "__typename",
+          "statuses"
+        ],
+        "additionalProperties": false,
+        "title": "CheckTaskStatusesResult",
+        "type": "object"
+      },
       "Comment": {
         "properties": {
           "__typename": {
@@ -12916,6 +12972,49 @@
         ],
         "additionalProperties": false,
         "title": "LabelYou",
+        "type": "object"
+      },
+      "LlmTaskStatusInfo": {
+        "properties": {
+          "__typename": {
+            "title": "LlmTaskStatusInfo.__typename",
+            "enum": [
+              "LlmTaskStatusInfo"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "title": "LlmTaskStatusInfo.id",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Canceling",
+                  "Completed",
+                  "Failed",
+                  "Running",
+                  "Scheduled",
+                  "Suggested"
+                ],
+                "title": "LlmTaskStatusInfo.status",
+                "type": "string"
+              },
+              {
+                "title": "LlmTaskStatusInfo.status",
+                "nullable": true
+              }
+            ],
+            "title": "LlmTaskStatusInfo.status"
+          }
+        },
+        "required": [
+          "__typename",
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "LlmTaskStatusInfo",
         "type": "object"
       },
       "LogOutInput": {
@@ -44374,38 +44473,6 @@
         ],
         "additionalProperties": false,
         "title": "StartTaskInput",
-        "type": "object"
-      },
-      "StartTaskResult": {
-        "properties": {
-          "__typename": {
-            "title": "StartTaskResult.__typename",
-            "enum": [
-              "StartTaskResult"
-            ],
-            "type": "string"
-          },
-          "resultLabel": {
-            "title": "StartTaskResult.resultLabel",
-            "nullable": true,
-            "type": "string"
-          },
-          "resultLink": {
-            "title": "StartTaskResult.resultLink",
-            "nullable": true,
-            "type": "string"
-          },
-          "success": {
-            "title": "StartTaskResult.success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "__typename",
-          "success"
-        ],
-        "additionalProperties": false,
-        "title": "StartTaskResult",
         "type": "object"
       },
       "StatsApi": {
