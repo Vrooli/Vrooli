@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -7,7 +7,8 @@ import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events";
 import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
-import { SessionUserToken } from "../../types";
+import { ModelMap } from "../../models/base";
+import { CreateOneResult, FindOneResult, SessionUserToken, UpdateOneResult } from "../../types";
 
 type LlmTaskDataValue = string | number | boolean | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
@@ -71,9 +72,38 @@ export type LlmTaskConverters = {
     TeamDelete: ConverterFunc<DeleteOneInput>,
     TeamFind: ConverterFunc<OrganizationSearchInput>,
     TeamUpdate: ConverterFunc<OrganizationUpdateInput>,
-}
+};
 
+/**
+ * Data returned by a task
+ */
+type LlmTaskResult = {
+    /**
+    * Label for result of task, if applicable. 
+    * 
+    * For example, if the task is to create a note, the resultLabel could be
+    * the note's title.
+    */
+    label: string | null;
+    /**
+     * Link to open the result of the task, if applicable.
+     * 
+     * For example, if the task is to create a note, the resultLink could be
+     * the link to view the note.
+     */
+    link: string | null;
+    /**
+     * The full result of the task, if applicable.
+     * 
+     * For example, if creating a note, this would be the full note object.
+     */
+    payload?: unknown;
+};
 
+/**
+ * Wrapper function for executing a task
+ */
+type LlmTaskExec = (data: LlmTaskData) => (LlmTaskResult | Promise<LlmTaskResult>);
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 export const LLM_CONVERTER_LOCATION = `${dirname}/converters`;
@@ -114,11 +144,6 @@ const SuccessInfo = { __typename: "Success" as const, success: true } as unknown
 const CountInfo = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
 
 /**
- * Wrapper function for executing a task
- */
-type LlmTaskExec = (data: LlmTaskData) => (unknown | Promise<unknown>);
-
-/**
  * Creates the task execution function for a given task type
  */
 export const generateTaskExec = async (
@@ -126,7 +151,9 @@ export const generateTaskExec = async (
     language: string,
     userData: SessionUserToken,
 ): Promise<LlmTaskExec> => {
+    // Import converter, which shapes data for the task
     const converter = await importConverter(language);
+    const languages = userData.languages;
     // NOTE: We are skipping some information in this context, such as the request and response information. 
     // This is typically only used by middleware, so it should hopefully not be necessary for the LLM.
     const context: Context = {
@@ -154,13 +181,33 @@ export const generateTaskExec = async (
         };
     };
 
+    /** Creates label for a created/updated/found object */
+    const getObjectLabel = <T extends { __typename: string }>(object: CreateOneResult<T> | UpdateOneResult<T> | FindOneResult<T>) => {
+        if (object === null || object === undefined) {
+            return null;
+        }
+        const { display } = ModelMap.getLogic(["display"], object.__typename as GqlModelType, true);
+        return display().label.get(object, languages);
+    };
+
+    /** Creates link for a created/updated/found object */
+    const getObjectLink = <T extends object>(object: CreateOneResult<T> | UpdateOneResult<T> | FindOneResult<T>) => {
+        if (object === null || object === undefined) {
+            return null;
+        }
+        return `${getObjectUrlBase(object as NavigableObject)}/${getObjectSlug(object as NavigableObject)}`;
+    };
+
     switch (task) {
         case "ApiAdd": {
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
             const info = await loadInfo("api_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                ApiEndpoints.Mutation.apiCreate(undefined, { input }, context, info);
+                const payload = await ApiEndpoints.Mutation.apiCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ApiDelete": {
@@ -168,7 +215,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ApiFind": {
@@ -176,9 +224,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("api_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                ApiEndpoints.Query.apis(undefined, { input }, context, info);
+                const payload = await ApiEndpoints.Query.apis(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
-            //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more
+            //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more. This means we should probably be running a routine instead
         }
         case "ApiUpdate": {
             const { ApiEndpoints } = await import("../../endpoints/logic/api");
@@ -186,7 +235,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                ApiEndpoints.Mutation.apiUpdate(undefined, { input }, context, info);
+                const payload = await ApiEndpoints.Mutation.apiUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "BotAdd": {
@@ -194,7 +246,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("user_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                UserEndpoints.Mutation.botCreate(undefined, { input }, context, info);
+                const payload = await UserEndpoints.Mutation.botCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "BotDelete": {
@@ -202,7 +257,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "BotFind": {
@@ -210,7 +266,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("user_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                UserEndpoints.Query.users(undefined, { input }, context, info);
+                const payload = await UserEndpoints.Query.users(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "BotUpdate": {
@@ -230,7 +287,10 @@ export const generateTaskExec = async (
                     throw new CustomError("0276", "NotFound", userData.languages, { id: data.id, task });
                 }
                 const input = converter[task](data, language, existingUser);
-                UserEndpoints.Mutation.botUpdate(undefined, { input }, context, info);
+                const payload = await UserEndpoints.Mutation.botUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "MembersAdd": {
@@ -238,6 +298,7 @@ export const generateTaskExec = async (
             const info = await loadInfo("member_findOne");
             return async (data) => {
                 //TODO
+                return { label: null, link: null, payload: null };
             };
         }
         case "MembersDelete": {
@@ -245,7 +306,8 @@ export const generateTaskExec = async (
             const info = CountInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteMany(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteMany(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "MembersFind": {
@@ -253,7 +315,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("member_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                MemberEndpoints.Query.members(undefined, { input }, context, info);
+                const payload = await MemberEndpoints.Query.members(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "MembersUpdate": {
@@ -262,7 +325,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                MemberEndpoints.Mutation.memberUpdate(undefined, { input }, context, info);
+                const payload = await MemberEndpoints.Mutation.memberUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "NoteAdd": {
@@ -270,7 +336,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("note_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                NoteEndpoints.Mutation.noteCreate(undefined, { input }, context, info);
+                const payload = await NoteEndpoints.Mutation.noteCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "NoteDelete": {
@@ -278,7 +347,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "NoteFind": {
@@ -286,7 +356,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("note_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                NoteEndpoints.Query.notes(undefined, { input }, context, info);
+                const payload = await NoteEndpoints.Query.notes(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "NoteUpdate": {
@@ -295,7 +366,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                NoteEndpoints.Mutation.noteUpdate(undefined, { input }, context, info);
+                const payload = await NoteEndpoints.Mutation.noteUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ProjectAdd": {
@@ -303,7 +377,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("project_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                ProjectEndpoints.Mutation.projectCreate(undefined, { input }, context, info);
+                const payload = await ProjectEndpoints.Mutation.projectCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ProjectDelete": {
@@ -311,7 +388,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ProjectFind": {
@@ -319,7 +397,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("project_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                ProjectEndpoints.Query.projects(undefined, { input }, context, info);
+                const payload = await ProjectEndpoints.Query.projects(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ProjectUpdate": {
@@ -328,7 +407,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                ProjectEndpoints.Mutation.projectUpdate(undefined, { input }, context, info);
+                const payload = await ProjectEndpoints.Mutation.projectUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ReminderAdd": {
@@ -344,7 +426,10 @@ export const generateTaskExec = async (
                         throw new CustomError("0555", "InternalError", userData.languages, { task, data, language });
                     }
                 }
-                ReminderEndpoints.Mutation.reminderCreate(undefined, { input }, context, info);
+                const payload = await ReminderEndpoints.Mutation.reminderCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ReminderDelete": {
@@ -352,7 +437,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ReminderFind": {
@@ -360,7 +446,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("reminder_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                ReminderEndpoints.Query.reminders(undefined, { input }, context, info);
+                const payload = await ReminderEndpoints.Query.reminders(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ReminderUpdate": {
@@ -369,7 +456,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                ReminderEndpoints.Mutation.reminderUpdate(undefined, { input }, context, info);
+                const payload = await ReminderEndpoints.Mutation.reminderUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "RoleAdd": {
@@ -377,7 +467,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("role_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                RoleEndpoints.Mutation.roleCreate(undefined, { input }, context, info);
+                const payload = await RoleEndpoints.Mutation.roleCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "RoleDelete": {
@@ -385,7 +478,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "RoleFind": {
@@ -393,7 +487,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("role_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                RoleEndpoints.Query.roles(undefined, { input }, context, info);
+                const payload = await RoleEndpoints.Query.roles(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "RoleUpdate": {
@@ -402,7 +497,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                RoleEndpoints.Mutation.roleUpdate(undefined, { input }, context, info);
+                const payload = await RoleEndpoints.Mutation.roleUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "RoutineAdd": {
@@ -410,7 +508,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("routine_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                RoutineEndpoints.Mutation.routineCreate(undefined, { input }, context, info);
+                const payload = await RoutineEndpoints.Mutation.routineCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "RoutineDelete": {
@@ -418,7 +519,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "RoutineFind": {
@@ -426,7 +528,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("routine_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                RoutineEndpoints.Query.routines(undefined, { input }, context, info);
+                const payload = await RoutineEndpoints.Query.routines(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "RoutineUpdate": {
@@ -435,7 +538,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                RoutineEndpoints.Mutation.routineUpdate(undefined, { input }, context, info);
+                const payload = await RoutineEndpoints.Mutation.routineUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ScheduleAdd": {
@@ -443,7 +549,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("schedule_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                ScheduleEndpoints.Mutation.scheduleCreate(undefined, { input }, context, info);
+                const payload = await ScheduleEndpoints.Mutation.scheduleCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "ScheduleDelete": {
@@ -451,7 +560,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ScheduleFind": {
@@ -459,7 +569,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("schedule_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                ScheduleEndpoints.Query.schedules(undefined, { input }, context, info);
+                const payload = await ScheduleEndpoints.Query.schedules(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "ScheduleUpdate": {
@@ -468,7 +579,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                ScheduleEndpoints.Mutation.scheduleUpdate(undefined, { input }, context, info);
+                const payload = await ScheduleEndpoints.Mutation.scheduleUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "SmartContractAdd": {
@@ -476,7 +590,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("smartContract_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                SmartContractEndpoints.Mutation.smartContractCreate(undefined, { input }, context, info);
+                const payload = await SmartContractEndpoints.Mutation.smartContractCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "SmartContractDelete": {
@@ -484,7 +601,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "SmartContractFind": {
@@ -492,7 +610,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("smartContract_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                SmartContractEndpoints.Query.smartContracts(undefined, { input }, context, info);
+                const payload = await SmartContractEndpoints.Query.smartContracts(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "SmartContractUpdate": {
@@ -501,7 +620,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                SmartContractEndpoints.Mutation.smartContractUpdate(undefined, { input }, context, info);
+                const payload = await SmartContractEndpoints.Mutation.smartContractUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "StandardAdd": {
@@ -509,7 +631,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("standard_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                StandardEndpoints.Mutation.standardCreate(undefined, { input }, context, info);
+                const payload = await StandardEndpoints.Mutation.standardCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "StandardDelete": {
@@ -517,7 +642,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "StandardFind": {
@@ -525,7 +651,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("standard_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                StandardEndpoints.Query.standards(undefined, { input }, context, info);
+                const payload = await StandardEndpoints.Query.standards(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "StandardUpdate": {
@@ -534,7 +661,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                StandardEndpoints.Mutation.standardUpdate(undefined, { input }, context, info);
+                const payload = await StandardEndpoints.Mutation.standardUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "TeamAdd": {
@@ -542,7 +672,10 @@ export const generateTaskExec = async (
             const info = await loadInfo("organization_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                OrganizationEndpoints.Mutation.organizationCreate(undefined, { input }, context, info);
+                const payload = await OrganizationEndpoints.Mutation.organizationCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         case "TeamDelete": {
@@ -550,7 +683,8 @@ export const generateTaskExec = async (
             const info = SuccessInfo;
             return async (data) => {
                 const input = converter[task](data, language);
-                DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "TeamFind": {
@@ -558,7 +692,8 @@ export const generateTaskExec = async (
             const info = await loadInfo("organization_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                OrganizationEndpoints.Query.organizations(undefined, { input }, context, info);
+                const payload = await OrganizationEndpoints.Query.organizations(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
             };
         }
         case "TeamUpdate": {
@@ -567,7 +702,10 @@ export const generateTaskExec = async (
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                OrganizationEndpoints.Mutation.organizationUpdate(undefined, { input }, context, info);
+                const payload = await OrganizationEndpoints.Mutation.organizationUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
             };
         }
         default: {

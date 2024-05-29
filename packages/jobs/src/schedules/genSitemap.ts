@@ -1,5 +1,5 @@
 import { logger, ModelMap, PrismaDelegate, prismaInstance, UI_URL_REMOTE } from "@local/server";
-import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
+import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent, uuidToBase36 } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -27,33 +27,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sitemapIndexDir = path.resolve(__dirname, "../../../ui/dist");
 const sitemapDir = `${sitemapIndexDir}/sitemaps`;
-
-/**
- * Converts a string to a BigInt
- * @param value String to convert
- * @param radix Radix (base) to use
- * @returns 
- */
-function toBigInt(value: string, radix: number) {
-    return [...value.toString()]
-        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
-}
-
-/**
- * Converts a UUID into a shorter, base 36 string without dashes. 
- * Useful for displaying UUIDs in a more compact format, such as in a URL.
- * @param uuid v4 UUID to convert
- * @returns base 36 string without dashes
- */
-const uuidToBase36 = (uuid: string): string => {
-    try {
-        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
-        return base36 === "0" ? "" : base36;
-    } catch (error) {
-        return uuid;
-    }
-};
-
 
 /**
  * Generates and saves one or more sitemap files for an object
