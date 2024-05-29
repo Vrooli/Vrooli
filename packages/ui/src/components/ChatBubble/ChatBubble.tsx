@@ -322,8 +322,7 @@ const ChatBubbleReactions = ({
     );
 };
 
-/** How long a task can be running until it is considered stale */
-const STALE_THRESHOLD_MS = MINUTES_10_MS;
+
 
 /** Displays a suggested, active, or finished task that is associated with the message */
 export const TaskChip = ({
@@ -333,23 +332,24 @@ export const TaskChip = ({
     taskInfo: LlmTaskInfo,
     onTaskClick: (task: LlmTaskInfo) => unknown,
 }) => {
-    const { label, status, task } = taskInfo;
-    const canPress = ["suggested", "running"].includes(status);
+    const { label, status, resultLabel, resultLink, task } = taskInfo;
+    const [, setLocation] = useLocation();
 
-    const isStale = useMemo(() => {
-        const lastUpdatedTime = new Date(taskInfo.lastUpdated).getTime();
-        const currentTime = Date.now();
-        return status === "running" && (currentTime - lastUpdatedTime > STALE_THRESHOLD_MS);
-    }, [status, taskInfo.lastUpdated]);
+    const isStale = isTaskStale(taskInfo);
+    const canPress =
+        isStale // Has been running or canceling for too long
+        || !["Completed", "Canceling"].includes(status)
+        || (status === "Completed" && resultLink); // Result can be opened
 
     const getStatusColor = () => {
         if (isStale) return "warning";
         switch (status) {
-            case "running":
+            case "Running":
+            case "Canceling":
                 return "primary";
-            case "completed":
+            case "Completed":
                 return "success";
-            case "failed":
+            case "Failed":
                 return "error";
             default:
                 return "default";
@@ -357,13 +357,14 @@ export const TaskChip = ({
     };
 
     const getStatusIcon = () => {
-        if (isStale) return <ErrorIcon />;
+        if (isStale || !task) return <ErrorIcon />;
         switch (status) {
-            case "running":
+            case "Running":
+            case "Canceling":
                 return <CircularProgress size={20} color="inherit" />;
-            case "completed":
+            case "Completed":
                 return <SuccessIcon />;
-            case "failed":
+            case "Failed":
                 return <ErrorIcon />;
             default:
                 // Base Icon style on task type
@@ -382,16 +383,27 @@ export const TaskChip = ({
     const getStatusTooltip = () => {
         if (isStale) return `Task is stale: ${label}`;
         switch (status) {
-            case "suggested":
+            case "Suggested":
                 return `Press to start task: ${label}`;
-            case "running":
+            case "Running":
                 return `Task is running: ${label} (Started: ${displayDate(taskInfo.lastUpdated)})`;
-            case "completed":
-                return `Task completed: ${label}`;
-            case "failed":
+            case "Canceling":
+                return `Task is canceling: ${label}`;
+            case "Completed":
+                return `Task completed: ${resultLabel || label}`;
+            case "Failed":
                 return `Task failed: ${label}`;
             default:
                 return `Task: ${label}`;
+        }
+    };
+
+    const handleTaskClick = () => {
+        // If the result link is available, open it
+        if (resultLink) {
+            openLink(setLocation, resultLink);
+        } else {
+            onTaskClick(taskInfo);
         }
     };
 
@@ -400,15 +412,15 @@ export const TaskChip = ({
             {/* Wrap in span so tooltip displayed when disabled */}
             <span>
                 <Chip
-                    label={label}
-                    onClick={() => canPress ? onTaskClick(taskInfo) : undefined}
+                    label={resultLabel || label}
+                    onClick={() => canPress ? handleTaskClick() : undefined}
                     color={getStatusColor()}
                     icon={getStatusIcon()}
                     style={{
                         transition: "all 0.3s ease",
                         cursor: canPress ? "pointer" : "default",
                         borderRadius: "4px",
-                        border: status === "suggested" ? "1px solid" : "none",
+                        border: status === "Suggested" ? "1px solid" : "none",
                         paddingLeft: "4px",
                     }}
                     disabled={!canPress}

@@ -235,7 +235,7 @@ export const ChatBubbleTree = ({
                     onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
                     message={data.message}
                     isOwn={data.isOwn}
-                    tasks={messageTasks[data.message.id] || []}
+                    tasks={(messageTasks[data.message.id] || []).filter(task => task.task)}
                 />
             ))}
             {messageStream && (
