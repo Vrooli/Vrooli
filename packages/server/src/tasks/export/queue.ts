@@ -7,8 +7,42 @@ import winston from "winston";
 import { addJobToQueue } from "../queueHelper";
 
 export type ExportProcessPayload = {
-
-}
+    /** What data should be exported */
+    flags: {
+        all: boolean;
+        account: boolean;
+        apis: boolean;
+        bookmarks: boolean;
+        bots: boolean;
+        chats: boolean;
+        comments: boolean;
+        issues: boolean;
+        notes: boolean;
+        /** Includes meetings and roles */
+        organizations: boolean;
+        //posts: boolean;
+        pullRequests: boolean;
+        projects: boolean;
+        questions: boolean;
+        questionAnswers: boolean;
+        // quizzes: boolean;
+        // quizResponses: boolean; // Includes attempts, answers, etc.
+        reactions: boolean;
+        reminders: boolean;
+        reports: boolean;
+        routines: boolean;
+        runs: boolean;
+        schedules: boolean;
+        smartContracts: boolean;
+        standards: boolean;
+        // tags: boolean;
+        views: boolean;
+    };
+    /** What should happen to the exported data */
+    requestType: "Delete" | "Download" | "DownloadAndDelete";
+    /** The user who's running the command (not the bot) */
+    userData: SessionUserToken;
+};
 
 let logger: winston.Logger;
 let HOST: string;
@@ -32,7 +66,7 @@ export const setupExportQueue = async () => {
 
         const processPath = path.join(dirname, "./process" + importExtension);
         const processModule = await import(processPath);
-        exportProcess = processModule.emailProcess;
+        exportProcess = processModule.exportProcess;
 
         // Initialize the Bull queue
         exportQueue = new Bull<ExportProcessPayload>("export", {
