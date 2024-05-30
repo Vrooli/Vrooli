@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { uuid } from "../id/uuid";
-import { detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
+import { importCommandToTask } from "./config";
+import { detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, getValidTasksFromMessage, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
 import { CommandToTask, MaybeLlmTaskInfo, PartialTaskInfo } from "./types";
 
 describe("isNewline", () => {
@@ -476,59 +477,6 @@ describe("handleTaskTransitionOutside", () => {
                 expect(onCommit).not.toHaveBeenCalled();
                 expect(result).toMatchObject({ section: "outside", buffer: [...buffer, "x"] });
             });
-        });
-    });
-
-    describe("hasOpenBracket", () => {
-        test("resets on newline", () => {
-            const buffer = "asdf".split("");
-            const result = handleTaskTransitionOutside({
-                curr: "\n",
-                ...withBuffer(buffer, rest),
-                hasOpenBracket: true,
-            });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ hasOpenBracket: false });
-        });
-        test("does not reset on space", () => {
-            const buffer = "asdf".split("");
-            const result = handleTaskTransitionOutside({
-                curr: " ",
-                ...withBuffer(buffer, rest),
-                hasOpenBracket: true,
-            });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ hasOpenBracket: true });
-        });
-        test("does not reset on tab", () => {
-            const buffer = "asdf".split("");
-            const result = handleTaskTransitionOutside({
-                curr: "\t",
-                ...withBuffer(buffer, rest),
-                hasOpenBracket: true,
-            });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ hasOpenBracket: true });
-        });
-        test("does not reset on letter", () => {
-            const buffer = "asdf".split("");
-            const result = handleTaskTransitionOutside({
-                curr: "a",
-                ...withBuffer(buffer, rest),
-                hasOpenBracket: true,
-            });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ hasOpenBracket: true });
-        });
-        test("does not reset on number", () => {
-            const buffer = "asdf".split("");
-            const result = handleTaskTransitionOutside({
-                curr: "1",
-                ...withBuffer(buffer, rest),
-                hasOpenBracket: true,
-            });
-            expect(onCommit).not.toHaveBeenCalled();
-            expect(result).toMatchObject({ hasOpenBracket: true });
         });
     });
 });
@@ -2309,230 +2257,255 @@ describe("detectWrappedTasks", () => {
     // Loop through each wrapper and test the same cases for each
     for (const wrapper of allWrappers) {
         const { start, delimiter } = wrapper;
-        test("returns empty array when no commands are present - test 1", () => {
-            detectWrappedTasksTester({
-                input: "a/command",
-                expected: [],
-                ...wrapper,
+        describe("returns empty array when no commands are present", () => {
+            test("test 1", () => {
+                detectWrappedTasksTester({
+                    input: "a/command",
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 2", () => {
+                detectWrappedTasksTester({
+                    input: "/command🥴",
+                    expected: [],
+                    ...wrapper,
+                });
             });
         });
-        test("returns empty array when no commands are present - test 2", () => {
-            detectWrappedTasksTester({
-                input: "/command🥴",
-                expected: [],
-                ...wrapper,
+        describe("returns empty array when commands are not wrapped", () => {
+            test("test 1", () => {
+                detectWrappedTasksTester({
+                    input: "/command1 /command2",
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 2", () => {
+                detectWrappedTasksTester({
+                    input: `${start.slice(0, -1)}: [/command1]`,
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 3", () => {
+                detectWrappedTasksTester({
+                    input: `${start}: [/command1`,
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 4", () => {
+                detectWrappedTasksTester({
+                    input: `${start}: [/command1\n]`,
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 5", () => {
+                detectWrappedTasksTester({
+                    input: `${start}: [/command1${delimiter}\n/command2]`,
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 6", () => {
+                detectWrappedTasksTester({
+                    input: `${start}:[/command1 ${start}:]`,
+                    expected: [],
+                    ...wrapper,
+                });
             });
         });
-        test("returns empty array when commands are not wrapped - test 1", () => {
-            detectWrappedTasksTester({
-                input: "/command1 /command2",
-                expected: [],
-                ...wrapper,
+        describe("returns correct indices for a single wrapped command", () => {
+            test("test 1", () => {
+                const input = `${start}:[/command1]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [0],
+                        wrapperStart: 0,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 2", () => {
+                const input = `boop ${start}: [/command1]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [0],
+                        wrapperStart: 5,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 3", () => {
+                const input = `/firstCommand hello ${start}:[/command1]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [1],
+                        wrapperStart: "/firstCommand hello ".length,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 4", () => {
+                const input = `/firstCommand hello ${start}: [/command1]}`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [1],
+                        wrapperStart: "/firstCommand hello ".length,
+                        wrapperEnd: input.length - 2,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 5", () => {
+                const input = `/firstCommand hello ${start}: [  /command1  ]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [1],
+                        wrapperStart: "/firstCommand hello ".length,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 6", () => {
+                const input = `/firstCommand hello name="hi" ${start}: [/command1]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [1],
+                        wrapperStart: "/firstCommand hello name=\"hi\" ".length,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 7", () => {
+                const input = `${start}: ${start}: [/command1 hello]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [0],
+                        wrapperStart: `${start}: `.length, // First ${start} is ignored
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 8", () => {
+                const input = `/hi there ${start}: [/command1 hello name="hi" value=123 thing='hi']`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [1],
+                        wrapperStart: "/hi there ".length,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 9", () => {
+                const input = `${start}:\n[/command1] `;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [0],
+                        wrapperStart: 0,
+                        wrapperEnd: input.length - 2, // Excludes space at end
+                    }],
+                    ...wrapper,
+                });
+            });
+            test("test 10", () => {
+                const input = `/task boop ${start}: \n [/command1]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [1],
+                        wrapperStart: "/task boop ".length,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
             });
         });
-        test("returns empty array when commands are not wrapped - test 2", () => {
-            detectWrappedTasksTester({
-                input: `${start.slice(0, -1)}: [/command1]`,
-                expected: [],
-                ...wrapper,
+        describe("returns correct indices for multiple wrapped commands", () => {
+            test("test 1", () => {
+                const input = `${start}:[/command1${delimiter ?? ""} /command2]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: delimiter ? [{
+                        taskIndices: [0, 1],
+                        wrapperStart: 0,
+                        wrapperEnd: input.length - 1,
+                    }] : [],
+                    ...wrapper,
+                });
+            });
+            test("test 2", () => {
+                const input = `${start}: [/command1 ${delimiter ?? ""} /command2 ]`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: delimiter ? [{
+                        taskIndices: [0, 1],
+                        wrapperStart: 0,
+                        wrapperEnd: input.length - 1,
+                    }] : [],
+                    ...wrapper,
+                });
+            });
+            test("test 3", () => {
+                const input = `${start}: [/command1 ${delimiter ?? ""} /command2 action name='hi']`;
+                detectWrappedTasksTester({
+                    input,
+                    expected: delimiter ? [{
+                        taskIndices: [0, 1],
+                        wrapperStart: 0,
+                        wrapperEnd: input.length - 1,
+                    }] : [],
+                    ...wrapper,
+                });
             });
         });
-        test("returns empty array when commands are not wrapped - test 3", () => {
-            detectWrappedTasksTester({
-                input: `${start}: [/command1`,
-                expected: [],
-                ...wrapper,
+        describe("handles property value trickery", () => {
+            test("test 1", () => {
+                detectWrappedTasksTester({
+                    input: `/command1 action name='${start}: [/command2]'`,
+                    expected: [],
+                    ...wrapper,
+                });
+            });
+            test("test 2", () => {
+                detectWrappedTasksTester({
+                    input: `/command1 action name='${start}:' [/command2]`,
+                    expected: [],
+                    ...wrapper,
+                });
             });
         });
-        test("returns empty array when commands are not wrapped - test 4", () => {
-            detectWrappedTasksTester({
-                input: `${start}: [/command1\n]`,
-                expected: [],
-                ...wrapper,
-            });
-        });
-        test("returns empty array when commands are not wrapped - test 5", () => {
-            detectWrappedTasksTester({
-                input: `${start}: [/command1${delimiter}\n/command2]`,
-                expected: [],
-                ...wrapper,
-            });
-        });
-        test("returns empty array when commands are not wrapped - test 6", () => {
-            detectWrappedTasksTester({
-                input: `${start}:[/command1 ${start}:]`,
-                expected: [],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 1", () => {
-            const input = `${start}:[/command1]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [0],
-                    wrapperStart: 0,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 2", () => {
-            const input = `boop ${start}: [/command1]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [0],
-                    wrapperStart: 5,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 3", () => {
-            const input = `/firstCommand hello ${start}:[/command1]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [1],
-                    wrapperStart: "/firstCommand hello ".length,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 4", () => {
-            const input = `/firstCommand hello ${start}: [/command1]}`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [1],
-                    wrapperStart: "/firstCommand hello ".length,
-                    wrapperEnd: input.length - 2,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 5", () => {
-            const input = `/firstCommand hello ${start}: [  /command1  ]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [1],
-                    wrapperStart: "/firstCommand hello ".length,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 6", () => {
-            const input = `/firstCommand hello name="hi" ${start}: [/command1]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [1],
-                    wrapperStart: "/firstCommand hello name=\"hi\" ".length,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 7", () => {
-            const input = `${start}: ${start}: [/command1 hello]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [0],
-                    wrapperStart: `${start}: `.length, // First ${start} is ignored
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 8", () => {
-            const input = `/hi there ${start}: [/command1 hello name="hi" value=123 thing='hi']`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [1],
-                    wrapperStart: "/hi there ".length,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 9", () => {
-            const input = `${start}:\n[/command1] `;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [0],
-                    wrapperStart: 0,
-                    wrapperEnd: input.length - 2, // Excludes space at end
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for a single wrapped command - test 10", () => {
-            const input = `/task boop ${start}: \n [/command1]`;
-            detectWrappedTasksTester({
-                input,
-                expected: [{
-                    taskIndices: [1],
-                    wrapperStart: "/task boop ".length,
-                    wrapperEnd: input.length - 1,
-                }],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for multiple wrapped commands - test 1", () => {
-            const input = `${start}:[/command1${delimiter ?? ""} /command2]`;
-            detectWrappedTasksTester({
-                input,
-                expected: delimiter ? [{
-                    taskIndices: [0, 1],
-                    wrapperStart: 0,
-                    wrapperEnd: input.length - 1,
-                }] : [],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for multiple wrapped commands - test 2", () => {
-            const input = `${start}: [/command1 ${delimiter ?? ""} /command2 ]`;
-            detectWrappedTasksTester({
-                input,
-                expected: delimiter ? [{
-                    taskIndices: [0, 1],
-                    wrapperStart: 0,
-                    wrapperEnd: input.length - 1,
-                }] : [],
-                ...wrapper,
-            });
-        });
-        test("returns correct indices for multiple wrapped commands - test 3", () => {
-            const input = `${start}: [/command1 ${delimiter ?? ""} /command2 action name='hi']`;
-            detectWrappedTasksTester({
-                input,
-                expected: delimiter ? [{
-                    taskIndices: [0, 1],
-                    wrapperStart: 0,
-                    wrapperEnd: input.length - 1,
-                }] : [],
-                ...wrapper,
-            });
-        });
-        test("handles property value trickery - test 1", () => {
-            detectWrappedTasksTester({
-                input: `/command1 action name='${start}: [/command2]'`,
-                expected: [],
-                ...wrapper,
-            });
-        });
-        test("handles property value trickery - test 2", () => {
-            detectWrappedTasksTester({
-                input: `/command1 action name='${start}:' [/command2]`,
-                expected: [],
-                ...wrapper,
+        describe("real world examples", () => {
+            test("test 1", () => {
+                const input = `${start}: [ /bot find]`; // Has a space before command for some reason
+                detectWrappedTasksTester({
+                    input,
+                    expected: [{
+                        taskIndices: [0],
+                        wrapperStart: 0,
+                        wrapperEnd: input.length - 1,
+                    }],
+                    ...wrapper,
+                });
+
             });
         });
     }
@@ -3085,101 +3058,318 @@ describe("extractTasks", () => {
     });
 
     describe("handles wrapped commands", () => {
-        test("test 1", () => {
-            extractTasksTester({
-                input: "suggested: [/command1]",
-                expected: [{
-                    command: "command1",
-                    action: null,
-                    properties: {},
-                    match: "/command1",
-                }],
+        describe("ideal format", () => {
+            test("test 1", () => {
+                extractTasksTester({
+                    input: "suggested: [/command1]",
+                    expected: [{
+                        command: "command1",
+                        action: null,
+                        properties: {},
+                        match: "/command1",
+                    }],
+                });
+            });
+            test("test 2", () => {
+                extractTasksTester({
+                    input: "/command1 suggested: [/command2]",
+                    expected: [{
+                        command: "command1",
+                        action: null,
+                        properties: {},
+                        match: "/command1",
+                    }, {
+                        command: "command2",
+                        action: null,
+                        properties: {},
+                        match: "/command2",
+                    }],
+                });
+            });
+            test("test 3", () => {
+                extractTasksTester({
+                    input: "suggested: [/command1] recommended: [/command2]",
+                    expected: [{
+                        command: "command1",
+                        action: null,
+                        properties: {},
+                        match: "/command1",
+                    }, {
+                        command: "command2",
+                        action: null,
+                        properties: {},
+                        match: "/command2",
+                    }],
+                });
+            });
+            test("test 4", () => {
+                extractTasksTester({
+                    input: "suggested: [/command1 action]",
+                    expected: [{
+                        command: "command1",
+                        action: "action",
+                        properties: {},
+                        match: "/command1 action",
+                    }],
+                });
+            });
+            test("test 5", () => {
+                extractTasksTester({
+                    input: "suggested: [/command1 action, /command2 action2]",
+                    expected: [{
+                        command: "command1",
+                        action: "action",
+                        properties: {},
+                        match: "/command1 action",
+                    }, {
+                        command: "command2",
+                        action: "action2",
+                        properties: {},
+                        match: "/command2 action2",
+                    }],
+                });
+            });
+            test("test 6", () => {
+                extractTasksTester({
+                    input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"]",
+                    expected: [{
+                        command: "command1",
+                        action: "action",
+                        properties: { name: "value", prop2: 123, thing: "asdf" },
+                        match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
+                    }],
+                });
+            });
+            test("test 7", () => {
+                extractTasksTester({
+                    input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
+                    expected: [{
+                        command: "command1",
+                        action: "action",
+                        properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
+                        match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
+                    }, {
+                        command: "command2",
+                        action: "action2",
+                        properties: {},
+                        match: "/command2 action2",
+                    }],
+                });
             });
         });
-        test("test 2", () => {
-            extractTasksTester({
-                input: "/command1 suggested: [/command2]",
-                expected: [{
-                    command: "command1",
-                    action: null,
-                    properties: {},
-                    match: "/command1",
-                }, {
-                    command: "command2",
-                    action: null,
-                    properties: {},
-                    match: "/command2",
-                }],
+        describe("non-ideal format (llms aren't perfect)", () => {
+            describe("leading whitespace", () => {
+                test("test 1", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
+                test("test 2", () => {
+                    extractTasksTester({
+                        input: "suggested: [  /command1]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
+                test("test 3", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 action]",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: {},
+                            match: "/command1 action",
+                        }],
+                    });
+                });
+                test("test 4", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 action name='value' prop2=123 thing=\"asdf\"]",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: { name: "value", prop2: 123, thing: "asdf" },
+                            match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
+                        }],
+                    });
+                });
+                test("test 5", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
+                            match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
+                        }, {
+                            command: "command2",
+                            action: "action2",
+                            properties: {},
+                            match: "/command2 action2",
+                        }],
+                    });
+                });
+            });
+            describe("trailing whitespace", () => {
+                test("test 1", () => {
+                    extractTasksTester({
+                        input: "suggested: [/command1 ]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
+                test("test 2", () => {
+                    extractTasksTester({
+                        input: "suggested: [/command1  ]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
+                test("test 3", () => {
+                    extractTasksTester({
+                        input: "suggested: [/command1 action ]",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: {},
+                            match: "/command1 action",
+                        }],
+                    });
+                });
+                test("test 4", () => {
+                    extractTasksTester({
+                        input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"] ",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: { name: "value", prop2: 123, thing: "asdf" },
+                            match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
+                        }],
+                    });
+                });
+                test("test 5", () => {
+                    extractTasksTester({
+                        input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2] ",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
+                            match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
+                        }, {
+                            command: "command2",
+                            action: "action2",
+                            properties: {},
+                            match: "/command2 action2",
+                        }],
+                    });
+                });
+            });
+            describe("leading and trailing whitespace", () => {
+                test("test 1", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 ]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
+                test("test 2", () => {
+                    extractTasksTester({
+                        input: "suggested: [  /command1  ]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
+                test("test 3", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 action ]",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: {},
+                            match: "/command1 action",
+                        }],
+                    });
+                });
+                test("test 4", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 action name='value' prop2=123 thing=\"asdf\"] ",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: { name: "value", prop2: 123, thing: "asdf" },
+                            match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
+                        }],
+                    });
+                });
+                test("test 5", () => {
+                    extractTasksTester({
+                        input: "suggested: [ /command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2] ",
+                        expected: [{
+                            command: "command1",
+                            action: "action",
+                            properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
+                            match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
+                        }, {
+                            command: "command2",
+                            action: "action2",
+                            properties: {},
+                            match: "/command2 action2",
+                        }],
+                    });
+                });
+            });
+            describe("messiness before wrapper", () => {
+                test("test 1", () => {
+                    extractTasksTester({
+                        input: "fdksaf; [] fdsafsdfds[ fdks;lfadksaf suggested: [/command1]",
+                        expected: [{
+                            command: "command1",
+                            action: null,
+                            properties: {},
+                            match: "/command1",
+                        }],
+                    });
+                });
             });
         });
-        test("test 3", () => {
-            extractTasksTester({
-                input: "suggested: [/command1] recommended: [/command2]",
-                expected: [{
-                    command: "command1",
-                    action: null,
-                    properties: {},
-                    match: "/command1",
-                }, {
-                    command: "command2",
-                    action: null,
-                    properties: {},
-                    match: "/command2",
-                }],
+        describe("invalid formats that might trick our system", () => {
+            test("non-whitespace after opening bracket", () => {
+                extractTasksTester({
+                    input: "suggested: [. /command1]",
+                    expected: [],
+                });
             });
-        });
-        test("test 4", () => {
-            extractTasksTester({
-                input: "suggested: [/command1 action]",
-                expected: [{
-                    command: "command1",
-                    action: "action",
-                    properties: {},
-                    match: "/command1 action",
-                }],
-            });
-        });
-        test("test 5", () => {
-            extractTasksTester({
-                input: "suggested: [/command1 action, /command2 action2]",
-                expected: [{
-                    command: "command1",
-                    action: "action",
-                    properties: {},
-                    match: "/command1 action",
-                }, {
-                    command: "command2",
-                    action: "action2",
-                    properties: {},
-                    match: "/command2 action2",
-                }],
-            });
-        });
-        test("test 6", () => {
-            extractTasksTester({
-                input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"]",
-                expected: [{
-                    command: "command1",
-                    action: "action",
-                    properties: { name: "value", prop2: 123, thing: "asdf" },
-                    match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
-                }],
-            });
-        });
-        test("test 7", () => {
-            extractTasksTester({
-                input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
-                expected: [{
-                    command: "command1",
-                    action: "action",
-                    properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
-                    match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
-                }, {
-                    command: "command2",
-                    action: "action2",
-                    properties: {},
-                    match: "/command2 action2",
-                }],
+            test("newline after opening bracket", () => {
+                extractTasksTester({
+                    input: "suggested: [\n/command1]",
+                    expected: [],
+                });
             });
         });
     });
@@ -3379,6 +3569,17 @@ describe("extractTasks", () => {
                     action: null,
                     properties: { name: "Get Oat Milk", description: "Reminder to buy oat milk", dueDate: "2023-10-06T09:00:00Z", isComplete: false },
                     match: "/add name='Get Oat Milk' description='Reminder to buy oat milk' dueDate='2023-10-06T09:00:00Z' isComplete=false",
+                }],
+            });
+        });
+        test("test 2", () => {
+            extractTasksTester({
+                input: "/bot find searchString=\"big bird\"",
+                expected: [{
+                    command: "bot",
+                    action: "find",
+                    properties: { searchString: "big bird" },
+                    match: "/bot find searchString=\"big bird\"",
                 }],
             });
         });
@@ -3678,4 +3879,41 @@ describe("removeTasks", () => {
     });
 
     // Add more tests for other edge cases as needed
+});
+
+describe("getValidTasksForMessage", () => {
+    let commandToTask;
+    const language = "en";
+    const logger = console;
+
+    beforeEach(async () => {
+        commandToTask = await importCommandToTask(language, logger);
+    });
+
+    test("real world examples", async () => {
+        const message = "/bot find searchString=\"big bird\"";
+        const result = await getValidTasksFromMessage({
+            commandToTask,
+            existingData: null,
+            language,
+            logger,
+            message,
+            taskMode: "Start",
+        });
+
+        expect(result).toEqual({
+            messageWithoutTasks: "",
+            tasksToRun: [{
+                task: "BotFind",
+                action: "find",
+                command: "bot",
+                label: "Find Bot",
+                properties: {}, //Search string is a property in taskMode "BotFind", not "Start"
+                start: 0,
+                end: message.length,
+                id: expect.any(String),
+            }],
+            tasksToSuggest: [],
+        });
+    });
 });

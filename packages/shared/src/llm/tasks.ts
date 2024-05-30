@@ -86,7 +86,17 @@ function countEndSlashes(charArray: string[]): number {
  * @returns The updated state after processing.
  */
 export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
-    const { buffer, curr, hasOpenBracket, onStart, prev } = params;
+    const { buffer, curr, onStart, prev } = params;
+
+    let hasOpenBracket = params.hasOpenBracket;
+    // Set hasOpenBracket to true if the previous character was an open bracket
+    if (prev === "[") {
+        hasOpenBracket = true;
+    }
+    // Reset hasOpenBracket if the previous character was a close bracket, newline, or (non-whitespace and not a comma)
+    else if (prev === "]" || isNewline(prev) || (!isWhitespace(prev) && prev !== ",")) {
+        hasOpenBracket = false;
+    }
 
     // Start a command if there's a slash without a previous character, 
     // or if the previous character is whitespace, newline, or open bracket (for wrapped commands)
@@ -95,16 +105,16 @@ export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams):
         return {
             section: "command",
             buffer: [], // Don't include the slash in the buffer
-            hasOpenBracket: hasOpenBracket || prev === "[", // Keep bracket status, or start a new one if the open bracket was found
+            hasOpenBracket,
         };
     }
     // Reset buffer when there's whitespace=
     if (isWhitespace(curr)) {
         return { section: "outside", buffer: [], hasOpenBracket };
     }
-    // Reset buffer and hasOpenBracket when there's a newline
+    // Reset buffer when there's a newline
     if (isNewline(curr)) {
-        return { section: "outside", buffer: [], hasOpenBracket: false };
+        return { section: "outside", buffer: [], hasOpenBracket };
     }
     // Start a code block if the end of buffer + curr "<code>"
     if ((buffer.length >= 5 && curr === ">" && buffer[buffer.length - 1] === "e" && buffer[buffer.length - 2] === "d" && buffer[buffer.length - 3] === "o" && buffer[buffer.length - 4] === "c" && buffer[buffer.length - 5] === "<")) {
@@ -308,7 +318,11 @@ export const handleTaskTransitionAction = (params: TaskTransitionHelperParams): 
     // If there is an open bracket
     if (hasOpenBracket) {
         if (curr === "]") {
-            onCommit("action", buffer.join(""));
+            // Only commit if buffer is not empty. An empty buffer indicates trailing whitespace
+            // between the command and closing bracket (i.e. there isn't an action)
+            if (buffer.length > 0) {
+                onCommit("action", buffer.join(""));
+            }
             onComplete();
             return { section: "outside", buffer: [], hasOpenBracket: false };
         }
@@ -901,9 +915,9 @@ export const getValidTasksFromMessage = async ({
     message,
     taskMode,
 }: GetValidTasksFromMessageParams): Promise<{
+    messageWithoutTasks: string,
     tasksToRun: ServerLlmTaskInfo[],
     tasksToSuggest: ServerLlmTaskInfo[],
-    messageWithoutTasks: string,
 }> => {
     // Extract all possible commands from the message
     const maybeTasks = extractTasks(message, commandToTask);

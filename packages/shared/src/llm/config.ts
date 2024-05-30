@@ -39,7 +39,7 @@ export const importConfig = async (
     try {
         return (await loadFile(`${config_location}/${language}.js`)).config;
     } catch (error) {
-        logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309" });
+        logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309", config_location });
         return (await loadFile(`${config_location}/${DEFAULT_LANGUAGE}`)).config;
     }
 };
