@@ -27,6 +27,7 @@ import { setupLlmQueue } from "./tasks/llm/queue";
 import { LlmServiceRegistry } from "./tasks/llm/registry";
 import { setupLlmTaskQueue } from "./tasks/llmTask/queue";
 import { setupPushQueue } from "./tasks/push/queue";
+import { setupSandboxQueue } from "./tasks/sandbox";
 import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
 
@@ -61,6 +62,7 @@ const main = async () => {
     await setupImportQueue();
     await setupLlmQueue();
     await setupPushQueue();
+    await setupSandboxQueue();
     await setupSmsQueue();
 
     // Setup databases
