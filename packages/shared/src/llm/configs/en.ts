@@ -95,13 +95,38 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __apiProperties: {
+        id: {
+            description: "Unique identifier for the API.",
+            type: "uuid",
+        },
         name: {
+            description: "The name of the API.",
             example: "WeatherAPI",
         },
-        description: {
+        summary: {
+            description: "A brief description of what the API does.",
             example: "Provides current weather information for a given location.",
         },
-        //...
+        details: {
+            description: "A more detailed description of what the API does.",
+            example: "This API provides current weather information for a given location. It includes temperature, humidity, wind speed,... (the rest omitted for brevity, but you get the idea).",
+        },
+        version: {
+            description: "Current version of the API.",
+            example: "1.0.3",
+        },
+        callLink: {
+            description: "Endpoint URL for accessing the API.",
+            example: "https://api.example.com/weather",
+        },
+        documentationLink: {
+            description: "URL to the API's documentation.",
+            example: "https://docs.example.com/api/weather",
+        },
+        isPrivate: {
+            description: "Whether the API is private or publicly accessible.",
+            example: "true, false",
+        },
     },
     ApiAdd: () => ({
         label: "Add API",
@@ -110,8 +135,12 @@ export const config: LlmTaskConfig = {
         },
         properties: config.__pick_properties([
             ["name", true],
-            ["description", false],
-            //...
+            ["summary", true],
+            ["details", false],
+            ["version", true],
+            ["callLink", true],
+            ["documentationLink", false],
+            ["isPrivate", true],
         ], config.__apiProperties),
         rules: config.__rules,
     }),
@@ -152,9 +181,14 @@ export const config: LlmTaskConfig = {
             update: "Update an API with the provided properties.",
         },
         properties: config.__pick_properties([
+            ["id", true],
             ["name", false],
-            ["description", false],
-            //...
+            ["summary", false],
+            ["details", false],
+            ["version", false],
+            ["callLink", false],
+            ["documentationLink", false],
+            ["isPrivate", false],
         ], config.__apiProperties),
         rules: config.__rules,
     }),
@@ -279,16 +313,53 @@ export const config: LlmTaskConfig = {
         rules: config.__rules,
     }),
     __memberProperties: {
-        // TODO
+        id: {
+            description: "The unique identifier for the member.",
+            type: "uuid",
+        },
+        isAdmin: {
+            description: "Whether the member has administrative privileges.",
+            example: "false",
+        },
+        organizationId: {
+            description: "The ID of the organization the member belongs to.",
+            type: "uuid",
+        },
+        userId: {
+            description: "The ID of the user associated with this member.",
+            type: "uuid",
+        },
+    },
+    __memberInviteProperties: {
+        willBeAdmin: {
+            description: "Whether the invited member will have administrative privileges.",
+            example: "false",
+        },
+        organizationId: {
+            description: "The ID of the organization to which the member is being invited.",
+            type: "uuid",
+        },
+        userId: {
+            description: "The ID of the user being invited.",
+            type: "uuid",
+        },
+        message: {
+            description: "An optional message to the user being invited.",
+            example: "Welcome to our organization!",
+        },
     },
     MembersAdd: () => ({
         label: "Add Members",
         commands: {
-            add: "Create member with the provided properties.",
+            add: "Invite a member with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
-        ], config.__memberProperties),
+            ["willBeAdmin", false],
+            ["willHavePermissions", false],
+            ["organizationId", true],
+            ["userId", true],
+            ["message", false],
+        ], config.__memberInviteProperties),
         rules: config.__rules,
     }),
     MembersDelete: () => ({
@@ -335,18 +406,29 @@ export const config: LlmTaskConfig = {
             update: "Update a member with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["isAdmin", false],
+            ["permissions", false],
         ], config.__memberProperties),
         rules: config.__rules,
     }),
     __noteProperties: {
+        id: {
+            description: "The ID of the note.",
+            type: "uuid",
+        },
         name: {
-            example: "WeatherAPI",
+            example: "Weekly Review",
         },
         description: {
-            example: "Provides current weather information for a given location.",
+            example: "A summary of the week's progress and key points.",
         },
-        //...
+        text: {
+            example: "This week, we made significant progress on the WeatherAPI project. We also had a successful meeting with the client...",
+        },
+        isPrivate: {
+            example: "true",
+        },
     },
     NoteAdd: () => ({
         label: "Add Note",
@@ -354,7 +436,10 @@ export const config: LlmTaskConfig = {
             add: "Create a note with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["description", true],
+            ["text", true],
+            ["isPrivate", false],
         ], config.__noteProperties),
         rules: config.__rules,
     }),
@@ -395,18 +480,31 @@ export const config: LlmTaskConfig = {
             update: "Update a note with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["description", false],
+            ["text", false],
+            ["isPrivate", false],
         ], config.__noteProperties),
         rules: config.__rules,
     }),
     __projectProperties: {
+        id: {
+            description: "The unique identifier for the project.",
+            type: "uuid",
+        },
         name: {
+            description: "The name of the project.",
             example: "WeatherAPI",
         },
         description: {
+            description: "A brief description of what the project does.",
             example: "Provides current weather information for a given location.",
         },
-        //...
+        isPrivate: {
+            description: "Indicates if the project is private.",
+            type: "boolean",
+        },
     },
     ProjectAdd: () => ({
         label: "Add Project",
@@ -414,7 +512,9 @@ export const config: LlmTaskConfig = {
             add: "Create a project with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["description", true],
+            ["isPrivate", true],
         ], config.__projectProperties),
         rules: config.__rules,
     }),
@@ -455,18 +555,34 @@ export const config: LlmTaskConfig = {
             update: "Update a project with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["description", false],
+            ["isPrivate", false],
         ], config.__projectProperties),
         rules: config.__rules,
     }),
     __reminderProperties: {
+        id: {
+            description: "The unique identifier for the reminder.",
+            type: "uuid",
+        },
         name: {
-            example: "WeatherAPI",
+            example: "Doctor's Appointment",
         },
         description: {
-            example: "Provides current weather information for a given location.",
+            example: "Reminder to visit the doctor for a regular check-up.",
         },
-        //...
+        dueDate: {
+            description: "The date and time when the reminder is due.",
+            type: "DateTime",
+            example: "2024-06-15T09:00:00Z",
+        },
+        isComplete: {
+            description: "Status indicating whether the reminder is completed.",
+            type: "boolean",
+            example: "false",
+        },
     },
     ReminderAdd: () => ({
         label: "Add Reminder",
@@ -474,7 +590,10 @@ export const config: LlmTaskConfig = {
             add: "Create a reminder with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["description", false],
+            ["dueDate", true],
+            ["isComplete", true],
         ], config.__reminderProperties),
         rules: config.__rules,
     }),
@@ -515,22 +634,23 @@ export const config: LlmTaskConfig = {
             update: "Update a reminder with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["description", false],
+            ["dueDate", false],
+            ["isComplete", false],
         ], config.__reminderProperties),
         rules: config.__rules,
     }),
     __roleProperties: {
-        name: {
-            example: "WeatherAPI",
-        },
-        description: {
-            example: "Provides current weather information for a given location.",
-        },
-        teamId: {
-            description: "The ID of the team to connect the role to",
+        id: {
+            description: "Unique identifier for the role.",
             type: "uuid",
         },
-        //...
+        name: {
+            description: "Name of the role within an organization.",
+            example: "Data Analyst",
+        },
     },
     RoleAdd: () => ({
         label: "Add Role",
@@ -538,7 +658,8 @@ export const config: LlmTaskConfig = {
             add: "Create a role with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["permissions", true],
         ], config.__roleProperties),
         rules: config.__rules,
     }),
@@ -584,18 +705,29 @@ export const config: LlmTaskConfig = {
             update: "Update a role with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
         ], config.__roleProperties),
         rules: config.__rules,
     }),
     __routineProperties: {
+        id: {
+            description: "Unique identifier for the routine.",
+            type: "uuid",
+        },
         name: {
-            example: "WeatherAPI",
+            description: "The name of the routine.",
+            example: "Scientific method",
         },
-        description: {
-            example: "Provides current weather information for a given location.",
+        isInternal: {
+            description: "Whether the routine should be available standalone, or is only part of a specific larger routine. Typically this is false.",
+            example: "true, false",
         },
-        // TODO continue
+        isPrivate: {
+            description: "Whether the routine is private or publicly accessible.",
+            example: "true, false",
+        },
+        //...
     },
     RoutineAdd: () => ({
         label: "Add Routine",
@@ -604,8 +736,8 @@ export const config: LlmTaskConfig = {
         },
         properties: config.__pick_properties([
             ["name", true],
-            ["description", false],
-            //...
+            ["isInternal", false],
+            ["isPrivate", false],
         ], config.__routineProperties),
         rules: config.__rules,
     }),
@@ -646,7 +778,10 @@ export const config: LlmTaskConfig = {
             update: "Update a routine with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["isInternal", false],
+            ["isPrivate", false],
         ], config.__routineProperties),
         rules: config.__rules,
     }),
