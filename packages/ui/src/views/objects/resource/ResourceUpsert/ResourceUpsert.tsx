@@ -184,7 +184,7 @@ const ResourceForm = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={isCreate ? t("CreateResource") : t("UpdateResource")}
+                title={isCreate ? t("AddResource") : t("UpdateResource")}
                 help={t("ResourceHelp")}
             />
             <BaseForm

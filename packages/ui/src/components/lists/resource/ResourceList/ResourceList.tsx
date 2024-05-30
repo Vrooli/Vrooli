@@ -214,15 +214,72 @@ export const ResourceListHorizontal = ({
         ...contextData,
     });
 
+    const menu = useMemo(() => (
+        <ObjectActionMenu
+            actionData={actionData}
+            anchorEl={contextData.anchorEl}
+            exclude={[ObjectAction.FindInPage]}
+            object={contextData.object}
+            onClose={contextData.closeContextMenu}
+        />
+    ), [actionData, contextData]);
+
+    const isEmpty = !list?.resources?.length;
+    const boxSx = {
+        display: "flex",
+        gap: 2,
+        width: "100%",
+        marginLeft: "auto",
+        marginRight: "auto",
+        paddingTop: title ? 0 : 1,
+        paddingBottom: 1,
+        overflowX: "auto",
+        ...sxs?.list,
+    } as const;
+
+    // Don't need a drag/drop list if there aren't any items
+    if (isEmpty && !loading) {
+        // If you can add an item, show a button instead of a card. 
+        // This is more visually appealing
+        if (canUpdate) {
+            return (
+                <>
+                    {menu}
+                    <Button
+                        variant="text"
+                        color="primary"
+                        onClick={openAddDialog}
+                        startIcon={<LinkIcon />}
+                        sx={{ paddingBottom: 1 }}
+                    >
+                        {t("AddResource")}
+                    </Button>
+                </>
+            );
+        }
+        return null;
+    }
+    // If empty but loading, show loading cards
+    if (isEmpty && loading) {
+        return (
+            <>
+                <Box
+                    id={id}
+                    justifyContent="center"
+                    alignItems="center"
+                    sx={boxSx}
+                >
+                    {Array.from(Array(3).keys()).map((i) => (
+                        <LoadingCard key={`resource-card-${i}`} />
+                    ))}
+                </Box>
+            </>
+        );
+    }
+    // Otherwise, show drag/drop list with item cards, loading cards (if relavant), and add card (if relevant)
     return (
         <>
-            <ObjectActionMenu
-                actionData={actionData}
-                anchorEl={contextData.anchorEl}
-                exclude={[ObjectAction.FindInPage]}
-                object={contextData.object}
-                onClose={contextData.closeContextMenu}
-            />
+            {menu}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="resource-list" direction="horizontal">
                     {(provided) => (
@@ -232,17 +289,7 @@ export const ResourceListHorizontal = ({
                             {...provided.droppableProps}
                             justifyContent="center"
                             alignItems="center"
-                            sx={{
-                                display: "flex",
-                                gap: 2,
-                                width: "100%",
-                                marginLeft: "auto",
-                                marginRight: "auto",
-                                paddingTop: title ? 0 : 1,
-                                paddingBottom: 1,
-                                overflowX: "auto",
-                                ...sxs?.list,
-                            }}>
+                            sx={boxSx}>
                             {/* Resources */}
                             {list?.resources?.map((c: Resource, index) => (
                                 <Draggable
@@ -273,10 +320,10 @@ export const ResourceListHorizontal = ({
                                 ))
                             }
                             {/* Add button */}
-                            {canUpdate ? <Tooltip placement="top" title={t("CreateResource")}>
+                            {canUpdate ? <Tooltip placement="top" title={t("AddResource")}>
                                 <CardBox
                                     onClick={openAddDialog}
-                                    aria-label={t("CreateResource")}
+                                    aria-label={t("AddResource")}
                                     sx={{
                                         display: "flex",
                                         alignItems: "center",
@@ -334,7 +381,7 @@ export const ResourceListVertical = ({
                     fullWidth onClick={openAddDialog}
                     startIcon={<AddIcon />}
                     variant="outlined"
-                >{t("CreateResource")}</Button>
+                >{t("AddResource")}</Button>
             </Box>}
         </>
     );
@@ -411,7 +458,7 @@ export const ResourceList = (props: ResourceListProps) => {
     }, [deleteMutation, handleUpdate, list, mutate]);
 
     const upsertDialog = useMemo(() => (
-        list ? <ResourceUpsert
+        isAddDialogOpen ? <ResourceUpsert
             display="dialog"
             isCreate={editingIndex < 0}
             isOpen={isAddDialogOpen}
