@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readManyWithEmbeddingsHelper } from "../../actions/reads";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events";
 import { CustomError } from "../../events/error";
@@ -220,12 +221,13 @@ export const generateTaskExec = async (
             };
         }
         case "ApiFind": {
-            const { ApiEndpoints } = await import("../../endpoints/logic/api");
             const info = await loadInfo("api_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await ApiEndpoints.Query.apis(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "ApiVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
             //TODO find tasks will typically have follow-up actions, like picking one of the results or finding more. This means we should probably be running a routine instead
         }
@@ -262,12 +264,13 @@ export const generateTaskExec = async (
             };
         }
         case "BotFind": {
-            const { UserEndpoints } = await import("../../endpoints/logic/user");
             const info = await loadInfo("user_findMany");
             return async (data) => {
-                const input = converter[task](data, language);
-                const payload = await UserEndpoints.Query.users(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const input = { ...converter[task](data, language), isBot: true };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "User", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "BotUpdate": {
@@ -316,7 +319,9 @@ export const generateTaskExec = async (
             return async (data) => {
                 const input = converter[task](data, language);
                 const payload = await MemberEndpoints.Query.members(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "MembersUpdate": {
@@ -352,12 +357,13 @@ export const generateTaskExec = async (
             };
         }
         case "NoteFind": {
-            const { NoteEndpoints } = await import("../../endpoints/logic/note");
             const info = await loadInfo("note_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await NoteEndpoints.Query.notes(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "NoteVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "NoteUpdate": {
@@ -393,12 +399,13 @@ export const generateTaskExec = async (
             };
         }
         case "ProjectFind": {
-            const { ProjectEndpoints } = await import("../../endpoints/logic/project");
             const info = await loadInfo("project_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await ProjectEndpoints.Query.projects(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "ProjectVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "ProjectUpdate": {
@@ -447,7 +454,9 @@ export const generateTaskExec = async (
             return async (data) => {
                 const input = converter[task](data, language);
                 const payload = await ReminderEndpoints.Query.reminders(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "ReminderUpdate": {
@@ -488,7 +497,9 @@ export const generateTaskExec = async (
             return async (data) => {
                 const input = converter[task](data, language);
                 const payload = await RoleEndpoints.Query.roles(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "RoleUpdate": {
@@ -524,12 +535,13 @@ export const generateTaskExec = async (
             };
         }
         case "RoutineFind": {
-            const { RoutineEndpoints } = await import("../../endpoints/logic/routine");
             const info = await loadInfo("routine_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await RoutineEndpoints.Query.routines(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "RoutineVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "RoutineUpdate": {
@@ -570,7 +582,9 @@ export const generateTaskExec = async (
             return async (data) => {
                 const input = converter[task](data, language);
                 const payload = await ScheduleEndpoints.Query.schedules(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "ScheduleUpdate": {
@@ -606,12 +620,13 @@ export const generateTaskExec = async (
             };
         }
         case "SmartContractFind": {
-            const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
             const info = await loadInfo("smartContract_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await SmartContractEndpoints.Query.smartContracts(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "SmartContractVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "SmartContractUpdate": {
@@ -647,12 +662,13 @@ export const generateTaskExec = async (
             };
         }
         case "StandardFind": {
-            const { StandardEndpoints } = await import("../../endpoints/logic/standard");
             const info = await loadInfo("standard_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await StandardEndpoints.Query.standards(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "StandardVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "StandardUpdate": {
@@ -688,12 +704,13 @@ export const generateTaskExec = async (
             };
         }
         case "TeamFind": {
-            const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
             const info = await loadInfo("organization_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await OrganizationEndpoints.Query.organizations(undefined, { input }, context, info);
-                return { label: null, link: null, payload };
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Organization", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
             };
         }
         case "TeamUpdate": {
