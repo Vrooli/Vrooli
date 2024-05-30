@@ -4,7 +4,6 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { getCurrentUser } from "utils/authentication/session";
 import { BranchMap, getCookieMessageTree, getCookieTasksForMessage, setCookieMessageTree, setCookieTaskForMessage } from "utils/cookies";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { useLazyFetch } from "./useLazyFetch";
 
@@ -510,17 +509,6 @@ export const useMessageTree = (chatId: string) => {
         if (!searchTreeData || searchTreeData.messages.length === 0) return;
         addMessages(searchTreeData.messages.map(message => ({ ...message, status: "sent" })));
     }, [addMessages, searchTreeData]);
-
-    // Listen to message changes and update the tree accordingly
-    useEffect(() => {
-        const unsubscribe = PubSub.get().subscribe("chatMessage", (data) => {
-            if (data.chatId !== chatId) return;
-            const { updatedMessage } = data.data;
-            if (!updatedMessage) return;
-            editMessage(updatedMessage);
-        });
-        return unsubscribe;
-    }, [chatId, editMessage]);
 
     // Return the necessary state and functions
     return {
