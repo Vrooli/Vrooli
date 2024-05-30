@@ -61,35 +61,21 @@ export const useMessageActions = ({
                 name: getCurrentUser(session).name ?? undefined,
             },
         };
-        PubSub.get().publish("chatMessage", {
-            chatId: chat.id,
-            data: { newMessage },
-        });
+        console.log("yeeeet in postMessage", newMessage);
         handleChatUpdate({
             ...chat,
             messages: [...(chat.messages ?? []), newMessage],
-        }).then(() => {
-            PubSub.get().publish("chatMessage", {
-                chatId: chat.id,
-                data: { updatedMessage: { ...newMessage, status: "sent" } },
-            });
         }).catch(() => {
-            PubSub.get().publish("chatMessage", {
-                chatId: chat.id,
-                data: { updatedMessage: { ...newMessage, status: "failed" } },
-            });
+            PubSub.get().publish("snack", { messageKey: "ActionFailed", severity: "Error" });
         });
     }, [chat, language, handleChatUpdate, session]);
 
     /** Commit an existing message */
     const putMessage = useCallback((updatedMessage: ChatMessageShape) => {
+        console.log("yeeet in putMessage");
         const isOwn = updatedMessage.user?.id === getCurrentUser(session).id;
         const existingMessage = chat.messages?.find((message) => message.id === updatedMessage.id);
         if (!existingMessage) return;
-        PubSub.get().publish("chatMessage", {
-            chatId: chat.id,
-            data: { updatedMessage },
-        });
         handleChatUpdate({
             ...chat,
             messages: (chat.messages ?? []).map((message) => {
@@ -100,20 +86,6 @@ export const useMessageActions = ({
             }),
         }).catch(() => {
             PubSub.get().publish("snack", { messageKey: "ActionFailed", severity: "Error" });
-            // If own message, mark as fail
-            if (isOwn) {
-                PubSub.get().publish("chatMessage", {
-                    chatId: chat.id,
-                    data: { updatedMessage: { ...updatedMessage, status: "failed" } },
-                });
-            }
-            // Otherwise, reverse
-            else {
-                PubSub.get().publish("chatMessage", {
-                    chatId: chat.id,
-                    data: { updatedMessage: existingMessage },
-                });
-            }
         });
     }, [chat, handleChatUpdate, session]);
 
@@ -135,8 +107,8 @@ export const useMessageActions = ({
      * Handle a suggested task, depending on its state
      */
     const respondToTask = useCallback((task: LlmTaskInfo) => {
-        // Ignore if status is "completed" or "failed"
-        if (["completed", "failed"].includes(task.status)) {
+        // Ignore if status is "Completed"
+        if (["Completed"].includes(task.status)) {
             console.warn("Ignoring task: invalid status", task);
             return;
         }
@@ -160,11 +132,11 @@ export const useMessageActions = ({
         const originalTask = { ...task };
         const originalTaskList = tasks[message.id] ?? [];
         // If task is not running and not completed, start the task
-        if (["suggested", "canceled", "failed"].includes(task.status)) {
+        if (["Suggested", "Canceled", "Failed"].includes(task.status)) {
             const updatedTask = {
                 ...task,
                 lastUpdated: new Date().toISOString(),
-                status: "running" as const,
+                status: "Running" as const,
             };
             const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? updatedTask : t);
             setCookieTaskForMessage(message.id, updatedTask);
@@ -186,14 +158,15 @@ export const useMessageActions = ({
                     setCookieTaskForMessage(message.id, originalTask);
                     updateTasksForMessage(message.id, originalTaskList);
                 },
+                // Socket event should update task data on success, so we don't need to do anything here
             });
         }
-        // If status is "running", attempt to cancel the task
-        else if (task.status === "running") {
+        // If status is "Running", attempt to cancel the task
+        else if (["Running", "Canceling"].includes(task.status)) {
             const updatedTask = {
                 ...task,
                 lastUpdated: new Date().toISOString(),
-                status: "canceling" as const,
+                status: "Canceling" as const,
             };
             const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? updatedTask : t);
             setCookieTaskForMessage(message.id, updatedTask);
@@ -208,7 +181,19 @@ export const useMessageActions = ({
                     setCookieTaskForMessage(message.id, originalTask);
                     updateTasksForMessage(message.id, originalTaskList);
                 },
+                onSuccess: () => {
+                    const canceledTask = {
+                        ...task,
+                        lastUpdated: new Date().toISOString(),
+                        status: "Suggested" as const,
+                    };
+                    const canceledTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? canceledTask : t);
+                    setCookieTaskForMessage(message.id, canceledTask);
+                    updateTasksForMessage(message.id, canceledTaskList);
+                },
             });
+        } else {
+            console.warn("Ignoring task: invalid status", task);
         }
     }, [cancelTask, startTask, tasks, tree.map, updateTasksForMessage]);
 
