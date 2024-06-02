@@ -17,7 +17,7 @@ export const typeDef = gql`
         name: String!
         permissions: String!
         membersConnect: [ID!]
-        organizationConnect: ID!
+        teamConnect: ID!
         translationsCreate: [RoleTranslationCreateInput!]
     }
     input RoleUpdateInput {
@@ -34,17 +34,17 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        name: String!
-        permissions: String!
-        translations: [RoleTranslation!]!
-        organization: Organization!
         members: [Member!]
         membersCount: Int!
+        name: String!
+        permissions: String!
+        team: Team!
+        translations: [RoleTranslation!]!
     }
 
     #type Permission {
     #    members: MemberPermission!
-    #    organizations: OrganizationPermission!
+    #    teams: TeamPermission!
     #    roles: RolePermission!
     #    routines: RoutinePermission!
     #    standards: StandardPermission!
@@ -56,7 +56,7 @@ export const typeDef = gql`
     #    remove: Boolean!
     #}
 
-    #type OrganizationPermission {
+    #type TeamPermission {
     #    create: Boolean
     #    read: Boolean
     #    update: Boolean
@@ -84,8 +84,8 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        teamId: ID!
         translationLanguages: [String!]
-        organizationId: ID!
         searchString: String
         sortBy: RoleSortBy
         take: Int

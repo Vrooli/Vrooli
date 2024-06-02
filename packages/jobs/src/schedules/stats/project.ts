@@ -4,12 +4,12 @@ import { PeriodType, Prisma } from "@prisma/client";
 type BatchDirectoryCountsResult = Record<string, {
     directories: number;
     apis: number;
+    codes: number;
     notes: number;
-    organizations: number;
     projects: number;
     routines: number;
-    smartContracts: number;
     standards: number;
+    teams: number;
 }>
 
 type BatchDirectoryRunCountsResult = Record<string, {
@@ -30,12 +30,12 @@ const batchDirectoryCounts = async (
     const initialResult = Object.fromEntries(projectVersionIds.map(id => [id, {
         directories: 0,
         apis: 0,
+        codes: 0,
         notes: 0,
-        organizations: 0,
         projects: 0,
         routines: 0,
-        smartContracts: 0,
         standards: 0,
+        teams: 0,
     }]));
     try {
         return await batchGroup<Prisma.project_version_directoryFindManyArgs, BatchDirectoryCountsResult>({
@@ -48,12 +48,12 @@ const batchDirectoryCounts = async (
                     if (!currResult) return;
                     currResult.directories += 1;
                     currResult.apis += directory._count.childApiVersions;
+                    currResult.codes += directory._count.childCodeVersions;
                     currResult.notes += directory._count.childNoteVersions;
-                    currResult.organizations += directory._count.childOrganizations;
                     currResult.projects += directory._count.childProjectVersions;
                     currResult.routines += directory._count.childRoutineVersions;
-                    currResult.smartContracts += directory._count.childSmartContractVersions;
                     currResult.standards += directory._count.childStandardVersions;
+                    currResult.teams += directory._count.childTeams;
                 });
             },
             objectType: "ProjectVersionDirectory",
@@ -65,12 +65,12 @@ const batchDirectoryCounts = async (
                 _count: {
                     select: {
                         childApiVersions: true,
+                        childCodeVersions: true,
                         childNoteVersions: true,
-                        childOrganizations: true,
                         childProjectVersions: true,
                         childRoutineVersions: true,
-                        childSmartContractVersions: true,
                         childStandardVersions: true,
+                        childTeams: true,
                     },
                 },
             },

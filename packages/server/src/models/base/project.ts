@@ -10,7 +10,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { ProjectFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, OrganizationModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type ProjectPre = PreShapeRootResult;
 
@@ -80,7 +80,7 @@ export const ProjectModel: ProjectModelLogic = ({
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -118,13 +118,13 @@ export const ProjectModel: ProjectModelLogic = ({
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<ProjectModelInfo["PrismaSelect"]>([
-                ["ownedByOrganization", "Organization"],
+                ["ownedByTeam", "Team"],
                 ["ownedByUser", "User"],
             ], data, ...rest),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -135,7 +135,7 @@ export const ProjectModel: ProjectModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["ProjectVersion", ["root"]],
         }),
@@ -144,8 +144,8 @@ export const ProjectModel: ProjectModelLogic = ({
             public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

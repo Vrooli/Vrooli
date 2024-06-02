@@ -42,8 +42,8 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             status: true,
             statuses: true,
             meetingId: true,
+            teamId: true,
             userId: true,
-            organizationId: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
@@ -73,7 +73,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: (data?.meeting as MeetingModelInfo["PrismaModel"])?.organization,
+            Team: (data?.meeting as MeetingModelInfo["PrismaModel"])?.team,
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),

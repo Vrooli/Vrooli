@@ -14,11 +14,10 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnnive
     PullRequestCreate: [1, 5, 10, 25, 50, 100, 250, 500],
     PullRequestComplete: [1, 5, 10, 25, 50, 100, 250, 500],
     ApiCreate: [1, 5, 10, 25, 50],
+    SmartContractCreate: [1, 5, 10, 25],
     CommentCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     IssueCreate: [1, 5, 10, 25, 50, 100, 250],
     NoteCreate: [1, 5, 10, 25, 50, 100],
-    OrganizationCreate: [1, 2, 5, 10],
-    OrganizationJoin: [1, 5, 10, 25],
     PostCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     ProjectCreate: [1, 5, 10, 25, 50, 100],
     QuestionAnswer: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
@@ -28,8 +27,9 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnnive
     RunRoutine: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
     RunProject: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     RoutineCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
-    SmartContractCreate: [1, 5, 10, 25],
     StandardCreate: [1, 5, 10, 25, 50],
+    OrganizationCreate: [1, 2, 5, 10],
+    OrganizationJoin: [1, 5, 10, 25],
     UserInvite: [1, 5, 10, 25, 50, 100],
 };
 
@@ -87,6 +87,13 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ApiCreateBody", bodyVariables: { count: level }, level };
     },
+    SmartContractCreate: (count, findNext = false) => {
+        // [1, 5, 10, 25]
+        const tit = <C extends number>(count: C) => `${"SmartContractCreate"}${count}Title` as const;
+        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count, findNext);
+        if (!name) return { name: null, body: null, level: 0 };
+        return { name, body: "SmartContractCreateBody", bodyVariables: { count: level }, level };
+    },
     CommentCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${"CommentCreate"}${count}Title` as const;
@@ -121,20 +128,6 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         const [level, name] = awardTier([[1, tit(1)], [100, tit(100)], [1000, tit(1000)], [10000, tit(10000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ObjectReactBody", bodyVariables: { count: level }, level };
-    },
-    OrganizationCreate: (count, findNext = false) => {
-        // [1, 2, 5, 10]
-        const tit = <C extends number>(count: C) => `${"OrganizationCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [2, tit(2)], [5, tit(5)], [10, tit(10)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "OrganizationCreateBody", bodyVariables: { count: level }, level };
-    },
-    OrganizationJoin: (count, findNext = false) => {
-        // [1, 5, 10, 25]
-        const tit = <C extends number>(count: C) => `${"OrganizationJoin"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "OrganizationJoinBody", bodyVariables: { count: level }, level };
     },
     PostCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
@@ -227,13 +220,6 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "RoutineCreateBody", bodyVariables: { count: level }, level };
     },
-    SmartContractCreate: (count, findNext = false) => {
-        // [1, 5, 10, 25]
-        const tit = <C extends number>(count: C) => `${"SmartContractCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "SmartContractCreateBody", bodyVariables: { count: level }, level };
-    },
     StandardCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50]
         const tit = <C extends number>(count: C) => `${"StandardCreate"}${count}Title` as const;
@@ -246,6 +232,20 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         const [level, name] = awardTier([[7, tit(7)], [30, tit(30)], [100, tit(100)], [200, tit(200)], [365, tit(365)], [500, tit(500)], [750, tit(750)], [1000, tit(1000)]], days, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "StreakDaysBody", bodyVariables: { count: days }, level };
+    },
+    OrganizationCreate: (count, findNext = false) => {
+        // [1, 2, 5, 10]
+        const tit = <C extends number>(count: C) => `${"OrganizationCreate"}${count}Title` as const;
+        const [level, name] = awardTier([[1, tit(1)], [2, tit(2)], [5, tit(5)], [10, tit(10)]], count, findNext);
+        if (!name) return { name: null, body: null, level: 0 };
+        return { name, body: "OrganizationCreateBody", bodyVariables: { count: level }, level };
+    },
+    OrganizationJoin: (count, findNext = false) => {
+        // [1, 5, 10, 25]
+        const tit = <C extends number>(count: C) => `${"OrganizationJoin"}${count}Title` as const;
+        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count, findNext);
+        if (!name) return { name: null, body: null, level: 0 };
+        return { name, body: "OrganizationJoinBody", bodyVariables: { count: level }, level };
     },
     UserInvite: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]

@@ -10,19 +10,7 @@ export const question_update = {
       "created_at": true,
       "updated_at": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -44,7 +32,19 @@ export const question_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "score": true,
@@ -122,12 +122,33 @@ export const question_update = {
       "isPrivate": true,
       "__typename": "Api"
     },
+    "Code": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Code"
+    },
     "Note": {
       "id": true,
       "isPrivate": true,
       "__typename": "Note"
     },
-    "Organization": {
+    "Project": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Project"
+    },
+    "Routine": {
+      "id": true,
+      "isInternal": true,
+      "isPrivate": true,
+      "__typename": "Routine"
+    },
+    "Standard": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Standard"
+    },
+    "Team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -149,28 +170,7 @@ export const question_update = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
-    },
-    "Project": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Project"
-    },
-    "Routine": {
-      "id": true,
-      "isInternal": true,
-      "isPrivate": true,
-      "__typename": "Routine"
-    },
-    "SmartContract": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "SmartContract"
-    },
-    "Standard": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Standard"
+      "__typename": "Team"
     }
   },
   "tags": {

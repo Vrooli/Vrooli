@@ -47,7 +47,7 @@ export const view_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -88,7 +88,163 @@ export const view_findMany = {
             }
           },
           "owner": {
-            "Organization": {
+            "Team": {
+              "id": true,
+              "bannerImage": true,
+              "handle": true,
+              "profileImage": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              }
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true
+            }
+          },
+          "permissions": true,
+          "questionsCount": true,
+          "score": true,
+          "bookmarks": true,
+          "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true
+            },
+            "you": {
+              "isOwn": true,
+              "isBookmarked": true
+            }
+          },
+          "transfersCount": true,
+          "views": true,
+          "you": {
+            "canDelete": true,
+            "canBookmark": true,
+            "canTransfer": true,
+            "canUpdate": true,
+            "canRead": true,
+            "canReact": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "reaction": true
+          }
+        },
+        "Code": {
+          "versions": {
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "jsonVariable": true,
+              "name": true
+            },
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "isComplete": true,
+            "isDeleted": true,
+            "isLatest": true,
+            "isPrivate": true,
+            "default": true,
+            "contractType": true,
+            "content": true,
+            "versionIndex": true,
+            "versionLabel": true,
+            "commentsCount": true,
+            "directoryListingsCount": true,
+            "forksCount": true,
+            "reportsCount": true,
+            "you": {
+              "canComment": true,
+              "canCopy": true,
+              "canDelete": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canUse": true,
+              "canRead": true
+            }
+          },
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "isPrivate": true,
+          "issuesCount": true,
+          "labels": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "color": true,
+            "label": true,
+            "owner": {
+              "Team": {
+                "id": true,
+                "bannerImage": true,
+                "handle": true,
+                "profileImage": true,
+                "you": {
+                  "canAddMembers": true,
+                  "canDelete": true,
+                  "canBookmark": true,
+                  "canReport": true,
+                  "canUpdate": true,
+                  "canRead": true,
+                  "isBookmarked": true,
+                  "isViewed": true,
+                  "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                  }
+                }
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true
+              }
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true
+            }
+          },
+          "owner": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -174,11 +330,28 @@ export const view_findMany = {
               "id": true,
               "isPrivate": true
             },
+            "Code": {
+              "id": true,
+              "isPrivate": true
+            },
             "Note": {
               "id": true,
               "isPrivate": true
             },
-            "Organization": {
+            "Project": {
+              "id": true,
+              "isPrivate": true
+            },
+            "Routine": {
+              "id": true,
+              "isInternal": true,
+              "isPrivate": true
+            },
+            "Standard": {
+              "id": true,
+              "isPrivate": true
+            },
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -200,23 +373,6 @@ export const view_findMany = {
                   "permissions": true
                 }
               }
-            },
-            "Project": {
-              "id": true,
-              "isPrivate": true
-            },
-            "Routine": {
-              "id": true,
-              "isInternal": true,
-              "isPrivate": true
-            },
-            "SmartContract": {
-              "id": true,
-              "isPrivate": true
-            },
-            "Standard": {
-              "id": true,
-              "isPrivate": true
             }
           },
           "commentsCount": true,
@@ -231,7 +387,7 @@ export const view_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -326,7 +482,7 @@ export const view_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -367,7 +523,7 @@ export const view_findMany = {
             }
           },
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -433,58 +589,6 @@ export const view_findMany = {
             "isBookmarked": true,
             "isViewed": true,
             "reaction": true
-          }
-        },
-        "Organization": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "created_at": true,
-          "updated_at": true,
-          "isOpenToNewMembers": true,
-          "isPrivate": true,
-          "commentsCount": true,
-          "membersCount": true,
-          "profileImage": true,
-          "reportsCount": true,
-          "bookmarks": true,
-          "tags": {
-            "id": true,
-            "created_at": true,
-            "tag": true,
-            "bookmarks": true,
-            "translations": {
-              "id": true,
-              "language": true,
-              "description": true
-            },
-            "you": {
-              "isOwn": true,
-              "isBookmarked": true
-            }
-          },
-          "translations": {
-            "id": true,
-            "language": true,
-            "bio": true,
-            "name": true
-          },
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
           }
         },
         "Post": {
@@ -557,7 +661,7 @@ export const view_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -598,7 +702,7 @@ export const view_findMany = {
             }
           },
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -699,11 +803,28 @@ export const view_findMany = {
               "id": true,
               "isPrivate": true
             },
+            "Code": {
+              "id": true,
+              "isPrivate": true
+            },
             "Note": {
               "id": true,
               "isPrivate": true
             },
-            "Organization": {
+            "Project": {
+              "id": true,
+              "isPrivate": true
+            },
+            "Routine": {
+              "id": true,
+              "isInternal": true,
+              "isPrivate": true
+            },
+            "Standard": {
+              "id": true,
+              "isPrivate": true
+            },
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -725,23 +846,6 @@ export const view_findMany = {
                   "permissions": true
                 }
               }
-            },
-            "Project": {
-              "id": true,
-              "isPrivate": true
-            },
-            "Routine": {
-              "id": true,
-              "isInternal": true,
-              "isPrivate": true
-            },
-            "SmartContract": {
-              "id": true,
-              "isPrivate": true
-            },
-            "Standard": {
-              "id": true,
-              "isPrivate": true
             }
           },
           "tags": {
@@ -776,6 +880,7 @@ export const view_findMany = {
             "created_at": true,
             "updated_at": true,
             "completedAt": true,
+            "codeCallData": true,
             "isAutomatable": true,
             "isComplete": true,
             "isDeleted": true,
@@ -784,7 +889,6 @@ export const view_findMany = {
             "simplicity": true,
             "timesStarted": true,
             "timesCompleted": true,
-            "smartContractCallData": true,
             "apiCallData": true,
             "versionIndex": true,
             "versionLabel": true,
@@ -810,7 +914,7 @@ export const view_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -851,7 +955,7 @@ export const view_findMany = {
             }
           },
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -919,7 +1023,7 @@ export const view_findMany = {
             "reaction": true
           }
         },
-        "SmartContract": {
+        "Standard": {
           "versions": {
             "translations": {
               "id": true,
@@ -932,12 +1036,13 @@ export const view_findMany = {
             "created_at": true,
             "updated_at": true,
             "isComplete": true,
-            "isDeleted": true,
+            "isFile": true,
             "isLatest": true,
             "isPrivate": true,
             "default": true,
-            "contractType": true,
-            "content": true,
+            "standardType": true,
+            "props": true,
+            "yup": true,
             "versionIndex": true,
             "versionLabel": true,
             "commentsCount": true,
@@ -966,7 +1071,7 @@ export const view_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -1007,7 +1112,7 @@ export const view_findMany = {
             }
           },
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -1075,133 +1180,18 @@ export const view_findMany = {
             "reaction": true
           }
         },
-        "Standard": {
-          "versions": {
-            "translations": {
-              "id": true,
-              "language": true,
-              "description": true,
-              "jsonVariable": true,
-              "name": true
-            },
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isComplete": true,
-            "isFile": true,
-            "isLatest": true,
-            "isPrivate": true,
-            "default": true,
-            "standardType": true,
-            "props": true,
-            "yup": true,
-            "versionIndex": true,
-            "versionLabel": true,
-            "commentsCount": true,
-            "directoryListingsCount": true,
-            "forksCount": true,
-            "reportsCount": true,
-            "you": {
-              "canComment": true,
-              "canCopy": true,
-              "canDelete": true,
-              "canReport": true,
-              "canUpdate": true,
-              "canUse": true,
-              "canRead": true
-            }
-          },
+        "Team": {
           "id": true,
+          "bannerImage": true,
+          "handle": true,
           "created_at": true,
           "updated_at": true,
+          "isOpenToNewMembers": true,
           "isPrivate": true,
-          "issuesCount": true,
-          "labels": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "color": true,
-            "label": true,
-            "owner": {
-              "Organization": {
-                "id": true,
-                "bannerImage": true,
-                "handle": true,
-                "profileImage": true,
-                "you": {
-                  "canAddMembers": true,
-                  "canDelete": true,
-                  "canBookmark": true,
-                  "canReport": true,
-                  "canUpdate": true,
-                  "canRead": true,
-                  "isBookmarked": true,
-                  "isViewed": true,
-                  "yourMembership": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "isAdmin": true,
-                    "permissions": true
-                  }
-                }
-              },
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true
-              }
-            },
-            "you": {
-              "canDelete": true,
-              "canUpdate": true
-            }
-          },
-          "owner": {
-            "Organization": {
-              "id": true,
-              "bannerImage": true,
-              "handle": true,
-              "profileImage": true,
-              "you": {
-                "canAddMembers": true,
-                "canDelete": true,
-                "canBookmark": true,
-                "canReport": true,
-                "canUpdate": true,
-                "canRead": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "yourMembership": {
-                  "id": true,
-                  "created_at": true,
-                  "updated_at": true,
-                  "isAdmin": true,
-                  "permissions": true
-                }
-              }
-            },
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true
-            }
-          },
-          "permissions": true,
-          "questionsCount": true,
-          "score": true,
+          "commentsCount": true,
+          "membersCount": true,
+          "profileImage": true,
+          "reportsCount": true,
           "bookmarks": true,
           "tags": {
             "id": true,
@@ -1218,18 +1208,28 @@ export const view_findMany = {
               "isBookmarked": true
             }
           },
-          "transfersCount": true,
-          "views": true,
+          "translations": {
+            "id": true,
+            "language": true,
+            "bio": true,
+            "name": true
+          },
           "you": {
+            "canAddMembers": true,
             "canDelete": true,
             "canBookmark": true,
-            "canTransfer": true,
+            "canReport": true,
             "canUpdate": true,
             "canRead": true,
-            "canReact": true,
             "isBookmarked": true,
             "isViewed": true,
-            "reaction": true
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
           }
         },
         "User": {

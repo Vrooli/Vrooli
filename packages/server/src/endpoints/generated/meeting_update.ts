@@ -25,6 +25,7 @@ export const meeting_update = {
   },
   "labels": {
     "apisCount": true,
+    "codesCount": true,
     "focusModesCount": true,
     "issuesCount": true,
     "meetingsCount": true,
@@ -32,7 +33,6 @@ export const meeting_update = {
     "projectsCount": true,
     "routinesCount": true,
     "schedulesCount": true,
-    "smartContractsCount": true,
     "standardsCount": true,
     "id": true,
     "created_at": true,
@@ -40,19 +40,7 @@ export const meeting_update = {
     "color": true,
     "label": true,
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -74,7 +62,19 @@ export const meeting_update = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "you": {
@@ -86,6 +86,7 @@ export const meeting_update = {
   "schedule": {
     "labels": {
       "apisCount": true,
+      "codesCount": true,
       "focusModesCount": true,
       "issuesCount": true,
       "meetingsCount": true,
@@ -93,7 +94,6 @@ export const meeting_update = {
       "projectsCount": true,
       "routinesCount": true,
       "schedulesCount": true,
-      "smartContractsCount": true,
       "standardsCount": true,
       "id": true,
       "created_at": true,
@@ -101,19 +101,7 @@ export const meeting_update = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -135,7 +123,19 @@ export const meeting_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -340,19 +340,7 @@ export const meeting_update = {
             "color": true,
             "label": true,
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -374,7 +362,19 @@ export const meeting_update = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "you": {
@@ -384,19 +384,7 @@ export const meeting_update = {
             "__typename": "Label"
           },
           "owner": {
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true,
-              "__typename": "User"
-            },
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -418,7 +406,19 @@ export const meeting_update = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
             }
           },
           "permissions": true,
@@ -525,7 +525,7 @@ export const meeting_update = {
       "name": true,
       "status": true,
       "stepsCount": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -547,7 +547,7 @@ export const meeting_update = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "user": {
         "id": true,
@@ -591,19 +591,7 @@ export const meeting_update = {
                 "color": true,
                 "label": true,
                 "owner": {
-                  "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true,
-                    "__typename": "User"
-                  },
-                  "Organization": {
+                  "Team": {
                     "id": true,
                     "bannerImage": true,
                     "handle": true,
@@ -625,7 +613,19 @@ export const meeting_update = {
                         "permissions": true
                       }
                     },
-                    "__typename": "Organization"
+                    "__typename": "Team"
+                  },
+                  "User": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "bannerImage": true,
+                    "handle": true,
+                    "isBot": true,
+                    "isBotDepictingPerson": true,
+                    "name": true,
+                    "profileImage": true,
+                    "__typename": "User"
                   }
                 },
                 "you": {
@@ -635,19 +635,7 @@ export const meeting_update = {
                 "__typename": "Label"
               },
               "owner": {
-                "User": {
-                  "id": true,
-                  "created_at": true,
-                  "updated_at": true,
-                  "bannerImage": true,
-                  "handle": true,
-                  "isBot": true,
-                  "isBotDepictingPerson": true,
-                  "name": true,
-                  "profileImage": true,
-                  "__typename": "User"
-                },
-                "Organization": {
+                "Team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -669,7 +657,19 @@ export const meeting_update = {
                       "permissions": true
                     }
                   },
-                  "__typename": "Organization"
+                  "__typename": "Team"
+                },
+                "User": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "bannerImage": true,
+                  "handle": true,
+                  "isBot": true,
+                  "isBotDepictingPerson": true,
+                  "name": true,
+                  "profileImage": true,
+                  "__typename": "User"
                 }
               },
               "permissions": true,
@@ -761,19 +761,7 @@ export const meeting_update = {
             "color": true,
             "label": true,
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -795,7 +783,19 @@ export const meeting_update = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "you": {
@@ -805,19 +805,7 @@ export const meeting_update = {
             "__typename": "Label"
           },
           "owner": {
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true,
-              "__typename": "User"
-            },
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -839,7 +827,19 @@ export const meeting_update = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
             }
           },
           "permissions": true,
@@ -888,6 +888,7 @@ export const meeting_update = {
         "created_at": true,
         "updated_at": true,
         "completedAt": true,
+        "codeCallData": true,
         "isAutomatable": true,
         "isComplete": true,
         "isDeleted": true,
@@ -896,7 +897,6 @@ export const meeting_update = {
         "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
-        "smartContractCallData": true,
         "apiCallData": true,
         "versionIndex": true,
         "versionLabel": true,
@@ -958,7 +958,7 @@ export const meeting_update = {
       "stepsCount": true,
       "inputsCount": true,
       "wasRunAutomatically": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -980,7 +980,7 @@ export const meeting_update = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "user": {
         "id": true,
@@ -1037,8 +1037,8 @@ export const meeting_update = {
   "created_at": true,
   "updated_at": true,
   "openToAnyoneWithInvite": true,
-  "showOnOrganizationProfile": true,
-  "organization": {
+  "showOnTeamProfile": true,
+  "team": {
     "id": true,
     "bannerImage": true,
     "handle": true,
@@ -1060,7 +1060,7 @@ export const meeting_update = {
         "permissions": true
       }
     },
-    "__typename": "Organization"
+    "__typename": "Team"
   },
   "restrictedToRoles": {
     "members": {
@@ -1076,7 +1076,7 @@ export const meeting_update = {
         "name": true,
         "permissions": true,
         "membersCount": true,
-        "organization": {
+        "team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -1098,7 +1098,7 @@ export const meeting_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
         },
         "translations": {
           "id": true,
@@ -1119,7 +1119,7 @@ export const meeting_update = {
     "name": true,
     "permissions": true,
     "membersCount": true,
-    "organization": {
+    "team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -1141,7 +1141,7 @@ export const meeting_update = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
+      "__typename": "Team"
     },
     "translations": {
       "id": true,

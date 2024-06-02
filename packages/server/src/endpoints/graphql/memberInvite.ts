@@ -20,9 +20,9 @@ export const typeDef = gql`
 
     input MemberInviteCreateInput {
         id: ID!
-        userConnect: ID!
-        organizationConnect: ID!
         message: String
+        teamConnect: ID!
+        userConnect: ID!
         willBeAdmin: Boolean
         willHavePermissions: String
     }
@@ -37,7 +37,7 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         user: User!
-        organization: Organization!
+        team: Team!
         message: String
         status: MemberInviteStatus!
         willBeAdmin: Boolean!
@@ -56,7 +56,7 @@ export const typeDef = gql`
         ids: [ID!]
         status: MemberInviteStatus
         statuses: [MemberInviteStatus!]
-        organizationId: ID
+        teamId: ID
         userId: ID
         searchString: String
         sortBy: MemberInviteSortBy

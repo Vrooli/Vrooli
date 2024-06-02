@@ -21,8 +21,8 @@ export const typeDef = gql`
         updated_at: Date!
         isAdmin: Boolean!
         permissions: String!
-        organization: Organization!
         roles: [Role!]!
+        team: Team!
         user: User!
         you: MemberYou!
     }
@@ -38,11 +38,11 @@ export const typeDef = gql`
         ids: [ID!]
         isAdmin: Boolean
         roles: [String!]
-        organizationId: ID
         userId: ID
         searchString: String
         sortBy: MemberSortBy
         take: Int
+        teamId: ID
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

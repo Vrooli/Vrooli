@@ -3,7 +3,7 @@ import { CanConnect, ShapeModel } from "types";
 import { ChatInviteShape, shapeChatInvite } from "./chatInvite";
 import { ChatMessageShape, shapeChatMessage } from "./chatMessage";
 import { LabelShape, shapeLabel } from "./label";
-import { OrganizationShape } from "./organization";
+import { TeamShape } from "./team";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "description" | "name"> & {
@@ -15,9 +15,9 @@ export type ChatShape = Pick<Chat, "id" | "openToAnyoneWithInvite"> & {
     invites: ChatInviteShape[];
     labels?: CanConnect<LabelShape>[] | null;
     messages: ChatMessageShape[];
-    organization?: CanConnect<OrganizationShape> | null;
     participants: ChatParticipant[]; // Ignored, but needed for ChatCrud
     participantsDelete?: { id: string }[] | null;
+    team?: CanConnect<TeamShape> | null;
     translations?: ChatTranslationShape[] | null;
 }
 
@@ -38,7 +38,7 @@ export const shapeChat: ShapeModel<ChatShape, ChatCreateInput, ChatUpdateInput> 
                 return { ...m, chat: { id: prims.id } };
             }),
             ...createRel(d, "translations", ["Create"], "many", shapeChatTranslation),
-            ...(d.organization ? { organizationConnect: d.organization.id } : {}),
+            ...(d.team ? { teamConnect: d.team.id } : {}),
         };
     },
     update: (o, u, a) => shapeUpdate(u, {

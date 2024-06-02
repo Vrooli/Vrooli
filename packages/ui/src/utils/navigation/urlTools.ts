@@ -46,10 +46,10 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
     // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,
+        LINKS.Code,
         LINKS.Note,
         LINKS.Project,
         LINKS.Routine,
-        LINKS.SmartContract,
         LINKS.Standard,
     ].map(link => link.split("/").pop());
     // Check if any part of the URL contains the name of a versioned object

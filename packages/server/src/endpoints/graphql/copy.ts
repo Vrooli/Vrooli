@@ -5,12 +5,12 @@ import { CopyEndpoints, EndpointsCopy } from "../logic/copy";
 export const typeDef = gql`
     enum CopyType {
         ApiVersion
+        CodeVersion
         NoteVersion
-        Organization
         ProjectVersion
         RoutineVersion
-        SmartContractVersion
         StandardVersion
+        Team
     }  
  
     input CopyInput {
@@ -21,12 +21,12 @@ export const typeDef = gql`
 
     type CopyResult {
         apiVersion: ApiVersion
+        codeVersion: CodeVersion
         noteVersion: NoteVersion
-        organization: Organization
         projectVersion: ProjectVersion
         routineVersion: RoutineVersion
-        smartContractVersion: SmartContractVersion
         standardVersion: StandardVersion
+        team: Team
     }
  
     extend type Mutation {

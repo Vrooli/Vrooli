@@ -1,6 +1,6 @@
 import { BookmarkFor, ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
-import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
 import { SvgComponent } from "types";
 import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
@@ -12,6 +12,8 @@ import { chatSearchParams } from "./schemas/chat";
 import { chatInviteSearchParams } from "./schemas/chatInvite";
 import { chatMessageSearchParams } from "./schemas/chatMessage";
 import { chatParticipantSearchParams } from "./schemas/chatParticipant";
+import { codeSearchParams } from "./schemas/code";
+import { codeVersionSearchParams } from "./schemas/codeVersion";
 import { commentSearchParams } from "./schemas/comment";
 import { focusModeSearchParams } from "./schemas/focusMode";
 import { issueSearchParams } from "./schemas/issue";
@@ -24,12 +26,11 @@ import { noteSearchParams } from "./schemas/note";
 import { noteVersionSearchParams } from "./schemas/noteVersion";
 import { notificationSearchParams } from "./schemas/notification";
 import { notificationSubscriptionSearchParams } from "./schemas/notificationSubscription";
-import { organizationSearchParams } from "./schemas/organization";
 import { popularSearchParams } from "./schemas/popular";
 import { postSearchParams } from "./schemas/post";
 import { projectSearchParams } from "./schemas/project";
-import { projectOrOrganizationSearchParams } from "./schemas/projectOrOrganization";
 import { projectOrRoutineSearchParams } from "./schemas/projectOrRoutine";
+import { projectOrTeamSearchParams } from "./schemas/projectOrTeam";
 import { projectVersionSearchParams } from "./schemas/projectVersion";
 import { pullRequestSearchParams } from "./schemas/pullRequest";
 import { questionSearchParams } from "./schemas/question";
@@ -53,20 +54,19 @@ import { runProjectOrRunRoutineSearchParams } from "./schemas/runProjectOrRunRou
 import { runRoutineSearchParams } from "./schemas/runRoutine";
 import { runRoutineInputSearchParams } from "./schemas/runRoutineInput";
 import { scheduleSearchParams } from "./schemas/schedule";
-import { smartContractSearchParams } from "./schemas/smartContract";
-import { smartContractVersionSearchParams } from "./schemas/smartContractVersion";
 import { standardSearchParams } from "./schemas/standard";
 import { standardVersionSearchParams } from "./schemas/standardVersion";
 import { statsApiSearchParams } from "./schemas/statsApi";
-import { statsOrganizationSearchParams } from "./schemas/statsOrganization";
+import { statsCodeSearchParams } from "./schemas/statsCode";
 import { statsProjectSearchParams } from "./schemas/statsProject";
 import { statsQuizSearchParams } from "./schemas/statsQuiz";
 import { statsRoutineSearchParams } from "./schemas/statsRoutine";
 import { statsSiteSearchParams } from "./schemas/statsSite";
-import { statsSmartContractSearchParams } from "./schemas/statsSmartContract";
 import { statsStandardSearchParams } from "./schemas/statsStandard";
+import { statsTeamSearchParams } from "./schemas/statsTeam";
 import { statsUserSearchParams } from "./schemas/statsUser";
 import { tagSearchParams } from "./schemas/tag";
+import { teamSearchParams } from "./schemas/team";
 import { transferSearchParams } from "./schemas/transfer";
 import { userSearchParams } from "./schemas/user";
 import { viewSearchParams } from "./schemas/view";
@@ -80,6 +80,8 @@ export enum SearchType {
     ChatInvite = "ChatInvite",
     ChatMessage = "ChatMessage",
     ChatParticipant = "ChatParticipant",
+    Code = "Code",
+    CodeVersion = "CodeVersion",
     Comment = "Comment",
     FocusMode = "FocusMode",
     Issue = "Issue",
@@ -92,11 +94,10 @@ export enum SearchType {
     NoteVersion = "NoteVersion",
     Notification = "Notification",
     NotificationSubscription = "NotificationSubscription",
-    Organization = "Organization",
     Popular = "Popular",
     Post = "Post",
-    ProjectOrOrganization = "ProjectOrOrganization",
     ProjectOrRoutine = "ProjectOrRoutine",
+    ProjectOrTeam = "ProjectOrTeam",
     Project = "Project",
     ProjectVersion = "ProjectVersion",
     // ProjectVersionDirectory = 'ProjectVersionDirectory',
@@ -122,20 +123,19 @@ export enum SearchType {
     RunRoutine = "RunRoutine",
     RunRoutineInput = "RunRoutineInput",
     Schedule = "Schedule",
-    SmartContract = "SmartContract",
-    SmartContractVersion = "SmartContractVersion",
     Standard = "Standard",
     StandardVersion = "StandardVersion",
     StatsApi = "StatsApi",
-    StatsOrganization = "StatsOrganization",
+    StatsCode = "StatsCode",
     StatsProject = "StatsProject",
     StatsQuiz = "StatsQuiz",
     StatsRoutine = "StatsRoutine",
     StatsSite = "StatsSite",
-    StatsSmartContract = "StatsSmartContract",
     StatsStandard = "StatsStandard",
+    StatsTeam = "StatsTeam",
     StatsUser = "StatsUser",
     Tag = "Tag",
+    Team = "Team",
     Transfer = "Transfer",
     User = "User",
     View = "View",
@@ -156,19 +156,19 @@ export enum MemberManagePageTabOption {
 export enum MyStuffPageTabOption {
     All = "All",
     Api = "Api",
+    Code = "Code",
     Note = "Note",
-    Organization = "Organization",
     Project = "Project",
     Question = "Question",
     Reminder = "Reminder",
     Routine = "Routine",
-    SmartContract = "SmartContract",
     Schedule = "Schedule",
     Standard = "Standard",
+    Team = "Team",
     User = "User",
 }
 
-export enum OrganizationPageTabOption {
+export enum TeamPageTabOption {
     Resource = "Resource",
     Project = "Project",
     Member = "Member",
@@ -183,20 +183,20 @@ export enum ParticipantManagePageTabOption {
 export enum SearchPageTabOption {
     All = "All",
     Api = "Api",
+    Code = "Code",
     Note = "Note",
-    Organization = "Organization",
     Project = "Project",
     Question = "Question",
     Routine = "Routine",
-    SmartContract = "SmartContract",
     Standard = "Standard",
+    Team = "Team",
     User = "User",
 }
 
 export enum UserPageTabOption {
     Details = "Details",
     Project = "Project",
-    Organization = "Organization",
+    Team = "Team",
 }
 
 export enum CalendarPageTabOption {
@@ -285,10 +285,10 @@ export const searchViewTabParams: TabParam<SearchViewTabsInfo>[] = [{
     searchType: "Note",
     where: () => ({}),
 }, {
-    Icon: OrganizationIcon,
-    key: "Organization",
-    titleKey: "Organization",
-    searchType: "Organization",
+    Icon: TeamIcon,
+    key: "Team",
+    titleKey: "Team",
+    searchType: "Team",
     where: () => ({}),
 }, {
     Icon: UserIcon,
@@ -309,10 +309,10 @@ export const searchViewTabParams: TabParam<SearchViewTabsInfo>[] = [{
     searchType: "Api",
     where: () => ({}),
 }, {
-    Icon: SmartContractIcon,
-    key: "SmartContract",
-    titleKey: "SmartContract",
-    searchType: "SmartContract",
+    Icon: TerminalIcon,
+    key: "Code",
+    titleKey: "Code",
+    searchType: "Code",
     where: () => ({}),
 }];
 
@@ -440,7 +440,7 @@ export const findObjectTabParams: TabParam<FindObjectTabsInfo>[] = [
         searchType: "FocusMode",
         where: () => ({}),
     }, {
-        Icon: OrganizationIcon,
+        Icon: TeamIcon,
         key: "Meeting",
         titleKey: "Meeting",
         searchType: "Meeting",
@@ -529,10 +529,10 @@ export const myStuffTabParams: TabParam<MyStuffTabsInfo>[] = [{
     searchType: "Question",
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: OrganizationIcon,
-    key: "Organization",
-    titleKey: "Organization",
-    searchType: "Organization",
+    Icon: TeamIcon,
+    key: "Team",
+    titleKey: "Team",
+    searchType: "Team",
     where: ({ userId }) => ({ memberUserIds: [userId] }),
 }, {
     Icon: UserIcon,
@@ -553,10 +553,10 @@ export const myStuffTabParams: TabParam<MyStuffTabsInfo>[] = [{
     searchType: "Api",
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
-    Icon: SmartContractIcon,
-    key: "SmartContract",
-    titleKey: "SmartContract",
-    searchType: "SmartContract",
+    Icon: TerminalIcon,
+    key: "Code",
+    titleKey: "Code",
+    searchType: "Code",
     where: () => ({ visibility: VisibilityType.Own }),
 }];
 
@@ -564,50 +564,50 @@ export type MemberTabsInfo = {
     IsSearchable: true;
     Key: MemberManagePageTabOption;
     Payload: undefined;
-    WhereParams: { organizationId: string };
+    WhereParams: { teamId: string };
 }
 
 export const memberTabParams: TabParam<MemberTabsInfo>[] = [{
     key: "Member",
     titleKey: "Member",
     searchType: "Member",
-    where: ({ organizationId }) => ({ organizationId }),
+    where: ({ teamId }) => ({ teamId }),
 }, {
     key: "MemberInvite",
     titleKey: "Invite",
     searchType: "MemberInvite",
-    where: ({ organizationId }) => ({ organizationId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
+    where: ({ teamId }) => ({ teamId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
 }];
 
-export type OrganizationTabsInfo = {
+export type TeamTabsInfo = {
     IsSearchable: true;
-    Key: OrganizationPageTabOption;
+    Key: TeamPageTabOption;
     Payload: undefined;
     WhereParams: {
-        organizationId: string;
+        teamId: string;
         permissions: YouInflated;
     };
 }
 
-const organizationTabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
-export const organizationTabParams: TabParam<OrganizationTabsInfo>[] = [{
-    color: organizationTabColor,
+const teamTabColor = (palette: Palette) => ({ active: palette.secondary.main, inactive: palette.background.textSecondary });
+export const teamTabParams: TabParam<TeamTabsInfo>[] = [{
+    color: teamTabColor,
     key: "Resource",
     titleKey: "Resource",
     searchType: "Resource",
     where: () => ({}),
 }, {
-    color: organizationTabColor,
+    color: teamTabColor,
     key: "Project",
     titleKey: "Project",
     searchType: "Project",
-    where: ({ organizationId, permissions }) => ({ ownedByOrganizationId: organizationId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+    where: ({ teamId, permissions }) => ({ ownedByTeamId: teamId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
 }, {
-    color: organizationTabColor,
+    color: teamTabColor,
     key: "Member",
     titleKey: "Member",
     searchType: "Member",
-    where: ({ organizationId }) => ({ organizationId }),
+    where: ({ teamId }) => ({ teamId }),
 }];
 
 export type UserTabsInfo = {
@@ -636,10 +636,10 @@ export const userTabParams: TabParam<UserTabsInfo>[] = [{
     where: ({ userId, permissions }) => ({ ownedByUserId: userId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
 }, {
     color: userTabColor,
-    key: "Organization",
-    titleKey: "Organization",
-    searchPlaceholderKey: "SearchOrganization",
-    searchType: "Organization",
+    key: "Team",
+    titleKey: "Team",
+    searchPlaceholderKey: "SearchTeam",
+    searchType: "Team",
     where: ({ userId }) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
 }];
 
@@ -697,6 +697,8 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     ChatInvite: chatInviteSearchParams,
     ChatMessage: chatMessageSearchParams,
     ChatParticipant: chatParticipantSearchParams,
+    Code: codeSearchParams,
+    CodeVersion: codeVersionSearchParams,
     Comment: commentSearchParams,
     FocusMode: focusModeSearchParams,
     Issue: issueSearchParams,
@@ -709,12 +711,11 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     NoteVersion: noteVersionSearchParams,
     Notification: notificationSearchParams,
     NotificationSubscription: notificationSubscriptionSearchParams,
-    Organization: organizationSearchParams,
     Popular: popularSearchParams,
     Post: postSearchParams,
     Project: projectSearchParams,
-    ProjectOrOrganization: projectOrOrganizationSearchParams,
     ProjectOrRoutine: projectOrRoutineSearchParams,
+    ProjectOrTeam: projectOrTeamSearchParams,
     ProjectVersion: projectVersionSearchParams,
     // ProjectVersionDirectory: projectVersionDirectorySearchParams,
     PullRequest: pullRequestSearchParams,
@@ -739,20 +740,19 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     RunRoutine: runRoutineSearchParams,
     RunRoutineInput: runRoutineInputSearchParams,
     Schedule: scheduleSearchParams,
-    SmartContract: smartContractSearchParams,
-    SmartContractVersion: smartContractVersionSearchParams,
     Standard: standardSearchParams,
     StandardVersion: standardVersionSearchParams,
     StatsApi: statsApiSearchParams,
-    StatsOrganization: statsOrganizationSearchParams,
+    StatsCode: statsCodeSearchParams,
     StatsProject: statsProjectSearchParams,
     StatsQuiz: statsQuizSearchParams,
     StatsRoutine: statsRoutineSearchParams,
     StatsSite: statsSiteSearchParams,
-    StatsSmartContract: statsSmartContractSearchParams,
     StatsStandard: statsStandardSearchParams,
+    StatsTeam: statsTeamSearchParams,
     StatsUser: statsUserSearchParams,
     Tag: tagSearchParams,
+    Team: teamSearchParams,
     Transfer: transferSearchParams,
     User: userSearchParams,
     View: viewSearchParams,

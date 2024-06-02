@@ -31,7 +31,9 @@ export const typeDef = gql`
         periodEnd: Date!
         periodType: StatPeriodType!
         apisCreated: Int!
-        organizationsCreated: Int!
+        codesCreated: Int!
+        codesCompleted: Int!
+        codeCompletionTimeAverage: Float!
         projectsCreated: Int!
         projectsCompleted: Int!
         projectCompletionTimeAverage: Float!
@@ -48,12 +50,10 @@ export const typeDef = gql`
         runRoutinesCompleted: Int!
         runRoutineCompletionTimeAverage: Float!
         runRoutineContextSwitchesAverage: Float!
-        smartContractsCreated: Int!
-        smartContractsCompleted: Int!
-        smartContractCompletionTimeAverage: Float!
         standardsCreated: Int!
         standardsCompleted: Int!
         standardCompletionTimeAverage: Float!
+        teamssCreated: Int!
     }
 
     type Query {

@@ -8,7 +8,7 @@ export const label_findMany = {
       "color": true,
       "label": true,
       "owner": {
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,

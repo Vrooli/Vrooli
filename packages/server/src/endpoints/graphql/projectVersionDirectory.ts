@@ -13,13 +13,13 @@ export const typeDef = gql`
     input ProjectVersionDirectoryCreateInput {
         id: ID!
         childApiVersionsConnect: [ID!]
+        childCodeVersionsConnect: [ID!]
         childNoteVersionsConnect: [ID!]
         childOrder: String
-        childOrganizationsConnect: [ID!]
         childProjectVersionsConnect: [ID!]
         childRoutineVersionsConnect: [ID!]
-        childSmartContractVersionsConnect: [ID!]
         childStandardVersionsConnect: [ID!]
+        childTeamsConnect: [ID!]
         isRoot: Boolean
         parentDirectoryConnect: ID
         projectVersionConnect: ID!
@@ -29,19 +29,19 @@ export const typeDef = gql`
         id: ID!
         childApiVersionsConnect: [ID!]
         childApiVersionsDisconnect: [ID!]
+        childCodeVersionsConnect: [ID!]
+        childCodeVersionsDisconnect: [ID!]
         childNoteVersionsConnect: [ID!]
         childNoteVersionsDisconnect: [ID!]
         childOrder: String
-        childOrganizationsConnect: [ID!]
-        childOrganizationsDisconnect: [ID!]
         childProjectVersionsConnect: [ID!]
         childProjectVersionsDisconnect: [ID!]
         childRoutineVersionsConnect: [ID!]
         childRoutineVersionsDisconnect: [ID!]
-        childSmartContractVersionsConnect: [ID!]
-        childSmartContractVersionsDisconnect: [ID!]
         childStandardVersionsConnect: [ID!]
         childStandardVersionsDisconnect: [ID!]
+        childTeamsConnect: [ID!]
+        childTeamsDisconnect: [ID!]
         isRoot: Boolean
         parentDirectoryConnect: ID
         parentDirectoryDisconnect: Boolean
@@ -60,12 +60,12 @@ export const typeDef = gql`
         projectVersion: ProjectVersion
         children: [ProjectVersionDirectory!]!
         childApiVersions: [ApiVersion!]!
+        childCodeVersions: [CodeVersion!]!
         childNoteVersions: [NoteVersion!]!
-        childOrganizations: [Organization!]!
         childProjectVersions: [ProjectVersion!]!
         childRoutineVersions: [RoutineVersion!]!
-        childSmartContractVersions: [SmartContractVersion!]!
         childStandardVersions: [StandardVersion!]!
+        childTeams: [Team!]!
         runProjectSteps: [RunProjectStep!]!
         translations: [ProjectVersionDirectoryTranslation!]!
     }

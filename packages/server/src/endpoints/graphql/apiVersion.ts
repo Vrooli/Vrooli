@@ -113,8 +113,8 @@ export const typeDef = gql`
         minScoreRoot: Int
         minViewsRoot: Int
         createdByIdRoot: ID
+        ownedByTeamIdRoot: ID
         ownedByUserIdRoot: ID
-        ownedByOrganizationIdRoot: ID
         searchString: String
         sortBy: ApiVersionSortBy
         tagsRoot: [String!]

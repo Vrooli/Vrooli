@@ -5,7 +5,7 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { RoleFormat } from "../formats";
-import { OrganizationModelInfo, OrganizationModelLogic, RoleModelInfo, RoleModelLogic } from "./types";
+import { RoleModelInfo, RoleModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
 
 const __typename = "Role" as const;
 export const RoleModel: RoleModelLogic = ({
@@ -35,7 +35,7 @@ export const RoleModel: RoleModelLogic = ({
                 name: data.name,
                 permissions: data.permissions,
                 members: await shapeHelper({ relation: "members", relTypes: ["Connect"], isOneToOne: false, objectType: "Member", parentRelationshipName: "roles", data, ...rest }),
-                organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "roles", data, ...rest }),
+                team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "roles", data, ...rest }),
                 translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
@@ -53,7 +53,7 @@ export const RoleModel: RoleModelLogic = ({
         searchFields: {
             createdTimeFrame: true,
             translationLanguages: true,
-            organizationId: true,
+            teamId: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
@@ -67,15 +67,15 @@ export const RoleModel: RoleModelLogic = ({
     validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ id: true, organization: "Organization" }),
+        permissionsSelect: () => ({ id: true, team: "Team" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate().owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate().isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
+        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.private },
-            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.public },
-            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.owner(userId) }),
+            private: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+            public: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+            owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
         },
     }),
 });

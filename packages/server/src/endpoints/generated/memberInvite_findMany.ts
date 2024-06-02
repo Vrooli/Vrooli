@@ -9,7 +9,7 @@ export const memberInvite_findMany = {
       "status": true,
       "willBeAdmin": true,
       "willHavePermissions": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,

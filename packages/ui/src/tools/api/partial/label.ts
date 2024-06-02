@@ -14,7 +14,7 @@ export const label: GqlPartial<Label> = {
     __typename: "Label",
     common: {
         __define: {
-            0: async () => rel((await import("./organization")).organization, "nav"),
+            0: async () => rel((await import("./team")).team, "nav"),
             1: async () => rel((await import("./user")).user, "nav"),
         },
         id: true,
@@ -24,7 +24,7 @@ export const label: GqlPartial<Label> = {
         label: true,
         owner: {
             __union: {
-                Organization: 0,
+                Team: 0,
                 User: 1,
             },
         },
@@ -32,6 +32,7 @@ export const label: GqlPartial<Label> = {
     },
     full: {
         apisCount: true,
+        codesCount: true,
         focusModesCount: true,
         issuesCount: true,
         meetingsCount: true,
@@ -39,7 +40,6 @@ export const label: GqlPartial<Label> = {
         projectsCount: true,
         routinesCount: true,
         schedulesCount: true,
-        smartContractsCount: true,
         standardsCount: true,
     },
     list: {},

@@ -11,10 +11,10 @@ export const typeDef = gql`
     enum SubscribableObject {
         Api
         Comment
+        Code
         Issue
         Meeting
         Note
-        Organization
         Project
         PullRequest
         Question
@@ -22,11 +22,11 @@ export const typeDef = gql`
         Report
         Routine
         Schedule
-        SmartContract
         Standard
+        Team
     }
 
-    union SubscribedObject = Api | Comment | Issue | Meeting | Note | Organization | Project | PullRequest | Question | Quiz | Report | Routine | Schedule | SmartContract | Standard
+    union SubscribedObject = Api | Code | Comment | Issue | Meeting | Note | Project | PullRequest | Question | Quiz | Report | Routine | Schedule | Standard | Team
 
     input NotificationSubscriptionCreateInput {
         id: ID!

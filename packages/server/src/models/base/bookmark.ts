@@ -13,19 +13,19 @@ import { BookmarkListModelInfo, BookmarkListModelLogic, BookmarkModelLogic } fro
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Comment: "comment",
     Issue: "issue",
     Note: "note",
-    Organization: "organization",
     Post: "post",
     Project: "project",
     Question: "question",
     QuestionAnswer: "questionAnswer",
     Quiz: "quiz",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
     Tag: "tag",
+    Team: "team",
     User: "user",
 };
 
@@ -66,11 +66,43 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 // Grab bookmarked object id and type
                 const deleting = await prismaInstance.bookmark.findMany({
                     where: { id: { in: deletingIds } },
-                    select: { apiId: true, commentId: true, issueId: true, noteId: true, organizationId: true, postId: true, projectId: true, questionId: true, questionAnswerId: true, quizId: true, routineId: true, smartContractId: true, standardId: true, tagId: true, userId: true },
+                    select: {
+                        apiId: true,
+                        codeId: true,
+                        commentId: true,
+                        issueId: true,
+                        noteId: true,
+                        postId: true,
+                        projectId: true,
+                        questionId: true,
+                        questionAnswerId: true,
+                        quizId: true,
+                        routineId: true,
+                        standardId: true,
+                        tagId: true,
+                        teamId: true,
+                        userId: true,
+                    },
                 });
                 // Find type and id of bookmarked object
                 const bookmarkedPairs: [BookmarkFor, string][] = deleting.map(c => {
-                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
+                    const [objectRel, objectId] = findFirstRel(c, [
+                        "apiId",
+                        "codeId",
+                        "commentId",
+                        "issueId",
+                        "noteId",
+                        "postId",
+                        "projectId",
+                        "questionId",
+                        "questionAnswerId",
+                        "quizId",
+                        "routineId",
+                        "standardId",
+                        "tagId",
+                        "teamId",
+                        "userId",
+                    ]);
                     if (!objectRel || !objectId) return [null, null];
                     // Object type is objectRel with "Id" removed and first letter capitalized
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
@@ -89,7 +121,23 @@ export const BookmarkModel: BookmarkModelLogic = ({
             afterMutations: async ({ beforeDeletedData, createInputs, userData }) => {
                 for (const c of createInputs) {
                     // Find type and id of bookmarked object
-                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
+                    const [objectRel, objectId] = findFirstRel(c, [
+                        "apiId",
+                        "codeId",
+                        "commentId",
+                        "issueId",
+                        "noteId",
+                        "postId",
+                        "projectId",
+                        "questionId",
+                        "questionAnswerId",
+                        "quizId",
+                        "routineId",
+                        "standardId",
+                        "tagId",
+                        "teamId",
+                        "userId",
+                    ]);
                     if (!objectRel || !objectId) return;
                     // Object type is objectRel with "Id" removed and first letter capitalized
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
@@ -141,6 +189,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
         sortBy: BookmarkSortBy,
         searchFields: {
             apiId: true,
+            codeId: true,
             commentId: true,
             excludeLinkedToTag: true,
             issueId: true,
@@ -148,16 +197,15 @@ export const BookmarkModel: BookmarkModelLogic = ({
             limitTo: true,
             listId: true,
             noteId: true,
-            organizationId: true,
             postId: true,
             projectId: true,
             questionId: true,
             questionAnswerId: true,
             quizId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
             tagId: true,
+            teamId: true,
             userId: true,
         },
         searchStringQuery: () => ({
@@ -171,19 +219,19 @@ export const BookmarkModel: BookmarkModelLogic = ({
             // so we can ensure that the mutation trigger can increment the bookmark count
             dbFields: [
                 "apiId",
+                "codeId",
                 "commentId",
                 "issueId",
                 "noteId",
-                "organizationId",
                 "postId",
                 "projectId",
                 "questionId",
                 "questionAnswerId",
                 "quizId",
                 "routineId",
-                "smartContractId",
                 "standardId",
                 "tagId",
+                "teamId",
                 "userId",
             ],
             graphqlFields: [],

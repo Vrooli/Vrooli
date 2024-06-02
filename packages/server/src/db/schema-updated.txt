@@ -3,8 +3,8 @@
 // 1. Order routine inputs/outputs ✅
 // 2. Routine scheduling ✅
 // 3. Personal time scheduling ✅
-// 4. Organization time scheduling, including meetings ✅
-// 5. Labels (different than tags) for personal or organization use ✅
+// 4. Team time scheduling, including meetings ✅
+// 5. Labels (different than tags) for personal or team use ✅
 // 6. Improved versioning of routines and standards ✅
 // 7. Pull requests for updating versioned objects ✅
 // 8. Push notifications with history, and notifications settings ✅
@@ -19,18 +19,18 @@
 // 16. Smart contracts ✅
 // 17. APIs and calling them from routines ✅
 // 18. Notes (organized using projects) ✅
-// 19. Issues. Has comments, votes, reports, labels, and a status. Can be applied to apis, organizations, projects, routines, smart contracts, and standards ✅
+// 19. Issues. Has comments, votes, reports, labels, and a status. Can be applied to apis, teams, projects, routines, smart contracts, and standards ✅
 // 20. Site statistics ✅
 // 21. Object statistics ✅
 // 22. Suggest run data public, so owners can view it (e.g. polls) ✅
 // 23. Vote table's byId cascade delete, since this was preventing account deletion ✅
 // 24. Referencing an object in a comment, note, or issue. Could maybe get away with using resource list ⚠️
-// 25. Feeds for users and organizations. Each post contains an optional title and description, with one or more
+// 25. Feeds for users and teams. Each post contains an optional title and description, with one or more
 // resources. If resource is a Vrooli object, uses the object's title and description. Routine resourcess can act as a questionnaire, call to action, etc. Feeds
 // without a resource can act as an AMA, discussion, random thought, etc. Feeds can be public or private (always private for users), and receive 
 // comments, votes, views, reports, and reposts. Up to posts can be pinned to the top of a feed. While maybe not necessary, should be set up 
-// so users and organizations can have multiple feeds ✅
-// 26. A question object. Can be attached to routines, projects, standards, smart contracts, apis, organizations, or be standalone (standalone ones show up in site search). Can be marked as answered,
+// so users and teams can have multiple feeds ✅
+// 26. A question object. Can be attached to routines, projects, standards, smart contracts, apis, teams, or be standalone (standalone ones show up in site search). Can be marked as answered,
 // and can be viewed, voted, bookmarked, reported, tagged, isPrivate. Also has isSpecificToObject field to specify if question should 
 // come up when one searches for existing questions to attach to an object ✅
 // 28. Quiz object. Stores status, questions with weights, scoreToPass. Can be personal (created by you or auto-generated to 

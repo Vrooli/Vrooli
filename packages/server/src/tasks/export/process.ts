@@ -24,6 +24,10 @@ const exportChatsData = async (userData: SessionUserToken) => {
     return [];
 };
 
+const exportCodesData = async (userData: SessionUserToken) => {
+    return [];
+};
+
 const exportCommentsData = async (userData: SessionUserToken) => {
     return [];
 };
@@ -80,10 +84,6 @@ const exportSchedulesData = async (userData: SessionUserToken) => {
     return [];
 };
 
-const exportSmartContractsData = async (userData: SessionUserToken) => {
-    return [];
-};
-
 const exportStandardsData = async (userData: SessionUserToken) => {
     return [];
 };
@@ -98,6 +98,7 @@ const handlerMap = {
     bookmarks: exportBookmarksData,
     bots: exportBotsData,
     chats: exportChatsData,
+    codes: exportCodesData,
     comments: exportCommentsData,
     issues: exportIssuesData,
     notes: exportNotesData,
@@ -112,7 +113,6 @@ const handlerMap = {
     routines: exportRoutinesData,
     runs: exportRunsData,
     schedules: exportSchedulesData,
-    smartContracts: exportSmartContractsData,
     standards: exportStandardsData,
     views: exportViewsData,
 };

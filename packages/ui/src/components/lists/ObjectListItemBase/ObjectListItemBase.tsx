@@ -8,7 +8,7 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import usePress from "hooks/usePress";
-import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
+import { BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -129,14 +129,14 @@ export function ObjectListItemBase<T extends ListObject>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        // Show icons for organizations, users, and objects with display organizations/users
-        if (isOfType(object, "Organization", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
-            type OrgOrUser = { __typename: "Organization" | "User", profileImage: string, updated_at: string, isBot?: boolean };
+        // Show icons for teams, users, and objects with display teams/users
+        if (isOfType(object, "Team", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
+            type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updated_at: string, isBot?: boolean };
             const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
             const isBot = orgOrUser.isBot;
             let Icon: SvgComponent;
-            if (object.__typename === "Organization") {
-                Icon = OrganizationIcon;
+            if (object.__typename === "Team") {
+                Icon = TeamIcon;
             } else if (isBot) {
                 Icon = BotIcon;
             } else {

@@ -73,9 +73,9 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Project}/add`,
     },
     {
-        label: "CreateOrganization",
+        label: "CreateTeam",
         keywords: createKeywords,
-        value: `${LINKS.Organization}/add`,
+        value: `${LINKS.Team}/add`,
     },
     {
         label: "CreateBot",
@@ -98,9 +98,9 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Standard}/add`,
     },
     {
-        label: "CreateSmartContract",
+        label: "CreateCode",
         keywords: createKeywords,
-        value: `${LINKS.SmartContract}/add`,
+        value: `${LINKS.Code}/add`,
     },
     {
         label: "CreateApi",
@@ -133,9 +133,9 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type=${SearchPageTabOption.Note}`,
     },
     {
-        label: "SearchOrganization",
+        label: "SearchTeam",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Organization}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Team}`,
     },
     {
         label: "SearchUser",
@@ -153,9 +153,9 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type=${SearchPageTabOption.Api}`,
     },
     {
-        label: "SearchSmartContract",
+        label: "SearchCode",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.SmartContract}`,
+        value: `${LINKS.Search}?type=${SearchPageTabOption.Code}`,
     },
     {
         label: "SearchRun",

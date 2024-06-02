@@ -1,6 +1,6 @@
 import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
-import { BotIcon, DeleteIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
+import { BotIcon, DeleteIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import React, { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { extractImageUrl } from "utils/display/imageTools";
@@ -122,7 +122,7 @@ export const ProfilePictureInput = ({
     /** Fallback icon displayed when profile image is not available */
     const ProfileIcon = useMemo(() => {
         if (!profile) return EditIcon;
-        if (profile.__typename === "Organization") return OrganizationIcon;
+        if (profile.__typename === "Team") return TeamIcon;
         if (profile.isBot) return BotIcon;
         return UserIcon;
     }, [profile]);

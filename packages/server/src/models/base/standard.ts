@@ -11,7 +11,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { StandardFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type StandardPre = PreShapeRootResult;
 
@@ -41,7 +41,7 @@ export const StandardModel: StandardModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as StandardPre;
@@ -54,7 +54,7 @@ export const StandardModel: StandardModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -116,7 +116,7 @@ export const StandardModel: StandardModelLogic = ({
          * Checks for existing standards with the same shape. Useful to avoid duplicates
          * @param data StandardCreateData to check
          * @param userData The ID of the user creating the standard
-         * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
+         * @param uniqueToCreator Whether to check if the standard is unique to the user/team 
          * @param isInternal Used to determine if the standard should show up in search results
          * @returns data of matching standard, or null if no match
          */
@@ -137,8 +137,8 @@ export const StandardModel: StandardModelLogic = ({
             //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
             //             isDeleted: false,
             //             isPrivate: false,
-            //             createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
-            //             createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
+            //             createdByUserId: (uniqueToCreator && !data.createdByTeamId) ? userData.id : undefined,
+            //             createdByTeamId: (uniqueToCreator && data.createdByTeamId) ? data.createdByTeamId : undefined,
             //         },
             //         default: data.default ?? null,
             //         props: props,
@@ -170,7 +170,7 @@ export const StandardModel: StandardModelLogic = ({
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -213,7 +213,7 @@ export const StandardModel: StandardModelLogic = ({
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
             oneIsPublic<StandardModelInfo["PrismaSelect"]>([
-                ["ownedByOrganization", "Organization"],
+                ["ownedByTeam", "Team"],
                 ["ownedByUser", "User"],
             ], data, ...rest),
         isTransferable: true,
@@ -226,12 +226,12 @@ export const StandardModel: StandardModelLogic = ({
             isDeleted: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["StandardVersion", ["root"]],
         }),
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         visibility: {
@@ -239,12 +239,12 @@ export const StandardModel: StandardModelLogic = ({
             public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-        // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+        // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
         // TODO when deleting, anonymize standards which are being used by inputs/outputs
     }),
 });

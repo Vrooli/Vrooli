@@ -6,7 +6,7 @@ import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../util
 import { getSingleTypePermissions } from "../../validators";
 import { RunProjectFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { OrganizationModelLogic, ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } from "./types";
+import { ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
 export const RunProjectModel: RunProjectModelLogic = ({
@@ -38,11 +38,11 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     status: noNull(data.status),
                     startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
-                    user: data.organizationConnect ? undefined : { connect: { id: rest.userData.id } },
+                    user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
                     projectVersion: await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest }),
-                    organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest }),
                     steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runProjects", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -100,18 +100,18 @@ export const RunProjectModel: RunProjectModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            organization: "Organization",
             projectVersion: "ProjectVersion",
+            team: "Team",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
-            ["organization", "Organization"],
+            ["team", "Team"],
             ["user", "User"],
         ], data, ...rest),
         profanityFields: ["name"],
@@ -120,8 +120,8 @@ export const RunProjectModel: RunProjectModelLogic = ({
             public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

@@ -22,22 +22,22 @@ const commonWhere = {
 };
 
 /**
- * Expires premium status for users and organizations
+ * Expires premium status for users and teams
  */
 export const paymentsExpirePremium = async () => {
-    // Expire for organizations
+    // Expire for teams
     try {
-        await batch<Prisma.organizationFindManyArgs>({
-            objectType: "Organization",
+        await batch<Prisma.teamFindManyArgs>({
+            objectType: "Team",
             processBatch: async (batch) => {
-                // Remove premium status for organizations
-                const premiumIds = batch.map(organization => organization.premium?.id).filter(id => id !== null) as string[];
+                // Remove premium status for teams
+                const premiumIds = batch.map(team => team.premium?.id).filter(id => id !== null) as string[];
                 await prismaInstance.premium.updateMany({
                     data: { isActive: false }, // Don't remove credits, as they may have paid for them
                     where: { id: { in: premiumIds } },
                 });
                 // Send notifications
-                const emails = batch.map(organization => organization.emails).flat();
+                const emails = batch.map(team => team.emails).flat();
                 for (const email of emails) {
                     sendSubscriptionEnded(email.emailAddress);
                 }
@@ -46,7 +46,7 @@ export const paymentsExpirePremium = async () => {
             where: commonWhere,
         });
     } catch (error) {
-        logger.error("paymentsExpirePremium caught error for organizations", { error, trace: "0465" });
+        logger.error("paymentsExpirePremium caught error for teams", { error, trace: "0465" });
     }
     // Expire for users
     try {

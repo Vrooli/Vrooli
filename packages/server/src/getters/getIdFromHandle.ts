@@ -15,7 +15,7 @@ export async function getIdFromHandle({
     const where = { handle };
     const select = { id: true };
     const query = { where, select };
-    const id = objectType === "Organization" ? await prismaInstance.organization.findFirst(query) :
+    const id = objectType === "Team" ? await prismaInstance.team.findFirst(query) :
         objectType === "Project" ? await prismaInstance.project.findFirst(query) :
             await prismaInstance.user.findFirst(query);
     return id?.id;

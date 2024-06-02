@@ -53,7 +53,7 @@ export const convert: LlmTaskConverters = {
     }),
     BotFind: (data) => ({
         searchString: noEmptyString(data.searchString),
-        memberInOrganizationId: validUuid(data.memberInOrganizationId),
+        memberInTeamId: validUuid(data.memberInTeamId),
     }),
     BotUpdate: (data, language, existing) => {
         const settings = toBotSettings(existing, logger);
@@ -94,6 +94,22 @@ export const convert: LlmTaskConverters = {
             }),
         };
     },
+    DataConverterAdd: (data) => ({
+        id: uuid(),
+        isPrivate: true,
+        //...
+    }),
+    DataConverterDelete: (data) => ({
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Code,
+    }),
+    DataConverterFind: (data) => ({
+        searchString: noEmptyString(data.searchString),
+    }),
+    DataConverterUpdate: (data) => ({
+        id: validUuid(data.id) ?? "",
+        //...
+    }),
     MembersAdd: (data) => ({
         id: uuid(),
         //...
@@ -113,7 +129,7 @@ export const convert: LlmTaskConverters = {
     },
     MembersFind: (data) => ({
         searchString: noEmptyString(data.searchString),
-        organizationId: validUuid(data.organizationId),
+        teamId: validUuid(data.teamId),
     }),
     MembersUpdate: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -175,7 +191,7 @@ export const convert: LlmTaskConverters = {
         return {
             id: uuid(),
             name: noEmptyString(data.name) ?? "Role",
-            organizationConnect: validUuid(data.teamId) ?? "",
+            teamConnect: validUuid(data.teamId) ?? "",
             permissions: JSON.stringify({}),
             translationsCreate: description ? [{
                 id: uuid(),
@@ -191,7 +207,7 @@ export const convert: LlmTaskConverters = {
     }),
     RoleFind: (data) => ({
         searchString: noEmptyString(data.searchString),
-        organizationId: validUuid(data.teamId) ?? "",
+        teamId: validUuid(data.teamId) ?? "",
     }),
     RoleUpdate: (data) => ({
         id: validUuid(data.id) ?? "",
@@ -236,7 +252,7 @@ export const convert: LlmTaskConverters = {
     }),
     SmartContractDelete: (data) => ({
         id: validUuid(data.id) ?? "",
-        objectType: DeleteType.SmartContract,
+        objectType: DeleteType.Code,
     }),
     SmartContractFind: (data) => ({
         searchString: noEmptyString(data.searchString),
@@ -269,7 +285,7 @@ export const convert: LlmTaskConverters = {
     }),
     TeamDelete: (data) => ({
         id: validUuid(data.id) ?? "",
-        objectType: DeleteType.Organization,
+        objectType: DeleteType.Team,
     }),
     TeamFind: (data) => ({
         searchString: noEmptyString(data.searchString),

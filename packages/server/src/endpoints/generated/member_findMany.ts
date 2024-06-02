@@ -2,7 +2,7 @@ export const member_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -91,7 +91,7 @@ export const member_findMany = {
         "name": true,
         "permissions": true,
         "membersCount": true,
-        "organization": {
+        "team": {
           "id": true,
           "bannerImage": true,
           "handle": true,

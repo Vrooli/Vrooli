@@ -131,7 +131,7 @@ export const typeDef = gql`
         directoryListingsId: ID
         ids: [ID!]
         isCompleteWithRoot: Boolean
-        isCompleteWithRootExcludeOwnedByOrganizationId: ID
+        isCompleteWithRootExcludeOwnedByTeamId: ID
         isCompleteWithRootExcludeOwnedByUserId: ID
         isLatest: Boolean
         minComplexity: Int
@@ -147,8 +147,8 @@ export const typeDef = gql`
         minTimesCompleted: Int
         minViewsRoot: Int
         createdByIdRoot: ID
+        ownedByTeamIdRoot: ID
         ownedByUserIdRoot: ID
-        ownedByOrganizationIdRoot: ID
         rootId: ID
         searchString: String
         sortBy: ProjectVersionSortBy
@@ -186,12 +186,12 @@ export const typeDef = gql`
     type ProjectVersionContentsSearchResult {
         directory: ProjectVersionDirectory
         apiVersion: ApiVersion
+        codeVersion: CodeVersion
         noteVersion: NoteVersion
-        organization: Organization
         projectVersion: ProjectVersion
         routineVersion: RoutineVersion
-        smartContractVersion: SmartContractVersion
         standardVersion: StandardVersion
+        team: Team
     }
 
     extend type Query {

@@ -34,11 +34,28 @@ export const question_findMany = {
           "id": true,
           "isPrivate": true
         },
+        "Code": {
+          "id": true,
+          "isPrivate": true
+        },
         "Note": {
           "id": true,
           "isPrivate": true
         },
-        "Organization": {
+        "Project": {
+          "id": true,
+          "isPrivate": true
+        },
+        "Routine": {
+          "id": true,
+          "isInternal": true,
+          "isPrivate": true
+        },
+        "Standard": {
+          "id": true,
+          "isPrivate": true
+        },
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -60,23 +77,6 @@ export const question_findMany = {
               "permissions": true
             }
           }
-        },
-        "Project": {
-          "id": true,
-          "isPrivate": true
-        },
-        "Routine": {
-          "id": true,
-          "isInternal": true,
-          "isPrivate": true
-        },
-        "SmartContract": {
-          "id": true,
-          "isPrivate": true
-        },
-        "Standard": {
-          "id": true,
-          "isPrivate": true
         }
       },
       "tags": {

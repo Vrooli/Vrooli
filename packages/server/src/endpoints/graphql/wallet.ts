@@ -15,7 +15,7 @@ export const typeDef = gql`
         stakingAddress: String!
         verified: Boolean!
         user: User
-        organization: Organization
+        team: Team
     }
 
     extend type Mutation {

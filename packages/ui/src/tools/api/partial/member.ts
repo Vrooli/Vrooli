@@ -22,11 +22,11 @@ export const member: GqlPartial<Member> = {
         you: () => rel(memberYou, "full"),
     },
     full: {
-        organization: async () => rel((await import("./organization")).organization, "full"),
+        team: async () => rel((await import("./team")).team, "full"),
         user: async () => rel((await import("./user")).user, "full"),
     },
     list: {
-        organization: async () => rel((await import("./organization")).organization, "list"),
+        team: async () => rel((await import("./team")).team, "list"),
         user: async () => rel((await import("./user")).user, "list"),
     },
 };

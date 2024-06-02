@@ -108,4 +108,4 @@ Embed security within the routine lifecycle:
 
 ## Conclusion
 
-Routines represent a strategic approach to automating complex processes within our system. By following the principles and structures outlined in this guide, we can build a robust, scalable, and efficient automation layer that will serve the evolving needs of our organization and its users.
+Routines represent a strategic approach to automating complex processes within our system. By following the principles and structures outlined in this guide, we can build a robust, scalable, and efficient automation layer that will serve the evolving needs of our team and its users.

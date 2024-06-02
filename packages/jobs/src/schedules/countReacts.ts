@@ -128,6 +128,7 @@ export const countReacts = async (): Promise<void> => {
     const tableNames = [
         "api",
         "chat_message",
+        "code",
         "comment",
         "issue",
         "note",
@@ -137,7 +138,6 @@ export const countReacts = async (): Promise<void> => {
         "question_answer",
         "quiz",
         "routine",
-        "smart_contract",
         "standard",
     ];
 

@@ -5,7 +5,7 @@ import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions } from "../../utils";
 import { PhoneFormat } from "../formats";
-import { OrganizationModelLogic, PhoneModelLogic } from "./types";
+import { PhoneModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({
@@ -82,13 +82,13 @@ export const PhoneModel: PhoneModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
         }),
         visibility: {
@@ -96,8 +96,8 @@ export const PhoneModel: PhoneModelLogic = ({
             public: {},
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

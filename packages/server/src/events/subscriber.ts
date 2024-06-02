@@ -8,11 +8,11 @@ import { CustomError } from "./error";
 
 export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.notification_subscriptionUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Comment: "comment",
     Issue: "issue",
     Meeting: "meeting",
     Note: "note",
-    Organization: "organization",
     Project: "project",
     PullRequest: "pullRequest",
     Question: "question",
@@ -20,8 +20,8 @@ export const subscribableMapper: { [key in SubscribableObject]: keyof Prisma.not
     Report: "report",
     Routine: "routine",
     Schedule: "schedule",
-    SmartContract: "smartContract",
     Standard: "standard",
+    Team: "team",
 };
 
 /**

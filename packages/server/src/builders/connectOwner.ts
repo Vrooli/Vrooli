@@ -2,7 +2,7 @@ import { SessionUser } from "@local/shared";
 
 type ConnectOwnerInput = {
     userConnect?: string | null | undefined;
-    organizationConnect?: string | null | undefined;
+    teamConnect?: string | null | undefined;
 }
 
 /**
@@ -12,9 +12,9 @@ type ConnectOwnerInput = {
  * @returns Partial query to connect an owner to a new object
  */
 export const connectOwner = <T extends ConnectOwnerInput>(createInput: T, session: SessionUser) => {
-    // If organization is specified, connect to that
-    if (createInput.organizationConnect) {
-        return ({ ownedByOrganization: { connect: { id: createInput.organizationConnect } } });
+    // If team is specified, connect to that
+    if (createInput.teamConnect) {
+        return ({ ownedByTeam: { connect: { id: createInput.teamConnect } } });
     }
     // If user is specified, connect to that
     if (createInput.userConnect) {

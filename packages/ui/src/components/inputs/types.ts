@@ -6,7 +6,7 @@ import { JSONVariable } from "forms/types";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
 import { TagShape } from "utils/shape/models/tag";
-import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
+import { StandardLanguage } from "./CodeInput/CodeInput";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -249,7 +249,7 @@ export interface ProfilePictureInputProps {
     onBannerImageChange: (file: File | null) => unknown;
     onProfileImageChange: (file: File | null) => unknown;
     profile?: {
-        __typename: "Organization" | "User";
+        __typename: "Team" | "User";
         isBot?: boolean;
         bannerImage?: string | File | null;
         profileImage?: string | File | null;

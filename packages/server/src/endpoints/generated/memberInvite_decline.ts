@@ -6,7 +6,7 @@ export const memberInvite_decline = {
   "status": true,
   "willBeAdmin": true,
   "willHavePermissions": true,
-  "organization": {
+  "team": {
     "id": true,
     "bannerImage": true,
     "handle": true,
@@ -28,7 +28,7 @@ export const memberInvite_decline = {
         "permissions": true
       }
     },
-    "__typename": "Organization"
+    "__typename": "Team"
   },
   "user": {
     "id": true,

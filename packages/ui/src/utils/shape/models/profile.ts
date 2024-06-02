@@ -7,7 +7,7 @@ export type ProfileTranslationShape = Pick<UserTranslation, "id" | "language" | 
     __typename?: "UserTranslation";
 }
 
-export type ProfileShape = Partial<Pick<User, "handle" | "isPrivate" | "isPrivateApis" | "isPrivateApisCreated" | "isPrivateMemberships" | "isPrivateOrganizationsCreated" | "isPrivateProjects" | "isPrivateProjectsCreated" | "isPrivatePullRequests" | "isPrivateQuestionsAnswered" | "isPrivateQuestionsAsked" | "isPrivateQuizzesCreated" | "isPrivateRoles" | "isPrivateRoutines" | "isPrivateRoutinesCreated" | "isPrivateStandards" | "isPrivateStandardsCreated" | "isPrivateBookmarks" | "isPrivateVotes" | "name" | "theme">> & {
+export type ProfileShape = Partial<Pick<User, "handle" | "isPrivate" | "isPrivateApis" | "isPrivateApisCreated" | "isPrivateMemberships" | "isPrivateTeamsCreated" | "isPrivateProjects" | "isPrivateProjectsCreated" | "isPrivatePullRequests" | "isPrivateQuestionsAnswered" | "isPrivateQuestionsAsked" | "isPrivateQuizzesCreated" | "isPrivateRoles" | "isPrivateRoutines" | "isPrivateRoutinesCreated" | "isPrivateStandards" | "isPrivateStandardsCreated" | "isPrivateBookmarks" | "isPrivateVotes" | "name" | "theme">> & {
     __typename: "User",
     id: string;
     bannerImage?: string | File | null;
@@ -30,7 +30,6 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
             "isPrivateApis",
             "isPrivateApisCreated",
             "isPrivateMemberships",
-            "isPrivateOrganizationsCreated",
             "isPrivateProjects",
             "isPrivateProjectsCreated",
             "isPrivatePullRequests",
@@ -42,6 +41,7 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
             "isPrivateRoutinesCreated",
             "isPrivateStandards",
             "isPrivateStandardsCreated",
+            "isPrivateTeamsCreated",
             "isPrivateBookmarks",
             "isPrivateVotes",
             "name",

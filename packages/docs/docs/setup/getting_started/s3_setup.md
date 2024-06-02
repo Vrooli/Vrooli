@@ -1,7 +1,7 @@
 # Amazon S3 Setup Guide
 S3 (Simple Storage Service) is a cloud storage service provided by Amazon Web Services (AWS). It is a simple and secure way to store and retrieve any amount of data from anywhere on the web. This guide will show you how to set up an S3 bucket for use in this application. 
 
-Currently, we use this for storing profile and banner images for users and organizations. This means that we use a public read bucket policy, which allows anyone to read the contents of the bucket. If you want to use S3 for storing private data, you will need to add an additional bucket with a private read policy.
+Currently, we use this for storing profile and banner images for users and teams. This means that we use a public read bucket policy, which allows anyone to read the contents of the bucket. If you want to use S3 for storing private data, you will need to add an additional bucket with a private read policy.
 
 ## Step 1: Create an AWS account
 1. Visit the AWS homepage at [https://aws.amazon.com/](https://aws.amazon.com/).

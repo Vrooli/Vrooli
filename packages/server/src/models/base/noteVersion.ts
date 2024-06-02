@@ -129,7 +129,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationIdRoot: true,
+            ownedByTeamIdRoot: true,
             ownedByUserIdRoot: true,
             tagsRoot: true,
             translationLanguages: true,

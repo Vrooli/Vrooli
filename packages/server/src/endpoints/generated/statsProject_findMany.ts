@@ -8,16 +8,16 @@ export const statsProject_findMany = {
       "periodType": true,
       "directories": true,
       "apis": true,
+      "codes": true,
       "notes": true,
-      "organizations": true,
       "projects": true,
       "routines": true,
-      "smartContracts": true,
       "standards": true,
       "runsStarted": true,
       "runsCompleted": true,
       "runCompletionTimeAverage": true,
-      "runContextSwitchesAverage": true
+      "runContextSwitchesAverage": true,
+      "teams": true
     }
   },
   "pageInfo": {

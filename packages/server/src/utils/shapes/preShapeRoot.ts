@@ -18,7 +18,7 @@ type ObjectTriggerData = {
     hasParent: boolean,
     owner: {
         id: string,
-        __typename: "User" | "Organization",
+        __typename: "User" | "Team",
     }
 };
 
@@ -27,8 +27,8 @@ type PreShapeRootParams = {
         input: {
             id: string,
             isPrivate?: boolean | null | undefined,
+            ownedByTeamConnect?: string | null | undefined,
             ownedByUserConnect?: string | null | undefined,
-            ownedByOrganizationConnect?: string | null | undefined,
             parentConnect?: string | null | undefined,
             versionsCreate?: {
                 id: string,
@@ -41,8 +41,8 @@ type PreShapeRootParams = {
         input: {
             id: string,
             isPrivate?: boolean | null | undefined,
+            ownedByTeamConnect?: string | null | undefined,
             ownedByUserConnect?: string | null | undefined,
-            ownedByOrganizationConnect?: string | null | undefined,
             parentConnect?: string | null | undefined,
             versionsCreate?: {
                 id: string,
@@ -74,7 +74,7 @@ const originalDataSelect = {
     id: true,
     hasBeenTransferred: true,
     isPrivate: true,
-    ownedByOrganization: { select: { id: true } },
+    ownedByTeam: { select: { id: true } },
     ownedByUser: { select: { id: true } },
     parent: { select: { id: true } },
     versions: {
@@ -119,8 +119,8 @@ export const preShapeRoot = async ({
             hasBeenTransferred: false, // Doesn't matter
             hasParent: typeof input.parentConnect === "string",
             owner: {
-                id: (input.ownedByUserConnect ?? input.ownedByOrganizationConnect) as string,
-                __typename: input.ownedByUserConnect ? "User" : "Organization",
+                id: (input.ownedByUserConnect ?? input.ownedByTeamConnect) as string,
+                __typename: input.ownedByUserConnect ? "User" : "Team",
             },
         };
     }
@@ -165,8 +165,8 @@ export const preShapeRoot = async ({
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
                 owner: {
-                    id: original.ownedByUser?.id ?? original.ownedByOrganization?.id,
-                    __typename: original.ownedByUser ? "User" : "Organization",
+                    id: original.ownedByUser?.id ?? original.ownedByTeam?.id,
+                    __typename: original.ownedByUser ? "User" : "Team",
                 },
             };
         }
@@ -191,8 +191,8 @@ export const preShapeRoot = async ({
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
                 owner: {
-                    id: original.ownedByUser?.id ?? original.ownedByOrganization?.id,
-                    __typename: original.ownedByUser ? "User" : "Organization",
+                    id: original.ownedByUser?.id ?? original.ownedByTeam?.id,
+                    __typename: original.ownedByUser ? "User" : "Team",
                 },
             };
         }

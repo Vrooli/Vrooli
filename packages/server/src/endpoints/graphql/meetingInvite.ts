@@ -56,10 +56,10 @@ export const typeDef = gql`
         statuses: [MeetingInviteStatus!]
         meetingId: ID
         userId: ID
-        organizationId: ID
         searchString: String
         sortBy: MeetingInviteSortBy
         take: Int
+        teamId: ID
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

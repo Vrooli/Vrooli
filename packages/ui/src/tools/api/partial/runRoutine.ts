@@ -17,7 +17,7 @@ export const runRoutine: GqlPartial<RunRoutine> = {
     __typename: "RunRoutine",
     common: {
         __define: {
-            0: async () => rel((await import("./organization")).organization, "nav"),
+            0: async () => rel((await import("./team")).team, "nav"),
             1: async () => rel((await import("./user")).user, "nav"),
         },
         id: true,
@@ -32,8 +32,8 @@ export const runRoutine: GqlPartial<RunRoutine> = {
         stepsCount: true,
         inputsCount: true,
         wasRunAutomatically: true,
-        organization: { __use: 0 },
         schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runRoutine" }),
+        team: { __use: 0 },
         user: { __use: 1 },
         you: () => rel(runRoutineYou, "full"),
     },

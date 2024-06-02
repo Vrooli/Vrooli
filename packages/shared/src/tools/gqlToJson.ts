@@ -71,7 +71,6 @@ const parseEndpoints = (): RestPair[] => {
         }
     }
 
-    console.log(restPairs);
     return restPairs;
 };
 

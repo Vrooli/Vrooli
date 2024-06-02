@@ -2,7 +2,7 @@ import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
 import { PaymentFormat } from "../formats";
-import { OrganizationModelLogic, PaymentModelLogic } from "./types";
+import { PaymentModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "Payment" as const;
 export const PaymentModel: PaymentModelLogic = ({
@@ -40,13 +40,13 @@ export const PaymentModel: PaymentModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
         }),
         visibility: {
@@ -54,8 +54,8 @@ export const PaymentModel: PaymentModelLogic = ({
             public: {},
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

@@ -1,4 +1,4 @@
-import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, DUMMY_ID, exists, isOfType, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View, YouInflated } from "@local/shared";
+import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, isOfType } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { valueFromDot } from "utils/shape/general";
@@ -393,7 +393,7 @@ export const getBookmarkFor = (
     if (isOfType(object, "NodeRoutineListItem")) return getBookmarkFor((object as Partial<NodeRoutineListItem>).routineVersion);
     // If the object contains a root object, use that
     if (Object.prototype.hasOwnProperty.call(object, "root"))
-        return getBookmarkFor((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion>).root);
+        return getBookmarkFor((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
     // Use current object
     return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 };
@@ -425,11 +425,11 @@ export function listToAutocomplete(
         user: isOfType(o, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ?
             (o as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user :
             undefined,
-        versions: isOfType(o, "Api", "Note", "Project", "Routine", "SmartContract", "Standard") ?
-            (o as Partial<Api | Note | Project | Routine | SmartContract | Standard>).versions :
+        versions: isOfType(o, "Api", "Note", "Project", "Routine", "Code", "Standard") ?
+            (o as Partial<Api | Note | Project | Routine | Code | Standard>).versions :
             undefined,
-        root: isOfType(o, "ApiVersion", "NoteVersion", "ProjectVersion", "RoutineVersion", "SmartContractVersion", "StandardVersion") ?
-            (o as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion>).root :
+        root: isOfType(o, "ApiVersion", "CodeVersion", "NoteVersion", "ProjectVersion", "RoutineVersion", "StandardVersion") ?
+            (o as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root :
             undefined,
     })) as AutocompleteOption[];
 }

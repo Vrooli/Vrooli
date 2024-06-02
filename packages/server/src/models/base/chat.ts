@@ -304,7 +304,7 @@ export const ChatModel: ChatModelLogic = ({
                     },
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Chat", data, ...rest }),
                     messages,
-                    organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "chats", data, ...rest }),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "chats", data, ...rest }),
                     restrictedToRoles: await shapeHelper({
                         relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
                             fieldName: "role",
@@ -383,7 +383,7 @@ export const ChatModel: ChatModelLogic = ({
             creatorId: true,
             openToAnyoneWithInvite: true,
             labelsIds: true,
-            organizationId: true,
+            teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -413,7 +413,7 @@ export const ChatModel: ChatModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {

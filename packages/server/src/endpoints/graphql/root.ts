@@ -20,6 +20,8 @@ export const typeDef = gql`
         ChatMessage
         ChatMessageSearchTreeResult
         ChatParticipant
+        Code
+        CodeVersion
         Comment
         Copy
         Email
@@ -46,7 +48,6 @@ export const typeDef = gql`
         NoteVersion
         Notification
         NotificationSubscription
-        Organization
         Payment
         Phone
         PopularResult
@@ -57,7 +58,7 @@ export const typeDef = gql`
         ProjectVersionContentsSearchResult
         ProjectVersionDirectory
         ProjectOrRoutineSearchResult
-        ProjectOrOrganizationSearchResult
+        ProjectOrTeamSearchResult
         PullRequest
         PushDevice
         Question
@@ -92,20 +93,19 @@ export const typeDef = gql`
         ScheduleRecurrence
         Session
         SessionUser
-        SmartContract
-        SmartContractVersion
         Standard
         StandardVersion
         StatsApi
-        StatsOrganization
+        StatsCode
         StatsProject
         StatsQuiz
         StatsRoutine
         StatsSite
-        StatsSmartContract
         StatsStandard
+        StatsTeam
         StatsUser
         Tag
+        Team
         Transfer
         User
         View
@@ -124,8 +124,8 @@ export const typeDef = gql`
     scalar JSON
 
     # Used for Projects, Standards, and Routines, since they can be owned
-    # by either a User or an Organization.
-    union Owner = User | Organization
+    # by either a User or an Team.
+    union Owner = User | Team
 
     # Used for filtering by date created/updated, as well as fetching metrics (e.g. monthly active users)
     input TimeFrame {

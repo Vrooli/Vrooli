@@ -14,12 +14,12 @@ type QuestionPre = PreShapeEmbeddableTranslatableResult;
 
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Note: "note",
-    Organization: "organization",
     Project: "project",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
+    Team: "team",
 };
 
 const __typename = "Question" as const;
@@ -60,7 +60,7 @@ export const QuestionModel: QuestionModelLogic = ({
                     ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Question", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as QuestionPre;
@@ -76,7 +76,7 @@ export const QuestionModel: QuestionModelLogic = ({
                     } : {}),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Question", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -99,12 +99,12 @@ export const QuestionModel: QuestionModelLogic = ({
             hasAcceptedAnswer: true,
             createdById: true,
             apiId: true,
+            codeId: true,
             noteId: true,
-            organizationId: true,
             projectId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
+            teamId: true,
             translationLanguages: true,
             maxScore: true,
             maxBookmarks: true,

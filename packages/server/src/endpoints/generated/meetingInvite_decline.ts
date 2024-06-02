@@ -14,6 +14,7 @@ export const meetingInvite_decline = {
     },
     "labels": {
       "apisCount": true,
+      "codesCount": true,
       "focusModesCount": true,
       "issuesCount": true,
       "meetingsCount": true,
@@ -21,7 +22,6 @@ export const meetingInvite_decline = {
       "projectsCount": true,
       "routinesCount": true,
       "schedulesCount": true,
-      "smartContractsCount": true,
       "standardsCount": true,
       "id": true,
       "created_at": true,
@@ -29,19 +29,7 @@ export const meetingInvite_decline = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -63,7 +51,19 @@ export const meetingInvite_decline = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -75,6 +75,7 @@ export const meetingInvite_decline = {
     "schedule": {
       "labels": {
         "apisCount": true,
+        "codesCount": true,
         "focusModesCount": true,
         "issuesCount": true,
         "meetingsCount": true,
@@ -82,7 +83,6 @@ export const meetingInvite_decline = {
         "projectsCount": true,
         "routinesCount": true,
         "schedulesCount": true,
-        "smartContractsCount": true,
         "standardsCount": true,
         "id": true,
         "created_at": true,
@@ -90,19 +90,7 @@ export const meetingInvite_decline = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -124,7 +112,19 @@ export const meetingInvite_decline = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -329,19 +329,7 @@ export const meetingInvite_decline = {
               "color": true,
               "label": true,
               "owner": {
-                "User": {
-                  "id": true,
-                  "created_at": true,
-                  "updated_at": true,
-                  "bannerImage": true,
-                  "handle": true,
-                  "isBot": true,
-                  "isBotDepictingPerson": true,
-                  "name": true,
-                  "profileImage": true,
-                  "__typename": "User"
-                },
-                "Organization": {
+                "Team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -363,7 +351,19 @@ export const meetingInvite_decline = {
                       "permissions": true
                     }
                   },
-                  "__typename": "Organization"
+                  "__typename": "Team"
+                },
+                "User": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "bannerImage": true,
+                  "handle": true,
+                  "isBot": true,
+                  "isBotDepictingPerson": true,
+                  "name": true,
+                  "profileImage": true,
+                  "__typename": "User"
                 }
               },
               "you": {
@@ -373,19 +373,7 @@ export const meetingInvite_decline = {
               "__typename": "Label"
             },
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -407,7 +395,19 @@ export const meetingInvite_decline = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "permissions": true,
@@ -514,7 +514,7 @@ export const meetingInvite_decline = {
         "name": true,
         "status": true,
         "stepsCount": true,
-        "organization": {
+        "team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -536,7 +536,7 @@ export const meetingInvite_decline = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
         },
         "user": {
           "id": true,
@@ -580,19 +580,7 @@ export const meetingInvite_decline = {
                   "color": true,
                   "label": true,
                   "owner": {
-                    "User": {
-                      "id": true,
-                      "created_at": true,
-                      "updated_at": true,
-                      "bannerImage": true,
-                      "handle": true,
-                      "isBot": true,
-                      "isBotDepictingPerson": true,
-                      "name": true,
-                      "profileImage": true,
-                      "__typename": "User"
-                    },
-                    "Organization": {
+                    "Team": {
                       "id": true,
                       "bannerImage": true,
                       "handle": true,
@@ -614,7 +602,19 @@ export const meetingInvite_decline = {
                           "permissions": true
                         }
                       },
-                      "__typename": "Organization"
+                      "__typename": "Team"
+                    },
+                    "User": {
+                      "id": true,
+                      "created_at": true,
+                      "updated_at": true,
+                      "bannerImage": true,
+                      "handle": true,
+                      "isBot": true,
+                      "isBotDepictingPerson": true,
+                      "name": true,
+                      "profileImage": true,
+                      "__typename": "User"
                     }
                   },
                   "you": {
@@ -624,19 +624,7 @@ export const meetingInvite_decline = {
                   "__typename": "Label"
                 },
                 "owner": {
-                  "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true,
-                    "__typename": "User"
-                  },
-                  "Organization": {
+                  "Team": {
                     "id": true,
                     "bannerImage": true,
                     "handle": true,
@@ -658,7 +646,19 @@ export const meetingInvite_decline = {
                         "permissions": true
                       }
                     },
-                    "__typename": "Organization"
+                    "__typename": "Team"
+                  },
+                  "User": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "bannerImage": true,
+                    "handle": true,
+                    "isBot": true,
+                    "isBotDepictingPerson": true,
+                    "name": true,
+                    "profileImage": true,
+                    "__typename": "User"
                   }
                 },
                 "permissions": true,
@@ -750,19 +750,7 @@ export const meetingInvite_decline = {
               "color": true,
               "label": true,
               "owner": {
-                "User": {
-                  "id": true,
-                  "created_at": true,
-                  "updated_at": true,
-                  "bannerImage": true,
-                  "handle": true,
-                  "isBot": true,
-                  "isBotDepictingPerson": true,
-                  "name": true,
-                  "profileImage": true,
-                  "__typename": "User"
-                },
-                "Organization": {
+                "Team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -784,7 +772,19 @@ export const meetingInvite_decline = {
                       "permissions": true
                     }
                   },
-                  "__typename": "Organization"
+                  "__typename": "Team"
+                },
+                "User": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "bannerImage": true,
+                  "handle": true,
+                  "isBot": true,
+                  "isBotDepictingPerson": true,
+                  "name": true,
+                  "profileImage": true,
+                  "__typename": "User"
                 }
               },
               "you": {
@@ -794,19 +794,7 @@ export const meetingInvite_decline = {
               "__typename": "Label"
             },
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -828,7 +816,19 @@ export const meetingInvite_decline = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "permissions": true,
@@ -877,6 +877,7 @@ export const meetingInvite_decline = {
           "created_at": true,
           "updated_at": true,
           "completedAt": true,
+          "codeCallData": true,
           "isAutomatable": true,
           "isComplete": true,
           "isDeleted": true,
@@ -885,7 +886,6 @@ export const meetingInvite_decline = {
           "simplicity": true,
           "timesStarted": true,
           "timesCompleted": true,
-          "smartContractCallData": true,
           "apiCallData": true,
           "versionIndex": true,
           "versionLabel": true,
@@ -947,7 +947,7 @@ export const meetingInvite_decline = {
         "stepsCount": true,
         "inputsCount": true,
         "wasRunAutomatically": true,
-        "organization": {
+        "team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -969,7 +969,7 @@ export const meetingInvite_decline = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
         },
         "user": {
           "id": true,
@@ -1026,8 +1026,8 @@ export const meetingInvite_decline = {
     "created_at": true,
     "updated_at": true,
     "openToAnyoneWithInvite": true,
-    "showOnOrganizationProfile": true,
-    "organization": {
+    "showOnTeamProfile": true,
+    "team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -1049,7 +1049,7 @@ export const meetingInvite_decline = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
+      "__typename": "Team"
     },
     "restrictedToRoles": {
       "members": {
@@ -1065,7 +1065,7 @@ export const meetingInvite_decline = {
           "name": true,
           "permissions": true,
           "membersCount": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -1087,7 +1087,7 @@ export const meetingInvite_decline = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
           },
           "translations": {
             "id": true,
@@ -1108,7 +1108,7 @@ export const meetingInvite_decline = {
       "name": true,
       "permissions": true,
       "membersCount": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -1130,7 +1130,7 @@ export const meetingInvite_decline = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "translations": {
         "id": true,

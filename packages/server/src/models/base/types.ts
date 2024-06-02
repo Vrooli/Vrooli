@@ -1,4 +1,4 @@
-import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Organization, OrganizationCreateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationUpdateInput, OrganizationYou, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, ReactInput, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, SmartContractYou, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsOrganization, StatsOrganizationSearchInput, StatsOrganizationSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsSmartContract, StatsSmartContractSearchInput, StatsSmartContractSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Transfer, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
+import { Api, ApiCreateInput, ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, ApiYou, Award, AwardSearchInput, AwardSortBy, Bookmark, BookmarkCreateInput, BookmarkList, BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListSortBy, BookmarkListUpdateInput, BookmarkSearchInput, BookmarkSortBy, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteSortBy, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSortBy, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantSearchInput, ChatParticipantSortBy, ChatParticipantUpdateInput, ChatSearchInput, ChatSortBy, ChatUpdateInput, ChatYou, Code, CodeCreateInput, CodeSearchInput, CodeSortBy, CodeUpdateInput, CodeVersion, CodeVersionCreateInput, CodeVersionSearchInput, CodeVersionSortBy, CodeVersionUpdateInput, CodeYou, Comment, CommentCreateInput, CommentSearchInput, CommentSortBy, CommentUpdateInput, CommentYou, Email, EmailCreateInput, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeSearchInput, FocusModeSortBy, FocusModeUpdateInput, Issue, IssueCreateInput, IssueSearchInput, IssueSortBy, IssueUpdateInput, IssueYou, Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput, MeetingYou, Member, MemberInvite, MemberInviteCreateInput, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput, MemberInviteYou, MemberSearchInput, MemberSortBy, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput, NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, NoteYou, NotificationSearchInput, NotificationSortBy, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput, Payment, PaymentSearchInput, PaymentSortBy, Phone, PhoneCreateInput, Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput, Premium, ProfileUpdateInput, Project, ProjectCreateInput, ProjectSearchInput, ProjectSortBy, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySortBy, ProjectVersionDirectoryUpdateInput, ProjectVersionSearchInput, ProjectVersionSortBy, ProjectVersionUpdateInput, ProjectYou, PullRequest, PullRequestCreateInput, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput, PullRequestYou, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerSearchInput, QuestionAnswerSortBy, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput, QuestionYou, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput, QuizAttemptYou, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou, QuizQuestionSearchInput, QuizQuestionSortBy, QuizQuestionUpdateInput, QuizQuestionYou, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou, ReactInput, Reaction, ReactionSearchInput, ReactionSortBy, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderSearchInput, ReminderSortBy, ReminderUpdateInput, Report, ReportCreateInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSortBy, ReportResponseUpdateInput, ReportResponseYou, ReportSearchInput, ReportSortBy, ReportUpdateInput, ReportYou, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListSearchInput, ResourceListSortBy, ResourceListUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUpdateInput, Role, RoleCreateInput, RoleSearchInput, RoleSortBy, RoleUpdateInput, Routine, RoutineCreateInput, RoutineSearchInput, RoutineSortBy, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput, RoutineVersionSearchInput, RoutineVersionSortBy, RoutineVersionUpdateInput, RoutineVersionYou, RoutineYou, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunProjectYou, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput, RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, RunRoutineYou, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleSearchInput, ScheduleSortBy, ScheduleUpdateInput, Standard, StandardCreateInput, StandardSearchInput, StandardSortBy, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionSortBy, StandardVersionUpdateInput, StandardYou, StatsApi, StatsApiSearchInput, StatsApiSortBy, StatsCode, StatsCodeSearchInput, StatsCodeSortBy, StatsProject, StatsProjectSearchInput, StatsProjectSortBy, StatsQuiz, StatsQuizSearchInput, StatsQuizSortBy, StatsRoutine, StatsRoutineSearchInput, StatsRoutineSortBy, StatsSite, StatsSiteSearchInput, StatsSiteSortBy, StatsStandard, StatsStandardSearchInput, StatsStandardSortBy, StatsTeam, StatsTeamSearchInput, StatsTeamSortBy, StatsUser, StatsUserSearchInput, StatsUserSortBy, Tag, TagCreateInput, TagSearchInput, TagSortBy, TagUpdateInput, Team, TeamCreateInput, TeamSearchInput, TeamSortBy, TeamUpdateInput, TeamYou, Transfer, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, TransferYou, User, UserSearchInput, UserSortBy, UserYou, VersionYou, View, ViewSearchInput, ViewSortBy, Wallet, WalletUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Resource } from "i18next";
 import { SelectWrap } from "../../builders/types";
@@ -594,24 +594,24 @@ export type NotificationSubscriptionModelInfo = {
 }
 export type NotificationSubscriptionModelLogic = ModelLogic<NotificationSubscriptionModelInfo, typeof SuppFields.NotificationSubscription>;
 
-export type OrganizationPermissions = Pick<OrganizationYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
-export type OrganizationModelInfo = {
-    __typename: "Organization",
+export type TeamPermissions = Pick<TeamYou, "canAddMembers" | "canDelete" | "canUpdate" | "canBookmark" | "canRead">;
+export type TeamModelInfo = {
+    __typename: "Team",
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: OrganizationCreateInput,
-    GqlUpdate: OrganizationUpdateInput,
-    GqlModel: Organization,
-    GqlSearch: OrganizationSearchInput,
-    GqlSort: OrganizationSortBy,
-    GqlPermission: OrganizationPermissions,
-    PrismaCreate: Prisma.organizationUpsertArgs["create"],
-    PrismaUpdate: Prisma.organizationUpsertArgs["update"],
-    PrismaModel: Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
-    PrismaSelect: Prisma.organizationSelect,
-    PrismaWhere: Prisma.organizationWhereInput,
+    GqlCreate: TeamCreateInput,
+    GqlUpdate: TeamUpdateInput,
+    GqlModel: Team,
+    GqlSearch: TeamSearchInput,
+    GqlSort: TeamSortBy,
+    GqlPermission: TeamPermissions,
+    PrismaCreate: Prisma.teamUpsertArgs["create"],
+    PrismaUpdate: Prisma.teamUpsertArgs["update"],
+    PrismaModel: Prisma.teamGetPayload<SelectWrap<Prisma.teamSelect>>,
+    PrismaSelect: Prisma.teamSelect,
+    PrismaWhere: Prisma.teamWhereInput,
 }
-export type OrganizationModelLogic = ModelLogic<OrganizationModelInfo, typeof SuppFields.Organization>;
+export type TeamModelLogic = ModelLogic<TeamModelInfo, typeof SuppFields.Team>;
 
 export type PaymentModelInfo = {
     __typename: "Payment",
@@ -1293,43 +1293,43 @@ export type ScheduleRecurrenceModelInfo = {
 }
 export type ScheduleRecurrenceModelLogic = ModelLogic<ScheduleRecurrenceModelInfo, typeof SuppFields.ScheduleRecurrence>;
 
-export type SmartContractPermissions = Pick<SmartContractYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
-export type SmartContractModelInfo = {
-    __typename: "SmartContract",
+export type CodePermissions = Pick<CodeYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
+export type CodeModelInfo = {
+    __typename: "Code",
     IsTransferable: true,
     IsVersioned: true,
-    GqlCreate: SmartContractCreateInput,
-    GqlUpdate: SmartContractUpdateInput,
-    GqlModel: SmartContract,
-    GqlSearch: SmartContractSearchInput,
-    GqlSort: SmartContractSortBy,
-    GqlPermission: SmartContractPermissions,
-    PrismaCreate: Prisma.smart_contractUpsertArgs["create"],
-    PrismaUpdate: Prisma.smart_contractUpsertArgs["update"],
-    PrismaModel: Prisma.smart_contractGetPayload<SelectWrap<Prisma.smart_contractSelect>>,
-    PrismaSelect: Prisma.smart_contractSelect,
-    PrismaWhere: Prisma.smart_contractWhereInput,
+    GqlCreate: CodeCreateInput,
+    GqlUpdate: CodeUpdateInput,
+    GqlModel: Code,
+    GqlSearch: CodeSearchInput,
+    GqlSort: CodeSortBy,
+    GqlPermission: CodePermissions,
+    PrismaCreate: Prisma.codeUpsertArgs["create"],
+    PrismaUpdate: Prisma.codeUpsertArgs["update"],
+    PrismaModel: Prisma.codeGetPayload<SelectWrap<Prisma.codeSelect>>,
+    PrismaSelect: Prisma.codeSelect,
+    PrismaWhere: Prisma.codeWhereInput,
 }
-export type SmartContractModelLogic = ModelLogic<SmartContractModelInfo, typeof SuppFields.SmartContract>;
+export type CodeModelLogic = ModelLogic<CodeModelInfo, typeof SuppFields.Code>;
 
-export type SmartContractVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
-export type SmartContractVersionModelInfo = {
-    __typename: "SmartContractVersion",
+export type CodeVersionPermissions = Pick<VersionYou, "canCopy" | "canDelete" | "canUpdate" | "canReport" | "canUse" | "canRead">;
+export type CodeVersionModelInfo = {
+    __typename: "CodeVersion",
     IsTransferable: false,
     IsVersioned: false,
-    GqlCreate: SmartContractVersionCreateInput,
-    GqlUpdate: SmartContractVersionUpdateInput,
-    GqlModel: SmartContractVersion,
-    GqlSearch: SmartContractVersionSearchInput,
-    GqlSort: SmartContractVersionSortBy,
-    GqlPermission: SmartContractVersionPermissions,
-    PrismaCreate: Prisma.smart_contract_versionUpsertArgs["create"],
-    PrismaUpdate: Prisma.smart_contract_versionUpsertArgs["update"],
-    PrismaModel: Prisma.smart_contract_versionGetPayload<SelectWrap<Prisma.smart_contract_versionSelect>>,
-    PrismaSelect: Prisma.smart_contract_versionSelect,
-    PrismaWhere: Prisma.smart_contract_versionWhereInput,
+    GqlCreate: CodeVersionCreateInput,
+    GqlUpdate: CodeVersionUpdateInput,
+    GqlModel: CodeVersion,
+    GqlSearch: CodeVersionSearchInput,
+    GqlSort: CodeVersionSortBy,
+    GqlPermission: CodeVersionPermissions,
+    PrismaCreate: Prisma.code_versionUpsertArgs["create"],
+    PrismaUpdate: Prisma.code_versionUpsertArgs["update"],
+    PrismaModel: Prisma.code_versionGetPayload<SelectWrap<Prisma.code_versionSelect>>,
+    PrismaSelect: Prisma.code_versionSelect,
+    PrismaWhere: Prisma.code_versionWhereInput,
 }
-export type SmartContractVersionModelLogic = ModelLogic<SmartContractVersionModelInfo, typeof SuppFields.SmartContractVersion>;
+export type CodeVersionModelLogic = ModelLogic<CodeVersionModelInfo, typeof SuppFields.CodeVersion>;
 
 export type StandardPermissions = Pick<StandardYou, "canDelete" | "canUpdate" | "canBookmark" | "canTransfer" | "canRead" | "canReact">;
 export type StandardModelInfo = {
@@ -1387,23 +1387,23 @@ export type StatsApiModelInfo = {
 }
 export type StatsApiModelLogic = ModelLogic<StatsApiModelInfo, typeof SuppFields.StatsApi>;
 
-export type StatsOrganizationModelInfo = {
-    __typename: "StatsOrganization",
+export type StatsTeamModelInfo = {
+    __typename: "StatsTeam",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
     GqlUpdate: undefined,
-    GqlModel: StatsOrganization,
-    GqlSearch: StatsOrganizationSearchInput,
-    GqlSort: StatsOrganizationSortBy,
+    GqlModel: StatsTeam,
+    GqlSearch: StatsTeamSearchInput,
+    GqlSort: StatsTeamSortBy,
     GqlPermission: object,
-    PrismaCreate: Prisma.stats_organizationUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_organizationUpsertArgs["update"],
-    PrismaModel: Prisma.stats_organizationGetPayload<SelectWrap<Prisma.stats_organizationSelect>>,
-    PrismaSelect: Prisma.stats_organizationSelect,
-    PrismaWhere: Prisma.stats_organizationWhereInput,
+    PrismaCreate: Prisma.stats_teamUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_teamUpsertArgs["update"],
+    PrismaModel: Prisma.stats_teamGetPayload<SelectWrap<Prisma.stats_teamSelect>>,
+    PrismaSelect: Prisma.stats_teamSelect,
+    PrismaWhere: Prisma.stats_teamWhereInput,
 }
-export type StatsOrganizationModelLogic = ModelLogic<StatsOrganizationModelInfo, typeof SuppFields.StatsOrganization>;
+export type StatsTeamModelLogic = ModelLogic<StatsTeamModelInfo, typeof SuppFields.StatsTeam>;
 
 export type StatsProjectModelInfo = {
     __typename: "StatsProject",
@@ -1477,23 +1477,23 @@ export type StatsSiteModelInfo = {
 }
 export type StatsSiteModelLogic = ModelLogic<StatsSiteModelInfo, typeof SuppFields.StatsSite>;
 
-export type StatsSmartContractModelInfo = {
-    __typename: "StatsSmartContract",
+export type StatsCodeModelInfo = {
+    __typename: "StatsCode",
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
     GqlUpdate: undefined,
-    GqlModel: StatsSmartContract,
-    GqlSearch: StatsSmartContractSearchInput,
-    GqlSort: StatsSmartContractSortBy,
+    GqlModel: StatsCode,
+    GqlSearch: StatsCodeSearchInput,
+    GqlSort: StatsCodeSortBy,
     GqlPermission: object,
-    PrismaCreate: Prisma.stats_smart_contractUpsertArgs["create"],
-    PrismaUpdate: Prisma.stats_smart_contractUpsertArgs["update"],
-    PrismaModel: Prisma.stats_smart_contractGetPayload<SelectWrap<Prisma.stats_smart_contractSelect>>,
-    PrismaSelect: Prisma.stats_smart_contractSelect,
-    PrismaWhere: Prisma.stats_smart_contractWhereInput,
+    PrismaCreate: Prisma.stats_codeUpsertArgs["create"],
+    PrismaUpdate: Prisma.stats_codeUpsertArgs["update"],
+    PrismaModel: Prisma.stats_codeGetPayload<SelectWrap<Prisma.stats_codeSelect>>,
+    PrismaSelect: Prisma.stats_codeSelect,
+    PrismaWhere: Prisma.stats_codeWhereInput,
 }
-export type StatsSmartContractModelLogic = ModelLogic<StatsSmartContractModelInfo, typeof SuppFields.StatsSmartContract>;
+export type StatsCodeModelLogic = ModelLogic<StatsCodeModelInfo, typeof SuppFields.StatsCode>;
 
 export type StatsStandardModelInfo = {
     __typename: "StatsStandard",

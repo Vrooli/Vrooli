@@ -9,20 +9,20 @@ export const apiValidation: YupModel<["create", "update"]> = {
         isPrivate: opt(bool),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
-        ["ownedByOrganization", ["Connect"], "one", "opt"],
+        ["ownedByTeam", ["Connect"], "one", "opt"],
         ["parent", ["Connect"], "one", "opt"],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
         ["versions", ["Create"], "many", "opt", apiVersionValidation, ["root"]],
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect", true]], d),
+    ], [["ownedByTeamConnect", "ownedByUserConnect", true]], d),
     update: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
-        ["ownedByOrganization", ["Connect"], "one", "opt"],
+        ["ownedByTeam", ["Connect"], "one", "opt"],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
         ["versions", ["Create", "Update", "Delete"], "many", "opt", apiVersionValidation, ["root"]],
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect", false]], d),
+    ], [["ownedByTeamConnect", "ownedByUserConnect", false]], d),
 };

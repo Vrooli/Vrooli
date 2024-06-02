@@ -20,6 +20,26 @@ export const comment_update = {
       },
       "__typename": "ApiVersion"
     },
+    "CodeVersion": {
+      "id": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "root": {
+        "id": true,
+        "isPrivate": true,
+        "__typename": "Code"
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "jsonVariable": true,
+        "name": true
+      },
+      "__typename": "CodeVersion"
+    },
     "Issue": {
       "id": true,
       "translations": {
@@ -121,12 +141,33 @@ export const comment_update = {
           "isPrivate": true,
           "__typename": "Api"
         },
+        "Code": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Code"
+        },
         "Note": {
           "id": true,
           "isPrivate": true,
           "__typename": "Note"
         },
-        "Organization": {
+        "Project": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Project"
+        },
+        "Routine": {
+          "id": true,
+          "isInternal": true,
+          "isPrivate": true,
+          "__typename": "Routine"
+        },
+        "Standard": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Standard"
+        },
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -148,28 +189,7 @@ export const comment_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
-        },
-        "Project": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Project"
-        },
-        "Routine": {
-          "id": true,
-          "isInternal": true,
-          "isPrivate": true,
-          "__typename": "Routine"
-        },
-        "SmartContract": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "SmartContract"
-        },
-        "Standard": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Standard"
+          "__typename": "Team"
         }
       },
       "tags": {
@@ -240,26 +260,6 @@ export const comment_update = {
       "versionLabel": true,
       "__typename": "RoutineVersion"
     },
-    "SmartContractVersion": {
-      "id": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "root": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "SmartContract"
-      },
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "jsonVariable": true,
-        "name": true
-      },
-      "__typename": "SmartContractVersion"
-    },
     "StandardVersion": {
       "id": true,
       "isLatest": true,
@@ -290,19 +290,7 @@ export const comment_update = {
   "created_at": true,
   "updated_at": true,
   "owner": {
-    "User": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "bannerImage": true,
-      "handle": true,
-      "isBot": true,
-      "isBotDepictingPerson": true,
-      "name": true,
-      "profileImage": true,
-      "__typename": "User"
-    },
-    "Organization": {
+    "Team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -324,7 +312,19 @@ export const comment_update = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
+      "__typename": "Team"
+    },
+    "User": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "bannerImage": true,
+      "handle": true,
+      "isBot": true,
+      "isBotDepictingPerson": true,
+      "name": true,
+      "profileImage": true,
+      "__typename": "User"
     }
   },
   "score": true,

@@ -13,6 +13,8 @@ export const typeDef = gql`
         ChatInvite
         ChatMessage
         ChatParticipant
+        Code
+        CodeVersion
         Comment
         Email
         FocusMode
@@ -25,7 +27,6 @@ export const typeDef = gql`
         Note
         NoteVersion
         Notification
-        Organization
         Phone
         Post
         Project
@@ -45,10 +46,9 @@ export const typeDef = gql`
         RunProject
         RunRoutine
         Schedule
-        SmartContract
-        SmartContractVersion
         Standard
         StandardVersion
+        Team
         Transfer
         User # Should only delete bots this way, not your account. Doing so won't allow you to select what happens to your data.
         Wallet

@@ -20,7 +20,7 @@ export const transfer: GqlPartial<Transfer> = {
             1: async () => rel((await import("./note")).note, "list"),
             2: async () => rel((await import("./project")).project, "list"),
             3: async () => rel((await import("./routine")).routine, "list"),
-            4: async () => rel((await import("./smartContract")).smartContract, "list"),
+            4: async () => rel((await import("./code")).code, "list"),
             5: async () => rel((await import("./standard")).standard, "list"),
         },
         id: true,
@@ -33,10 +33,10 @@ export const transfer: GqlPartial<Transfer> = {
         object: {
             __union: {
                 Api: 0,
+                Code: 4,
                 Note: 1,
                 Project: 2,
                 Routine: 3,
-                SmartContract: 4,
                 Standard: 5,
             },
         },

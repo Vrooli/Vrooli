@@ -1,5 +1,5 @@
 /**
- * Displays all search options for an organization
+ * Displays all search options for a team
  */
 import { Button, Divider, Grid, Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";

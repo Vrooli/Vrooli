@@ -22,7 +22,7 @@ export const role: GqlPartial<Role> = {
         name: true,
         permissions: true,
         membersCount: true,
-        organization: async () => rel((await import("./organization")).organization, "nav", { omit: "roles" }),
+        team: async () => rel((await import("./team")).team, "nav", { omit: "roles" }),
         translations: () => rel(roleTranslation, "full"),
     },
     full: {

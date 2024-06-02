@@ -105,7 +105,7 @@ export const getAvailableActions = (object: ListObject | null | undefined, sessi
     // Check Donate
     //TODO
     // Check Stats
-    //TODO ["Api", "Organization", "Project", "Quiz", "Routine", "SmartContract", "Standard", "User"].includes(object.__typename)
+    //TODO ["Api", "Code", "Project", "Quiz", "Routine", "Standard", "Team", "User"].includes(object.__typename)
     // Can always find in page
     options.push(ObjectAction.FindInPage);
     // Check Fork

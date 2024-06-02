@@ -14,7 +14,7 @@ export const typeDef = gql`
         id: ID!
         label: String!
         color: String
-        organizationConnect: ID
+        teamConnect: ID
         translationsCreate: [LabelTranslationCreateInput!]
     }
     input LabelUpdateInput {
@@ -23,6 +23,8 @@ export const typeDef = gql`
         color: String
         apisConnect: [ID!]
         apisDisconnect: [ID!]
+        codesConnect: [ID!]
+        codesDisconnect: [ID!]
         issuesConnect: [ID!]
         issuesDisconnect: [ID!]
         meetingsConnect: [ID!]
@@ -35,8 +37,6 @@ export const typeDef = gql`
         routinesDisconnect: [ID!]
         schedulesConnect: [ID!]
         schedulesDisconnect: [ID!]
-        smartContractsConnect: [ID!]
-        smartContractsDisconnect: [ID!]
         standardsConnect: [ID!]
         standardsDisconnect: [ID!]
         focusModesConnect: [ID!]
@@ -53,6 +53,8 @@ export const typeDef = gql`
         color: String
         apis: [Api!]
         apisCount: Int!
+        codes: [Code!]
+        codesCount: Int!
         focusModes: [FocusMode!]
         focusModesCount: Int!
         issues: [Issue!]
@@ -68,8 +70,6 @@ export const typeDef = gql`
         routinesCount: Int!
         schedules: [Schedule!]
         schedulesCount: Int!
-        smartContracts: [SmartContract!]
-        smartContractsCount: Int!
         standards: [Standard!]
         standardsCount: Int!
         translations: [LabelTranslation!]!
@@ -102,7 +102,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        ownedByOrganizationId: ID
+        ownedByTeamId: ID
         ownedByUserId: ID
         searchString: String
         sortBy: LabelSortBy

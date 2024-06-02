@@ -1,4 +1,4 @@
-import { ApiSortBy, FocusModeStopCondition, HomeInput, HomeResult, NoteSortBy, OrganizationSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, SmartContractSortBy, StandardSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { ApiSortBy, CodeSortBy, FocusModeStopCondition, HomeInput, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { assertRequestFrom, getUser } from "../../auth/request";
@@ -103,13 +103,13 @@ export const FeedEndpoints: EndpointsFeed = {
             const partial = toPartialGqlInfo(info, {
                 __typename: "PopularResult",
                 Api: "Api",
+                Code: "Code",
                 Note: "Note",
-                Organization: "Organization",
                 Project: "Project",
                 Question: "Question",
                 Routine: "Routine",
-                SmartContract: "SmartContract",
                 Standard: "Standard",
+                Team: "Team",
                 User: "User",
             }, req.session.languages, true);
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
@@ -157,17 +157,17 @@ export const FeedEndpoints: EndpointsFeed = {
                 },
                 objectType: "Note",
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-            // Query organizations
-            const { nodes: organizations, pageInfo: organizationsInfo } = shouldInclude("Organization") ? await readManyAsFeedHelper({
+            // Query teams
+            const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Organization as PartialGraphQLInfo,
+                info: partial.Team as PartialGraphQLInfo,
                 input: {
                     ...commonInputParams,
-                    after: input.organizationAfter,
-                    sortBy: (input.sortBy ?? OrganizationSortBy.BookmarksDesc) as OrganizationSortBy,
+                    after: input.teamAfter,
+                    sortBy: (input.sortBy ?? TeamSortBy.BookmarksDesc) as TeamSortBy,
                 },
-                objectType: "Organization",
+                objectType: "Team",
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
@@ -185,7 +185,15 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: questions, pageInfo: questionsInfo } = shouldInclude("Question") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 // Make sure question is not attached to any objects (i.e. standalone)
-                additionalQueries: { api: null, note: null, organization: null, project: null, routine: null, smartContract: null, standard: null },
+                additionalQueries: {
+                    api: null,
+                    code: null,
+                    note: null,
+                    project: null,
+                    routine: null,
+                    standard: null,
+                    team: null,
+                },
                 info: partial.Question as PartialGraphQLInfo,
                 input: {
                     ...commonInputParams,
@@ -207,17 +215,17 @@ export const FeedEndpoints: EndpointsFeed = {
                 },
                 objectType: "Routine",
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
-            // Query smart contracts
-            const { nodes: smartContracts, pageInfo: smartContractsInfo } = shouldInclude("SmartContract") ? await readManyAsFeedHelper({
+            // Query codes
+            const { nodes: codes, pageInfo: codesInfo } = shouldInclude("Code") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.SmartContract as PartialGraphQLInfo,
+                info: partial.Code as PartialGraphQLInfo,
                 input: {
                     ...commonInputParams,
-                    after: input.smartContractAfter,
-                    sortBy: (input.sortBy ?? SmartContractSortBy.ScoreDesc) as SmartContractSortBy,
+                    after: input.codeAfter,
+                    sortBy: (input.sortBy ?? CodeSortBy.ScoreDesc) as CodeSortBy,
                 },
-                objectType: "SmartContract",
+                objectType: "Code",
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query standards
             const { nodes: standards, pageInfo: standardsInfo } = shouldInclude("Standard") ? await readManyAsFeedHelper({
@@ -248,23 +256,23 @@ export const FeedEndpoints: EndpointsFeed = {
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({
                 apis,
+                codes,
                 notes,
-                organizations,
                 projects,
                 questions,
                 routines,
-                smartContracts,
                 standards,
+                teams,
                 users,
             }, {
                 apis: { type: "Api", ...(partial.Api as PartialGraphQLInfo) },
+                codes: { type: "Code", ...(partial.Code as PartialGraphQLInfo) },
                 notes: { type: "Note", ...(partial.Note as PartialGraphQLInfo) },
-                organizations: { type: "Organization", ...(partial.Organization as PartialGraphQLInfo) },
                 projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
                 questions: { type: "Question", ...(partial.Question as PartialGraphQLInfo) },
                 routines: { type: "Routine", ...(partial.Routine as PartialGraphQLInfo) },
-                smartContracts: { type: "SmartContract", ...(partial.SmartContract as PartialGraphQLInfo) },
                 standards: { type: "Standard", ...(partial.Standard as PartialGraphQLInfo) },
+                teams: { type: "Team", ...(partial.Team as PartialGraphQLInfo) },
                 users: { type: "User", ...(partial.User as PartialGraphQLInfo) },
             }, getUser(req.session));
             // Combine nodes, alternating between each type
@@ -278,15 +286,25 @@ export const FeedEndpoints: EndpointsFeed = {
                 __typename: "PopularSearchResult" as const,
                 pageInfo: {
                     __typename: "PopularPageInfo" as const,
-                    hasNextPage: apisInfo.hasNextPage || notesInfo.hasNextPage || organizationsInfo.hasNextPage || projectsInfo.hasNextPage || questionsInfo.hasNextPage || routinesInfo.hasNextPage || smartContractsInfo.hasNextPage || standardsInfo.hasNextPage || usersInfo.hasNextPage || false,
+                    hasNextPage:
+                        apisInfo.hasNextPage
+                        || codesInfo.hasNextPage
+                        || notesInfo.hasNextPage
+                        || projectsInfo.hasNextPage
+                        || questionsInfo.hasNextPage
+                        || routinesInfo.hasNextPage
+                        || standardsInfo.hasNextPage
+                        || teamsInfo.hasNextPage
+                        || usersInfo.hasNextPage
+                        || false,
                     endCursorApi: apisInfo.endCursor ?? "",
+                    endCursorCode: codesInfo.endCursor ?? "",
                     endCursorNote: notesInfo.endCursor ?? "",
-                    endCursorOrganization: organizationsInfo.endCursor ?? "",
                     endCursorProject: projectsInfo.endCursor ?? "",
                     endCursorQuestion: questionsInfo.endCursor ?? "",
                     endCursorRoutine: routinesInfo.endCursor ?? "",
-                    endCursorSmartContract: smartContractsInfo.endCursor ?? "",
                     endCursorStandard: standardsInfo.endCursor ?? "",
+                    endCursorTeam: teamsInfo.endCursor ?? "",
                     endCursorUser: usersInfo.endCursor ?? "",
                 },
                 edges: nodes.map((node) => ({ __typename: "PopularEdge" as const, cursor: node.id, node })),

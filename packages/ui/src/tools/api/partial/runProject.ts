@@ -17,7 +17,7 @@ export const runProject: GqlPartial<RunProject> = {
     __typename: "RunProject",
     common: {
         __define: {
-            0: async () => rel((await import("./organization")).organization, "nav"),
+            0: async () => rel((await import("./team")).team, "nav"),
             1: async () => rel((await import("./user")).user, "nav"),
         },
         id: true,
@@ -30,8 +30,8 @@ export const runProject: GqlPartial<RunProject> = {
         name: true,
         status: true,
         stepsCount: true,
-        organization: { __use: 0 },
         schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runProject" }),
+        team: { __use: 0 },
         user: { __use: 1 },
         you: () => rel(runProjectYou, "full"),
     },

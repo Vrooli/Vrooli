@@ -9,7 +9,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, OrganizationModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type NotePre = PreShapeRootResult;
 
@@ -70,7 +70,7 @@ export const NoteModel: NoteModelLogic = ({
             maxScore: true,
             minBookmarks: true,
             minScore: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             tags: true,
@@ -107,7 +107,7 @@ export const NoteModel: NoteModelLogic = ({
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -117,7 +117,7 @@ export const NoteModel: NoteModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["NoteVersion", ["root"]],
         }),
@@ -126,8 +126,8 @@ export const NoteModel: NoteModelLogic = ({
             public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

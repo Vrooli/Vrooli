@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, StandardVersion, Team, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
@@ -47,28 +47,28 @@ export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
 }
 
 export type SelectOrCreateObjectType = "ApiVersion" |
+    "CodeVersion" |
     "FocusMode" |
     "Meeting" |
     "NoteVersion" |
-    "Organization" |
     "ProjectVersion" |
     "Question" |
     "RoutineVersion" |
     "RunProject" |
     "RunRoutine" |
-    "SmartContractVersion" |
     "StandardVersion" |
+    "Team" |
     "User";
 export type SelectOrCreateObject = ApiVersion |
+    CodeVersion |
     FocusMode |
     Meeting |
     NoteVersion |
-    Organization |
     ProjectVersion |
     Question |
     RoutineVersion |
-    SmartContractVersion |
     StandardVersion |
+    Team |
     User;
 /**
  * Determines what type of data is returned when an object is selected. 

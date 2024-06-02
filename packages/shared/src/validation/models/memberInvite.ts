@@ -7,8 +7,8 @@ export const memberInviteValidation: YupModel<["create", "update"]> = {
         willBeAdmin: opt(bool),
         willHavePermissions: opt(permissions),
     }, [
+        ["team", ["Connect"], "one", "req"],
         ["user", ["Connect"], "one", "req"],
-        ["organization", ["Connect"], "one", "req"],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),

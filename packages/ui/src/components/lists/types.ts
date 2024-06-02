@@ -1,4 +1,4 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Organization, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, Team, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseFindManyResult } from "hooks/useFindMany";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
@@ -92,10 +92,10 @@ export type RelationshipItemMeeting = Pick<Meeting, "id"> &
     translations?: Pick<Meeting["translations"][0], "name" | "id" | "language">[];
     __typename: "Meeting";
 }
-export type RelationshipItemOrganization = Pick<Organization, "handle" | "id"> &
+export type RelationshipItemTeam = Pick<Team, "handle" | "id"> &
 {
-    translations?: Pick<Organization["translations"][0], "name" | "id" | "language">[];
-    __typename: "Organization";
+    translations?: Pick<Team["translations"][0], "name" | "id" | "language">[];
+    __typename: "Team";
 };
 export type RelationshipItemQuestionForObject = { __typename: QuestionForType | `${QuestionForType}`, id: string }
 export type RelationshipItemUser = Pick<User, "handle" | "id" | "name"> & {
@@ -137,7 +137,7 @@ export type RelationshipButtonType =
     "QuestionFor" |
     "Members" |
     "Participants" |
-    "Organization" |
+    "Team" |
     "User";
 
 export interface RelationshipListProps {

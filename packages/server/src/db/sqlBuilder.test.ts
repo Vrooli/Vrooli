@@ -70,8 +70,8 @@ describe("SqlBuilder", () => {
 
     test("manages multiple joins and aliases without collisions", () => {
         builder.addJoin("User", JoinType.LEFT, SqlBuilder.equals(builder.field("Meeting", "userId"), builder.field("User", "id")));
-        builder.addJoin("Organization", JoinType.INNER, SqlBuilder.equals(builder.field("Meeting", "orgId"), builder.field("Organization", "id")));
-        expect(builder.serialize()).toEqual("SELECT * FROM \"Meeting_table\" AS \"a\" LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" INNER JOIN \"Organization_table\" AS \"c\" ON \"a\".\"orgId\" = \"c\".\"id\";");
+        builder.addJoin("Team", JoinType.INNER, SqlBuilder.equals(builder.field("Meeting", "orgId"), builder.field("Team", "id")));
+        expect(builder.serialize()).toEqual("SELECT * FROM \"Meeting_table\" AS \"a\" LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" INNER JOIN \"Team_table\" AS \"c\" ON \"a\".\"orgId\" = \"c\".\"id\";");
     });
 
     describe("addOrderBy function", () => {

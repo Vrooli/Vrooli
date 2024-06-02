@@ -57,19 +57,19 @@ export const SearchMap = {
             some: {
                 OR: [
                     { api: { id } },
+                    { code: { id } },
                     { comment: { id } },
                     { issue: { id } },
                     { note: { id } },
-                    { organization: { id } },
                     { post: { id } },
                     { project: { id } },
                     { question: { id } },
                     { questionAnswer: { id } },
                     { quiz: { id } },
                     { routine: { id } },
-                    { smartContract: { id } },
                     { standard: { id } },
                     { tag: { id } },
+                    { team: { id } },
                     { user: { id } },
                 ],
             },
@@ -78,6 +78,11 @@ export const SearchMap = {
     cardLast4: (cardLast4: Maybe<string>) => ({ cardLast4 }),
     chatId: (id: Maybe<string>) => oneToOneId(id, "chat"),
     chatMessageId: (id: Maybe<string>) => oneToOneId(id, "chatMessage"),
+    codeId: (id: Maybe<string>) => oneToOneId(id, "code"),
+    codesId: (id: Maybe<string>) => oneToManyId(id, "codes"),
+    codeType: (codeType: Maybe<string>) => codeType ? ({ codeType: { contains: codeType.trim(), mode: "insensitive" } }) : {},
+    codeVersionId: (id: Maybe<string>) => oneToOneId(id, "codeVersion"),
+    codeVersionsId: (id: Maybe<string>) => oneToManyId(id, "codeVersions"),
     commentId: (id: Maybe<string>) => oneToOneId(id, "comment"),
     commentsId: (id: Maybe<string>) => oneToManyId(id, "comments"),
     completedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("completedAt", time),
@@ -94,7 +99,7 @@ export const SearchMap = {
     focusModeId: (id: Maybe<string>) => oneToOneId(id, "focusMode"),
     focusModesId: (id: Maybe<string>) => oneToManyId(id, "focusModes"),
     fromId: (id: Maybe<string>) => oneToOneId(id, "from"),
-    fromOrganizationId: (id: Maybe<string>) => oneToOneId(id, "fromOrganization"),
+    fromTeamId: (id: Maybe<string>) => oneToOneId(id, "fromTeam"),
     hasAcceptedAnswer: (hasAcceptedAnswer: Maybe<boolean>) => ({ hasAcceptedAnswer }),
     hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
     ids: (ids: Maybe<string[]>) => ({ id: { in: ids } }),
@@ -107,9 +112,9 @@ export const SearchMap = {
             { root: { hasCompleteVersion: isComplete } },
         ],
     }),
-    isCompleteWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+    isCompleteWithRootExcludeOwnedByTeamId: (ownedByTeamId: Maybe<string>) => ({
         OR: [
-            { ownedByOrganizationId },
+            { ownedByTeamId },
             {
                 AND: [
                     { isComplete: true },
@@ -131,9 +136,9 @@ export const SearchMap = {
     }),
     isInternal: (isInternal: Maybe<boolean>) => ({ isInternal }),
     isInternalWithRoot: (isInternal: Maybe<boolean>) => ({ root: { isInternal } }),
-    isInternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+    isInternalWithRootExcludeOwnedByTeamId: (ownedByTeamId: Maybe<string>) => ({
         OR: [
-            { ownedByOrganizationId },
+            { ownedByTeamId },
             { root: { isInternal: true } },
         ],
     }),
@@ -143,9 +148,9 @@ export const SearchMap = {
             { root: { isInternal: true } },
         ],
     }),
-    isExternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+    isExternalWithRootExcludeOwnedByTeamId: (ownedByTeamId: Maybe<string>) => ({
         OR: [
-            { ownedByOrganizationId },
+            { ownedByTeamId },
             { root: { isInternal: false } },
         ],
     }),
@@ -184,7 +189,7 @@ export const SearchMap = {
     maxTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { lte: timesCompleted } }),
     maxViews: (views: Maybe<number>) => ({ views: { lte: views } }),
     maxViewsRoot: (views: Maybe<number>) => ({ root: { views: { lte: views } } }),
-    memberInOrganizationId: (id: Maybe<string>) => ({ memberships: { some: { organization: { id } } } }),
+    memberInTeamId: (id: Maybe<string>) => ({ memberships: { some: { team: { id } } } }),
     memberUserIds: (ids: Maybe<string[]>) => ({ members: { some: { user: { id: { in: ids } } } } }),
     meetingId: (id: Maybe<string>) => oneToOneId(id, "meeting"),
     meetingsId: (id: Maybe<string>) => oneToManyId(id, "meetings"),
@@ -208,10 +213,8 @@ export const SearchMap = {
     objectId: (id: Maybe<string>) => oneToOneId(id, "object"),
     objectType: (objectType: Maybe<string>) => objectType ? ({ objectType: { contains: objectType.trim(), mode: "insensitive" } }) : {},
     openToAnyoneWithInvite: () => ({ openToAnyoneWithInvite: true }),
-    organizationId: (id: Maybe<string>) => oneToOneId(id, "organization"),
-    organizationsId: (id: Maybe<string>) => oneToManyId(id, "organizations"),
-    ownedByOrganizationId: (id: Maybe<string>) => oneToOneId(id, "ownedByOrganization"),
-    ownedByOrganizationIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
+    ownedByTeamId: (id: Maybe<string>) => oneToOneId(id, "ownedByTeam"),
+    ownedByTeamIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
     ownedByUserId: (id: Maybe<string>) => oneToOneId(id, "ownedByUser"),
     ownedByUserIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
     parentId: (id: Maybe<string>) => oneToOneId(id, "parent"),
@@ -247,9 +250,9 @@ export const SearchMap = {
     routinesIds: (ids: Maybe<string[]>) => oneToManyIds(ids, "routines"),
     routineVersionId: (id: Maybe<string>) => oneToOneId(id, "routineVersion"),
     routineVersionsId: (id: Maybe<string>) => oneToManyId(id, "routineVersions"),
-    runProjectOrganizationId: (id: Maybe<string>) => ({ runProject: { organization: { id } } }),
+    runProjectTeamId: (id: Maybe<string>) => ({ runProject: { team: { id } } }),
     runProjectUserId: (id: Maybe<string>) => ({ runProject: { user: { id } } }),
-    runRoutineOrganizationId: (id: Maybe<string>) => ({ runRoutine: { organization: { id } } }),
+    runRoutineTeamId: (id: Maybe<string>) => ({ runRoutine: { team: { id } } }),
     runRoutineUserId: (id: Maybe<string>) => ({ runRoutine: { user: { id } } }),
     scheduleEndTimeFrame: (time: Maybe<TimeFrame>) => ({ schedule: timeFrameToPrisma("endTime", time) }),
     scheduleStartTimeFrame: (time: Maybe<TimeFrame>) => ({ schedule: timeFrameToPrisma("startTime", time) }),
@@ -265,7 +268,7 @@ export const SearchMap = {
             some: {
                 OR: [
                     {
-                        organization: {
+                        team: {
                             members: {
                                 some: {
                                     user: {
@@ -303,13 +306,8 @@ export const SearchMap = {
 
         },
     }) : {},
-    showOnOrganizationProfile: () => ({ showOnOrganizationProfile: true }),
+    showOnTeamProfile: () => ({ showOnTeamProfile: true }),
     silent: (silent: Maybe<boolean>) => ({ silent }),
-    smartContractId: (id: Maybe<string>) => oneToOneId(id, "smartContract"),
-    smartContractsId: (id: Maybe<string>) => oneToManyId(id, "smartContracts"),
-    smartContractType: (smartContractType: Maybe<string>) => smartContractType ? ({ smartContractType: { contains: smartContractType.trim(), mode: "insensitive" } }) : {},
-    smartContractVersionId: (id: Maybe<string>) => oneToOneId(id, "smartContractVersion"),
-    smartContractVersionsId: (id: Maybe<string>) => oneToManyId(id, "smartContractVersions"),
     standardId: (id: Maybe<string>) => oneToOneId(id, "standard"),
     standardIds: (ids: Maybe<string[]>) => oneToOneIds(ids, "standard"),
     standardType: (standardType: Maybe<string>) => standardType ? ({ standardType: { contains: standardType.trim(), mode: "insensitive" } }) : {},
@@ -333,9 +331,11 @@ export const SearchMap = {
     tagsId: (id: Maybe<string>) => oneToManyId(id, "tags"),
     tags: (tags: Maybe<string[]>) => ({ tags: { some: { tag: { tag: { in: tags } } } } }),
     tagsRoot: (tags: Maybe<string[]>) => ({ root: { tags: { some: { tag: { tag: { in: tags } } } } } }),
+    teamId: (id: Maybe<string>) => oneToOneId(id, "team"),
+    teamsId: (id: Maybe<string>) => oneToManyId(id, "teams"),
     timeZone: (timeZone: Maybe<string>) => timeZone ? ({ timeZone: { contains: timeZone.trim(), mode: "insensitive" } }) : {},
     toId: (id: Maybe<string>) => oneToOneId(id, "to"),
-    toOrganizationId: (id: Maybe<string>) => oneToOneId(id, "toOrganization"),
+    toTeamId: (id: Maybe<string>) => oneToOneId(id, "toTeam"),
     toUserId: (id: Maybe<string>) => oneToOneId(id, "toUser"),
     transferId: (id: Maybe<string>) => oneToOneId(id, "transfer"),
     transfersId: (id: Maybe<string>) => oneToManyId(id, "transfers"),

@@ -5,7 +5,7 @@ import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay
 import { Title } from "components/text/Title/Title";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { HeartFilledIcon, OrganizationIcon, RoutineIcon, UserIcon } from "icons";
+import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -205,7 +205,7 @@ const SettingsDataForm = ({
                     <Divider sx={{ marginTop: 2 }} />
                     <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
                         <Title
-                            Icon={OrganizationIcon}
+                            Icon={TeamIcon}
                             title={"Collaborative"}
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
@@ -254,7 +254,7 @@ const SettingsDataForm = ({
                                 props.setFieldValue("routines", checked);
                                 props.setFieldValue("apis", checked);
                                 props.setFieldValue("standards", checked);
-                                props.setFieldValue("smartContracts", checked);
+                                props.setFieldValue("codes", checked);
                             }}
                         />
                     </Box>
@@ -275,8 +275,8 @@ const SettingsDataForm = ({
                     />
                     <DataOption
                         disabled={allField.value}
-                        label="Smart Contracts"
-                        name="smartContracts"
+                        label="Codes"
+                        name="codes"
                     />
                 </Box>
             </BaseForm>
@@ -367,10 +367,10 @@ export const SettingsDataView = ({
                             bookmarks: false,
                             bots: false,
                             chats: false,
+                            codes: false,
                             comments: false,
                             issues: false,
                             notes: false,
-                            teams: false, // Includes meetings and roles
                             //posts: false,
                             pullRequests: false,
                             projects: false,
@@ -384,9 +384,9 @@ export const SettingsDataView = ({
                             routines: false,
                             runs: false,
                             schedules: false,
-                            smartContracts: false,
                             standards: false,
                             // tags: false,
+                            teams: false, // Includes meetings and roles
                             views: false,
                         }}
                         onSubmit={(values, helpers) => {

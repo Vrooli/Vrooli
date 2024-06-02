@@ -26,10 +26,10 @@ describe("updateOwner function tests", () => {
 
     test("different owners in original and updated items", () => {
         const originalItem = { owner: { __typename: "User", id: "user123" } };
-        const updatedItem = { owner: { __typename: "Organization", id: "org456" } };
+        const updatedItem = { owner: { __typename: "Team", id: "team456" } };
         // @ts-ignore: Testing runtime scenario
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).toEqual({ organizationConnect: "org456" });
+        expect(result).toEqual({ teamConnect: "team456" });
     });
 
     test("owner present only in updated item", () => {
@@ -335,299 +335,299 @@ describe("shapeUpdate function tests", () => {
     });
 });
 
-describe('updateRel function tests', () => {
-    test('no original item, with create operation in updated item', () => {
+describe("updateRel function tests", () => {
+    test("no original item, with create operation in updated item", () => {
         const original = {};
-        const updated = { relation: [{ data: 'newData' }] };
-        const result = updateRel(original, updated, 'relation', ['Create'], 'many', mockShapeModel);
-        expect(result).toEqual({ relationCreate: [{ data: 'newData', shaped: "create" }] }); // Treated as create, since there is no original item
+        const updated = { relation: [{ data: "newData" }] };
+        const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeModel);
+        expect(result).toEqual({ relationCreate: [{ data: "newData", shaped: "create" }] }); // Treated as create, since there is no original item
     });
 
-    test('no updated item', () => {
-        const original = { relation: [{ id: '123' }] };
+    test("no updated item", () => {
+        const original = { relation: [{ id: "123" }] };
         const updated = {};
-        const result = updateRel(original, updated, 'relation', ['Connect'], 'many');
+        const result = updateRel(original, updated, "relation", ["Connect"], "many");
         expect(result).toEqual({});
     });
 
-    test('create operation - test 1', () => {
-        const original = { relation: [{ id: '123', data: "oldData" }] };
-        const updated = { relation: [{ id: '123', data: 'newData' }] };
+    test("create operation - test 1", () => {
+        const original = { relation: [{ id: "123", data: "oldData" }] };
+        const updated = { relation: [{ id: "123", data: "newData" }] };
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Create'], 'many', mockShapeModel);
+        const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeModel);
         expect(result).toEqual({}); // Data is different, but it's the same ID that appears in the original item, so it's treated as an update. Since updates aren't allowed, the result is empty
     });
 
-    test('create operation - test 2', () => {
-        const original = { relation: [{ id: '123' }] };
-        const updated = { relation: [{ id: '456', data: 'newData' }] };
-        const result = updateRel(original, updated, 'relation', ['Create'], 'many', mockShapeModel);
-        expect(result).toEqual({ relationCreate: [{ id: "456", data: 'newData', shaped: "create" }] });
+    test("create operation - test 2", () => {
+        const original = { relation: [{ id: "123" }] };
+        const updated = { relation: [{ id: "456", data: "newData" }] };
+        const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeModel);
+        expect(result).toEqual({ relationCreate: [{ id: "456", data: "newData", shaped: "create" }] });
     });
 
-    test('connect operation - test 1', () => {
-        const original = { relation: [{ id: '456', data: "hello" }] };
-        const updated = { relation: [{ id: '456', data: "hello" }] };
-        const result = updateRel(original, updated, 'relation', ['Connect'], 'many');
+    test("connect operation - test 1", () => {
+        const original = { relation: [{ id: "456", data: "hello" }] };
+        const updated = { relation: [{ id: "456", data: "hello" }] };
+        const result = updateRel(original, updated, "relation", ["Connect"], "many");
         expect(result).toEqual({}); // Data appears in both original and updated items, so it's not a connect
     });
 
-    test('connect operation - test 2', () => {
-        const original = { relation: [{ id: '123' }] };
-        const updated = { relation: [{ id: '456' }] };
-        const result = updateRel(original, updated, 'relation', ['Connect'], 'many');
-        expect(result).toEqual({ relationConnect: ['456'] });
+    test("connect operation - test 2", () => {
+        const original = { relation: [{ id: "123" }] };
+        const updated = { relation: [{ id: "456" }] };
+        const result = updateRel(original, updated, "relation", ["Connect"], "many");
+        expect(result).toEqual({ relationConnect: ["456"] });
     });
 
-    test('disconnect operation', () => {
-        const original = { relation: [{ id: '123' }] };
+    test("disconnect operation", () => {
+        const original = { relation: [{ id: "123" }] };
         const updated = { relation: [] };
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Disconnect'], 'many');
-        expect(result).toEqual({ relationDisconnect: ['123'] });
+        const result = updateRel(original, updated, "relation", ["Disconnect"], "many");
+        expect(result).toEqual({ relationDisconnect: ["123"] });
     });
 
-    test('delete operation', () => {
-        const original = { relation: [{ id: '123' }] };
+    test("delete operation", () => {
+        const original = { relation: [{ id: "123" }] };
         const updated = { relation: [] };
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Delete'], 'many');
-        expect(result).toEqual({ relationDelete: ['123'] });
+        const result = updateRel(original, updated, "relation", ["Delete"], "many");
+        expect(result).toEqual({ relationDelete: ["123"] });
     });
 
-    test('update operation - test 1', () => {
-        const original = { relation: [{ id: '123' }] };
-        const updated = { relation: [{ id: '123', data: 'newData' }] };
-        const result = updateRel(original, updated, 'relation', ['Update'], 'many', mockShapeModel);
-        expect(result).toEqual({ relationUpdate: [{ id: '123', data: 'newData', shaped: "update" }] });
+    test("update operation - test 1", () => {
+        const original = { relation: [{ id: "123" }] };
+        const updated = { relation: [{ id: "123", data: "newData" }] };
+        const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeModel);
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", shaped: "update" }] });
     });
 
-    test('update operation - test 2', () => {
-        const original = { relation: [{ id: '123', data: "oldData" }] };
-        const updated = { relation: [{ id: '123', data: 'newData' }] };
-        const result = updateRel(original, updated, 'relation', ['Update'], 'many', mockShapeModel);
-        expect(result).toEqual({ relationUpdate: [{ id: '123', data: 'newData', shaped: "update" }] });
+    test("update operation - test 2", () => {
+        const original = { relation: [{ id: "123", data: "oldData" }] };
+        const updated = { relation: [{ id: "123", data: "newData" }] };
+        const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeModel);
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", shaped: "update" }] });
     });
 
-    test('create and connect operations', () => {
-        const original = { relation: [{ id: '123' }] };
+    test("create and connect operations", () => {
+        const original = { relation: [{ id: "123" }] };
         const updated = {
             relation: [
-                { id: '456' }, // Should be Connect
-                { id: '123', data: 'newData' }, // Should be update, so it's ignored
-                { id: "999", data: 'newData' }, // Should be Create
-                { id: "420", __connect: true, data: "boop" } // Should be Connect
-            ]
+                { id: "456" }, // Should be Connect
+                { id: "123", data: "newData" }, // Should be update, so it's ignored
+                { id: "999", data: "newData" }, // Should be Create
+                { id: "420", __connect: true, data: "boop" }, // Should be Connect
+            ],
         };
-        const result = updateRel(original, updated, 'relation', ['Create', 'Connect'], 'many', mockShapeModel);
+        const result = updateRel(original, updated, "relation", ["Create", "Connect"], "many", mockShapeModel);
         expect(result).toEqual({
-            relationCreate: [{ id: "999", data: 'newData', shaped: "create" }],
-            relationConnect: ['456', '420'],
+            relationCreate: [{ id: "999", data: "newData", shaped: "create" }],
+            relationConnect: ["456", "420"],
         });
     });
 
-    test('create and disconnect operations', () => {
-        const original = { relation: [{ id: '123' }, { id: '456' }] };
+    test("create and disconnect operations", () => {
+        const original = { relation: [{ id: "123" }, { id: "456" }] };
         const updated = {
             relation: [
-                { id: '456' }, // Unchanged, so it's ignored
-                { id: "999", data: 'newData' } // Should be Create
+                { id: "456" }, // Unchanged, so it's ignored
+                { id: "999", data: "newData" }, // Should be Create
                 // "123" is missing, so it should be Disconnect
-            ]
+            ],
         };
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Create', 'Disconnect'], 'many', mockShapeModel);
+        const result = updateRel(original, updated, "relation", ["Create", "Disconnect"], "many", mockShapeModel);
         expect(result).toEqual({
-            relationCreate: [{ id: "999", data: 'newData', shaped: "create" }],
-            relationDisconnect: ['123'],
+            relationCreate: [{ id: "999", data: "newData", shaped: "create" }],
+            relationDisconnect: ["123"],
         });
     });
 
-    test('create and delete operations', () => {
-        const original = { relation: [{ id: '123' }, { id: '456' }] };
+    test("create and delete operations", () => {
+        const original = { relation: [{ id: "123" }, { id: "456" }] };
         const updated = {
             relation: [
-                { id: '456' }, // Unchanged, so it's ignored
-                { id: "999", data: 'newData' } // Should be Create
+                { id: "456" }, // Unchanged, so it's ignored
+                { id: "999", data: "newData" }, // Should be Create
                 // "123" is missing, so it should be Delete
-            ]
+            ],
         };
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Create', 'Delete'], 'many', mockShapeModel);
+        const result = updateRel(original, updated, "relation", ["Create", "Delete"], "many", mockShapeModel);
         expect(result).toEqual({
-            relationCreate: [{ id: "999", data: 'newData', shaped: "create" }],
-            relationDelete: ['123'],
+            relationCreate: [{ id: "999", data: "newData", shaped: "create" }],
+            relationDelete: ["123"],
         });
     });
 
-    test('connect and disconnect operations', () => {
-        const original = { relation: [{ id: '123' }, { id: '456' }] };
+    test("connect and disconnect operations", () => {
+        const original = { relation: [{ id: "123" }, { id: "456" }] };
         const updated = {
             relation: [
-                { id: '456' }, // Unchanged, so it's ignored
-                { id: '789', beep: "Boop" }, // Should be Connect, even though it has other data like a Create. But Create is not an option, so it falls back to Connect
+                { id: "456" }, // Unchanged, so it's ignored
+                { id: "789", beep: "Boop" }, // Should be Connect, even though it has other data like a Create. But Create is not an option, so it falls back to Connect
                 // "123" is missing, so it should be Disconnect
-            ]
+            ],
         };
-        const result = updateRel(original, updated, 'relation', ['Connect', 'Disconnect'], 'many');
+        const result = updateRel(original, updated, "relation", ["Connect", "Disconnect"], "many");
         expect(result).toEqual({
-            relationConnect: ['789'],
-            relationDisconnect: ['123'],
+            relationConnect: ["789"],
+            relationDisconnect: ["123"],
         });
     });
 
-    test('one-to-one create operation - test 1', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '456', data: 'newData' } }; // Should be Create, since it has a different ID
+    test("one-to-one create operation - test 1", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "456", data: "newData" } }; // Should be Create, since it has a different ID
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Create'], 'one', mockShapeModel);
-        expect(result).toEqual({ relationCreate: { id: '456', data: 'newData', shaped: "create" } });
+        const result = updateRel(original, updated, "relation", ["Create"], "one", mockShapeModel);
+        expect(result).toEqual({ relationCreate: { id: "456", data: "newData", shaped: "create" } });
     });
 
-    test('one-to-one create operation - test 2', () => {
+    test("one-to-one create operation - test 2", () => {
         const original = {};
-        const updated = { relation: { id: '456', data: 'newData' } }; // Should be Create, since relation didn't exist in original
+        const updated = { relation: { id: "456", data: "newData" } }; // Should be Create, since relation didn't exist in original
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Create'], 'one', mockShapeModel);
-        expect(result).toEqual({ relationCreate: { id: '456', data: 'newData', shaped: "create" } });
+        const result = updateRel(original, updated, "relation", ["Create"], "one", mockShapeModel);
+        expect(result).toEqual({ relationCreate: { id: "456", data: "newData", shaped: "create" } });
     });
 
-    test('one-to-one create operation - test 3', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '123', data: 'newData' } }; // Should be Update (which should be ignored in this test), since it has the same ID
+    test("one-to-one create operation - test 3", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "123", data: "newData" } }; // Should be Update (which should be ignored in this test), since it has the same ID
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Create'], 'one', mockShapeModel);
+        const result = updateRel(original, updated, "relation", ["Create"], "one", mockShapeModel);
         expect(result).toEqual({});
     });
 
-    test('one-to-one connect operation - test 1', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '456' } };
-        const result = updateRel(original, updated, 'relation', ['Connect'], 'one');
-        expect(result).toEqual({ relationConnect: '456' });
+    test("one-to-one connect operation - test 1", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "456" } };
+        const result = updateRel(original, updated, "relation", ["Connect"], "one");
+        expect(result).toEqual({ relationConnect: "456" });
     });
 
-    test('one-to-one connect operation - test 2', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '123' } }; // Should be ignored, since it has the same ID as the original
-        const result = updateRel(original, updated, 'relation', ['Connect'], 'one');
+    test("one-to-one connect operation - test 2", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "123" } }; // Should be ignored, since it has the same ID as the original
+        const result = updateRel(original, updated, "relation", ["Connect"], "one");
         expect(result).toEqual({});
     });
 
-    test('one-to-one disconnect operation - test 1', () => {
-        const original = { relation: { id: '123' } };
+    test("one-to-one disconnect operation - test 1", () => {
+        const original = { relation: { id: "123" } };
         const updated = { relation: null }; // Null indicates a Disconnect
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Disconnect'], 'one');
+        const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
         expect(result).toEqual({ relationDisconnect: true }); // One-to-one disconnects use boolean values instead of IDs, since the ID is already known
     });
 
-    test('one-to-one disconnect operation - test 2', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '456' } }; // Should be able to determine that '123' should be disconnected
-        const result = updateRel(original, updated, 'relation', ['Disconnect'], 'one');
+    test("one-to-one disconnect operation - test 2", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "456" } }; // Should be able to determine that '123' should be disconnected
+        const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
         expect(result).toEqual({ relationDisconnect: true }); // One-to-one disconnects use boolean values instead of IDs, since the ID is already known
     });
 
-    test('one-to-one disconnect operation - test 3', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '123', data: 'newData' } }; // Should be ignored, since it has the same ID as the original
-        const result = updateRel(original, updated, 'relation', ['Disconnect'], 'one');
+    test("one-to-one disconnect operation - test 3", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "123", data: "newData" } }; // Should be ignored, since it has the same ID as the original
+        const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
         expect(result).toEqual({});
     });
 
-    test('one-to-one disconnect operation - test 4', () => {
-        const original = { relation: { id: '123' } };
+    test("one-to-one disconnect operation - test 4", () => {
+        const original = { relation: { id: "123" } };
         const updated = { relation: undefined }; // Should be ignored, since only null is treated as a disconnect
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Disconnect'], 'one');
+        const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
         expect(result).toEqual({});
     });
 
-    test('one-to-one delete operation - test 1', () => {
-        const original = { relation: { id: '123' } };
+    test("one-to-one delete operation - test 1", () => {
+        const original = { relation: { id: "123" } };
         const updated = { relation: null }; // Null indicates a Delete
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Delete'], 'one');
+        const result = updateRel(original, updated, "relation", ["Delete"], "one");
         expect(result).toEqual({ relationDelete: true }); // One-to-one deletes use boolean values instead of IDs, since the ID is already known
     });
 
-    test('one-to-one delete operation - test 2', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '456' } }; // Should be able to determine that '123' should be deleted
-        const result = updateRel(original, updated, 'relation', ['Delete'], 'one');
+    test("one-to-one delete operation - test 2", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "456" } }; // Should be able to determine that '123' should be deleted
+        const result = updateRel(original, updated, "relation", ["Delete"], "one");
         expect(result).toEqual({ relationDelete: true }); // One-to-one deletes use boolean values instead of IDs, since the ID is already known
     });
 
-    test('one-to-one delete operation - test 3', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '123', data: 'newData' } }; // Should be ignored, since it has the same ID as the original
-        const result = updateRel(original, updated, 'relation', ['Delete'], 'one');
+    test("one-to-one delete operation - test 3", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "123", data: "newData" } }; // Should be ignored, since it has the same ID as the original
+        const result = updateRel(original, updated, "relation", ["Delete"], "one");
         expect(result).toEqual({});
     });
 
-    test('one-to-one delete operation - test 4', () => {
-        const original = { relation: { id: '123' } };
+    test("one-to-one delete operation - test 4", () => {
+        const original = { relation: { id: "123" } };
         const updated = { relation: undefined }; // Should be ignored, since only null is treated as a delete
         // @ts-ignore: Testing runtime scenario
-        const result = updateRel(original, updated, 'relation', ['Delete'], 'one');
+        const result = updateRel(original, updated, "relation", ["Delete"], "one");
         expect(result).toEqual({});
     });
 
-    test('one-to-one update operation - test 1', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '123', data: 'newData' } };
-        const result = updateRel(original, updated, 'relation', ['Update'], 'one', mockShapeModel);
-        expect(result).toEqual({ relationUpdate: { id: '123', data: 'newData', shaped: "update" } });
+    test("one-to-one update operation - test 1", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "123", data: "newData" } };
+        const result = updateRel(original, updated, "relation", ["Update"], "one", mockShapeModel);
+        expect(result).toEqual({ relationUpdate: { id: "123", data: "newData", shaped: "update" } });
     });
 
-    test('one-to-one update operation - test 2', () => {
-        const original = { relation: { id: '123', data: "booop", other: { random: { data: "hi" } } } };
-        const result = updateRel(original, { ...original }, 'relation', ['Update'], 'one', mockShapeModel);
+    test("one-to-one update operation - test 2", () => {
+        const original = { relation: { id: "123", data: "booop", other: { random: { data: "hi" } } } };
+        const result = updateRel(original, { ...original }, "relation", ["Update"], "one", mockShapeModel);
         expect(result).toEqual({});
     });
 
-    test('one-to-one create and connect operations - test 1', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '456', data: 'newData' } }; // Should be Create, since it has more data than just an ID
-        const result = updateRel(original, updated, 'relation', ['Create', 'Connect'], 'one', mockShapeModel);
+    test("one-to-one create and connect operations - test 1", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "456", data: "newData" } }; // Should be Create, since it has more data than just an ID
+        const result = updateRel(original, updated, "relation", ["Create", "Connect"], "one", mockShapeModel);
         expect(result).toEqual({
-            relationCreate: { id: '456', data: 'newData', shaped: "create" },
+            relationCreate: { id: "456", data: "newData", shaped: "create" },
         });
     });
 
-    test('one-to-one create and connect operations - test 2', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { __typename: "Boop", id: '456' } }; // Should be Connect, since it has only an ID and a __typename
-        const result = updateRel(original, updated, 'relation', ['Create', 'Connect'], 'one', mockShapeModel);
+    test("one-to-one create and connect operations - test 2", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { __typename: "Boop", id: "456" } }; // Should be Connect, since it has only an ID and a __typename
+        const result = updateRel(original, updated, "relation", ["Create", "Connect"], "one", mockShapeModel);
         expect(result).toEqual({
-            relationConnect: '456',
+            relationConnect: "456",
         });
     });
 
-    test('one-to-one connect and disconnect operations', () => {
-        const original = { relation: { id: '123' } };
-        const updated = { relation: { id: '456' } };
-        const result = updateRel(original, updated, 'relation', ['Connect', 'Disconnect'], 'one');
+    test("one-to-one connect and disconnect operations", () => {
+        const original = { relation: { id: "123" } };
+        const updated = { relation: { id: "456" } };
+        const result = updateRel(original, updated, "relation", ["Connect", "Disconnect"], "one");
         expect(result).toEqual({
-            relationConnect: '456', // The disconnect is implicitly handled by the connect, since it's a one-to-one
+            relationConnect: "456", // The disconnect is implicitly handled by the connect, since it's a one-to-one
         });
     });
 
-    test('create with preShape function', () => {
-        const original = { relation: [{ id: '123' }] };
-        const updated = { relation: [{ id: '456', data: 'newData' }] };
+    test("create with preShape function", () => {
+        const original = { relation: [{ id: "123" }] };
+        const updated = { relation: [{ id: "456", data: "newData" }] };
         const preShape = (d) => ({ ...d, preShape: "yeet" });
-        const result = updateRel(original, updated, 'relation', ['Create'], 'many', mockShapeModel, preShape);
-        expect(result).toEqual({ relationCreate: [{ id: '456', data: 'newData', preShape: "yeet", shaped: "create" }] }); // Reflects changes from both preShape and shape (mockShapeModel)
+        const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeModel, preShape);
+        expect(result).toEqual({ relationCreate: [{ id: "456", data: "newData", preShape: "yeet", shaped: "create" }] }); // Reflects changes from both preShape and shape (mockShapeModel)
     });
 
-    test('update with preShape function', () => {
-        const original = { relation: [{ id: '123' }] };
-        const updated = { relation: [{ id: '123', data: 'newData' }] };
+    test("update with preShape function", () => {
+        const original = { relation: [{ id: "123" }] };
+        const updated = { relation: [{ id: "123", data: "newData" }] };
         const preShape = (d) => ({ ...d, preShape: "yeet" });
-        const result = updateRel(original, updated, 'relation', ['Update'], 'many', mockShapeModel, preShape);
-        expect(result).toEqual({ relationUpdate: [{ id: '123', data: 'newData', preShape: "yeet", shaped: "update" }] }); // Reflects changes from both preShape and shape (mockShapeModel)
+        const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeModel, preShape);
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", preShape: "yeet", shaped: "update" }] }); // Reflects changes from both preShape and shape (mockShapeModel)
     });
 });
 

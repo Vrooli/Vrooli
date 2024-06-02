@@ -12,15 +12,15 @@ import { memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 
 /**
- * View members and invited members of an organization
+ * View members and invited members of a team
  */
 export const MemberManageView = ({
     display,
     onClose,
-    organization,
     isOpen,
+    team,
 }: MemberManageViewProps) => {
-    console.log("in MemberManageView", organization);
+    console.log("in MemberManageView", team);
 
     const {
         currTab,
@@ -31,11 +31,11 @@ export const MemberManageView = ({
     } = useTabs({ id: "member-manage-tabs", tabParams: memberTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
-        canSearch: () => uuidValidate(organization.id),
+        canSearch: () => uuidValidate(team.id),
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where({ organizationId: organization.id }),
+        where: where({ teamId: team.id }),
     });
 
     //    // Handle add/update invite dialog
@@ -52,11 +52,11 @@ export const MemberManageView = ({
     //            created_at: new Date().toISOString(),
     //            updated_at: new Date().toISOString(),
     //            status: MemberInviteStatus.Pending,
-    //            organization: { __typename: "Organization", id: organization.id },
+    //            team: { __typename: "Team", id: team.id },
     //            user,
     //        } as const));
     //        setInvitesToUpsert(asInvites);
-    //    }, [organization.id, currTab.key, selectedData]);
+    //    }, [team.id, currTab.key, selectedData]);
     //    const onInviteCompleted = () => {
     //        // TODO Handle any post-completion tasks here, if necessary
     //        setInvitesToUpsert([]);

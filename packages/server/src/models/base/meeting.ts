@@ -8,7 +8,7 @@ import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { MeetingModelLogic, OrganizationModelLogic } from "./types";
+import { MeetingModelLogic, TeamModelLogic } from "./types";
 
 type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
@@ -45,8 +45,8 @@ export const MeetingModel: MeetingModelLogic = ({
                 return {
                     id: data.id,
                     openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                    showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
-                    organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "meetings", data, ...rest }),
+                    showOnTeamProfile: noNull(data.showOnTeamProfile),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "meetings", data, ...rest }),
                     restrictedToRoles: await shapeHelper({
                         relation: "restrictedToRoles", relTypes: ["Connect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
                             fieldName: "role",
@@ -60,13 +60,13 @@ export const MeetingModel: MeetingModelLogic = ({
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Meeting", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as MeetingPre;
                 return {
                     openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
-                    showOnOrganizationProfile: noNull(data.showOnOrganizationProfile),
+                    showOnTeamProfile: noNull(data.showOnTeamProfile),
                     restrictedToRoles: await shapeHelper({
                         relation: "restrictedToRoles", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "Role", parentRelationshipName: "", joinData: {
                             fieldName: "role",
@@ -80,7 +80,7 @@ export const MeetingModel: MeetingModelLogic = ({
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Connect", "Update", "Delete"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "meetings", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Create", "Update"], parentType: "Meeting", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -88,7 +88,7 @@ export const MeetingModel: MeetingModelLogic = ({
                 await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
-                    ownerOrganizationField: "organization",
+                    ownerTeamField: "team",
                 });
             },
         },
@@ -101,10 +101,10 @@ export const MeetingModel: MeetingModelLogic = ({
             createdTimeFrame: true,
             labelsIds: true,
             openToAnyoneWithInvite: true,
-            organizationId: true,
             scheduleEndTimeFrame: true,
             scheduleStartTimeFrame: true,
-            showOnOrganizationProfile: true,
+            showOnTeamProfile: true,
+            teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -116,7 +116,7 @@ export const MeetingModel: MeetingModelLogic = ({
             ],
         }),
         supplemental: {
-            dbFields: ["organizationId"],
+            dbFields: ["teamId"],
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
                 return {
@@ -132,33 +132,33 @@ export const MeetingModel: MeetingModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            showOnOrganizationProfile: true,
-            organization: "Organization",
+            showOnTeamProfile: true,
+            team: "Team",
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
             canInvite: () => isLoggedIn && isAdmin,
         }),
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
         }),
         isDeleted: () => false,
-        isPublic: (data) => data.showOnOrganizationProfile === true,
+        isPublic: (data) => data.showOnTeamProfile === true,
         visibility: {
             private: {
                 OR: [
-                    { showOnOrganizationProfile: false },
-                    { organization: { isPrivate: true } },
+                    { showOnTeamProfile: false },
+                    { team: { isPrivate: true } },
                 ],
             },
             public: {
                 AND: [
-                    { showOnOrganizationProfile: true },
-                    { organization: { isPrivate: false } },
+                    { showOnTeamProfile: true },
+                    { team: { isPrivate: false } },
                 ],
             },
             owner: (userId) => ({
-                organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
+                team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
             }),
         },
     }),

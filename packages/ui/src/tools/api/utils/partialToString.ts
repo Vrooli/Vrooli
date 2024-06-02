@@ -30,7 +30,7 @@ type PartialToStringProps<
  * @returns A properly-indented string that can be used in a GraphQL query/mutation. 
  * The string is structured from top to bottom in the shape:
  * - Fragment definitions, with duplicate fragments omitted
- * - The query/mutation itself (e.g. 'query organization($input: FindByIdOrHandleInput!) {\norganization(input: $input) {\n')
+ * - The query/mutation itself (e.g. 'query team($input: FindByIdOrHandleInput!) {\team(input: $input) {\n')
  * - The fields of the query/mutation, with fragments referenced by name and unions formatted correctly
  * - The closing parentheses and brackets
  */

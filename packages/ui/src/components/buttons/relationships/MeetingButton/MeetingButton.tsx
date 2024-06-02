@@ -5,7 +5,7 @@ import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemMeeting } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
-import { AddIcon, OrganizationIcon } from "icons";
+import { AddIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -71,7 +71,7 @@ export const MeetingButton = ({
         };
         const meetingName = firstString(getTranslation(meeting as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 }));
         return {
-            Icon: OrganizationIcon,
+            Icon: TeamIcon,
             tooltip: t(`MeetingTogglePress${isEditing ? "Editable" : ""}`, { meeting: meetingName }),
         };
     }, [field?.value, isEditing, languages, t]);

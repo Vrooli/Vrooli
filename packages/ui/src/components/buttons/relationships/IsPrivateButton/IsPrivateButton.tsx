@@ -18,7 +18,7 @@ export const IsPrivateButton = ({
     const [, , rootHelpers] = useField("root.isPrivate");
     const [rootVersionsCountField] = useField("root.versionsCount");
 
-    const isAvailable = useMemo(() => ["Api", "Note", "Organization", "Project", "Routine", "RunProject", "RunRoutine", "SmartContract", "Standard", "User"].includes(objectType), [objectType]);
+    const isAvailable = useMemo(() => ["Api", "Code", "Note", "Project", "Routine", "RunProject", "RunRoutine", "Standard", "Team", "User"].includes(objectType), [objectType]);
 
     const { Icon, tooltip } = useMemo(() => {
         const isPrivate = versionField?.value;

@@ -2,7 +2,7 @@ import { DUMMY_ID, uuid } from "@local/shared";
 import { ShapeModel } from "types";
 
 type OwnerPrefix = "" | "ownedBy";
-type OwnerType = "User" | "Organization";
+type OwnerType = "User" | "Team";
 
 type RelationshipType = "Connect" | "Create";
 
@@ -38,8 +38,8 @@ export const createOwner = <
 ): { [K in `${Prefix}${OType}Connect`]?: string } => {
     // Find owner data in item
     const ownerData = item.owner;
-    // If owner data is undefined, or type is not a User or Organization return empty object
-    if (ownerData === null || ownerData === undefined || (ownerData.__typename !== "User" && ownerData.__typename !== "Organization")) return {};
+    // If owner data is undefined, or type is not a User or Team return empty object
+    if (ownerData === null || ownerData === undefined || (ownerData.__typename !== "User" && ownerData.__typename !== "Team")) return {};
     // Create field name (with first letter lowercase)
     let fieldName = `${prefix}${ownerData.__typename}Connect`;
     fieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);

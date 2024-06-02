@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, OrganizationCreateInput, OrganizationSearchInput, OrganizationUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SmartContractCreateInput, SmartContractSearchInput, SmartContractUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -32,7 +32,11 @@ export type LlmTaskConverters = {
     BotDelete: ConverterFunc<DeleteOneInput>,
     BotFind: ConverterFunc<UserSearchInput>,
     BotUpdate: ConverterFunc<BotUpdateInput, ToBotSettingsPropBot>,
-    MembersAdd: ConverterFunc<OrganizationUpdateInput>,
+    DataConverterAdd: ConverterFunc<CodeCreateInput>,
+    DataConverterDelete: ConverterFunc<DeleteOneInput>,
+    DataConverterFind: ConverterFunc<CodeSearchInput>,
+    DataConverterUpdate: ConverterFunc<CodeUpdateInput>,
+    MembersAdd: ConverterFunc<TeamUpdateInput>,
     MembersDelete: ConverterFunc<DeleteManyInput>,
     MembersFind: ConverterFunc<MemberSearchInput>,
     MembersUpdate: ConverterFunc<MemberUpdateInput>,
@@ -60,19 +64,19 @@ export type LlmTaskConverters = {
     ScheduleDelete: ConverterFunc<DeleteOneInput>,
     ScheduleFind: ConverterFunc<ScheduleSearchInput>,
     ScheduleUpdate: ConverterFunc<ScheduleUpdateInput>,
-    SmartContractAdd: ConverterFunc<SmartContractCreateInput>,
+    SmartContractAdd: ConverterFunc<CodeCreateInput>,
     SmartContractDelete: ConverterFunc<DeleteOneInput>,
-    SmartContractFind: ConverterFunc<SmartContractSearchInput>,
-    SmartContractUpdate: ConverterFunc<SmartContractUpdateInput>,
+    SmartContractFind: ConverterFunc<CodeSearchInput>,
+    SmartContractUpdate: ConverterFunc<CodeUpdateInput>,
     StandardAdd: ConverterFunc<StandardCreateInput>,
     StandardDelete: ConverterFunc<DeleteOneInput>,
     StandardFind: ConverterFunc<StandardSearchInput>,
     StandardUpdate: ConverterFunc<StandardUpdateInput>,
     Start: ConverterFunc<unknown>,
-    TeamAdd: ConverterFunc<OrganizationCreateInput>,
+    TeamAdd: ConverterFunc<TeamCreateInput>,
     TeamDelete: ConverterFunc<DeleteOneInput>,
-    TeamFind: ConverterFunc<OrganizationSearchInput>,
-    TeamUpdate: ConverterFunc<OrganizationUpdateInput>,
+    TeamFind: ConverterFunc<TeamSearchInput>,
+    TeamUpdate: ConverterFunc<TeamUpdateInput>,
 };
 
 /**
@@ -291,6 +295,48 @@ export const generateTaskExec = async (
                 }
                 const input = converter[task](data, language, existingUser);
                 const payload = await UserEndpoints.Mutation.botUpdate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
+            };
+        }
+        case "DataConverterAdd": {
+            const { CodeEndpoints } = await import("../../endpoints/logic/code");
+            const info = await loadInfo("code_findOne");
+            return async (data) => {
+                const input = converter[task](data, language);
+                const payload = await CodeEndpoints.Mutation.codeCreate(undefined, { input }, context, info);
+                const label = getObjectLabel(payload);
+                const link = getObjectLink(payload);
+                return { label, link, payload };
+            };
+        }
+        case "DataConverterDelete": {
+            const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+            const info = SuccessInfo;
+            return async (data) => {
+                const input = converter[task](data, language);
+                const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+                return { label: null, link: null, payload };
+            };
+        }
+        case "DataConverterFind": {
+            const info = await loadInfo("code_findMany");
+            return async (data) => {
+                const input = converter[task](data, language);
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "CodeVersion", req: context.req });
+                const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+                const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+                return { label, link, payload };
+            };
+        }
+        case "DataConverterUpdate": {
+            const { CodeEndpoints } = await import("../../endpoints/logic/code");
+            const info = await loadInfo("code_findOne");
+            return async (data) => {
+                validateFields(["id", (data) => uuidValidate(data.id)])(data);
+                const input = converter[task](data, language);
+                const payload = await CodeEndpoints.Mutation.codeUpdate(undefined, { input }, context, info);
                 const label = getObjectLabel(payload);
                 const link = getObjectLink(payload);
                 return { label, link, payload };
@@ -600,11 +646,11 @@ export const generateTaskExec = async (
             };
         }
         case "SmartContractAdd": {
-            const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
-            const info = await loadInfo("smartContract_findOne");
+            const { CodeEndpoints } = await import("../../endpoints/logic/code");
+            const info = await loadInfo("code_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await SmartContractEndpoints.Mutation.smartContractCreate(undefined, { input }, context, info);
+                const payload = await CodeEndpoints.Mutation.codeCreate(undefined, { input }, context, info);
                 const label = getObjectLabel(payload);
                 const link = getObjectLink(payload);
                 return { label, link, payload };
@@ -620,22 +666,22 @@ export const generateTaskExec = async (
             };
         }
         case "SmartContractFind": {
-            const info = await loadInfo("smartContract_findMany");
+            const info = await loadInfo("code_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "SmartContractVersion", req: context.req });
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "CodeVersion", req: context.req });
                 const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
                 const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
                 return { label, link, payload };
             };
         }
         case "SmartContractUpdate": {
-            const { SmartContractEndpoints } = await import("../../endpoints/logic/smartContract");
-            const info = await loadInfo("smartContract_findOne");
+            const { CodeEndpoints } = await import("../../endpoints/logic/code");
+            const info = await loadInfo("code_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                const payload = await SmartContractEndpoints.Mutation.smartContractUpdate(undefined, { input }, context, info);
+                const payload = await CodeEndpoints.Mutation.codeUpdate(undefined, { input }, context, info);
                 const label = getObjectLabel(payload);
                 const link = getObjectLink(payload);
                 return { label, link, payload };
@@ -684,11 +730,11 @@ export const generateTaskExec = async (
             };
         }
         case "TeamAdd": {
-            const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
-            const info = await loadInfo("organization_findOne");
+            const { TeamEndpoints } = await import("../../endpoints/logic/team");
+            const info = await loadInfo("team_findOne");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await OrganizationEndpoints.Mutation.organizationCreate(undefined, { input }, context, info);
+                const payload = await TeamEndpoints.Mutation.teamCreate(undefined, { input }, context, info);
                 const label = getObjectLabel(payload);
                 const link = getObjectLink(payload);
                 return { label, link, payload };
@@ -704,22 +750,22 @@ export const generateTaskExec = async (
             };
         }
         case "TeamFind": {
-            const info = await loadInfo("organization_findMany");
+            const info = await loadInfo("team_findMany");
             return async (data) => {
                 const input = converter[task](data, language);
-                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Organization", req: context.req });
+                const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Team", req: context.req });
                 const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
                 const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
                 return { label, link, payload };
             };
         }
         case "TeamUpdate": {
-            const { OrganizationEndpoints } = await import("../../endpoints/logic/organization");
-            const info = await loadInfo("organization_findOne");
+            const { TeamEndpoints } = await import("../../endpoints/logic/team");
+            const info = await loadInfo("team_findOne");
             return async (data) => {
                 validateFields(["id", (data) => uuidValidate(data.id)])(data);
                 const input = converter[task](data, language);
-                const payload = await OrganizationEndpoints.Mutation.organizationUpdate(undefined, { input }, context, info);
+                const payload = await TeamEndpoints.Mutation.teamUpdate(undefined, { input }, context, info);
                 const label = getObjectLabel(payload);
                 const link = getObjectLink(payload);
                 return { label, link, payload };

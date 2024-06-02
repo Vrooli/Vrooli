@@ -38,10 +38,10 @@ export const ownerFields = async <
         // Otherwise, return empty object
         return {};
     }
-    const orgRelName = lowercaseFirstLetter(`${relation}Organization`);
+    const orgRelName = lowercaseFirstLetter(`${relation}Team`);
     const userRelName = lowercaseFirstLetter(`${relation}User`);
     return {
-        [orgRelName]: await shapeHelper({ ...rest, relation: orgRelName, relTypes, isOneToOne: true, objectType: "Organization", parentRelationshipName, data }),
+        [orgRelName]: await shapeHelper({ ...rest, relation: orgRelName, relTypes, isOneToOne: true, objectType: "Team", parentRelationshipName, data }),
         [userRelName]: await shapeHelper({ ...rest, relation: userRelName, relTypes, isOneToOne: true, objectType: "User", parentRelationshipName, data }),
     };
 };

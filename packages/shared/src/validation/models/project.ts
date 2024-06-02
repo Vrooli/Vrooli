@@ -11,12 +11,12 @@ export const projectValidation: YupModel<["create", "update"]> = {
         permissions: opt(permissions),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
-        ["ownedByOrganization", ["Connect"], "one", "opt"],
+        ["ownedByTeam", ["Connect"], "one", "opt"],
         ["parent", ["Connect"], "one", "opt"],
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["versions", ["Create"], "many", "opt", projectVersionValidation, ["root"]],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect", true]], d),
+    ], [["ownedByTeamConnect", "ownedByUserConnect", true]], d),
     update: (d) => yupObj({
         id: req(id),
         handle: opt(handle),
@@ -24,10 +24,10 @@ export const projectValidation: YupModel<["create", "update"]> = {
         permissions: opt(permissions),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
-        ["ownedByOrganization", ["Connect"], "one", "opt"],
+        ["ownedByTeam", ["Connect"], "one", "opt"],
         ["parent", ["Connect"], "one", "opt"],
         ["labels", ["Connect", "Create"], "many", "opt", labelValidation],
         ["versions", ["Create"], "many", "opt", projectVersionValidation, ["root"]],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-    ], [["ownedByOrganizationConnect", "ownedByUserConnect", false]], d),
+    ], [["ownedByTeamConnect", "ownedByUserConnect", false]], d),
 };

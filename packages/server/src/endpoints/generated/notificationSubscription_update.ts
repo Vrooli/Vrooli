@@ -47,19 +47,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -81,7 +69,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -91,19 +91,7 @@ export const notificationSubscription_update = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -125,7 +113,19 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -163,29 +163,99 @@ export const notificationSubscription_update = {
       },
       "__typename": "Api"
     },
-    "Comment": {
-      "translations": {
+    "Code": {
+      "versions": {
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "jsonVariable": true,
+          "name": true
+        },
         "id": true,
-        "language": true,
-        "text": true
+        "created_at": true,
+        "updated_at": true,
+        "isComplete": true,
+        "isDeleted": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "default": true,
+        "contractType": true,
+        "content": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "commentsCount": true,
+        "directoryListingsCount": true,
+        "forksCount": true,
+        "reportsCount": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
+        "__typename": "NoteVersion"
       },
       "id": true,
       "created_at": true,
       "updated_at": true,
-      "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
+      "isPrivate": true,
+      "issuesCount": true,
+      "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
+          }
         },
-        "Organization": {
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
+        "__typename": "Label"
+      },
+      "owner": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -207,7 +277,101 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
+        }
+      },
+      "permissions": true,
+      "questionsCount": true,
+      "score": true,
+      "bookmarks": true,
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
+        "__typename": "Tag"
+      },
+      "transfersCount": true,
+      "views": true,
+      "you": {
+        "canDelete": true,
+        "canBookmark": true,
+        "canTransfer": true,
+        "canUpdate": true,
+        "canRead": true,
+        "canReact": true,
+        "isBookmarked": true,
+        "isViewed": true,
+        "reaction": true
+      },
+      "__typename": "Code"
+    },
+    "Comment": {
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      },
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "owner": {
+        "Team": {
+          "id": true,
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "score": true,
@@ -244,7 +408,33 @@ export const notificationSubscription_update = {
           "isPrivate": true,
           "__typename": "Api"
         },
-        "Organization": {
+        "Code": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Code"
+        },
+        "Note": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Note"
+        },
+        "Project": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Project"
+        },
+        "Routine": {
+          "id": true,
+          "isInternal": true,
+          "isPrivate": true,
+          "__typename": "Routine"
+        },
+        "Standard": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Standard"
+        },
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -266,33 +456,7 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
-        },
-        "Note": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Note"
-        },
-        "Project": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Project"
-        },
-        "Routine": {
-          "id": true,
-          "isInternal": true,
-          "isPrivate": true,
-          "__typename": "Routine"
-        },
-        "SmartContract": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "SmartContract"
-        },
-        "Standard": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Standard"
+          "__typename": "Team"
         }
       },
       "commentsCount": true,
@@ -307,19 +471,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -341,7 +493,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -371,19 +535,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -405,7 +557,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -422,19 +586,7 @@ export const notificationSubscription_update = {
           "color": true,
           "label": true,
           "owner": {
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true,
-              "__typename": "User"
-            },
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -456,7 +608,19 @@ export const notificationSubscription_update = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
             }
           },
           "you": {
@@ -563,7 +727,7 @@ export const notificationSubscription_update = {
           "name": true,
           "status": true,
           "stepsCount": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -585,7 +749,7 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
           },
           "user": {
             "id": true,
@@ -644,7 +808,7 @@ export const notificationSubscription_update = {
           "stepsCount": true,
           "inputsCount": true,
           "wasRunAutomatically": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -666,7 +830,7 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
           },
           "user": {
             "id": true,
@@ -723,8 +887,8 @@ export const notificationSubscription_update = {
       "created_at": true,
       "updated_at": true,
       "openToAnyoneWithInvite": true,
-      "showOnOrganizationProfile": true,
-      "organization": {
+      "showOnTeamProfile": true,
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -746,7 +910,7 @@ export const notificationSubscription_update = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "restrictedToRoles": {
         "members": {
@@ -762,7 +926,7 @@ export const notificationSubscription_update = {
             "name": true,
             "permissions": true,
             "membersCount": true,
-            "organization": {
+            "team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -784,7 +948,7 @@ export const notificationSubscription_update = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
             },
             "translations": {
               "id": true,
@@ -805,7 +969,7 @@ export const notificationSubscription_update = {
         "name": true,
         "permissions": true,
         "membersCount": true,
-        "organization": {
+        "team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -827,7 +991,7 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
         },
         "translations": {
           "id": true,
@@ -889,19 +1053,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -923,7 +1075,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -933,19 +1097,7 @@ export const notificationSubscription_update = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -967,7 +1119,19 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -1005,60 +1169,6 @@ export const notificationSubscription_update = {
       },
       "__typename": "Note"
     },
-    "Organization": {
-      "id": true,
-      "bannerImage": true,
-      "handle": true,
-      "created_at": true,
-      "updated_at": true,
-      "isOpenToNewMembers": true,
-      "isPrivate": true,
-      "commentsCount": true,
-      "membersCount": true,
-      "profileImage": true,
-      "reportsCount": true,
-      "bookmarks": true,
-      "tags": {
-        "id": true,
-        "created_at": true,
-        "tag": true,
-        "bookmarks": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true
-        },
-        "you": {
-          "isOwn": true,
-          "isBookmarked": true
-        },
-        "__typename": "Tag"
-      },
-      "translations": {
-        "id": true,
-        "language": true,
-        "bio": true,
-        "name": true
-      },
-      "you": {
-        "canAddMembers": true,
-        "canDelete": true,
-        "canBookmark": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canRead": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "yourMembership": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "isAdmin": true,
-          "permissions": true
-        }
-      },
-      "__typename": "Organization"
-    },
     "Project": {
       "versions": {
         "translations": {
@@ -1092,19 +1202,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -1126,7 +1224,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -1136,19 +1246,7 @@ export const notificationSubscription_update = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -1170,7 +1268,19 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -1275,12 +1385,33 @@ export const notificationSubscription_update = {
           "isPrivate": true,
           "__typename": "Api"
         },
+        "Code": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Code"
+        },
         "Note": {
           "id": true,
           "isPrivate": true,
           "__typename": "Note"
         },
-        "Organization": {
+        "Project": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Project"
+        },
+        "Routine": {
+          "id": true,
+          "isInternal": true,
+          "isPrivate": true,
+          "__typename": "Routine"
+        },
+        "Standard": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Standard"
+        },
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -1302,28 +1433,7 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
-        },
-        "Project": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Project"
-        },
-        "Routine": {
-          "id": true,
-          "isInternal": true,
-          "isPrivate": true,
-          "__typename": "Routine"
-        },
-        "SmartContract": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "SmartContract"
-        },
-        "Standard": {
-          "id": true,
-          "isPrivate": true,
-          "__typename": "Standard"
+          "__typename": "Team"
         }
       },
       "tags": {
@@ -1424,6 +1534,7 @@ export const notificationSubscription_update = {
         "created_at": true,
         "updated_at": true,
         "completedAt": true,
+        "codeCallData": true,
         "isAutomatable": true,
         "isComplete": true,
         "isDeleted": true,
@@ -1432,7 +1543,6 @@ export const notificationSubscription_update = {
         "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
-        "smartContractCallData": true,
         "apiCallData": true,
         "versionIndex": true,
         "versionLabel": true,
@@ -1459,19 +1569,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -1493,7 +1591,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -1503,19 +1613,7 @@ export const notificationSubscription_update = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -1537,7 +1635,19 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -1574,170 +1684,6 @@ export const notificationSubscription_update = {
         "reaction": true
       },
       "__typename": "Routine"
-    },
-    "SmartContract": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "jsonVariable": true,
-          "name": true
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isComplete": true,
-        "isDeleted": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "default": true,
-        "contractType": true,
-        "content": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "commentsCount": true,
-        "directoryListingsCount": true,
-        "forksCount": true,
-        "reportsCount": true,
-        "you": {
-          "canComment": true,
-          "canCopy": true,
-          "canDelete": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canUse": true,
-          "canRead": true
-        },
-        "__typename": "NoteVersion"
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "isPrivate": true,
-      "issuesCount": true,
-      "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
-            "id": true,
-            "bannerImage": true,
-            "handle": true,
-            "profileImage": true,
-            "you": {
-              "canAddMembers": true,
-              "canDelete": true,
-              "canBookmark": true,
-              "canReport": true,
-              "canUpdate": true,
-              "canRead": true,
-              "isBookmarked": true,
-              "isViewed": true,
-              "yourMembership": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isAdmin": true,
-                "permissions": true
-              }
-            },
-            "__typename": "Organization"
-          }
-        },
-        "you": {
-          "canDelete": true,
-          "canUpdate": true
-        },
-        "__typename": "Label"
-      },
-      "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          },
-          "__typename": "Organization"
-        }
-      },
-      "permissions": true,
-      "questionsCount": true,
-      "score": true,
-      "bookmarks": true,
-      "tags": {
-        "id": true,
-        "created_at": true,
-        "tag": true,
-        "bookmarks": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true
-        },
-        "you": {
-          "isOwn": true,
-          "isBookmarked": true
-        },
-        "__typename": "Tag"
-      },
-      "transfersCount": true,
-      "views": true,
-      "you": {
-        "canDelete": true,
-        "canBookmark": true,
-        "canTransfer": true,
-        "canUpdate": true,
-        "canRead": true,
-        "canReact": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "reaction": true
-      },
-      "__typename": "SmartContract"
     },
     "Standard": {
       "versions": {
@@ -1788,19 +1734,7 @@ export const notificationSubscription_update = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -1822,7 +1756,19 @@ export const notificationSubscription_update = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -1832,19 +1778,7 @@ export const notificationSubscription_update = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -1866,7 +1800,19 @@ export const notificationSubscription_update = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -1903,6 +1849,60 @@ export const notificationSubscription_update = {
         "reaction": true
       },
       "__typename": "Standard"
+    },
+    "Team": {
+      "id": true,
+      "bannerImage": true,
+      "handle": true,
+      "created_at": true,
+      "updated_at": true,
+      "isOpenToNewMembers": true,
+      "isPrivate": true,
+      "commentsCount": true,
+      "membersCount": true,
+      "profileImage": true,
+      "reportsCount": true,
+      "bookmarks": true,
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
+        "__typename": "Tag"
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "bio": true,
+        "name": true
+      },
+      "you": {
+        "canAddMembers": true,
+        "canDelete": true,
+        "canBookmark": true,
+        "canReport": true,
+        "canUpdate": true,
+        "canRead": true,
+        "isBookmarked": true,
+        "isViewed": true,
+        "yourMembership": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "isAdmin": true,
+          "permissions": true
+        }
+      },
+      "__typename": "Team"
     }
   },
   "__typename": "NotificationSubscription"

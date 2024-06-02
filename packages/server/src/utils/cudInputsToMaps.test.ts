@@ -673,7 +673,7 @@ describe("determineModelType", () => {
             __typename: "Comment",
             owner: {
                 ownedByUser: "User",
-                ownedByOrganization: "Organization",
+                ownedByTeam: "Team",
             },
             commentedOn: {
                 issue: "Issue",
@@ -692,7 +692,7 @@ describe("determineModelType", () => {
             __typename: "Label",
             owner: {
                 ownedByUser: "User",
-                ownedByOrganization: "Organization",
+                ownedByTeam: "Team",
             },
         },
         unionFields: {
@@ -1518,12 +1518,12 @@ describe("inputToMaps", () => {
             gqlRelMap: {
                 __typename: "User" as const,
                 api: "Api",
+                code: "Code",
                 project: "Project",
                 reports: "Report",
                 roles: "Role",
                 routine: "Routine",
                 standard: "Standard",
-                smartContract: "SmartContract",
             },
         };
         closestWithId = { __typename: "Routine", id: "grandparentId", path: "version" };
@@ -1630,12 +1630,12 @@ describe("inputToMaps", () => {
         const input = {
             id: "1",
             apiDelete: true,
+            codeDisconnect: true,
             projectCreate: { id: "2", name: "Project X" },
             reportsConnect: ["3", "4"],
             rolesCreate: [{ id: "5", name: "Role 1" }, { id: "6", name: "Role 2" }],
             routineUpdate: { id: "7", name: "Routine X" },
             standardConnect: "8",
-            smartContractDisconnect: true,
         };
         inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
@@ -1644,26 +1644,26 @@ describe("inputToMaps", () => {
             Create: ["2", "5", "6"],
             Update: ["1", "7"],
             Delete: ["User|1.api"],
-            Disconnect: ["User|1.smartContract", "User|1.standard"], // Existing standard relation is implicitly disconnected
+            Disconnect: ["User|1.code", "User|1.standard"], // Existing standard relation is implicitly disconnected
         });
         expectOnlyTheseArrays(idsByType, {
             User: ["1"],
             Api: ["User|1.api"],
+            Code: ["User|1.code"],
             Project: ["2"],
             Report: ["3", "4"],
             Role: ["5", "6"],
             Routine: ["7"],
             Standard: ["8", "User|1.standard"], // Include implicit disconnect
-            SmartContract: ["User|1.smartContract"],
         });
         expect(inputsById["1"].input).toEqual({
             ...input,
             apiDelete: true,
+            codeDisconnect: true,
             projectCreate: "2",
             rolesCreate: ["5", "6"],
             routineUpdate: "7",
             standardConnect: "8",
-            smartContractDisconnect: true,
         });
         expect(inputsById["2"].input).toEqual(input.projectCreate);
         expect(inputsById["5"].input).toEqual(input.rolesCreate[0]);

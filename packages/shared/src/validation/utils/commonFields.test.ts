@@ -1,7 +1,7 @@
 import * as yup from "yup";
 import { uuid } from "../../id";
 import { opt, req } from "./builders";
-import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, apiCallData, bool, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, smartContractCallData, startTime, timezone, url, versionLabel } from "./commonFields";
+import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, apiCallData, bool, codeCallData, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, startTime, timezone, url, versionLabel } from "./commonFields";
 
 type Case = string | number | boolean | Date | null | undefined | { [x: string]: Case } | Case[];
 type ValidatorSet = {
@@ -127,8 +127,8 @@ describe("Yup validation tests", () => {
                 {},
             ],
         },
-        smartContractCallData: {
-            schema: smartContractCallData,
+        codeCallData: {
+            schema: codeCallData,
             valid: ["function() { return true; }", "{\"method\": \"transfer\", \"params\": [\"address\", 100]}"],
             invalid: ["a".repeat(8193), ""],
             transforms: [["  function() { return true; }  ", "function() { return true; }"]],

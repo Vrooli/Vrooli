@@ -27,13 +27,14 @@ export const typeDef = gql`
     input RoutineVersionCreateInput {
         id: ID!
         apiCallData: String
+        codeCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean!
         versionLabel: String!
         versionNotes: String
-        smartContractCallData: String
         apiVersionConnect: ID
+        codeVersionConnect: ID
         directoryListingsConnect: [ID!]
         inputsCreate: [RoutineVersionInputCreateInput!]
         nodesCreate: [NodeCreateInput!]
@@ -42,21 +43,22 @@ export const typeDef = gql`
         resourceListCreate: ResourceListCreateInput
         rootConnect: ID
         rootCreate: RoutineCreateInput
-        smartContractVersionConnect: ID
         suggestedNextByRoutineVersionConnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
     }
     input RoutineVersionUpdateInput {
         id: ID!
         apiCallData: String
+        codeCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean
         versionLabel: String
         versionNotes: String
-        smartContractCallData: String
         apiVersionConnect: ID
         apiVersionDisconnect: Boolean
+        codeVersionConnect: ID
+        codeVersionDisconnect: Boolean
         directoryListingsConnect: [ID!]
         directoryListingsDisconnect: [ID!]
         inputsCreate: [RoutineVersionInputCreateInput!]
@@ -74,8 +76,6 @@ export const typeDef = gql`
         resourceListCreate: ResourceListCreateInput
         resourceListUpdate: ResourceListUpdateInput
         rootUpdate: RoutineUpdateInput
-        smartContractVersionConnect: ID
-        smartContractVersionDisconnect: Boolean
         suggestedNextByRoutineVersionConnect: [ID!]
         suggestedNextByRoutineVersionDisconnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
@@ -84,6 +84,7 @@ export const typeDef = gql`
     }
     type RoutineVersion {
         id: ID!
+        codeCallData: String
         completedAt: Date
         complexity: Int!
         created_at: Date!
@@ -96,7 +97,6 @@ export const typeDef = gql`
         simplicity: Int!
         timesStarted: Int!
         timesCompleted: Int!
-        smartContractCallData: String
         apiCallData: String
         versionIndex: Int!
         versionLabel: String!
@@ -121,7 +121,7 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         root: Routine!
-        smartContractVersion: SmartContractVersion
+        codeVersion: CodeVersion
         suggestedNextByRoutineVersion: [RoutineVersion!]!
         suggestedNextByRoutineVersionCount: Int!
         translations: [RoutineVersionTranslation!]!
@@ -172,12 +172,12 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         isCompleteWithRoot: Boolean
-        isCompleteWithRootExcludeOwnedByOrganizationId: ID
+        isCompleteWithRootExcludeOwnedByTeamId: ID
         isCompleteWithRootExcludeOwnedByUserId: ID
         isInternalWithRoot: Boolean
-        isInternalWithRootExcludeOwnedByOrganizationId: ID
+        isInternalWithRootExcludeOwnedByTeamId: ID
         isInternalWithRootExcludeOwnedByUserId: ID
-        isExternalWithRootExcludeOwnedByOrganizationId: ID
+        isExternalWithRootExcludeOwnedByTeamId: ID
         isExternalWithRootExcludeOwnedByUserId: ID
         isLatest: Boolean
         minComplexity: Int
@@ -192,8 +192,8 @@ export const typeDef = gql`
         minBookmarksRoot: Int
         minScoreRoot: Int
         minViewsRoot: Int
+        ownedByTeamIdRoot: ID
         ownedByUserIdRoot: ID
-        ownedByOrganizationIdRoot: ID
         reportId: ID
         rootId: ID
         searchString: String

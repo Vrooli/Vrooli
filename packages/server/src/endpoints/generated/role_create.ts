@@ -12,7 +12,7 @@ export const role_create = {
       "name": true,
       "permissions": true,
       "membersCount": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -34,7 +34,7 @@ export const role_create = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "translations": {
         "id": true,

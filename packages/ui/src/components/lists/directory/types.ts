@@ -1,20 +1,20 @@
 import { ProjectVersionDirectory } from "@local/shared";
 import { ApiVersionShape } from "utils/shape/models/apiVersion";
+import { CodeVersionShape } from "utils/shape/models/codeVersion";
 import { NoteVersionShape } from "utils/shape/models/noteVersion";
-import { OrganizationShape } from "utils/shape/models/organization";
 import { ProjectVersionShape } from "utils/shape/models/projectVersion";
 import { RoutineVersionShape } from "utils/shape/models/routineVersion";
-import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
+import { TeamShape } from "utils/shape/models/team";
 import { ObjectListActions } from "../types";
 
 export type DirectoryItem = ApiVersionShape |
+    CodeVersionShape |
     NoteVersionShape |
-    OrganizationShape |
     ProjectVersionShape |
     RoutineVersionShape |
-    SmartContractVersionShape |
-    StandardVersionShape;
+    StandardVersionShape |
+    TeamShape;
 
 export interface DirectoryCardProps {
     canUpdate: boolean;

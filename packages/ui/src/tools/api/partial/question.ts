@@ -29,10 +29,10 @@ export const question: GqlPartial<Question> = {
         __define: {
             0: async () => rel((await import("./api")).api, "nav"),
             1: async () => rel((await import("./note")).note, "nav"),
-            2: async () => rel((await import("./organization")).organization, "nav"),
+            2: async () => rel((await import("./team")).team, "nav"),
             3: async () => rel((await import("./project")).project, "nav"),
             4: async () => rel((await import("./routine")).routine, "nav"),
-            5: async () => rel((await import("./smartContract")).smartContract, "nav"),
+            5: async () => rel((await import("./code")).code, "nav"),
             6: async () => rel((await import("./standard")).standard, "nav"),
             7: async () => rel((await import("./tag")).tag, "list"),
         },
@@ -50,12 +50,12 @@ export const question: GqlPartial<Question> = {
         forObject: {
             __union: {
                 Api: 0,
+                Code: 5,
                 Note: 1,
-                Organization: 2,
                 Project: 3,
                 Routine: 4,
-                SmartContract: 5,
                 Standard: 6,
+                Team: 2,
             },
         },
         tags: { __use: 7 },

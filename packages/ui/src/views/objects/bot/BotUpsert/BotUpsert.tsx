@@ -21,7 +21,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, TeamIcon, PersonaIcon, RoutineValidIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -405,7 +405,7 @@ const BotForm = ({
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
-                                            <OrganizationIcon />
+                                            <TeamIcon />
                                         </InputAdornment>
                                     ),
                                 }}

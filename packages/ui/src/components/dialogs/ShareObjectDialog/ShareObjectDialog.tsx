@@ -17,10 +17,10 @@ import { ShareObjectDialogProps } from "../types";
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
     "Comment": "Check out this comment on Vrooli",
-    "Organization": "Check out this organization on Vrooli",
     "Project": "Check out this project on Vrooli",
     "Routine": "Check out this routine on Vrooli",
     "Standard": "Check out this standard on Vrooli",
+    "Team": "Check out this team on Vrooli",
     "User": "Check out this user on Vrooli",
 };
 

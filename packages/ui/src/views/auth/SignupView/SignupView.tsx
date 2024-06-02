@@ -308,8 +308,8 @@ const Promo = () => {
                     />
                     <ImageWithCaption
                         src={OrganizationalManagement}
-                        alt="The page for an organization, showing the organization's name, bio, picture, and members."
-                        caption="Build and showcase your automated organization"
+                        alt="The page for a team, showing the team's name, bio, picture, and members."
+                        caption="Build and showcase your automated team"
                     />
                 </Box>
                 <Testimonials />

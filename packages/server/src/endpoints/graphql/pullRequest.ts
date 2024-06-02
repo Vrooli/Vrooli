@@ -17,19 +17,19 @@ export const typeDef = gql`
 
     enum PullRequestToObjectType {
         Api
+        Code
         Note
         Project
         Routine
-        SmartContract
         Standard
     }
 
     enum PullRequestFromObjectType {
         ApiVersion
+        CodeVersion
         NoteVersion
         ProjectVersion
         RoutineVersion
-        SmartContractVersion
         StandardVersion
     }
 
@@ -40,9 +40,9 @@ export const typeDef = gql`
         Rejected
     }
 
-    union PullRequestTo = Api | Note | Project | Routine | SmartContract | Standard
+    union PullRequestTo = Api | Code | Note | Project | Routine | Standard
 
-    union PullRequestFrom = ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion
+    union PullRequestFrom = ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion
 
     input PullRequestCreateInput {
         id: ID!

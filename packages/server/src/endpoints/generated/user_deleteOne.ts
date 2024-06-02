@@ -203,6 +203,7 @@ export const user_deleteOne = {
       "label": true,
       "bookmarksCount": true
     },
+    "codesCount": true,
     "focusModes": {
       "filters": {
         "id": true,
@@ -402,7 +403,6 @@ export const user_deleteOne = {
     "projectsCount": true,
     "questionsAskedCount": true,
     "routinesCount": true,
-    "smartContractsCount": true,
     "standardsCount": true,
     "theme": true
   },

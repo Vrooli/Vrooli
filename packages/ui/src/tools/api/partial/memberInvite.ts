@@ -22,7 +22,7 @@ export const memberInvite: GqlPartial<MemberInvite> = {
         status: true,
         willBeAdmin: true,
         willHavePermissions: true,
-        organization: async () => rel((await import("./organization")).organization, "nav"),
+        team: async () => rel((await import("./team")).team, "nav"),
         user: async () => rel((await import("./user")).user, "nav"),
         you: () => rel(memberInviteYou, "full"),
     },

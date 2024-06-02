@@ -189,8 +189,8 @@ const batchEmbeddingsNoteVersion = async () => embeddingBatch<Prisma.note_versio
     },
 });
 
-const batchEmbeddingsOrganization = async () => embeddingBatch<Prisma.organizationFindManyArgs>({
-    objectType: "Organization",
+const batchEmbeddingsTeam = async () => embeddingBatch<Prisma.teamFindManyArgs>({
+    objectType: "Team",
     processBatch: processTranslatedBatchHelper,
     trace: "0478",
     where: {
@@ -281,8 +281,8 @@ const batchEmbeddingsRunRoutine = async () => embeddingBatch<Prisma.run_routineF
     },
 });
 
-const batchEmbeddingsSmartContractVersion = async () => embeddingBatch<Prisma.smart_contract_versionFindManyArgs>({
-    objectType: "SmartContractVersion",
+const batchEmbeddingsCodeVersion = async () => embeddingBatch<Prisma.code_versionFindManyArgs>({
+    objectType: "CodeVersion",
     processBatch: processTranslatedBatchHelper,
     trace: "0473",
     where: {
@@ -324,10 +324,10 @@ const batchEmbeddingsUser = async () => embeddingBatch<Prisma.userFindManyArgs>(
 export const generateEmbeddings = async () => {
     await batchEmbeddingsApiVersion();
     await batchEmbeddingsChat();
+    await batchEmbeddingsCodeVersion();
     await batchEmbeddingsIssue();
     await batchEmbeddingsMeeting();
     await batchEmbeddingsNoteVersion();
-    await batchEmbeddingsOrganization();
     await batchEmbeddingsPost();
     await batchEmbeddingsProjectVersion();
     await batchEmbeddingsQuestion();
@@ -336,8 +336,8 @@ export const generateEmbeddings = async () => {
     await batchEmbeddingsRoutineVersion();
     await batchEmbeddingsRunProject();
     await batchEmbeddingsRunRoutine();
-    await batchEmbeddingsSmartContractVersion();
     await batchEmbeddingsStandardVersion();
     await batchEmbeddingsTag();
+    await batchEmbeddingsTeam();
     await batchEmbeddingsUser();
 };

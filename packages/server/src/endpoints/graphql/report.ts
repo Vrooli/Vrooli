@@ -6,16 +6,16 @@ export const typeDef = gql`
     enum ReportFor {
         ApiVersion
         ChatMessage
+        CodeVersion
         Comment
         Issue
         NoteVersion
-        Organization
         Post
         ProjectVersion
         RoutineVersion
-        SmartContractVersion
         StandardVersion
         Tag
+        Team
         User
     }   
 
@@ -80,17 +80,17 @@ export const typeDef = gql`
         take: Int
         fromId: ID
         apiVersionId: ID
+        codeVersionId: ID
         chatMessageId: ID
         commentId: ID
         issueId: ID
         noteVersionId: ID
-        organizationId: ID
         postId: ID
         projectVersionId: ID
         routineVersionId: ID
-        smartContractVersionId: ID
         standardVersionId: ID
         tagId: ID
+        teamId: ID
         userId: ID
     }
 

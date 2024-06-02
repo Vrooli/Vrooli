@@ -1,4 +1,4 @@
-import { ApiVersion, Count, DeleteManyInput, DeleteType, GqlModelType, ListObject, NoteVersion, Organization, ProjectVersion, ProjectVersionDirectory, RoutineVersion, SmartContractVersion, StandardVersion, TimeFrame, endpointPostDeleteMany, getObjectUrl, isOfType } from "@local/shared";
+import { ApiVersion, CodeVersion, Count, DeleteManyInput, DeleteType, GqlModelType, ListObject, NoteVersion, ProjectVersion, ProjectVersionDirectory, RoutineVersion, StandardVersion, Team, TimeFrame, endpointPostDeleteMany, getObjectUrl, isOfType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SortButton } from "components/buttons/SortButton/SortButton";
@@ -19,7 +19,7 @@ import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
 import usePress from "hooks/usePress";
 import { useSelectableList } from "hooks/useSelectableList";
-import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
+import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -97,12 +97,12 @@ export const DirectoryCard = ({
     const Icon = useMemo(() => {
         if (!data || !data.__typename) return HelpIcon;
         if (isOfType(data, "ApiVersion")) return ApiIcon;
+        if (isOfType(data, "CodeVersion")) return TerminalIcon;
         if (isOfType(data, "NoteVersion")) return NoteIcon;
-        if (isOfType(data, "Organization")) return OrganizationIcon;
         if (isOfType(data, "ProjectVersion")) return ProjectIcon;
         if (isOfType(data, "RoutineVersion")) return RoutineIcon;
-        if (isOfType(data, "SmartContractVersion")) return SmartContractIcon;
         if (isOfType(data, "StandardVersion")) return StandardIcon;
+        if (isOfType(data, "Team")) return TeamIcon;
         return HelpIcon;
     }, [data]);
 
@@ -372,12 +372,12 @@ export const DirectoryList = (props: DirectoryListProps) => {
         handleUpdate?.({
             ...directory,
             childApiVersions: (isOfType(item, "ApiVersion") ? [...directory.childApiVersions, item] : directory.childApiVersions) as ApiVersion[],
+            childCodeVersions: (isOfType(item, "CodeVersion") ? [...directory.childCodeVersions, item] : directory.childCodeVersions) as CodeVersion[],
             childNoteVersions: (isOfType(item, "NoteVersion") ? [...directory.childNoteVersions, item] : directory.childNoteVersions) as NoteVersion[],
-            childOrganizations: (isOfType(item, "Organization") ? [...directory.childOrganizations, item] : directory.childOrganizations) as Organization[],
             childProjectVersions: (isOfType(item, "ProjectVersion") ? [...directory.childProjectVersions, item] : directory.childProjectVersions) as ProjectVersion[],
             childRoutineVersions: (isOfType(item, "RoutineVersion") ? [...directory.childRoutineVersions, item] : directory.childRoutineVersions) as RoutineVersion[],
-            childSmartContractVersions: (isOfType(item, "SmartContractVersion") ? [...directory.childSmartContractVersions, item] : directory.childSmartContractVersions) as SmartContractVersion[],
             childStandardVersions: (isOfType(item, "StandardVersion") ? [...directory.childStandardVersions, item] : directory.childStandardVersions) as StandardVersion[],
+            childTeams: (isOfType(item, "Team") ? [...directory.childTeams, item] : directory.childTeams) as Team[],
         });
     }, [closeAddDialog, directory, handleUpdate, list]);
 
@@ -392,12 +392,12 @@ export const DirectoryList = (props: DirectoryListProps) => {
                     handleUpdate?.({
                         ...directory,
                         childApiVersions: isOfType(item, "ApiVersion") ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
+                        childCodeVersions: isOfType(item, "CodeVersion") ? directory.childCodeVersions.filter(i => i.id !== item.id) : directory.childCodeVersions,
                         childNoteVersions: isOfType(item, "NoteVersion") ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
-                        childOrganizations: isOfType(item, "Organization") ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
                         childProjectVersions: isOfType(item, "ProjectVersion") ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
                         childRoutineVersions: isOfType(item, "RoutineVersion") ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
-                        childSmartContractVersions: isOfType(item, "SmartContractVersion") ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
                         childStandardVersions: isOfType(item, "StandardVersion") ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
+                        childTeams: isOfType(item, "Team") ? directory.childTeams.filter(i => i.id !== item.id) : directory.childTeams,
                     });
                 },
             });
@@ -406,12 +406,12 @@ export const DirectoryList = (props: DirectoryListProps) => {
             handleUpdate?.({
                 ...directory,
                 childApiVersions: isOfType(item, "ApiVersion") ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
+                childCodeVersions: isOfType(item, "CodeVersion") ? directory.childCodeVersions.filter(i => i.id !== item.id) : directory.childCodeVersions,
                 childNoteVersions: isOfType(item, "NoteVersion") ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
-                childOrganizations: isOfType(item, "Organization") ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
                 childProjectVersions: isOfType(item, "ProjectVersion") ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
                 childRoutineVersions: isOfType(item, "RoutineVersion") ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
-                childSmartContractVersions: isOfType(item, "SmartContractVersion") ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
                 childStandardVersions: isOfType(item, "StandardVersion") ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
+                childTeams: isOfType(item, "Team") ? directory.childTeams.filter(i => i.id !== item.id) : directory.childTeams,
             });
         }
     }, [deleteMutation, directory, handleUpdate, mutate]);
@@ -433,10 +433,10 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 ...directory,
                 childApiVersions: data.filter(i => isOfType(i, "ApiVersion")),
                 childNoteVersions: data.filter(i => isOfType(i, "NoteVersion")),
-                childOrganizations: data.filter(i => isOfType(i, "Organization")),
+                childTeams: data.filter(i => isOfType(i, "Team")),
                 childProjectVersions: data.filter(i => isOfType(i, "ProjectVersion")),
                 childRoutineVersions: data.filter(i => isOfType(i, "RoutineVersion")),
-                childSmartContractVersions: data.filter(i => isOfType(i, "SmartContractVersion")),
+                childCodeVersions: data.filter(i => isOfType(i, "CodeVersion")),
                 childStandardVersions: data.filter(i => isOfType(i, "StandardVersion")),
             } as ProjectVersionDirectory);
         },
@@ -459,12 +459,12 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 handleUpdate?.({
                     ...directory,
                     childApiVersions: isOfType(item, "ApiVersion") ? directory.childApiVersions.filter(i => i.id !== item.id) : directory.childApiVersions,
+                    childCodeVersions: isOfType(item, "CodeVersion") ? directory.childCodeVersions.filter(i => i.id !== item.id) : directory.childCodeVersions,
                     childNoteVersions: isOfType(item, "NoteVersion") ? directory.childNoteVersions.filter(i => i.id !== item.id) : directory.childNoteVersions,
-                    childOrganizations: isOfType(item, "Organization") ? directory.childOrganizations.filter(i => i.id !== item.id) : directory.childOrganizations,
                     childProjectVersions: isOfType(item, "ProjectVersion") ? directory.childProjectVersions.filter(i => i.id !== item.id) : directory.childProjectVersions,
                     childRoutineVersions: isOfType(item, "RoutineVersion") ? directory.childRoutineVersions.filter(i => i.id !== item.id) : directory.childRoutineVersions,
-                    childSmartContractVersions: isOfType(item, "SmartContractVersion") ? directory.childSmartContractVersions.filter(i => i.id !== item.id) : directory.childSmartContractVersions,
                     childStandardVersions: isOfType(item, "StandardVersion") ? directory.childStandardVersions.filter(i => i.id !== item.id) : directory.childStandardVersions,
+                    childTeams: isOfType(item, "Team") ? directory.childTeams.filter(i => i.id !== item.id) : directory.childTeams,
                 } as ProjectVersionDirectory);
                 break;
             }
@@ -474,12 +474,12 @@ export const DirectoryList = (props: DirectoryListProps) => {
                 handleUpdate?.({
                     ...directory,
                     childApiVersions: isOfType(updatedItem, "ApiVersion") ? directory.childApiVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childApiVersions,
+                    childCodeVersions: isOfType(updatedItem, "CodeVersion") ? directory.childCodeVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childCodeVersions,
                     childNoteVersions: isOfType(updatedItem, "NoteVersion") ? directory.childNoteVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childNoteVersions,
-                    childOrganizations: isOfType(updatedItem, "Organization") ? directory.childOrganizations.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childOrganizations,
                     childProjectVersions: isOfType(updatedItem, "ProjectVersion") ? directory.childProjectVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childProjectVersions,
                     childRoutineVersions: isOfType(updatedItem, "RoutineVersion") ? directory.childRoutineVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childRoutineVersions,
-                    childSmartContractVersions: isOfType(updatedItem, "SmartContractVersion") ? directory.childSmartContractVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childSmartContractVersions,
                     childStandardVersions: isOfType(updatedItem, "StandardVersion") ? directory.childStandardVersions.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childStandardVersions,
+                    childTeams: isOfType(updatedItem, "Team") ? directory.childTeams.map(i => i.id === updatedItem.id ? updatedItem : i) : directory.childTeams,
                 } as ProjectVersionDirectory);
                 break;
             }

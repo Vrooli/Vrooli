@@ -10,7 +10,7 @@ export const scheduleRecurrence_findMany = {
           "color": true,
           "label": true,
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -120,7 +120,7 @@ export const scheduleRecurrence_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -171,8 +171,8 @@ export const scheduleRecurrence_findMany = {
           "created_at": true,
           "updated_at": true,
           "openToAnyoneWithInvite": true,
-          "showOnOrganizationProfile": true,
-          "organization": {
+          "showOnTeamProfile": true,
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -209,7 +209,7 @@ export const scheduleRecurrence_findMany = {
                 "name": true,
                 "permissions": true,
                 "membersCount": true,
-                "organization": {
+                "team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -249,7 +249,7 @@ export const scheduleRecurrence_findMany = {
             "name": true,
             "permissions": true,
             "membersCount": true,
-            "organization": {
+            "team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -315,7 +315,7 @@ export const scheduleRecurrence_findMany = {
           "name": true,
           "status": true,
           "stepsCount": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -391,7 +391,7 @@ export const scheduleRecurrence_findMany = {
           "stepsCount": true,
           "inputsCount": true,
           "wasRunAutomatically": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,

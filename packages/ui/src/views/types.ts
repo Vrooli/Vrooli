@@ -55,7 +55,7 @@ export type ForgotPasswordViewProps = ViewProps
 export type HistorySearchViewProps = ViewProps
 export type LoginViewProps = ViewProps
 export type MemberManageViewProps = ViewProps & {
-    organization: MemberInviteShape["organization"];
+    team: MemberInviteShape["team"];
 }
 export type ParticipantManageViewProps = ViewProps & {
     chat: ChatShape;

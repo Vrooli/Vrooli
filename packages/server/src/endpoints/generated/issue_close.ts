@@ -41,7 +41,33 @@ export const issue_close = {
       "isPrivate": true,
       "__typename": "Api"
     },
-    "Organization": {
+    "Code": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Code"
+    },
+    "Note": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Note"
+    },
+    "Project": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Project"
+    },
+    "Routine": {
+      "id": true,
+      "isInternal": true,
+      "isPrivate": true,
+      "__typename": "Routine"
+    },
+    "Standard": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Standard"
+    },
+    "Team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -63,33 +89,7 @@ export const issue_close = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
-    },
-    "Note": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Note"
-    },
-    "Project": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Project"
-    },
-    "Routine": {
-      "id": true,
-      "isInternal": true,
-      "isPrivate": true,
-      "__typename": "Routine"
-    },
-    "SmartContract": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "SmartContract"
-    },
-    "Standard": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Standard"
+      "__typename": "Team"
     }
   },
   "commentsCount": true,
@@ -104,19 +104,7 @@ export const issue_close = {
     "color": true,
     "label": true,
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -138,7 +126,19 @@ export const issue_close = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "you": {

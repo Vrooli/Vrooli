@@ -14,19 +14,19 @@ export enum DirectoryListSortBy {
 
 export const initializeDirectoryList = (
     directory: ProjectVersionDirectory | null | undefined,
-    sortBy: DirectoryListSortBy,
+    sortBy: DirectoryListSortBy | `${DirectoryListSortBy}`,
     timeFrame: TimeFrame | undefined,
     session: Session | null | undefined,
 ): DirectoryItem[] => {
     if (!directory) return [];
     let items = [
         ...directory.childApiVersions,
+        ...directory.childCodeVersions,
         ...directory.childNoteVersions,
-        ...directory.childOrganizations,
         ...directory.childProjectVersions,
         ...directory.childRoutineVersions,
-        ...directory.childSmartContractVersions,
         ...directory.childStandardVersions,
+        ...directory.childTeams,
     ];
     const userLanguages = getUserLanguages(session);
 

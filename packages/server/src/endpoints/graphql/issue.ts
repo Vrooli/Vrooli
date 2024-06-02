@@ -31,15 +31,15 @@ export const typeDef = gql`
 
     enum IssueFor {
         Api
-        Organization
+        Code
         Note
         Project
         Routine
-        SmartContract
         Standard
+        Team
     } 
 
-    union IssueTo = Api | Note | Organization | Project | Routine | SmartContract | Standard
+    union IssueTo = Api | Code | Note | Project | Routine | Standard | Team
 
     input IssueCreateInput {
         id: ID!
@@ -124,11 +124,10 @@ export const typeDef = gql`
         minBookmarks: Int
         minViews: Int
         apiId: ID
-        organizationId: ID
+        codeId: ID
         noteId: ID
         projectId: ID
         routineId: ID
-        smartContractId: ID
         standardId: ID
         closedById: ID
         createdById: ID
@@ -136,6 +135,7 @@ export const typeDef = gql`
         searchString: String
         sortBy: IssueSortBy
         take: Int
+        teamId: ID
         translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
