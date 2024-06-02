@@ -109,7 +109,7 @@ export const ParentButton = ({
     // Return button with label on top
     return (
         <>
-            {/* Popup for selecting organization, user, etc. */}
+            {/* Popup for selecting team, user, etc. */}
             {findType && <FindObjectDialog
                 find="List"
                 isOpen={Boolean(findType)}
@@ -134,4 +134,5 @@ export const ParentButton = ({
             </Stack>
         </>
     );
-}
+};
+

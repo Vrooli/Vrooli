@@ -12,12 +12,12 @@ type IssuePre = PreShapeEmbeddableTranslatableResult;
 
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Note: "note",
-    Organization: "organization",
     Project: "project",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
+    Team: "team",
 };
 
 const __typename = "Issue" as const;
@@ -74,19 +74,19 @@ export const IssueModel: IssueModelLogic = ({
         searchFields: {
             apiId: true,
             closedById: true,
+            codeId: true,
             createdById: true,
             createdTimeFrame: true,
             minScore: true,
             minBookmarks: true,
             minViews: true,
             noteId: true,
-            organizationId: true,
             projectId: true,
             referencedVersionId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
             status: true,
+            teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -108,12 +108,12 @@ export const IssueModel: IssueModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<IssueModelInfo["PrismaSelect"]>([
             ["api", "Api"],
-            ["organization", "Organization"],
+            ["code", "Code"],
             ["note", "Note"],
             ["project", "Project"],
             ["routine", "Routine"],
-            ["smartContract", "SmartContract"],
             ["standard", "Standard"],
+            ["team", "Team"],
         ], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
@@ -124,13 +124,13 @@ export const IssueModel: IssueModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             api: "Api",
+            code: "Code",
             createdBy: "User",
-            organization: "Organization",
             note: "Note",
             project: "Project",
             routine: "Routine",
-            smartContract: "SmartContract",
             standard: "Standard",
+            team: "Team",
         }),
         visibility: {
             private: {},

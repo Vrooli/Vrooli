@@ -11,19 +11,19 @@ import { PullRequestModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
+    CodeVersion: "fromCodeVersion",
     NoteVersion: "fromNoteVersion",
     ProjectVersion: "fromProjectVersion",
     RoutineVersion: "fromRoutineVersion",
-    SmartContractVersion: "fromSmartContractVersion",
     StandardVersion: "fromStandardVersion",
 };
 
 const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     Api: "toApi",
+    Code: "toCode",
     Note: "toNote",
     Project: "toProject",
     Routine: "toRoutine",
-    SmartContract: "toSmartContract",
     Standard: "toStandard",
 };
 

@@ -13,7 +13,7 @@ export const afterMutationsPlain = async ({
     createdIds,
     deletedIds,
     objectType,
-    ownerOrganizationField,
+    ownerTeamField,
     ownerUserField,
     updatedIds,
     userData,
@@ -21,19 +21,19 @@ export const afterMutationsPlain = async ({
     createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
-    ownerOrganizationField?: string,
+    ownerTeamField?: string,
     ownerUserField?: string,
     updatedIds: string[]
     userData: SessionUserToken,
 }) => {
     // Find owners of created and updated items
-    const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
+    const ownerMap: { [key: string]: { id: string, __typename: "User" | "Team" } } = {};
     const createAndUpdateIds = [...createdIds, ...updatedIds];
     const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
-    // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
+    // Create select object depending on whether ownerTeamField and ownerUserField are defined
     const select = { id: true };
-    if (ownerOrganizationField) {
-        select[ownerOrganizationField] = { select: { id: true } };
+    if (ownerTeamField) {
+        select[ownerTeamField] = { select: { id: true } };
     }
     if (ownerUserField) {
         select[ownerUserField] = { select: { id: true } };
@@ -48,8 +48,8 @@ export const afterMutationsPlain = async ({
         const id = createAndUpdateIds[i];
         const owner = ownersData.find(o => o.id === id);
         if (owner) {
-            if (ownerOrganizationField && owner[ownerOrganizationField]) {
-                ownerMap[id] = { id: owner[ownerOrganizationField].id, __typename: "Organization" };
+            if (ownerTeamField && owner[ownerTeamField]) {
+                ownerMap[id] = { id: owner[ownerTeamField].id, __typename: "Team" };
             }
             if (ownerUserField && owner[ownerUserField]) {
                 ownerMap[id] = { id: owner[ownerUserField].id, __typename: "User" };

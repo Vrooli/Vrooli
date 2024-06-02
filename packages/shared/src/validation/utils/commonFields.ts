@@ -40,7 +40,7 @@ export const pushNotificationKeys = yup.object().shape({
     p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
     auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
 });
-export const smartContractCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
+export const codeCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
     yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
         "link",

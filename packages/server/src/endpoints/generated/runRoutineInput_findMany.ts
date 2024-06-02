@@ -23,7 +23,7 @@ export const runRoutineInput_findMany = {
               "color": true,
               "label": true,
               "owner": {
-                "Organization": {
+                "Team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -64,7 +64,7 @@ export const runRoutineInput_findMany = {
               }
             },
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,

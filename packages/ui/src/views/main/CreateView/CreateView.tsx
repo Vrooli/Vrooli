@@ -3,7 +3,7 @@ import { PageContainer } from "components/containers/PageContainer/PageContainer
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TerminalIcon } from "icons";
+import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, TeamIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TerminalIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -45,10 +45,10 @@ export const createCards: CreateInfo[] = [
         id: "create-project-card",
     },
     {
-        objectType: "Organization",
-        description: "CreateOrganizationDescription",
-        Icon: OrganizationIcon,
-        id: "create-organization-card",
+        objectType: "Team",
+        description: "CreateTeamDescription",
+        Icon: TeamIcon,
+        id: "create-team-card",
     },
     {
         objectType: "Bot",
@@ -76,7 +76,7 @@ export const createCards: CreateInfo[] = [
         id: "create-standard-card",
     },
     {
-        objectType: "SmartContract",
+        objectType: "Code",
         description: "CreateCodeDescription",
         Icon: TerminalIcon,
         id: "create-code-card",

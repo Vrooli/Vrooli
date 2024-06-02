@@ -14,4 +14,4 @@ A routine's structure is useful for measuring how simple/complex it is. To accom
 ## Experience
 This is something to do in the future. It would be useful if we could use the history of other routines you've completed to estimate if you'd find a routine easy to run. Let's say you're looking at a routine with tags A, B, and C. You've completed 3 distinct routines in the past with tag A, 10 with tag B, and 2 with tag C. We can use this information to estimate how well you know the topics associated with the routine.
 
-Further in the future, it would be awesome if we could recommend a user to have certain credentials or complete certain Learn routines to be able to run a routine. It would also be cool if organizations could make Learn routines that users must complete before joining their organizations.
+Further in the future, it would be awesome if we could recommend a user to have certain credentials or complete certain Learn routines to be able to run a routine. It would also be cool if teams could make Learn routines that users must complete before joining their teams.

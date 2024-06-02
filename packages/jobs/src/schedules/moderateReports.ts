@@ -84,11 +84,11 @@ const actionToStatus = (action: ReportSuggestedAction): ReportStatus => {
  */
 const softDeletableTypes = [
     "ApiVersion",
+    "CodeVersion",
     "NoteVersion",
     "Post",
     "ProjectVersion",
     "RoutineVersion",
-    "SmartContractVersion",
     "StandardVersion",
 ];
 
@@ -146,16 +146,16 @@ const moderateReport = async (
         const [objectField, objectData] = findFirstRel(report, [
             "apiVersion",
             "comment",
+            "codeVersion",
             "issue",
             "noteVersion",
-            "organization",
             "post",
             "projectVersion",
             "question",
             "routineVersion",
-            "smartContractVersion",
             "standardVersion",
             "tag",
+            "team",
             "user",
         ]).map(([type, data]) => [uppercaseFirstLetter(type ?? ""), data]) as [string, any];
         if (!objectField || !objectData) {
@@ -164,18 +164,18 @@ const moderateReport = async (
         }
         const objectType = uppercaseFirstLetter(objectField);
         // Find the object's owner
-        let objectOwner: { __typename: "Organization" | "User", id: string } | null = null;
+        let objectOwner: { __typename: "Team" | "User", id: string } | null = null;
         if (objectType.endsWith("Version")) {
-            if (objectData.root.ownedByOrganization) {
-                objectOwner = { __typename: "Organization", id: objectData.root.ownedByOrganization.id };
+            if (objectData.root.ownedByTeam) {
+                objectOwner = { __typename: "Team", id: objectData.root.ownedByTeam.id };
             }
             else if (objectData.root.ownedByUser) {
                 objectOwner = { __typename: "User", id: objectData.root.ownedByUser.id };
             }
         }
         else if (["Post"].includes(objectType)) {
-            if (objectData.organization) {
-                objectOwner = { __typename: "Organization", id: objectData.organization.id };
+            if (objectData.team) {
+                objectOwner = { __typename: "Team", id: objectData.team.id };
             }
             else if (objectData.user) {
                 objectOwner = { __typename: "User", id: objectData.user.id };
@@ -186,8 +186,8 @@ const moderateReport = async (
                 objectOwner = { __typename: "User", id: objectData.owner.id };
             }
         }
-        else if (["Organization"].includes(objectType)) {
-            objectOwner = { __typename: "Organization", id: objectData.id };
+        else if (["Team"].includes(objectType)) {
+            objectOwner = { __typename: "Team", id: objectData.id };
         }
         else if (["User"].includes(objectType)) {
             objectOwner = { __typename: "User", id: objectData.id };
@@ -246,7 +246,7 @@ const moderateReport = async (
             case ReportSuggestedAction.SuspendUser:
                 //TODO - implement. Can set account status to HardLockout, 
                 // but should have timeout that increases with each suspension. 
-                // Also, this cannot be available for objects owned by organizations. 
+                // Also, this cannot be available for objects owned by teams. 
                 // So need to come up with similarly severe punishment for orgs.
                 break;
         }
@@ -260,7 +260,7 @@ const versionedObjectQuery = {
     id: true,
     root: {
         select: {
-            ownedByOrganization: {
+            ownedByTeam: {
                 select: { id: true },
             },
             ownedByUser: {
@@ -275,7 +275,7 @@ const versionedObjectQuery = {
  */
 const nonVersionedObjectQuery = {
     id: true,
-    ownedByOrganization: {
+    ownedByTeam: {
         select: { id: true },
     },
     ownedByUser: {
@@ -289,7 +289,7 @@ const nonVersionedObjectQuery = {
  */
 const nonVersionedObjectQuery2 = {
     id: true,
-    organization: {
+    team: {
         select: { id: true },
     },
     user: {
@@ -337,16 +337,16 @@ export const moderateReports = async () => {
                 created_at: true,
                 apiVersion: { select: versionedObjectQuery },
                 comment: { select: nonVersionedObjectQuery },
+                codeVersion: { select: versionedObjectQuery },
                 issue: { select: nonVersionedObjectQuery3 },
                 noteVersion: { select: versionedObjectQuery },
-                organization: { select: { id: true } },
                 post: { select: nonVersionedObjectQuery2 },
                 projectVersion: { select: versionedObjectQuery },
                 question: { select: nonVersionedObjectQuery3 },
                 routineVersion: { select: versionedObjectQuery },
-                smartContractVersion: { select: versionedObjectQuery },
                 standardVersion: { select: versionedObjectQuery },
                 tag: { select: nonVersionedObjectQuery3 },
+                team: { select: { id: true } },
                 user: { select: { id: true } },
                 createdBy: { select: { id: true } },
                 responses: {

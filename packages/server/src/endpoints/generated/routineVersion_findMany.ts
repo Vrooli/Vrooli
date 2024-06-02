@@ -16,7 +16,7 @@ export const routineVersion_findMany = {
           "color": true,
           "label": true,
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -57,7 +57,7 @@ export const routineVersion_findMany = {
           }
         },
         "owner": {
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -136,6 +136,7 @@ export const routineVersion_findMany = {
       "created_at": true,
       "updated_at": true,
       "completedAt": true,
+      "codeCallData": true,
       "isAutomatable": true,
       "isComplete": true,
       "isDeleted": true,
@@ -144,7 +145,6 @@ export const routineVersion_findMany = {
       "simplicity": true,
       "timesStarted": true,
       "timesCompleted": true,
-      "smartContractCallData": true,
       "apiCallData": true,
       "versionIndex": true,
       "versionLabel": true,

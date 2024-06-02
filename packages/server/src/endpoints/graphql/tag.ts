@@ -36,14 +36,14 @@ export const typeDef = gql`
         bookmarkedBy: [User!]!
         translations: [TagTranslation!]!
         apis: [Api!]!
+        codes: [Code!]!
         notes: [Note!]!
-        organizations: [Organization!]!
         posts: [Post!]!
         projects: [Project!]!
         reports: [Report!]!
         routines: [Routine!]!
-        smartContracts: [SmartContract!]!
         standards: [Standard!]!
+        teams: [Team!]!
         you: TagYou!
     }
 

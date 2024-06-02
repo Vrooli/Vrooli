@@ -69,6 +69,7 @@ export const typeDef = gql`
         activeFocusMode: ActiveFocusMode
         apisCount: Int!
         bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
+        codesCount: Int!
         credits: String! # Stringified BigInt
         focusModes: [FocusMode!]!
         handle: String
@@ -82,7 +83,6 @@ export const typeDef = gql`
         projectsCount: Int!
         questionsAskedCount: Int!
         routinesCount: Int!
-        smartContractsCount: Int!
         standardsCount: Int!
         theme: String
         updated_at: Date!

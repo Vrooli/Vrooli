@@ -30,7 +30,7 @@ export const typeDef = gql`
         stepsCreate: [RunProjectStepCreateInput!]
         scheduleCreate: ScheduleCreateInput
         projectVersionConnect: ID!
-        organizationConnect: ID
+        teamConnect: ID
     }
     input RunProjectUpdateInput {
         id: ID!
@@ -59,8 +59,8 @@ export const typeDef = gql`
         schedule: Schedule
         steps: [RunProjectStep!]!
         stepsCount: Int!
+        team: Team
         user: User
-        organization: Organization
         you: RunProjectYou!
     }
 

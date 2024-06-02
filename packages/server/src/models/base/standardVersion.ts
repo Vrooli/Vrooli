@@ -14,7 +14,7 @@ import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, Standa
 
 type StandardVersionPre = PreShapeVersionResult;
 
-//     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+//     // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
 //     // TODO when deleting, anonymize standards which are being used by inputs/outputs
 //     // const standard = await prismaInstance.standard_version.findUnique({
@@ -35,7 +35,7 @@ const querier = () => ({
      * Checks for existing standards with the same shape. Useful to avoid duplicates
      * @param data StandardCreateData to check
      * @param userData The ID of the user creating the standard
-     * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
+     * @param uniqueToCreator Whether to check if the standard is unique to the user/team 
      * @param isInternal Used to determine if the standard should show up in search results
      * @returns data of matching standard, or null if no match
      */
@@ -56,8 +56,8 @@ const querier = () => ({
         //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
         //             isDeleted: false,
         //             isPrivate: false,
-        //             createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
-        //             createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
+        //             createdByUserId: (uniqueToCreator && !data.createdByTeamId) ? userData.id : undefined,
+        //             createdByTeamId: (uniqueToCreator && data.createdByTeamId) ? data.createdByTeamId : undefined,
         //         },
         //         default: data.default ?? null,
         //         props: props,
@@ -213,7 +213,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationIdRoot: true,
+            ownedByTeamIdRoot: true,
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,

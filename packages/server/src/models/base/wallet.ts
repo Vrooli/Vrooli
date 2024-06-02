@@ -5,7 +5,7 @@ import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { WalletFormat } from "../formats";
-import { OrganizationModelLogic, WalletModelLogic } from "./types";
+import { TeamModelLogic, WalletModelLogic } from "./types";
 
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
@@ -48,17 +48,17 @@ export const WalletModel: WalletModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<Prisma.walletSelect>([
-            ["organization", "Organization"],
+            ["team", "Team"],
             ["user", "User"],
         ], ...rest),
         visibility: {
@@ -66,8 +66,8 @@ export const WalletModel: WalletModelLogic = ({
             public: {},
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

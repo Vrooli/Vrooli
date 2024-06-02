@@ -457,9 +457,9 @@ export async function init() {
     //==============================================================
 
     //==============================================================
-    /* #region Create Organizations */
+    /* #region Create Teams */
     //==============================================================
-    let vrooli = await prismaInstance.organization.findFirst({
+    let vrooli = await prismaInstance.team.findFirst({
         where: {
             AND: [
                 { translations: { some: { language: EN, name: "Vrooli" } } },
@@ -468,11 +468,11 @@ export async function init() {
         },
     });
     if (!vrooli) {
-        logger.info("🏗 Creating Vrooli organization");
-        const organizationId = uuid();
-        vrooli = await prismaInstance.organization.create({
+        logger.info("🏗 Creating Vrooli team");
+        const teamId = uuid();
+        vrooli = await prismaInstance.team.create({
             data: {
-                id: organizationId,
+                id: teamId,
                 handle: "vrooli",
                 createdBy: { connect: { id: admin.id } },
                 translations: {
@@ -494,8 +494,8 @@ export async function init() {
                                 {
                                     isAdmin: true,
                                     permissions: JSON.stringify({}),
+                                    team: { connect: { id: teamId } },
                                     user: { connect: { id: admin.id } },
-                                    organization: { connect: { id: organizationId } },
                                 },
                             ],
                         },
@@ -545,7 +545,7 @@ export async function init() {
         });
     }
     else {
-        await prismaInstance.organization.update({
+        await prismaInstance.team.update({
             where: { id: vrooli.id },
             data: {
                 handle: "vrooli",
@@ -553,7 +553,7 @@ export async function init() {
         });
     }
     //==============================================================
-    /* #endregion Create Organizations */
+    /* #endregion Create Teams */
     //==============================================================
 
     //==============================================================
@@ -562,7 +562,7 @@ export async function init() {
     let projectEntrepreneur = await prismaInstance.project_version.findFirst({
         where: {
             AND: [
-                { root: { ownedByOrganizationId: vrooli.id } },
+                { root: { ownedByTeamId: vrooli.id } },
                 { translations: { some: { language: EN, name: "Project Catalyst Entrepreneur Guide" } } },
             ],
         },
@@ -584,7 +584,7 @@ export async function init() {
                     create: {
                         permissions: JSON.stringify({}),
                         createdBy: { connect: { id: admin.id } },
-                        ownedByOrganization: { connect: { id: vrooli.id } },
+                        ownedByTeam: { connect: { id: vrooli.id } },
                     },
                 },
             },
@@ -597,7 +597,7 @@ export async function init() {
         const dummy1 = await prismaInstance.project.findFirst({
             where: {
                 AND: [
-                    { ownedByOrganizationId: vrooli.id },
+                    { ownedByTeamId: vrooli.id },
                     { versions: { some: { translations: { some: { language: EN, name: "DUMMY 1" } } } } },
                 ],
             },
@@ -609,7 +609,7 @@ export async function init() {
                     data: {
                         permissions: JSON.stringify({}),
                         createdBy: { connect: { id: admin.id } },
-                        ownedByOrganization: { connect: { id: vrooli.id } },
+                        ownedByTeam: { connect: { id: vrooli.id } },
                         versions: {
                             create: [{
                                 isComplete: true,
@@ -714,7 +714,7 @@ export async function init() {
                         permissions: JSON.stringify({}),
                         isInternal: false,
                         createdBy: { connect: { id: admin.id } },
-                        ownedByOrganization: { connect: { id: vrooli.id } },
+                        ownedByTeam: { connect: { id: vrooli.id } },
                     },
                 },
                 translations: {
@@ -772,7 +772,7 @@ export async function init() {
                         permissions: JSON.stringify({}),
                         isInternal: false,
                         createdBy: { connect: { id: admin.id } },
-                        ownedByOrganization: { connect: { id: vrooli.id } },
+                        ownedByTeam: { connect: { id: vrooli.id } },
                     },
                 },
                 translations: {

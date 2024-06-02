@@ -20,7 +20,7 @@ export const paymentsFail = async () => {
                 });
                 // Send notifications
                 const notifyData: { email: string, paymentType: PaymentType }[] = batch.map(payment => {
-                    const emails = payment.organization?.emails ?? payment.user?.emails ?? [];
+                    const emails = payment.team?.emails ?? payment.user?.emails ?? [];
                     return emails.map(email => ({ email: email.emailAddress, paymentType: payment.paymentType }));
                 }).flat();
                 for (const { email, paymentType } of notifyData) {
@@ -30,7 +30,7 @@ export const paymentsFail = async () => {
             select: {
                 id: true,
                 paymentType: true,
-                organization: {
+                team: {
                     select: {
                         emails: { select: { emailAddress: true } },
                     },

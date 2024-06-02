@@ -308,8 +308,8 @@ export type Validator<
     }
 > = () => ({
     /**
-     * The maximum number of objects that can be created by a single user/organization.
-     * This depends on if the owner is a user or organization, if the owner 
+     * The maximum number of objects that can be created by a single user/team.
+     * This depends on if the owner is a user or team, if the owner 
      * has a premium account, and if we're counting private or public objects. 
      * Accounts can also define custom limits (for a custom price), which override 
      * these defaults 
@@ -359,7 +359,7 @@ export type Validator<
      * Permissions data for the object's owner
      */
     owner: (data: Model["PrismaModel"] | undefined, userId: string) => {
-        Organization?: ({ id: string } & DbObject) | null;
+        Team?: ({ id: string } & DbObject) | null;
         User?: ({ id: string } & DbObject) | null;
     }
     /**
@@ -412,7 +412,7 @@ export type Duplicator<
     select: Select;
     /** Data to connect to new owner */
     owner: (id: string) => {
-        Organization?: Partial<Data> | null
+        Team?: Partial<Data> | null
         User?: Partial<Data> | null;
     }
 }

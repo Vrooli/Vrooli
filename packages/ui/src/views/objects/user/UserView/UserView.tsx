@@ -20,7 +20,7 @@ import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, SearchIcon, TeamIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -157,7 +157,7 @@ export const UserView = ({
         setLocation(`${LINKS[currTab.key]}/add`);
     }, [currTab.key, setLocation]);
 
-    /** Opens dialog to add or invite user to an organization/meeting/chat */
+    /** Opens dialog to add or invite user to a team/meeting/chat */
     const handleAddOrInvite = useCallback(() => {
         if (!user) return;
         // Users are invited, and bots are added (since you don't need permission to use a public bot)
@@ -233,7 +233,7 @@ export const UserView = ({
                 object={user}
                 onClose={closeMoreMenu}
             />
-            {/* Popup menu for adding/inviting to an organization/meeting/chat */}
+            {/* Popup menu for adding/inviting to a team/meeting/chat */}
             {/* TODO */}
             <BannerImageContainer sx={{
                 backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
@@ -347,7 +347,7 @@ export const UserView = ({
                     </Stack>
                 </Stack>
             </OverviewContainer>
-            {/* View routines, organizations, standards, and projects associated with this user */}
+            {/* View routines, teams, standards, and projects associated with this user */}
             <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
                 <PageTabs
                     ariaLabel="user-tabs"
@@ -380,7 +380,7 @@ export const UserView = ({
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <OrganizationIcon />
+                                        <TeamIcon />
                                     </InputAdornment>
                                 ),
                             }}

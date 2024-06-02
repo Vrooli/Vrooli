@@ -14,11 +14,11 @@ describe("createOwner function tests", () => {
         expect(result).toEqual({ userConnect: "user123" });
     });
 
-    test("item with Organization owner", () => {
-        const item = { owner: { __typename: "Organization", id: "org123" } };
+    test("item with Team owner", () => {
+        const item = { owner: { __typename: "Team", id: "team123" } };
         // @ts-ignore: Testing runtime scenario
         const result = createOwner(item);
-        expect(result).toEqual({ organizationConnect: "org123" });
+        expect(result).toEqual({ teamConnect: "team123" });
     });
 
     test("item with different prefixes", () => {

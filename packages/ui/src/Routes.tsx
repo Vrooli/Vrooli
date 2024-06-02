@@ -50,12 +50,12 @@ const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteCrud } = lazily(() => import("./views/objects/note"));
-const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
+const { TeamUpsert, TeamView } = lazily(() => import("./views/objects/team"));
 const { ProjectCrud } = lazily(() => import("./views/objects/project"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
 const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
 const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
-const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
+const { CodeUpsert, CodeView } = lazily(() => import("./views/objects/code"));
 const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
 const { UserView } = lazily(() => import("./views/objects/user"));
 
@@ -208,15 +208,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <InboxView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpsert display="page" isCreate={true} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpsert display="page" isCreate={false} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
-                    <OrganizationView display="page" />
-                </NavRoute>
                 <NavRoute
                     path={LINKS.Pro}
                     excludePageContainer
@@ -244,6 +235,15 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 </NavRoute>
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView display="page" />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Code}/add`} mustBeLoggedIn={true} {...props}>
+                    <CodeUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Code}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <CodeUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Code}/:rootId/:versionId?`} {...props}>
+                    <CodeView display="page" />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
                     <ProjectCrud display="page" isCreate={true} />
@@ -339,15 +339,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <SignupView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpsert display="page" isCreate={true} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.SmartContract}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <SmartContractUpsert display="page" isCreate={false} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.SmartContract}/:rootId/:versionId?`} {...props}>
-                    <SmartContractView display="page" />
-                </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
                     <StandardUpsert display="page" isCreate={true} />
                 </NavRoute>
@@ -365,6 +356,15 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <StatsView display="page" />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Team}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
+                    <TeamUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Team}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
+                    <TeamUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Team}/:id`} sx={noSidePadding} {...props}>
+                    <TeamView display="page" />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Terms}

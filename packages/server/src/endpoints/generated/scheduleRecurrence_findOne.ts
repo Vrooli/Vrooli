@@ -2,6 +2,7 @@ export const scheduleRecurrence_findOne = {
   "schedule": {
     "labels": {
       "apisCount": true,
+      "codesCount": true,
       "focusModesCount": true,
       "issuesCount": true,
       "meetingsCount": true,
@@ -9,7 +10,6 @@ export const scheduleRecurrence_findOne = {
       "projectsCount": true,
       "routinesCount": true,
       "schedulesCount": true,
-      "smartContractsCount": true,
       "standardsCount": true,
       "id": true,
       "created_at": true,
@@ -17,19 +17,7 @@ export const scheduleRecurrence_findOne = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -51,7 +39,19 @@ export const scheduleRecurrence_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -268,6 +268,7 @@ export const scheduleRecurrence_findOne = {
       },
       "labels": {
         "apisCount": true,
+        "codesCount": true,
         "focusModesCount": true,
         "issuesCount": true,
         "meetingsCount": true,
@@ -275,7 +276,6 @@ export const scheduleRecurrence_findOne = {
         "projectsCount": true,
         "routinesCount": true,
         "schedulesCount": true,
-        "smartContractsCount": true,
         "standardsCount": true,
         "id": true,
         "created_at": true,
@@ -283,19 +283,7 @@ export const scheduleRecurrence_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -317,7 +305,19 @@ export const scheduleRecurrence_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -337,8 +337,8 @@ export const scheduleRecurrence_findOne = {
       "created_at": true,
       "updated_at": true,
       "openToAnyoneWithInvite": true,
-      "showOnOrganizationProfile": true,
-      "organization": {
+      "showOnTeamProfile": true,
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -360,7 +360,7 @@ export const scheduleRecurrence_findOne = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "restrictedToRoles": {
         "members": {
@@ -376,7 +376,7 @@ export const scheduleRecurrence_findOne = {
             "name": true,
             "permissions": true,
             "membersCount": true,
-            "organization": {
+            "team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -398,7 +398,7 @@ export const scheduleRecurrence_findOne = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
             },
             "translations": {
               "id": true,
@@ -419,7 +419,7 @@ export const scheduleRecurrence_findOne = {
         "name": true,
         "permissions": true,
         "membersCount": true,
-        "organization": {
+        "team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -441,7 +441,7 @@ export const scheduleRecurrence_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
         },
         "translations": {
           "id": true,
@@ -474,19 +474,7 @@ export const scheduleRecurrence_findOne = {
             "color": true,
             "label": true,
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -508,7 +496,19 @@ export const scheduleRecurrence_findOne = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "you": {
@@ -518,19 +518,7 @@ export const scheduleRecurrence_findOne = {
             "__typename": "Label"
           },
           "owner": {
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true,
-              "__typename": "User"
-            },
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -552,7 +540,19 @@ export const scheduleRecurrence_findOne = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
             }
           },
           "permissions": true,
@@ -659,7 +659,7 @@ export const scheduleRecurrence_findOne = {
       "name": true,
       "status": true,
       "stepsCount": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -681,7 +681,7 @@ export const scheduleRecurrence_findOne = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "user": {
         "id": true,
@@ -725,19 +725,7 @@ export const scheduleRecurrence_findOne = {
                 "color": true,
                 "label": true,
                 "owner": {
-                  "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true,
-                    "__typename": "User"
-                  },
-                  "Organization": {
+                  "Team": {
                     "id": true,
                     "bannerImage": true,
                     "handle": true,
@@ -759,7 +747,19 @@ export const scheduleRecurrence_findOne = {
                         "permissions": true
                       }
                     },
-                    "__typename": "Organization"
+                    "__typename": "Team"
+                  },
+                  "User": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "bannerImage": true,
+                    "handle": true,
+                    "isBot": true,
+                    "isBotDepictingPerson": true,
+                    "name": true,
+                    "profileImage": true,
+                    "__typename": "User"
                   }
                 },
                 "you": {
@@ -769,19 +769,7 @@ export const scheduleRecurrence_findOne = {
                 "__typename": "Label"
               },
               "owner": {
-                "User": {
-                  "id": true,
-                  "created_at": true,
-                  "updated_at": true,
-                  "bannerImage": true,
-                  "handle": true,
-                  "isBot": true,
-                  "isBotDepictingPerson": true,
-                  "name": true,
-                  "profileImage": true,
-                  "__typename": "User"
-                },
-                "Organization": {
+                "Team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -803,7 +791,19 @@ export const scheduleRecurrence_findOne = {
                       "permissions": true
                     }
                   },
-                  "__typename": "Organization"
+                  "__typename": "Team"
+                },
+                "User": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "bannerImage": true,
+                  "handle": true,
+                  "isBot": true,
+                  "isBotDepictingPerson": true,
+                  "name": true,
+                  "profileImage": true,
+                  "__typename": "User"
                 }
               },
               "permissions": true,
@@ -895,19 +895,7 @@ export const scheduleRecurrence_findOne = {
             "color": true,
             "label": true,
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -929,7 +917,19 @@ export const scheduleRecurrence_findOne = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "you": {
@@ -939,19 +939,7 @@ export const scheduleRecurrence_findOne = {
             "__typename": "Label"
           },
           "owner": {
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true,
-              "__typename": "User"
-            },
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -973,7 +961,19 @@ export const scheduleRecurrence_findOne = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
             }
           },
           "permissions": true,
@@ -1022,6 +1022,7 @@ export const scheduleRecurrence_findOne = {
         "created_at": true,
         "updated_at": true,
         "completedAt": true,
+        "codeCallData": true,
         "isAutomatable": true,
         "isComplete": true,
         "isDeleted": true,
@@ -1030,7 +1031,6 @@ export const scheduleRecurrence_findOne = {
         "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
-        "smartContractCallData": true,
         "apiCallData": true,
         "versionIndex": true,
         "versionLabel": true,
@@ -1092,7 +1092,7 @@ export const scheduleRecurrence_findOne = {
       "stepsCount": true,
       "inputsCount": true,
       "wasRunAutomatically": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -1114,7 +1114,7 @@ export const scheduleRecurrence_findOne = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
       },
       "user": {
         "id": true,

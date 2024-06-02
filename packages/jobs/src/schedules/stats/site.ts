@@ -20,7 +20,10 @@ export const logSiteStats = async (
         activeUsers: 0,
         apiCalls: 0, //TODO no way to track calls yet
         apisCreated: 0,
-        organizationsCreated: 0,
+        codesCreated: 0,
+        codesCompleted: 0,
+        codeCompletionTimeAverage: 0,
+        codeCalls: 0, //TODO no way to track calls yet
         projectsCreated: 0,
         projectsCompleted: 0,
         projectCompletionTimeAverage: 0,
@@ -39,13 +42,10 @@ export const logSiteStats = async (
         runRoutinesCompleted: 0,
         runRoutineCompletionTimeAverage: 0,
         runRoutineContextSwitchesAverage: 0,
-        smartContractsCreated: 0,
-        smartContractsCompleted: 0,
-        smartContractCompletionTimeAverage: 0,
-        smartContractCalls: 0, //TODO no way to track calls yet
         standardsCreated: 0,
         standardsCompleted: 0,
         standardCompletionTimeAverage: 0,
+        teamsCreated: 0,
         verifiedEmailsCreated: 0,
         verifiedWalletsCreated: 0,
     };
@@ -70,8 +70,8 @@ export const logSiteStats = async (
                 isDeleted: false,
             },
         });
-        // Find all organizations created within the period
-        data.organizationsCreated = await prismaInstance.organization.count({
+        // Find all teams created within the period
+        data.teamsCreated = await prismaInstance.team.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
             },
@@ -225,31 +225,31 @@ export const logSiteStats = async (
         });
         // Calculate the average run routine context switches
         data.runRoutineContextSwitchesAverage = runRoutinesCompleted > 0 ? (runRoutineContextSwitchesSum._sum.contextSwitches ?? 0) / runRoutinesCompleted : 0;
-        // Find all smart contracts created within the period
-        data.smartContractsCreated = await prismaInstance.smart_contract.count({
+        // Find all codes created within the period
+        data.codesCreated = await prismaInstance.code.count({
             where: {
                 created_at: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
-        // Find all smartContracts completed within the period
-        const smartContractsCompleted = await prismaInstance.smart_contract.count({
+        // Find all codes completed within the period
+        const codesCompleted = await prismaInstance.code.count({
             where: {
                 completedAt: { gte: periodStart, lte: periodEnd },
                 isDeleted: false,
             },
         });
         // Find the sum of all completion intervals (completedAt - created_at)
-        // for smart contracts completed within the period
+        // for codes completed within the period
         // NOTE: Prisma does not support aggregating by DateTime fields,
         // so we must use a raw query.
-        const smartContractsCompletedSum: number = smartContractsCompleted > 0 ? await prismaInstance.$queryRaw`
+        const codesCompletedSum: number = codesCompleted > 0 ? await prismaInstance.$queryRaw`
         SELECT SUM(completedAt - created_at) AS time
-        FROM smart_contract
+        FROM code
         WHERE completedAt >= ${periodStart} AND completedAt <= ${periodEnd}
 ` : 0;
-        // Calculate the average smart contract completion time
-        data.smartContractCompletionTimeAverage = smartContractsCompleted > 0 ? smartContractsCompletedSum / smartContractsCompleted : 0;
+        // Calculate the average code completion time
+        data.codeCompletionTimeAverage = codesCompleted > 0 ? codesCompletedSum / codesCompleted : 0;
         // Find all standards created within the period
         data.standardsCreated = await prismaInstance.standard.count({
             where: {

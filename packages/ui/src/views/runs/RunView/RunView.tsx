@@ -953,7 +953,7 @@ export const RunView = ({
                     handleSaveProgress={saveProgress}
                     // eslint-disable-next-line @typescript-eslint/no-empty-function
                     onClose={() => { }}
-                    owner={run?.organization ?? run?.user} //TODO not right, but also unused right now
+                    owner={run?.team ?? run?.user} //TODO not right, but also unused right now
                     routineVersion={(currentStep as SubroutineStep).routineVersion}
                     run={run as RunRoutine}
                     loading={subroutinesLoading}

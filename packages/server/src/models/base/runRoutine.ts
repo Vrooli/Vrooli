@@ -16,36 +16,36 @@ import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../util
 import { getSingleTypePermissions } from "../../validators";
 import { RunRoutineFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { OrganizationModelLogic, RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
+import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
 export const RunRoutineModel: RunRoutineModelLogic = ({
     __typename,
     danger: {
         /**
-         * Anonymizes all public runs associated with a user or organization
+         * Anonymizes all public runs associated with a user or team
          */
-        async anonymize(owner: { __typename: "User" | "Organization", id: string }): Promise<void> {
+        async anonymize(owner: { __typename: "Team" | "User", id: string }): Promise<void> {
             await prismaInstance.run_routine.updateMany({
                 where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
-                    organizationId: owner.__typename === "Organization" ? owner.id : undefined,
                     isPrivate: false,
                 },
                 data: {
+                    teamId: null,
                     userId: null,
-                    organizationId: null,
                 },
             });
         },
         /**
-         * Deletes all runs associated with a user or organization
+         * Deletes all runs associated with a user or team
          */
-        async deleteAll(owner: { __typename: "User" | "Organization", id: string }): Promise<Count> {
+        async deleteAll(owner: { __typename: "Team" | "User", id: string }): Promise<Count> {
             return prismaInstance.run_routine.deleteMany({
                 where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
-                    organizationId: owner.__typename === "Organization" ? owner.id : undefined,
                 },
             }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
         },
@@ -77,12 +77,12 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     status: noNull(data.status),
                     startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
-                    user: data.organizationConnect ? undefined : { connect: { id: rest.userData.id } },
+                    user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
                     routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest }),
                     schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
                     runProject: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest }),
-                    organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runRoutines", data, ...rest }),
                     steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runRoutines", data, ...rest }),
                     inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
@@ -302,18 +302,18 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            organization: "Organization",
             routineVersion: "RoutineVersion",
+            team: "Team",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
         isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
-            ["organization", "Organization"],
+            ["team", "Team"],
             ["user", "User"],
         ], data, ...rest),
         profanityFields: ["name"],
@@ -322,8 +322,8 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

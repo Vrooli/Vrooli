@@ -47,10 +47,10 @@ export type ShapeHelperProps<
     * determined by the database cascading.
     */
     joinData?: {
-        fieldName: string, // e.g. organization.tags.tag => 'tag'
-        uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagTag_unique'
-        childIdFieldName: string, // e.g. organization.tags.tag => 'tagTag'
-        parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
+        fieldName: string, // e.g. team.tags.tag => 'tag'
+        uniqueFieldName: string, // e.g. team.tags.tag => 'team_tags_taggedid_tagTag_unique'
+        childIdFieldName: string, // e.g. team.tags.tag => 'tagTag'
+        parentIdFieldName: string, // e.g. team.tags.tag => 'taggedId'
         parentId: string | null, // Only needed if not a create
     }
     objectType: `${GqlModelType}`,
@@ -195,7 +195,7 @@ export const shapeHelper = async<
             }
         }
         if (result.disconnect) {
-            // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
+            // delete: [ { team_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
             for (const id of (result?.disconnect ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
@@ -207,7 +207,7 @@ export const shapeHelper = async<
             }
         }
         if (result.delete) {
-            // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
+            // delete: [ { team_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
             for (const id of (result?.delete ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
@@ -227,7 +227,7 @@ export const shapeHelper = async<
         }
         if (result.update) {
             // ex: update: [{ 
-            //         where: { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
+            //         where: { team_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
             //         data: { tag: { update: { tag: 'fdas', } } }
             //     }]
             for (const data of (result?.update ?? [])) {

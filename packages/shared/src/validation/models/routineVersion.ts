@@ -1,4 +1,4 @@
-import { apiCallData, bool, description, id, instructions, name, opt, req, smartContractCallData, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { YupModel, apiCallData, bool, codeCallData, description, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { nodeValidation } from "./node";
 import { nodeLinkValidation } from "./nodeLink";
 import { resourceListValidation } from "./resourceList";
@@ -23,7 +23,7 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),
-        smartContractCallData: opt(smartContractCallData),
+        codeCallData: opt(codeCallData),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
@@ -32,7 +32,7 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     }, [
         ["root", ["Connect", "Create"], "one", "opt", routineValidation, ["versions"]],
         ["apiVersion", ["Connect"], "one", "opt"],
-        ["smartContractVersion", ["Connect"], "one", "opt"],
+        ["codeVersion", ["Connect"], "one", "opt"],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
         ["nodes", ["Create"], "many", "req", nodeValidation],
         ["nodeLinks", ["Create"], "many", "req", nodeLinkValidation],
@@ -45,7 +45,7 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     update: (d) => yupObj({
         id: req(id),
         apiCallData: opt(apiCallData),
-        smartContractCallData: opt(smartContractCallData),
+        codeCallData: opt(codeCallData),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
@@ -53,6 +53,7 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
         versionNotes: opt(versionNotes),
     }, [
         ["apiVersion", ["Connect", "Disconnect"], "one", "opt"],
+        ["codeVersion", ["Connect", "Disconnect"], "one", "opt"],
         ["directoryListings", ["Connect", "Disconnect"], "many", "opt"],
         ["inputs", ["Create", "Update", "Delete"], "many", "opt", routineVersionInputValidation],
         ["nodeLinks", ["Create", "Update", "Delete"], "many", "opt", nodeLinkValidation],
@@ -60,7 +61,6 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
         ["outputs", ["Create", "Update", "Delete"], "many", "opt", routineVersionOutputValidation],
         ["resourceList", ["Create", "Update"], "one", "opt", resourceListValidation],
         ["root", ["Update"], "one", "opt", routineValidation, ["versions"]],
-        ["smartContractVersion", ["Connect", "Disconnect"], "one", "opt"],
         ["suggestedNextByProject", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", routineVersionTranslationValidation],
     ], [], d),

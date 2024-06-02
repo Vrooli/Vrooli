@@ -5,20 +5,30 @@ import path from "path";
 import { fileURLToPath } from "url";
 import zlib from "zlib";
 
-const sitemapObjectTypes = ["ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"] as const;
+const sitemapObjectTypes = [
+    "ApiVersion",
+    "CodeVersion",
+    "NoteVersion",
+    "ProjectVersion",
+    "Question",
+    "RoutineVersion",
+    "StandardVersion",
+    "Team",
+    "User",
+] as const;
 
 /**
  * Maps object types to their url base
  */
 const Links: Record<typeof sitemapObjectTypes[number], string> = {
     ApiVersion: LINKS.Api,
+    CodeVersion: LINKS.Code,
     NoteVersion: LINKS.Note,
-    Organization: LINKS.Organization,
     ProjectVersion: LINKS.Project,
     Question: LINKS.Question,
     RoutineVersion: LINKS.Routine,
-    SmartContractVersion: LINKS.SmartContract,
     StandardVersion: LINKS.Standard,
+    Team: LINKS.Team,
     User: LINKS.User,
 };
 
@@ -40,7 +50,7 @@ const genSitemapForObject = async (
     // Initialize return value
     const sitemapFileNames: string[] = [];
     // For objects that support handles, we prioritize those urls over the id urls
-    const supportsHandles = ["Organization", "ProjectVersion", "User"].includes(objectType);
+    const supportsHandles = ["Team", "ProjectVersion", "User"].includes(objectType);
     // For versioned objects, we also need to collect the root Id/handle
     const isVersioned = objectType.endsWith("Version");
     // If object can be private (in which case we don't want to include it in the sitemap)

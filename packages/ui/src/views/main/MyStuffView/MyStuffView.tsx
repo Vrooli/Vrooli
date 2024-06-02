@@ -1,6 +1,3 @@
-/**
- * Search page for organizations, projects, routines, standards, and users
- */
 import { GqlModelType, ListObject, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -33,9 +30,9 @@ export const MyStuffView = ({
     const {
         id: userId,
         apisCount,
+        codesCount,
         membershipsCount,
         questionsAskedCount,
-        smartContractsCount,
         standardsCount,
     } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -48,17 +45,17 @@ export const MyStuffView = ({
         switch (tab.key) {
             case "Api":
                 return Boolean(apisCount);
-            case "Organization":
-                return Boolean(membershipsCount);
+            case "Code":
+                return Boolean(codesCount);
             case "Question":
                 return Boolean(questionsAskedCount);
-            case "SmartContract":
-                return Boolean(smartContractsCount);
             case "Standard":
                 return Boolean(standardsCount);
+            case "Team":
+                return Boolean(membershipsCount);
         }
         return true;
-    }), [apisCount, membershipsCount, questionsAskedCount, smartContractsCount, standardsCount]);
+    }), [apisCount, codesCount, membershipsCount, questionsAskedCount, standardsCount]);
     const {
         currTab,
         handleTabChange,

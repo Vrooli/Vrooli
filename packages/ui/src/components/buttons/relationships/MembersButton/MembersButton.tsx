@@ -26,7 +26,7 @@ export const MembersButton = ({
     const [membersField, , membersFieldHelpers] = useField("members");
     const [isOpenToNewMembersField] = useField("isOpenToNewMembers");
 
-    const isAvailable = useMemo(() => ["Organization"].includes(objectType), [objectType]);
+    const isAvailable = useMemo(() => ["Team"].includes(objectType), [objectType]);
 
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
     const openDialog = useCallback(() => { setDialogOpen(true); }, []);
@@ -38,7 +38,7 @@ export const MembersButton = ({
 
     const searchData = useMemo(() => ({
         searchType: "User" as const,
-        where: { memberInOrganizationId: membersField?.value?.id },
+        where: { memberInTeamId: membersField?.value?.id },
     }), [membersField?.value?.id]);
 
     const icons = useMemo<(JSX.Element | null)[]>(() => {
@@ -90,7 +90,7 @@ export const MembersButton = ({
                 display="dialog"
                 isOpen={isDialogOpen}
                 onClose={closeDialog}
-                organization={formikContext.values as MemberManageViewProps["organization"]}
+                team={formikContext.values as MemberManageViewProps["team"]}
             />
             <Stack
                 direction="column"

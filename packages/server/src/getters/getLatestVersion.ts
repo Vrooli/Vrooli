@@ -15,7 +15,13 @@ export async function getLatestVersion({
     handleRoot,
 }: {
     includeIncomplete?: boolean,
-    objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
+    objectType: `${GqlModelType.ApiVersion
+    | GqlModelType.CodeVersion
+    | GqlModelType.NoteVersion
+    | GqlModelType.ProjectVersion
+    | GqlModelType.RoutineVersion
+    | GqlModelType.StandardVersion
+    }`,
     idRoot?: string | null,
     handleRoot?: string | null,
 }): Promise<string | undefined> {

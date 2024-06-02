@@ -12,12 +12,19 @@ import { ReportsViewProps } from "../types";
  * Maps object types to the correct id fields
  */
 const objectTypeToIdField = {
+    "Api": "apiVersionId",
+    "ChatMessage": "chatMessageId",
+    "Code": "codeVersionId",
     "Comment": "commentId",
-    "Organization": "organizationId",
-    "Project": "projectId",
-    "Routine": "routineId",
-    "Standard": "standardId",
+    "Issue": "issueId",
+    "Note": "noteVersionId",
+    "Post": "postId",
+    "Project": "projectVersionId",
+    "Question": "questionId",
+    "Routine": "routineVersionId",
+    "Standard": "standardVersionId",
     "Tag": "tagId",
+    "Team": "teamId",
     "User": "userId",
 };
 

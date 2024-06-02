@@ -15,11 +15,10 @@ export type ExportProcessPayload = {
         bookmarks: boolean;
         bots: boolean;
         chats: boolean;
+        codes: boolean;
         comments: boolean;
         issues: boolean;
         notes: boolean;
-        /** Includes meetings and roles */
-        organizations: boolean;
         //posts: boolean;
         pullRequests: boolean;
         projects: boolean;
@@ -33,9 +32,10 @@ export type ExportProcessPayload = {
         routines: boolean;
         runs: boolean;
         schedules: boolean;
-        smartContracts: boolean;
         standards: boolean;
         // tags: boolean;
+        /** Includes meetings and roles */
+        teams: boolean;
         views: boolean;
     };
     /** What should happen to the exported data */

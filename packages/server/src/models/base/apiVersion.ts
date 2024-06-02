@@ -113,7 +113,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationIdRoot: true,
+            ownedByTeamIdRoot: true,
             ownedByUserIdRoot: true,
             tagsRoot: true,
             translationLanguages: true,

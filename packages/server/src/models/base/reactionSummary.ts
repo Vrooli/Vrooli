@@ -21,7 +21,7 @@ export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
         permissionsSelect: () => ({}),
         permissionResolvers: defaultPermissions,
         owner: () => ({
-            Organization: null,
+            Team: null,
             User: null,
         }),
         isDeleted: () => false,

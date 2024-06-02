@@ -23,7 +23,7 @@ export const note: GqlPartial<Note> = {
     __typename: "Note",
     common: {
         __define: {
-            0: async () => rel((await import("./organization")).organization, "nav"),
+            0: async () => rel((await import("./team")).team, "nav"),
             1: async () => rel((await import("./user")).user, "nav"),
             2: async () => rel((await import("./tag")).tag, "list"),
             3: async () => rel((await import("./label")).label, "list"),
@@ -36,7 +36,7 @@ export const note: GqlPartial<Note> = {
         labels: { __use: 3 },
         owner: {
             __union: {
-                Organization: 0,
+                Team: 0,
                 User: 1,
             },
         },

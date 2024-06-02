@@ -50,7 +50,7 @@ export const CommentModel: CommentModelLogic = ({
                 await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
-                    ownerOrganizationField: "ownedByOrganization",
+                    ownerTeamField: "ownedByTeam",
                     ownerUserField: "ownedByUser",
                 });
             },
@@ -235,11 +235,12 @@ export const CommentModel: CommentModelLogic = ({
         searchFields: {
             apiVersionId: true,
             createdTimeFrame: true,
+            codeVersionId: true,
             issueId: true,
             minScore: true,
             minBookmarks: true,
             noteVersionId: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             postId: true,
             projectVersionId: true,
@@ -247,7 +248,6 @@ export const CommentModel: CommentModelLogic = ({
             questionAnswerId: true,
             questionId: true,
             routineVersionId: true,
-            smartContractVersionId: true,
             standardVersionId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -273,8 +273,9 @@ export const CommentModel: CommentModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             apiVersion: "ApiVersion",
+            codeVersion: "CodeVersion",
             issue: "Issue",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             post: "Post",
             projectVersion: "ProjectVersion",
@@ -282,7 +283,6 @@ export const CommentModel: CommentModelLogic = ({
             question: "Question",
             questionAnswer: "QuestionAnswer",
             routineVersion: "RoutineVersion",
-            smartContractVersion: "SmartContractVersion",
             standardVersion: "StandardVersion",
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
@@ -290,12 +290,13 @@ export const CommentModel: CommentModelLogic = ({
             canReply: () => isLoggedIn && (isAdmin || isPublic),
         }),
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<CommentModelInfo["PrismaSelect"]>([
             ["apiVersion", "ApiVersion"],
+            ["codeVersion", "CodeVersion"],
             ["issue", "Issue"],
             ["post", "Post"],
             ["projectVersion", "ProjectVersion"],
@@ -303,7 +304,6 @@ export const CommentModel: CommentModelLogic = ({
             ["question", "Question"],
             ["questionAnswer", "QuestionAnswer"],
             ["routineVersion", "RoutineVersion"],
-            ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
         ], ...rest),
         visibility: {

@@ -11,15 +11,15 @@ export type ObjectLimitPrivacy = {
 
 export type ObjectLimitOwner = {
     User: number | ObjectLimitPremium | ObjectLimitPrivacy,
-    Organization: number | ObjectLimitPremium | ObjectLimitPrivacy,
+    Team: number | ObjectLimitPremium | ObjectLimitPrivacy,
 }
 
 export type ObjectLimit = number | ObjectLimitPremium | ObjectLimitPrivacy | ObjectLimitOwner;
 
 /**
- * Contains the maximum number of objects a user/organization can have. 
+ * Contains the maximum number of objects a user/team can have. 
  * Limits vary depending on is the objects are public/private, and whether the 
- * user/organization has a premium acccount. 
+ * user/team has a premium acccount. 
  * 
  * This is in the shared package because it can be used to display benefits 
  * to switching to premium in the UI, and to validate crud operations in the server
@@ -36,7 +36,7 @@ export const MaxObjects = {
                 premium: 100,
             },
         },
-        Organization: {
+        Team: {
             private: {
                 noPremium: 3,
                 premium: 25,
@@ -61,7 +61,7 @@ export const MaxObjects = {
             },
             public: 0,
         },
-        Organization: 0,
+        Team: 0,
     },
     BookmarkList: {
         User: {
@@ -71,7 +71,7 @@ export const MaxObjects = {
             },
             public: 0,
         },
-        Organization: 0,
+        Team: 0,
     },
     Chat: {
         User: {
@@ -84,7 +84,7 @@ export const MaxObjects = {
                 premium: 500,
             },
         },
-        Organization: {
+        Team: {
             private: {
                 noPremium: 10,
                 premium: 500,
@@ -103,11 +103,11 @@ export const MaxObjects = {
             },
             public: 0,
         },
-        Organization: 0,
+        Team: 0,
     },
     ChatInvite: {
         User: 0,
-        Organization: {
+        Team: {
             private: {
                 noPremium: 10,
                 premium: 500,
@@ -120,7 +120,7 @@ export const MaxObjects = {
     },
     ChatParticipant: {
         User: 0,
-        Organization: {
+        Team: {
             private: {
                 noPremium: 10,
                 premium: 500,
@@ -131,19 +131,30 @@ export const MaxObjects = {
             },
         },
     },
+    Code: {
+        private: {
+            noPremium: 6,
+            premium: 50,
+        },
+        public: {
+            noPremium: 10,
+            premium: 200,
+        },
+    },
+    CodeVersion: 100000,
     Comment: {
         User: {
             private: 0,
             public: 10000,
         },
-        Organization: 0,
+        Team: 0,
     },
     Email: {
         User: {
             private: 5,
             public: 1,
         },
-        Organization: {
+        Team: {
             private: 0,
             public: 1,
         },
@@ -153,7 +164,7 @@ export const MaxObjects = {
             noPremium: 2,
             premium: 15,
         },
-        Organization: 0,
+        Team: 0,
     },
     FocusModeFilter: {
         User: {
@@ -163,14 +174,14 @@ export const MaxObjects = {
             },
             public: 0,
         },
-        Organization: 0,
+        Team: 0,
     },
     Issue: {
         User: {
             private: 0,
             public: 10000,
         },
-        Organization: 0,
+        Team: 0,
     },
     Label: {
         User: {
@@ -183,7 +194,7 @@ export const MaxObjects = {
                 premium: 100,
             },
         },
-        Organization: {
+        Team: {
             private: {
                 noPremium: 20,
                 premium: 100,
@@ -196,18 +207,18 @@ export const MaxObjects = {
     },
     Meeting: {
         User: 0,
-        Organization: {
+        Team: {
             private: 100,
             public: 100,
         },
     },
     MeetingInvite: {
         User: 0,
-        Organization: 5000,
+        Team: 5000,
     },
     Member: {
         User: 0,
-        Organization: {
+        Team: {
             private: {
                 noPremium: 5,
                 premium: 500,
@@ -220,7 +231,7 @@ export const MaxObjects = {
     },
     MemberInvite: {
         User: 0,
-        Organization: 1000,
+        Team: 1000,
     },
     Node: 100000,
     NodeEnd: 100000,
@@ -241,7 +252,7 @@ export const MaxObjects = {
                 premium: 2000,
             },
         },
-        Organization: {
+        Team: {
             private: {
                 noPremium: 25,
                 premium: 1000,
@@ -256,20 +267,7 @@ export const MaxObjects = {
     Notification: 100000,
     NotificationSubscription: {
         User: 1000,
-        Organization: 0,
-    },
-    Organization: {
-        User: {
-            private: {
-                noPremium: 1,
-                premium: 10,
-            },
-            public: {
-                noPremium: 3,
-                premium: 25,
-            },
-        },
-        Organization: 0,
+        Team: 0,
     },
     Payment: 1000000,
     Premium: 1000000,
@@ -295,58 +293,58 @@ export const MaxObjects = {
     ProjectVersionDirectory: 1000000,
     PushDevice: {
         User: 5,
-        Organization: 0,
+        Team: 0,
     },
     Question: {
         User: 5000,
-        Organization: 0,
+        Team: 0,
     },
     QuestionAnswer: {
         User: 10000,
-        Organization: 0,
+        Team: 0,
     },
     Quiz: {
         User: 2000,
-        Organization: 0,
+        Team: 0,
     },
     QuizQuestion: {
         User: 200000,
-        Organization: 0,
+        Team: 0,
     },
     QuizQuestionResponse: {
         User: 200000,
-        Organization: 0,
+        Team: 0,
     },
     Report: {
         User: {
             private: 0,
             public: 10000,
         },
-        Organization: 0,
+        Team: 0,
     },
     ReminderItem: {
         User: 100000,
-        Organization: 0,
+        Team: 0,
     },
     Reminder: {
         User: {
             noPremium: 200,
             premium: 10000,
         },
-        Organization: 0,
+        Team: 0,
     },
     ReminderList: {
         User: {
             noPremium: 25,
             premium: 250,
         },
-        Organization: 0,
+        Team: 0,
     },
     Resource: 50000,
     ResourceList: 50000,
     Role: {
         User: 0,
-        Organization: {
+        Team: {
             private: {
                 noPremium: 5,
                 premium: 50,
@@ -370,11 +368,11 @@ export const MaxObjects = {
     RoutineVersion: 100000,
     RunProject: {
         User: 5000,
-        Organization: 50000,
+        Team: 50000,
     },
     RunRoutine: {
         User: 5000,
-        Organization: 50000,
+        Team: 50000,
     },
     RunRoutineInput: 100000,
     RunRoutineStep: 100000,
@@ -383,24 +381,13 @@ export const MaxObjects = {
             noPremium: 25,
             premium: 1000,
         },
-        Organization: {
+        Team: {
             noPremium: 25,
             premium: 1000,
         },
     },
     ScheduleException: 100000,
     ScheduleRecurrence: 100000,
-    SmartContract: {
-        private: {
-            noPremium: 6,
-            premium: 50,
-        },
-        public: {
-            noPremium: 10,
-            premium: 200,
-        },
-    },
-    SmartContractVersion: 100000,
     Standard: {
         private: {
             noPremium: 5,
@@ -414,22 +401,35 @@ export const MaxObjects = {
     StandardVersion: 100000,
     Tag: {
         User: 5000,
-        Organization: 0,
+        Team: 0,
+    },
+    Team: {
+        User: {
+            private: {
+                noPremium: 1,
+                premium: 10,
+            },
+            public: {
+                noPremium: 3,
+                premium: 25,
+            },
+        },
+        Team: 0,
     },
     Transfer: {
         User: 5000,
-        Organization: 5000,
+        Team: 5000,
     },
     User: {
         User: 1,
-        Organization: 0,
+        Team: 0,
     },
     Wallet: {
         User: {
             private: 5,
             public: 0,
         },
-        Organization: {
+        Team: {
             private: {
                 noPremium: 1,
                 premium: 5,

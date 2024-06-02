@@ -1,6 +1,6 @@
 import { InputType } from "@local/shared";
 import { FieldData, FieldDataBase } from "forms/types";
-import { StandardLanguage } from "../CodeInputBase/CodeInputBase";
+import { StandardLanguage } from "../CodeInput/CodeInput";
 
 /**
  * Handles all parts of creating a standard input, from props, to labels, to validation

@@ -12,7 +12,7 @@ import { SessionUserToken } from "../../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { TransferFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { OrganizationModelLogic, TransferModelLogic, UserModelLogic } from "./types";
+import { TeamModelLogic, TransferModelLogic, UserModelLogic } from "./types";
 
 const __typename = "Transfer" as const;
 
@@ -21,17 +21,17 @@ const __typename = "Transfer" as const;
  */
 export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
     Api: "api",
+    Code: "code",
     Note: "note",
     Project: "project",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
 };
 
 /**
  * Handles transferring an object from one user to another. It works like this:
  * 1. The user who owns the object creates a transfer request
- * 2. If the user is transferring to an organization where they have the correct permissions, 
+ * 2. If the user is transferring to a team where they have the correct permissions, 
  *   the transfer is automatically accepted and the process is complete.
  * 3. Otherwise, a notification is sent to the user/org that is receiving the object,
  *   and they can accept or reject the transfer.
@@ -46,18 +46,18 @@ export const transfer = () => ({
      * List is in same order as owners list.
      */
     checkTransferRequests: async (
-        owners: { id: string, __typename: "Organization" | "User" }[],
+        owners: { id: string, __typename: "Team" | "User" }[],
         userData: SessionUserToken,
     ): Promise<boolean[]> => {
-        // Grab all create organization IDs
-        const orgIds = owners.filter(o => o.__typename === "Organization").map(o => o.id);
-        // Check if user is an admin of each organization
-        const isAdmins: boolean[] = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(userData.id, orgIds);
+        // Grab all create team IDs
+        const orgIds = owners.filter(o => o.__typename === "Team").map(o => o.id);
+        // Check if user is an admin of each team
+        const isAdmins: boolean[] = await ModelMap.get<TeamModelLogic>("Team").query.hasRole(userData.id, orgIds);
         // Create return list
         const requiresTransferRequest: boolean[] = owners.map((o, i) => {
             // If owner is a user, transfer is required if user is not the same as the session user
             if (o.__typename === "User") return o.id !== userData.id;
-            // If owner is an organization, transfer is required if user is not an admin
+            // If owner is a team, transfer is required if user is not an admin
             const orgIdIndex = orgIds.indexOf(o.id);
             return !isAdmins[orgIdIndex];
         });
@@ -83,16 +83,16 @@ export const transfer = () => ({
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError("0286", "NotAuthorizedToTransfer", userData.languages);
         // Get 'to' data
-        const toType = input.toOrganizationConnect ? "Organization" : "User";
-        const toId: string = input.toOrganizationConnect || input.toUserConnect as string;
+        const toType = input.toTeamConnect ? "Team" : "User";
+        const toId: string = input.toTeamConnect || input.toUserConnect as string;
         // Create transfer request
         const request = await prismaInstance.transfer.create({
             data: {
                 fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
-                fromOrganization: owner.Organization ? { connect: { id: owner.Organization.id } } : undefined,
+                fromTeam: owner.Team ? { connect: { id: owner.Team.id } } : undefined,
                 [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
                 toUser: toType === "User" ? { connect: { id: toId } } : undefined,
-                toOrganization: toType === "Organization" ? { connect: { id: toId } } : undefined,
+                toTeam: toType === "Team" ? { connect: { id: toId } } : undefined,
                 status: "Pending",
                 message: input.message,
             },
@@ -101,7 +101,7 @@ export const transfer = () => ({
         // Notify user/org that is receiving the object
         const pushNotification = Notify(userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
         if (toType === "User") await pushNotification.toUser(toId);
-        else await pushNotification.toOrganization(toId);
+        else await pushNotification.toTeam(toId);
         // Return the transfer request ID
         return request.id;
     },
@@ -126,9 +126,9 @@ export const transfer = () => ({
             where: { id: transferId },
             select: {
                 id: true,
-                fromOrganizationId: true,
+                fromTeamId: true,
                 fromUserId: true,
-                toOrganizationId: true,
+                toTeamId: true,
                 toUserId: true,
                 status: true,
             },
@@ -141,10 +141,10 @@ export const transfer = () => ({
         if (transfer.status === "Denied")
             throw new CustomError("0295", "TransferAlreadyRejected", userData.languages);
         // Make sure user is the owner of the transfer request
-        if (transfer.fromOrganizationId) {
-            const { validate } = ModelMap.getLogic(["validate"], "Organization");
-            const permissionData = await prismaInstance.organization.findUnique({
-                where: { id: transfer.fromOrganizationId },
+        if (transfer.fromTeamId) {
+            const { validate } = ModelMap.getLogic(["validate"], "Team");
+            const permissionData = await prismaInstance.team.findUnique({
+                where: { id: transfer.fromTeamId },
                 select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
@@ -174,11 +174,11 @@ export const transfer = () => ({
             throw new CustomError("0288", "TransferAlreadyAccepted", userData.languages);
         if (transfer.status === "Denied")
             throw new CustomError("0289", "TransferAlreadyRejected", userData.languages);
-        // Make sure transfer is going to you or an organization you can control
-        if (transfer.toOrganizationId) {
-            const { validate } = ModelMap.getLogic(["validate"], "Organization");
-            const permissionData = await prismaInstance.organization.findUnique({
-                where: { id: transfer.toOrganizationId },
+        // Make sure transfer is going to you or a team you can control
+        if (transfer.toTeamId) {
+            const { validate } = ModelMap.getLogic(["validate"], "Team");
+            const permissionData = await prismaInstance.team.findUnique({
+                where: { id: transfer.toTeamId },
                 select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
@@ -188,7 +188,14 @@ export const transfer = () => ({
         }
         // Transfer object, then mark transfer request as accepted
         // Find the object type, based on which relation is not null
-        const typeField = ["apiId", "noteId", "projectId", "routineId", "smartContractId", "standardId"].find((field) => transfer[field] !== null);
+        const typeField = [
+            "apiId",
+            "codeId",
+            "noteId",
+            "projectId",
+            "routineId",
+            "standardId",
+        ].find((field) => transfer[field] !== null);
         if (!typeField)
             throw new CustomError("0290", "TransferMissingData", userData.languages);
         const type = typeField.replace("Id", "");
@@ -199,7 +206,7 @@ export const transfer = () => ({
                 [type]: {
                     update: {
                         ownerId: transfer.toUserId,
-                        organizationId: transfer.toOrganizationId,
+                        teamId: transfer.toTeamId,
                     },
                 },
             },
@@ -208,7 +215,7 @@ export const transfer = () => ({
         // TODO Notify user/org that sent the transfer request
         //const pushNotification = Notify(userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
         // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
-        // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
+        // else await pushNotification.toTeam(transfer.fromTeamId as string, userData.id);
     },
     /**
      * Denies a transfer request
@@ -228,11 +235,11 @@ export const transfer = () => ({
             throw new CustomError("0291", "TransferAlreadyAccepted", userData.languages);
         if (transfer.status === "Denied")
             throw new CustomError("0292", "TransferAlreadyRejected", userData.languages);
-        // Make sure transfer is going to you or an organization you can control
-        if (transfer.toOrganizationId) {
-            const { validate } = ModelMap.getLogic(["validate"], "Organization");
-            const permissionData = await prismaInstance.organization.findUnique({
-                where: { id: transfer.toOrganizationId },
+        // Make sure transfer is going to you or a team you can control
+        if (transfer.toTeamId) {
+            const { validate } = ModelMap.getLogic(["validate"], "Team");
+            const permissionData = await prismaInstance.team.findUnique({
+                where: { id: transfer.toTeamId },
                 select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
@@ -241,7 +248,14 @@ export const transfer = () => ({
             throw new CustomError("0313", "TransferRejectNotAuthorized", userData.languages);
         }
         // Find the object type, based on which relation is not null
-        const typeField = ["apiId", "noteId", "projectId", "routineId", "smartContractId", "standardId"].find((field) => transfer[field] !== null);
+        const typeField = [
+            "apiId",
+            "codeId",
+            "noteId",
+            "projectId",
+            "routineId",
+            "standardId",
+        ].find((field) => transfer[field] !== null);
         if (!typeField)
             throw new CustomError("0290", "TransferMissingData", userData.languages);
         const type = typeField.replace("Id", "");
@@ -256,7 +270,7 @@ export const transfer = () => ({
         // Notify user/org that sent the transfer request
         //const pushNotification = Notify(userData.languages).pushTransferRejected(transfer.objectTitle, type, transferId);
         // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
-        // else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
+        // else await pushNotification.toTeam(transfer.fromTeamId as string, userData.id);
     },
 });
 
@@ -292,24 +306,24 @@ export const TransferModel: TransferModelLogic = ({
         sortBy: TransferSortBy,
         searchFields: {
             apiId: true,
+            codeId: true,
             createdTimeFrame: true,
-            fromOrganizationId: true,
+            fromTeamId: true,
             noteId: true,
             projectId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
             status: true,
-            toOrganizationId: true,
+            toTeamId: true,
             toUserId: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
             OR: [
                 { fromUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
-                { fromOrganization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { fromTeam: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
                 { toUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
-                { toOrganization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { toTeam: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
                 ...Object.entries(TransferableFieldMap).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),

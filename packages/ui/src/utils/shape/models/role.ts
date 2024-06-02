@@ -1,7 +1,7 @@
 import { Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput } from "@local/shared";
 import { CanConnect, ShapeModel } from "types";
 import { MemberShape } from "./member";
-import { OrganizationShape } from "./organization";
+import { TeamShape } from "./team";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
 
 export type RoleTranslationShape = Pick<RoleTranslation, "id" | "language" | "description"> & {
@@ -11,7 +11,7 @@ export type RoleTranslationShape = Pick<RoleTranslation, "id" | "language" | "de
 export type RoleShape = Pick<Role, "id" | "name" | "permissions"> & {
     __typename: "Role";
     members?: CanConnect<MemberShape>[] | null;
-    organization: CanConnect<OrganizationShape>;
+    team: CanConnect<TeamShape>;
     translations?: RoleTranslationShape[] | null;
 }
 
@@ -24,7 +24,7 @@ export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> 
     create: (d) => ({
         ...createPrims(d, "id", "name", "permissions"),
         ...createRel(d, "members", ["Connect"], "many"),
-        ...createRel(d, "organization", ["Connect"], "one"),
+        ...createRel(d, "team", ["Connect"], "one"),
         ...createRel(d, "translations", ["Create"], "many", shapeRoleTranslation),
     }),
     update: (o, u, a) => shapeUpdate(u, {

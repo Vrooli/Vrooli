@@ -9,7 +9,7 @@ import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
 import { getSingleTypePermissions } from "../../validators/permissions";
 import { ApiFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
+import { ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type ApiPre = PreShapeRootResult;
 
@@ -76,7 +76,7 @@ export const ApiModel: ApiModelLogic = ({
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -114,7 +114,7 @@ export const ApiModel: ApiModelLogic = ({
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -125,7 +125,7 @@ export const ApiModel: ApiModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["ApiVersion", ["root"]],
         }),
@@ -134,8 +134,8 @@ export const ApiModel: ApiModelLogic = ({
             public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

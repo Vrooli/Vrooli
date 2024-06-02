@@ -18,7 +18,7 @@ import { SearchType, searchViewTabParams } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";
 
 /**
- * Search page for organizations, projects, routines, standards, users, and other main objects
+ * Search page for teams, projects, routines, standards, users, and other main objects
  */
 export const SearchView = ({
     display,

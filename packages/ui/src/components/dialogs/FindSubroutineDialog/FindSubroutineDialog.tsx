@@ -31,9 +31,9 @@ export const FindSubroutineDialog = ({
                 isCompleteWithRootExcludeOwnedByUserId: ownerField!.value!.id,
                 isExternalWithRootExcludeOwnedByUserId: ownerField!.value!.id,
             } : {}),
-            ...((ownerField as any)?.__typename === "Organization" ? {
-                isCompleteWithRootExcludeOwnedByOrganizationId: ownerField!.value!.id,
-                isExternalWithRootExcludeOwnedByOrganizationId: ownerField!.value!.id,
+            ...((ownerField as any)?.__typename === "Team" ? {
+                isCompleteWithRootExcludeOwnedByTeamId: ownerField!.value!.id,
+                isExternalWithRootExcludeOwnedByTeamId: ownerField!.value!.id,
             } : {}),
             ...(!ownerField ? {
                 isCompleteWithRoot: true,

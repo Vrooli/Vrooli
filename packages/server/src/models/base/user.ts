@@ -26,8 +26,9 @@ const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>[
         isPrivate: noNull(data.isPrivate),
         isPrivateApis: noNull(data.isPrivateApis),
         isPrivateApisCreated: noNull(data.isPrivateApisCreated),
+        isPrivateCodes: noNull(data.isPrivateCodes),
+        isPrivateCodesCreated: noNull(data.isPrivateCodesCreated),
         isPrivateMemberships: noNull(data.isPrivateMemberships),
-        isPrivateOrganizationsCreated: noNull(data.isPrivateOrganizationsCreated),
         isPrivateProjects: noNull(data.isPrivateProjects),
         isPrivateProjectsCreated: noNull(data.isPrivateProjectsCreated),
         isPrivatePullRequests: noNull(data.isPrivatePullRequests),
@@ -37,16 +38,16 @@ const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>[
         isPrivateRoles: noNull(data.isPrivateRoles),
         isPrivateRoutines: noNull(data.isPrivateRoutines),
         isPrivateRoutinesCreated: noNull(data.isPrivateRoutinesCreated),
-        isPrivateSmartContracts: noNull(data.isPrivateSmartContracts),
         isPrivateStandards: noNull(data.isPrivateStandards),
         isPrivateStandardsCreated: noNull(data.isPrivateStandardsCreated),
+        isPrivateTeamsCreated: noNull(data.isPrivateTeamsCreated),
         isPrivateBookmarks: noNull(data.isPrivateBookmarks),
         isPrivateVotes: noNull(data.isPrivateVotes),
         notificationSettings: data.notificationSettings ?? null,
         // languages: TODO!!!
         focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
         translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
-    }
+    };
 };
 
 const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => {
@@ -60,7 +61,7 @@ const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]
         name: noNull(data.name),
         profileImage: data.profileImage,
         translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
-    }
+    };
 };
 
 export const UserModel: UserModelLogic = ({
@@ -107,7 +108,7 @@ export const UserModel: UserModelLogic = ({
                     profileImage: noNull(data.profileImage),
                     invitedByUser: { connect: { id: rest.userData.id } },
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             /** Update can be either a bot or your profile */
             update: async ({ data, ...rest }) => {
@@ -143,7 +144,7 @@ export const UserModel: UserModelLogic = ({
             isBotDepictingPerson: true,
             maxBookmarks: true,
             maxViews: true,
-            memberInOrganizationId: true,
+            memberInTeamId: true,
             minBookmarks: true,
             minViews: true,
             notInChatId: true,

@@ -3,7 +3,7 @@ import i18next from "i18next";
 import { ModelMap } from ".";
 import { defaultPermissions } from "../../utils";
 import { PremiumFormat } from "../formats";
-import { OrganizationModelLogic, PremiumModelLogic } from "./types";
+import { PremiumModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "Premium" as const;
 export const PremiumModel: PremiumModelLogic = ({
@@ -27,13 +27,13 @@ export const PremiumModel: PremiumModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
         }),
         visibility: {
@@ -41,8 +41,8 @@ export const PremiumModel: PremiumModelLogic = ({
             public: {},
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

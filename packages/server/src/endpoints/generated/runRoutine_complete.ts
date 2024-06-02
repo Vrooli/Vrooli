@@ -21,19 +21,7 @@ export const runRoutine_complete = {
             "color": true,
             "label": true,
             "owner": {
-              "User": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "bannerImage": true,
-                "handle": true,
-                "isBot": true,
-                "isBotDepictingPerson": true,
-                "name": true,
-                "profileImage": true,
-                "__typename": "User"
-              },
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -55,7 +43,19 @@ export const runRoutine_complete = {
                     "permissions": true
                   }
                 },
-                "__typename": "Organization"
+                "__typename": "Team"
+              },
+              "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "__typename": "User"
               }
             },
             "you": {
@@ -65,19 +65,7 @@ export const runRoutine_complete = {
             "__typename": "Label"
           },
           "owner": {
-            "User": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true,
-              "__typename": "User"
-            },
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -99,7 +87,19 @@ export const runRoutine_complete = {
                   "permissions": true
                 }
               },
-              "__typename": "Organization"
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
             }
           },
           "permissions": true,
@@ -191,19 +191,7 @@ export const runRoutine_complete = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -225,7 +213,19 @@ export const runRoutine_complete = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -235,19 +235,7 @@ export const runRoutine_complete = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -269,7 +257,19 @@ export const runRoutine_complete = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -318,6 +318,7 @@ export const runRoutine_complete = {
     "created_at": true,
     "updated_at": true,
     "completedAt": true,
+    "codeCallData": true,
     "isAutomatable": true,
     "isComplete": true,
     "isDeleted": true,
@@ -326,7 +327,6 @@ export const runRoutine_complete = {
     "simplicity": true,
     "timesStarted": true,
     "timesCompleted": true,
-    "smartContractCallData": true,
     "apiCallData": true,
     "versionIndex": true,
     "versionLabel": true,
@@ -388,7 +388,7 @@ export const runRoutine_complete = {
   "stepsCount": true,
   "inputsCount": true,
   "wasRunAutomatically": true,
-  "organization": {
+  "team": {
     "id": true,
     "bannerImage": true,
     "handle": true,
@@ -410,7 +410,7 @@ export const runRoutine_complete = {
         "permissions": true
       }
     },
-    "__typename": "Organization"
+    "__typename": "Team"
   },
   "user": {
     "id": true,

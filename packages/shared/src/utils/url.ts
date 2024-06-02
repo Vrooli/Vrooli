@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, ChatParticipant, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, Schedule, Session, SmartContractVersion, StandardVersion, View } from "../api/generated/graphqlTypes";
+import { ApiVersion, Bookmark, ChatParticipant, CodeVersion, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, Schedule, Session, StandardVersion, View } from "../api/generated/graphqlTypes";
 import { LINKS } from "../consts/ui";
 import { isOfType } from "./objects";
 
@@ -278,8 +278,8 @@ export const getObjectSlug = (object: NavigableObject | null | undefined, prefer
     // If the object is a run project, use the project version
     if (isOfType(object, "RunProject")) return getObjectSlug((object as Partial<RunProject>).projectVersion);
     // If object has root, use the root and version
-    if ((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion | SmartContractVersion>).root) {
-        const root = getObjectSlug((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion | SmartContractVersion>).root);
+    if ((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root) {
+        const root = getObjectSlug((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
         const versionId = uuidToBase36((object as { id?: string }).id ?? "");
         const version = prefersId ? versionId : (object as { handle?: string }).handle ?? versionId;
         return `${root}/${version}`;

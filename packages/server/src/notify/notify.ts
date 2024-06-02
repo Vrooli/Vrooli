@@ -10,7 +10,7 @@ import { logger } from "../events/logger";
 import { subscribableMapper } from "../events/subscriber";
 import { ModelMap } from "../models/base";
 import { PushDeviceModel } from "../models/base/pushDevice";
-import { OrganizationModelLogic } from "../models/base/types";
+import { TeamModelLogic } from "../models/base/types";
 import { withRedis } from "../redisConn";
 import { sendMail } from "../tasks/email/queue";
 import { sendPush } from "../tasks/push/queue";
@@ -25,7 +25,7 @@ export type NotificationCategory =
     "Award" |
     "IssueStatus" |
     "Message" |
-    "NewObjectInOrganization" |
+    "NewObjectInTeam" |
     "NewObjectInProject" |
     "NewQuestionOrIssue" |
     "ObjectActivity" |
@@ -185,8 +185,8 @@ const getEventStartLabel = (date: Date) => {
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<void>,
-    toOrganization: (organizationId: string, excludedUsers?: string[] | string) => Promise<void>,
-    toOwner: (owner: { __typename: "User" | "Organization", id: string }, excludedUsers?: string[] | string) => Promise<void>,
+    toTeam: (teamId: string, excludedUsers?: string[] | string) => Promise<void>,
+    toOwner: (owner: { __typename: "User" | "Team", id: string }, excludedUsers?: string[] | string) => Promise<void>,
     toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<void>,
     toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<void>,
 }
@@ -269,7 +269,7 @@ const replaceLabels = async (
 
 /**
  * Class returned by each notify function. Allows us to either
- * send the notification to one user, or to all admins of an organization
+ * send the notification to one user, or to all admins of a team
  */
 const NotifyResult = ({
     bodyKey,
@@ -311,14 +311,14 @@ const NotifyResult = ({
         await push({ bodyKey, category, link, titleKey, users });
     },
     /**
-     * Sends a notification to an organization
-     * @param organizationId The organization's id
+     * Sends a notification to a team
+     * @param teamId The team's id
      * @param excludedUsers IDs of users to exclude from the notification
      * (usually the user who triggered the notification)
      */
-    toOrganization: async (organizationId, excludedUsers) => {
-        // Find every admin of the organization, excluding the user who triggered the notification
-        const adminData = await ModelMap.get<OrganizationModelLogic>("Organization").query.findAdminInfo(organizationId, excludedUsers);
+    toTeam: async (teamId, excludedUsers) => {
+        // Find every admin of the team, excluding the user who triggered the notification
+        const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
         // Shape and translate the notification for each admin
         const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, adminData.map(({ id, languages }) => ({
             languages,
@@ -335,8 +335,8 @@ const NotifyResult = ({
     toOwner: async (owner, excludedUsers) => {
         if (owner.__typename === "User") {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toUser(owner.id);
-        } else if (owner.__typename === "Organization") {
-            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toOrganization(owner.id, excludedUsers);
+        } else if (owner.__typename === "Team") {
+            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toTeam(owner.id, excludedUsers);
         }
     },
     /**
@@ -408,8 +408,8 @@ const NotifyResult = ({
 });
 
 /**
- * Handles sending and registering notifications for a user or organization. 
- * Organization notifications are sent to every admin of the organization.
+ * Handles sending and registering notifications for a user or team. 
+ * Team notifications are sent to every admin of the team.
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
@@ -545,14 +545,14 @@ export const Notify = (languages: string[]) => ({
         link: `/questions/${questionId}`,
         titleKey: "NewQuestionOnObjectTitle",
     }),
-    pushNewObjectInOrganization: (objectType: `${GqlModelType}`, objectId: string, organizationId: string): NotifyResultType => NotifyResult({
-        bodyKey: "NewObjectInOrganizationBody",
-        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, organizationName: `<Label|Organization:${organizationId}>` },
-        category: "NewObjectInOrganization",
+    pushNewObjectInTeam: (objectType: `${GqlModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
+        bodyKey: "NewObjectInTeamBody",
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, teamName: `<Label|Team:${teamId}>` },
+        category: "NewObjectInTeam",
         languages,
         link: `/${LINKS[objectType]}/${objectId}`,
-        titleKey: "NewObjectInOrganizationTitle",
-        titleVariables: { organizationName: `<Label|Organization:${organizationId}>` },
+        titleKey: "NewObjectInTeamTitle",
+        titleVariables: { teamName: `<Label|Team:${teamId}>` },
     }),
     pushNewObjectInProject: (objectType: `${GqlModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
         bodyKey: "NewObjectInProjectBody",

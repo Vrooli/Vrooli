@@ -10,7 +10,7 @@ export const chatInvite_findMany = {
           "color": true,
           "label": true,
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -60,28 +60,21 @@ export const chatInvite_findMany = {
         "created_at": true,
         "updated_at": true,
         "openToAnyoneWithInvite": true,
-        "organization": {
+        "participants": {
+          "user": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true
+          },
           "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          }
+          "created_at": true,
+          "updated_at": true
         },
         "restrictedToRoles": {
           "members": {
@@ -97,7 +90,7 @@ export const chatInvite_findMany = {
               "name": true,
               "permissions": true,
               "membersCount": true,
-              "organization": {
+              "team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -137,7 +130,7 @@ export const chatInvite_findMany = {
           "name": true,
           "permissions": true,
           "membersCount": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -166,21 +159,28 @@ export const chatInvite_findMany = {
             "description": true
           }
         },
-        "participants": {
-          "user": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true
-          },
+        "team": {
           "id": true,
-          "created_at": true,
-          "updated_at": true
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          }
         },
         "participantsCount": true,
         "invitesCount": true,

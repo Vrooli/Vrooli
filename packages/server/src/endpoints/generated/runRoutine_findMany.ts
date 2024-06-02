@@ -37,7 +37,7 @@ export const runRoutine_findMany = {
       "stepsCount": true,
       "inputsCount": true,
       "wasRunAutomatically": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,

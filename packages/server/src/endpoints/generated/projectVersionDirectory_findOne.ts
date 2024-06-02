@@ -41,19 +41,7 @@ export const projectVersionDirectory_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -75,7 +63,19 @@ export const projectVersionDirectory_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -85,19 +85,7 @@ export const projectVersionDirectory_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -119,7 +107,19 @@ export const projectVersionDirectory_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -187,7 +187,7 @@ export const projectVersionDirectory_findOne = {
     },
     "__typename": "ApiVersion"
   },
-  "childNoteVersions": {
+  "childCodeVersions": {
     "root": {
       "id": true,
       "created_at": true,
@@ -201,19 +201,7 @@ export const projectVersionDirectory_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -235,7 +223,19 @@ export const projectVersionDirectory_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -245,19 +245,7 @@ export const projectVersionDirectory_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -279,7 +267,183 @@ export const projectVersionDirectory_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
+        }
+      },
+      "permissions": true,
+      "questionsCount": true,
+      "score": true,
+      "bookmarks": true,
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
+        "__typename": "Tag"
+      },
+      "transfersCount": true,
+      "views": true,
+      "you": {
+        "canDelete": true,
+        "canBookmark": true,
+        "canTransfer": true,
+        "canUpdate": true,
+        "canRead": true,
+        "canReact": true,
+        "isBookmarked": true,
+        "isViewed": true,
+        "reaction": true
+      },
+      "__typename": "Code"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "jsonVariable": true,
+      "name": true
+    },
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "isComplete": true,
+    "isDeleted": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "default": true,
+    "contractType": true,
+    "content": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "commentsCount": true,
+    "directoryListingsCount": true,
+    "forksCount": true,
+    "reportsCount": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
+    "__typename": "CodeVersion"
+  },
+  "childNoteVersions": {
+    "root": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "isPrivate": true,
+      "issuesCount": true,
+      "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
+        "__typename": "Label"
+      },
+      "owner": {
+        "Team": {
+          "id": true,
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -347,60 +511,6 @@ export const projectVersionDirectory_findOne = {
     },
     "__typename": "NoteVersion"
   },
-  "childOrganizations": {
-    "id": true,
-    "bannerImage": true,
-    "handle": true,
-    "created_at": true,
-    "updated_at": true,
-    "isOpenToNewMembers": true,
-    "isPrivate": true,
-    "commentsCount": true,
-    "membersCount": true,
-    "profileImage": true,
-    "reportsCount": true,
-    "bookmarks": true,
-    "tags": {
-      "id": true,
-      "created_at": true,
-      "tag": true,
-      "bookmarks": true,
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true
-      },
-      "you": {
-        "isOwn": true,
-        "isBookmarked": true
-      },
-      "__typename": "Tag"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "bio": true,
-      "name": true
-    },
-    "you": {
-      "canAddMembers": true,
-      "canDelete": true,
-      "canBookmark": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canRead": true,
-      "isBookmarked": true,
-      "isViewed": true,
-      "yourMembership": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isAdmin": true,
-        "permissions": true
-      }
-    },
-    "__typename": "Organization"
-  },
   "childProjectVersions": {
     "root": {
       "id": true,
@@ -415,19 +525,7 @@ export const projectVersionDirectory_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -449,7 +547,19 @@ export const projectVersionDirectory_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -459,19 +569,7 @@ export const projectVersionDirectory_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -493,7 +591,19 @@ export const projectVersionDirectory_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -565,19 +675,7 @@ export const projectVersionDirectory_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -599,7 +697,19 @@ export const projectVersionDirectory_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -609,19 +719,7 @@ export const projectVersionDirectory_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -643,7 +741,19 @@ export const projectVersionDirectory_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -692,6 +802,7 @@ export const projectVersionDirectory_findOne = {
     "created_at": true,
     "updated_at": true,
     "completedAt": true,
+    "codeCallData": true,
     "isAutomatable": true,
     "isComplete": true,
     "isDeleted": true,
@@ -700,7 +811,6 @@ export const projectVersionDirectory_findOne = {
     "simplicity": true,
     "timesStarted": true,
     "timesCompleted": true,
-    "smartContractCallData": true,
     "apiCallData": true,
     "versionIndex": true,
     "versionLabel": true,
@@ -713,170 +823,6 @@ export const projectVersionDirectory_findOne = {
     "outputsCount": true,
     "reportsCount": true,
     "__typename": "RoutineVersion"
-  },
-  "childSmartContractVersions": {
-    "root": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "isPrivate": true,
-      "issuesCount": true,
-      "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
-            "id": true,
-            "bannerImage": true,
-            "handle": true,
-            "profileImage": true,
-            "you": {
-              "canAddMembers": true,
-              "canDelete": true,
-              "canBookmark": true,
-              "canReport": true,
-              "canUpdate": true,
-              "canRead": true,
-              "isBookmarked": true,
-              "isViewed": true,
-              "yourMembership": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isAdmin": true,
-                "permissions": true
-              }
-            },
-            "__typename": "Organization"
-          }
-        },
-        "you": {
-          "canDelete": true,
-          "canUpdate": true
-        },
-        "__typename": "Label"
-      },
-      "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          },
-          "__typename": "Organization"
-        }
-      },
-      "permissions": true,
-      "questionsCount": true,
-      "score": true,
-      "bookmarks": true,
-      "tags": {
-        "id": true,
-        "created_at": true,
-        "tag": true,
-        "bookmarks": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true
-        },
-        "you": {
-          "isOwn": true,
-          "isBookmarked": true
-        },
-        "__typename": "Tag"
-      },
-      "transfersCount": true,
-      "views": true,
-      "you": {
-        "canDelete": true,
-        "canBookmark": true,
-        "canTransfer": true,
-        "canUpdate": true,
-        "canRead": true,
-        "canReact": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "reaction": true
-      },
-      "__typename": "SmartContract"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "jsonVariable": true,
-      "name": true
-    },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "isComplete": true,
-    "isDeleted": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "default": true,
-    "contractType": true,
-    "content": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "commentsCount": true,
-    "directoryListingsCount": true,
-    "forksCount": true,
-    "reportsCount": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
-    "__typename": "SmartContractVersion"
   },
   "childStandardVersions": {
     "root": {
@@ -892,19 +838,7 @@ export const projectVersionDirectory_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -926,7 +860,19 @@ export const projectVersionDirectory_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -936,19 +882,7 @@ export const projectVersionDirectory_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -970,7 +904,19 @@ export const projectVersionDirectory_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -1042,6 +988,60 @@ export const projectVersionDirectory_findOne = {
       "canRead": true
     },
     "__typename": "StandardVersion"
+  },
+  "childTeams": {
+    "id": true,
+    "bannerImage": true,
+    "handle": true,
+    "created_at": true,
+    "updated_at": true,
+    "isOpenToNewMembers": true,
+    "isPrivate": true,
+    "commentsCount": true,
+    "membersCount": true,
+    "profileImage": true,
+    "reportsCount": true,
+    "bookmarks": true,
+    "tags": {
+      "id": true,
+      "created_at": true,
+      "tag": true,
+      "bookmarks": true,
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true
+      },
+      "you": {
+        "isOwn": true,
+        "isBookmarked": true
+      },
+      "__typename": "Tag"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "bio": true,
+      "name": true
+    },
+    "you": {
+      "canAddMembers": true,
+      "canDelete": true,
+      "canBookmark": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canRead": true,
+      "isBookmarked": true,
+      "isViewed": true,
+      "yourMembership": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isAdmin": true,
+        "permissions": true
+      }
+    },
+    "__typename": "Team"
   },
   "parentDirectory": {
     "id": true,

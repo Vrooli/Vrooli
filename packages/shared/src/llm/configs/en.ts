@@ -280,10 +280,10 @@ export const config: LlmTaskConfig = {
 
             },
             {
-                name: "memberInOrganizationId",
+                name: "memberInTeamId",
                 type: "uuid",
                 is_required: false,
-                description: "The ID of the organization the bot is a member of.",
+                description: "The ID of the team the bot is a member of.",
             },
         ],
         rules: [
@@ -312,6 +312,60 @@ export const config: LlmTaskConfig = {
         ], config.__bot_properties),
         rules: config.__rules,
     }),
+    __dataConverterProperties: {
+        //...
+    },
+    DataConverterAdd: () => ({
+        label: "Add Code Converter Function",
+        commands: {
+            add: "Create a JavaScript function to transform data from one format to another.",
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__dataConverterProperties),
+        rules: config.__rules,
+    }),
+    DataConverterDelete: () => ({
+        label: "Delete Code Converter Function",
+        commands: {
+            delete: "Permanentely delete a code converter function. Make sure you want to do this before proceeding.",
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            },
+        ],
+        rules: config.__rules,
+    }),
+    DataConverterFind: () => ({
+        label: "Find Code Converter Function",
+        commands: {
+            find: "Look for existing code converter functions.",
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: [
+            ...config.__rules,
+            "Must include at least one search parameter (property).",
+        ],
+    }),
+    DataConverterUpdate: () => ({
+        label: "Update Code Converter Function",
+        commands: {
+            update: "Update a code converter function with the provided properties.",
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__dataConverterProperties),
+        rules: config.__rules,
+    }),
     __memberProperties: {
         id: {
             description: "The unique identifier for the member.",
@@ -321,8 +375,8 @@ export const config: LlmTaskConfig = {
             description: "Whether the member has administrative privileges.",
             example: "false",
         },
-        organizationId: {
-            description: "The ID of the organization the member belongs to.",
+        teamId: {
+            description: "The ID of the team the member belongs to.",
             type: "uuid",
         },
         userId: {
@@ -335,8 +389,8 @@ export const config: LlmTaskConfig = {
             description: "Whether the invited member will have administrative privileges.",
             example: "false",
         },
-        organizationId: {
-            description: "The ID of the organization to which the member is being invited.",
+        teamId: {
+            description: "The ID of the team to which the member is being invited.",
             type: "uuid",
         },
         userId: {
@@ -345,7 +399,7 @@ export const config: LlmTaskConfig = {
         },
         message: {
             description: "An optional message to the user being invited.",
-            example: "Welcome to our organization!",
+            example: "Welcome to our team!",
         },
     },
     MembersAdd: () => ({
@@ -356,7 +410,7 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             ["willBeAdmin", false],
             ["willHavePermissions", false],
-            ["organizationId", true],
+            ["teamId", true],
             ["userId", true],
             ["message", false],
         ], config.__memberInviteProperties),
@@ -389,10 +443,10 @@ export const config: LlmTaskConfig = {
 
             },
             {
-                name: "organizationId",
+                name: "teamId",
                 type: "uuid",
                 is_required: false,
-                description: "The ID of the organization the member is a member of.",
+                description: "The ID of the team the member is a member of.",
             },
         ],
         rules: [
@@ -648,7 +702,7 @@ export const config: LlmTaskConfig = {
             type: "uuid",
         },
         name: {
-            description: "Name of the role within an organization.",
+            description: "Name of the role within a team.",
             example: "Data Analyst",
         },
     },
@@ -973,9 +1027,9 @@ export const config: LlmTaskConfig = {
             reminder: "Remind you of something at a specific time, or act as a checklist",
             schedule: "Schedule an event, such as a routine",
             routine: "Complete a series of tasks, either through automation or manual completion",
-            project: "Organize notes, routines, projects, apis, smart contracts, standards, and organizations",
-            organization: "Own the same types of data as users/bots, and come with a team of members with group messaging",
-            role: "Define permissions for members (users/bots) in organizations",
+            project: "Organize notes, routines, projects, apis, smart contracts, standards, and teams",
+            team: "Own the same types of data as users/bots, and come with a team of members with group messaging",
+            role: "Define permissions for members (users/bots) in teams",
             bot: "Customized AI assistant",
             user: "Another user on the platform. Only allowed to use 'find' action for users.",
             standard: "Define data structure or LLM prompt. Allow for interoperability between subroutines and other applications",

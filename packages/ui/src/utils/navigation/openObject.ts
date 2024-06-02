@@ -11,12 +11,12 @@ export type ObjectType = "Api" |
     "Bookmark" |
     "Chat" |
     "ChatInvite" |
+    "Code" |
     "Comment" |
     "FocusMode" |
     "Meeting" |
     "MemberInvite" |
     "Note" |
-    "Organization" |
     "Project" |
     "Question" |
     "Reaction" |
@@ -25,9 +25,9 @@ export type ObjectType = "Api" |
     "RunProject" |
     "RunRoutine" |
     "Schedule" |
-    "SmartContract" |
     "Standard" |
     "Tag" |
+    "Team" |
     "User";
 
 /**

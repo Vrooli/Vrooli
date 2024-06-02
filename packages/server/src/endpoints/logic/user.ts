@@ -146,7 +146,7 @@ export const UserEndpoints: EndpointsUser = {
             throw new CustomError("0999", "NotImplemented", ["en"]);
         },
         /**
-         * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
+         * Exports user data to a JSON file (created/saved routines, projects, teams, etc.).
          * @returns JSON of all user data
          */
         exportData: async (_p, _d) => {

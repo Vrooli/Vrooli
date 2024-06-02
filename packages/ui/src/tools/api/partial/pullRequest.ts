@@ -37,8 +37,8 @@ export const pullRequest: GqlPartial<PullRequest> = {
             5: async () => rel((await import("./projectVersion")).projectVersion, "list"),
             6: async () => rel((await import("./routine")).routine, "list"),
             7: async () => rel((await import("./routineVersion")).routineVersion, "list"),
-            8: async () => rel((await import("./smartContract")).smartContract, "list"),
-            9: async () => rel((await import("./smartContractVersion")).smartContractVersion, "list"),
+            8: async () => rel((await import("./code")).code, "list"),
+            9: async () => rel((await import("./codeVersion")).codeVersion, "list"),
             10: async () => rel((await import("./standard")).standard, "list"),
             11: async () => rel((await import("./standardVersion")).standardVersion, "list"),
         },
@@ -51,20 +51,20 @@ export const pullRequest: GqlPartial<PullRequest> = {
         from: {
             __union: {
                 ApiVersion: 1,
+                CodeVersion: 9,
                 NoteVersion: 3,
                 ProjectVersion: 5,
                 RoutineVersion: 7,
-                SmartContractVersion: 9,
                 StandardVersion: 11,
             },
         },
         to: {
             __union: {
                 Api: 0,
+                Code: 8,
                 Note: 2,
                 Project: 4,
                 Routine: 6,
-                SmartContract: 8,
                 Standard: 10,
             },
         },

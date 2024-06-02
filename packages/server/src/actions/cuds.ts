@@ -22,9 +22,9 @@ import { profanityCheck } from "../validators/profanityCheck";
  * First performs the following validations, which also validates all relationships:  
  * - Yup validation (e.g. required fields, string min/max length)
  * - Detecting profanity in translation fields
- * - Ownership validation (e.g. user is owner of object, or user is a member of the organization with permission to edit/delete) 
+ * - Ownership validation (e.g. user is owner of object, or user is a member of the team with permission to edit/delete) 
  * - Transfer ownership validation
- * - Max count validation (e.g. user can't have more than 100 organizations)
+ * - Max count validation (e.g. user can't have more than 100 teams)
  * - Other custom validation
  * 
  * Then, it shapes create and update data to be inserted into the database. 

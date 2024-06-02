@@ -15,7 +15,7 @@ export const apiVersion_findMany = {
           "color": true,
           "label": true,
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -56,7 +56,7 @@ export const apiVersion_findMany = {
           }
         },
         "owner": {
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,

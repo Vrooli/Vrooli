@@ -28,8 +28,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean!
         permissions: String
+        ownedByTeamConnect: ID
         ownedByUserConnect: ID
-        ownedByOrganizationConnect: ID
         parentConnect: ID
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -41,8 +41,8 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         permissions: String
+        ownedByTeamConnect: ID
         ownedByUserConnect: ID
-        ownedByOrganizationConnect: ID
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -112,8 +112,8 @@ export const typeDef = gql`
         minScore: Int
         minBookmarks: Int
         minViews: Int
+        ownedByTeamId: ID
         ownedByUserId: ID
-        ownedByOrganizationId: ID
         parentId: ID
         pullRequestsId: ID
         searchString: String

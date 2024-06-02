@@ -16,7 +16,6 @@ export type ActionTrigger = "AccountNew" |
     "Fork" |
     "ObjectBookmark" |
     "ObjectReact" |
-    "OrganizationJoin" |
     "PullRequestClose" |
     "QuestionAnswer" |
     "ReportClose" |
@@ -24,9 +23,10 @@ export type ActionTrigger = "AccountNew" |
     "RunComplete" |
     "RunStart" |
     "SessionValidate" | // for checking anniversary
+    "TeamJoin" |
     "UserInvite"
 
-type Owner = { __typename: "User" | "Organization", id: string };
+type Owner = { __typename: "User" | "Team", id: string };
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.
@@ -121,13 +121,13 @@ export const Trigger = (languages: string[]) => ({
                 await Reputation().update("IssueCreatedWasRejected", issueCreatedById);
             }
         }
-        // Send notification to object owner(s) and subscribers of both the organization and the object with the issue
+        // Send notification to object owner(s) and subscribers of both the team and the object with the issue
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
             const notification = Notify(languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
-            if (objectOwner.__typename === "Organization") {
-                notification.toOrganization(objectOwner.id, userUpdatingIssueId);
-                notification.toSubscribers("Organization", objectOwner.id, userUpdatingIssueId);
+            if (objectOwner.__typename === "Team") {
+                notification.toTeam(objectOwner.id, userUpdatingIssueId);
+                notification.toSubscribers("Team", objectOwner.id, userUpdatingIssueId);
             }
             notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingIssueId);
         }
@@ -136,7 +136,7 @@ export const Trigger = (languages: string[]) => ({
      * Handle object creation. 
      * 
      * NOTE: Do NOT use this to handle new objects that are being transferred immediately 
-     * to a user/organization that's not yours
+     * to a user/team that's not yours
      * 
      * Steps: 
      * 1. If trackable for Awards AND the object was not copied/forked, increment progress
@@ -144,7 +144,7 @@ export const Trigger = (languages: string[]) => ({
      *     - Is a root object and has a public, complete version
      *     - Is a version and is public and complete
      *     - Is not a versionable object and is public and complete
-     * 3. If added to organization, send notification to organization members
+     * 3. If added to team, send notification to team members
      * 4. If added to project, send notification to project members
      * 5. Handle object-specific cases
      */
@@ -179,13 +179,13 @@ export const Trigger = (languages: string[]) => ({
         // Step 3
         // Determine if the object is subscribable
         const isSubscribable = isObjectSubscribable(objectType);
-        // If the object was added to an organization, send notification to organization members
-        if (isSubscribable && owner.__typename === "Organization") {
-            const notification = Notify(languages).pushNewObjectInOrganization(objectType, objectId, owner.id);
+        // If the object was added to a team, send notification to team members
+        if (isSubscribable && owner.__typename === "Team") {
+            const notification = Notify(languages).pushNewObjectInTeam(objectType, objectId, owner.id);
             // Send notification to admins, except the user who added it
-            notification.toOrganization(owner.id, createdById);
-            // Send notification to subscribers of the organization
-            notification.toSubscribers("Organization", owner.id, createdById);
+            notification.toTeam(owner.id, createdById);
+            // Send notification to subscribers of the team
+            notification.toSubscribers("Team", owner.id, createdById);
         }
         // Step 4
         // If the object was added to a project, send notification to project members
@@ -205,7 +205,7 @@ export const Trigger = (languages: string[]) => ({
     },
     /**
      * Object update logic: 
-     * 0. Don't do anything for Award progress, nor for adding to organization. Neither of these are applicable to updates.
+     * 0. Don't do anything for Award progress, nor for adding to team. Neither of these are applicable to updates.
      * 1. If trackable for Reputation AND the object was not copied/forked, increment progress if:
      *    - Is a root object, had no public and complete version before, and now has a public, complete version
      *    - Is a version, is public and complete, and there were no public and complete versions before. 
@@ -261,7 +261,7 @@ export const Trigger = (languages: string[]) => ({
     },
     /**
      * Object delete logic:
-     * 0. Don't do anything for Award progress, nor for adding to organization or project, 
+     * 0. Don't do anything for Award progress, nor for adding to team or project, 
      * nor for notifying subscribers. None of these are applicable to deletes.
      * 1. If trackable for Reputation AND the object was not copied/forked AND you are the original owner, decrement progress if:
      *    - Is a root object and had at least one public, complete version
@@ -315,11 +315,6 @@ export const Trigger = (languages: string[]) => ({
         // asdfasdf
         //TODO if reacted on chat message, send io addReaction event. Also make sure ChatCrud handles it
     },
-    organizationJoin: async (organizationId: string, userId: string) => {
-        // const notification = Notify(languages).pushOrganizationJoin();
-        // // Send notification to admins of organization
-        // asdf
-    },
     /**
      * Call this any time a pull request's status changes, including when it is first created.
      */
@@ -362,13 +357,13 @@ export const Trigger = (languages: string[]) => ({
                 await Reputation().update("PullRequestWasRejected", pullRequestCreatedById);
             }
         }
-        // Send notification to object owner(s) and subscribers of both the organization and the object with the pullRequest
+        // Send notification to object owner(s) and subscribers of both the team and the object with the pullRequest
         const isSubscribable = isObjectSubscribable(objectType);
         if (isSubscribable) {
             const notification = Notify(languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
-            if (objectOwner.__typename === "Organization") {
-                notification.toOrganization(objectOwner.id, userUpdatingPullRequestId);
-                notification.toSubscribers("Organization", objectOwner.id, userUpdatingPullRequestId);
+            if (objectOwner.__typename === "Team") {
+                notification.toTeam(objectOwner.id, userUpdatingPullRequestId);
+                notification.toSubscribers("Team", objectOwner.id, userUpdatingPullRequestId);
             }
             notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingPullRequestId);
         }
@@ -446,9 +441,9 @@ export const Trigger = (languages: string[]) => ({
         }
         // If object was deleted, decrease reputation of object owner(s)
         if (reportStatus === "ClosedDeleted") {
-            // If owners are an organization, decrease reputation of all admins
-            if (objectOwner.__typename === "Organization") {
-                const admins = await prismaInstance.organization.findUnique({
+            // If owners are a team, decrease reputation of all admins
+            if (objectOwner.__typename === "Team") {
+                const admins = await prismaInstance.team.findUnique({
                     where: { id: objectOwner.id },
                     select: {
                         members: {
@@ -469,14 +464,14 @@ export const Trigger = (languages: string[]) => ({
                 await Reputation().update("ObjectDeletedFromReport", objectOwner.id);
             }
         }
-        // Send notification to object owner(s) and subscribers of both the organization and the object with the report
+        // Send notification to object owner(s) and subscribers of both the team and the object with the report
         const isSubscribable = isObjectSubscribable(objectType);
         const excludeUserIds = userUpdatingReportId ? [userUpdatingReportId] : [];
         if (isSubscribable) {
             const notification = Notify(languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
-            if (objectOwner.__typename === "Organization") {
-                notification.toOrganization(objectOwner.id, excludeUserIds);
-                notification.toSubscribers("Organization", objectOwner.id, excludeUserIds);
+            if (objectOwner.__typename === "Team") {
+                notification.toTeam(objectOwner.id, excludeUserIds);
+                notification.toSubscribers("Team", objectOwner.id, excludeUserIds);
             }
             notification.toSubscribers(objectType as SubscribableObject, objectId, excludeUserIds);
         }
@@ -502,6 +497,11 @@ export const Trigger = (languages: string[]) => ({
     runRoutineStart: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If started automatically, send notification to user
         if (wasAutomatic) Notify(languages).pushRunStartedAutomatically(runId).toUser(userId);
+    },
+    teamJoin: async (teamId: string, userId: string) => {
+        // const notification = Notify(languages).pushTeamJoin();
+        // // Send notification to admins of team
+        // asdf
     },
     userInvite: async (referrerId: string, joinedUsername: string) => {
         // Send notification to referrer

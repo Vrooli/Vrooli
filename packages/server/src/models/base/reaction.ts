@@ -12,6 +12,7 @@ import { ReactionModelLogic } from "./types";
 const forMapper: { [key in ReactionFor]: string } = {
     Api: "api",
     ChatMessage: "chatMessage",
+    Code: "code",
     Comment: "comment",
     Issue: "issue",
     Note: "note",
@@ -21,7 +22,6 @@ const forMapper: { [key in ReactionFor]: string } = {
     QuestionAnswer: "questionAnswer",
     Quiz: "quiz",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
 };
 

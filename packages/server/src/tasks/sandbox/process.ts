@@ -9,7 +9,7 @@ export const sandboxProcess = async ({ data }: Job<SandboxProcessPayload>) => {
         // Create a new child process manager to run the user code
         const manager = new ChildProcessManager();
         // Read the user code from the database
-        const codeObject = await prismaInstance.smart_contract_version.findUnique({
+        const codeObject = await prismaInstance.code_version.findUnique({
             where: { id: data.codeVersionId },
             select: { id: true, content: true },
         });

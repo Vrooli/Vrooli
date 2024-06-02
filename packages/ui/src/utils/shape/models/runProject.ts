@@ -1,9 +1,9 @@
 import { RunProject, RunProjectCreateInput, RunProjectUpdateInput } from "@local/shared";
 import { CanConnect, ShapeModel } from "types";
-import { OrganizationShape } from "./organization";
 import { ProjectVersionShape } from "./projectVersion";
 import { RunProjectStepShape, shapeRunProjectStep } from "./runProjectStep";
 import { ScheduleShape, shapeSchedule } from "./schedule";
+import { TeamShape } from "./team";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type RunProjectShape = Pick<RunProject, "id" | "isPrivate" | "completedComplexity" | "contextSwitches" | "name" | "status" | "timeElapsed"> & {
@@ -11,7 +11,7 @@ export type RunProjectShape = Pick<RunProject, "id" | "isPrivate" | "completedCo
     steps?: RunProjectStepShape[] | null;
     schedule?: ScheduleShape | null;
     projectVersion?: CanConnect<ProjectVersionShape> | null;
-    organization?: CanConnect<OrganizationShape> | null;
+    team?: CanConnect<TeamShape> | null;
 }
 
 export const shapeRunProject: ShapeModel<RunProjectShape, RunProjectCreateInput, RunProjectUpdateInput> = {
@@ -20,7 +20,7 @@ export const shapeRunProject: ShapeModel<RunProjectShape, RunProjectCreateInput,
         ...createRel(d, "steps", ["Create"], "many", shapeRunProjectStep),
         ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
         ...createRel(d, "projectVersion", ["Connect"], "one"),
-        ...createRel(d, "organization", ["Connect"], "one"),
+        ...createRel(d, "team", ["Connect"], "one"),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate", "completedComplexity", "contextSwitches", "status", "timeElapsed"),

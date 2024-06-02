@@ -243,7 +243,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
                 delete translation.language;
                 // Construct an object with the bot's configuration
                 const botConfig = {
-                    // In the future, we can wrap this with the bot's role in the organization (when relevant)
+                    // In the future, we can wrap this with the bot's role in the team (when relevant)
                     metadata: {
                         name: data.name,
                     },

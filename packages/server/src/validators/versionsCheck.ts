@@ -23,7 +23,13 @@ export const versionsCheck = async ({
     Delete,
     userData,
 }: {
-    objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
+    objectType: `${GqlModelType.ApiVersion
+    | GqlModelType.CodeVersion
+    | GqlModelType.NoteVersion
+    | GqlModelType.ProjectVersion
+    | GqlModelType.RoutineVersion
+    | GqlModelType.StandardVersion
+    }`,
     Create: {
         input: {
             id: string,

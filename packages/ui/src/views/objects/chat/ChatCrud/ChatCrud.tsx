@@ -102,7 +102,7 @@ export const chatInitialValues = (
         __typename: "Chat" as const,
         id: DUMMY_ID,
         openToAnyoneWithInvite: false,
-        organization: null,
+        team: null,
         invites: [],
         labels: [],
         // Add yourself to the participants list
@@ -432,7 +432,7 @@ const ChatForm = ({
                                         }}
                                     >
                                         <FormContainer>
-                                            {/* TODO relationshiplist should be for connecting organization and inviting users. Can invite non-members even if organization specified, but the search should show members first */}
+                                            {/* TODO relationshiplist should be for connecting team and inviting users. Can invite non-members even if team specified, but the search should show members first */}
                                             <RelationshipList
                                                 isEditing={true}
                                                 objectType={"Chat"}

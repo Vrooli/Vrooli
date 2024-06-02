@@ -116,6 +116,24 @@ export const endpoints = {
             update: toMutation("chatParticipantUpdate", "ChatParticipantUpdateInput", chatParticipant, "full"),
         };
     },
+    code: async () => {
+        const { code } = await import("./partial/code");
+        return {
+            findOne: toQuery("code", "FindByIdInput", code, "full"),
+            findMany: toQuery("codes", "CodeSearchInput", ...(await toSearch(code))),
+            create: toMutation("codeCreate", "CodeCreateInput", code, "full"),
+            update: toMutation("codeUpdate", "CodeUpdateInput", code, "full"),
+        };
+    },
+    codeVersion: async () => {
+        const { codeVersion } = await import("./partial/codeVersion");
+        return {
+            findOne: toQuery("codeVersion", "FindVersionInput", codeVersion, "full"),
+            findMany: toQuery("codeVersions", "CodeVersionSearchInput", ...(await toSearch(codeVersion))),
+            create: toMutation("codeVersionCreate", "CodeVersionCreateInput", codeVersion, "full"),
+            update: toMutation("codeVersionUpdate", "CodeVersionUpdateInput", codeVersion, "full"),
+        };
+    },
     comment: async () => {
         const { comment, commentSearchResult } = await import("./partial/comment");
         return {
@@ -274,15 +292,6 @@ export const endpoints = {
             update: toMutation("notificationSubscriptionUpdate", "NotificationSubscriptionUpdateInput", notificationSubscription, "full"),
         };
     },
-    organization: async () => {
-        const { organization } = await import("./partial/organization");
-        return {
-            findOne: toQuery("organization", "FindByIdOrHandleInput", organization, "full"),
-            findMany: toQuery("organizations", "OrganizationSearchInput", ...(await toSearch(organization))),
-            create: toMutation("organizationCreate", "OrganizationCreateInput", organization, "full"),
-            update: toMutation("organizationUpdate", "OrganizationUpdateInput", organization, "full"),
-        };
-    },
     phone: async () => {
         const { phone } = await import("./partial/phone");
         const { success } = await import("./partial/success");
@@ -299,13 +308,13 @@ export const endpoints = {
                 pageInfo: {
                     hasNextPage: true,
                     endCursorApi: true,
+                    endCursorCode: true,
                     endCursorNote: true,
-                    endCursorOrganization: true,
                     endCursorProject: true,
                     endCursorQuestion: true,
                     endCursorRoutine: true,
-                    endCursorSmartContract: true,
                     endCursorStandard: true,
+                    endCursorTeam: true,
                     endCursorUser: true,
                 },
             }))),
@@ -329,18 +338,6 @@ export const endpoints = {
             update: toMutation("projectUpdate", "ProjectUpdateInput", project, "full"),
         };
     },
-    projectOrOrganization: async () => {
-        const { projectOrOrganization } = await import("./partial/projectOrOrganization");
-        return {
-            findMany: toQuery("projectOrOrganizations", "ProjectOrOrganizationSearchInput", ...(await toSearch(projectOrOrganization, {
-                pageInfo: {
-                    hasNextPage: true,
-                    endCursorProject: true,
-                    endCursorOrganization: true,
-                },
-            }))),
-        };
-    },
     projectOrRoutine: async () => {
         const { projectOrRoutine } = await import("./partial/projectOrRoutine");
         return {
@@ -349,6 +346,18 @@ export const endpoints = {
                     hasNextPage: true,
                     endCursorProject: true,
                     endCursorRoutine: true,
+                },
+            }))),
+        };
+    },
+    projectOrTeam: async () => {
+        const { projectOrTeam } = await import("./partial/projectOrTeam");
+        return {
+            findMany: toQuery("projectOrTeams", "ProjectOrTeamSearchInput", ...(await toSearch(projectOrTeam, {
+                pageInfo: {
+                    hasNextPage: true,
+                    endCursorProject: true,
+                    endCursorTeam: true,
                 },
             }))),
         };
@@ -610,24 +619,6 @@ export const endpoints = {
             update: toMutation("scheduleRecurrenceUpdate", "ScheduleRecurrenceUpdateInput", scheduleRecurrence, "full"),
         };
     },
-    smartContract: async () => {
-        const { smartContract } = await import("./partial/smartContract");
-        return {
-            findOne: toQuery("smartContract", "FindByIdInput", smartContract, "full"),
-            findMany: toQuery("smartContracts", "SmartContractSearchInput", ...(await toSearch(smartContract))),
-            create: toMutation("smartContractCreate", "SmartContractCreateInput", smartContract, "full"),
-            update: toMutation("smartContractUpdate", "SmartContractUpdateInput", smartContract, "full"),
-        };
-    },
-    smartContractVersion: async () => {
-        const { smartContractVersion } = await import("./partial/smartContractVersion");
-        return {
-            findOne: toQuery("smartContractVersion", "FindVersionInput", smartContractVersion, "full"),
-            findMany: toQuery("smartContractVersions", "SmartContractVersionSearchInput", ...(await toSearch(smartContractVersion))),
-            create: toMutation("smartContractVersionCreate", "SmartContractVersionCreateInput", smartContractVersion, "full"),
-            update: toMutation("smartContractVersionUpdate", "SmartContractVersionUpdateInput", smartContractVersion, "full"),
-        };
-    },
     standard: async () => {
         const { standard } = await import("./partial/standard");
         return {
@@ -652,10 +643,10 @@ export const endpoints = {
             findMany: toQuery("statsApi", "StatsApiSearchInput", ...(await toSearch(statsApi))),
         };
     },
-    statsOrganization: async () => {
-        const { statsOrganization } = await import("./partial/statsOrganization");
+    statsCode: async () => {
+        const { statsCode } = await import("./partial/statsCode");
         return {
-            findMany: toQuery("statsOrganization", "StatsOrganizationSearchInput", ...(await toSearch(statsOrganization))),
+            findMany: toQuery("statsCode", "StatsCodeSearchInput", ...(await toSearch(statsCode))),
         };
     },
     statsProject: async () => {
@@ -682,16 +673,16 @@ export const endpoints = {
             findMany: toQuery("statsSite", "StatsSiteSearchInput", ...(await toSearch(statsSite))),
         };
     },
-    statsSmartContract: async () => {
-        const { statsSmartContract } = await import("./partial/statsSmartContract");
-        return {
-            findMany: toQuery("statsSmartContract", "StatsSmartContractSearchInput", ...(await toSearch(statsSmartContract))),
-        };
-    },
     statsStandard: async () => {
         const { statsStandard } = await import("./partial/statsStandard");
         return {
             findMany: toQuery("statsStandard", "StatsStandardSearchInput", ...(await toSearch(statsStandard))),
+        };
+    },
+    statsTeam: async () => {
+        const { statsTeam } = await import("./partial/statsTeam");
+        return {
+            findMany: toQuery("statsTeam", "StatsTeamSearchInput", ...(await toSearch(statsTeam))),
         };
     },
     statsUser: async () => {
@@ -707,6 +698,15 @@ export const endpoints = {
             findMany: toQuery("tags", "TagSearchInput", ...(await toSearch(tag))),
             create: toMutation("tagCreate", "TagCreateInput", tag, "full"),
             update: toMutation("tagUpdate", "TagUpdateInput", tag, "full"),
+        };
+    },
+    team: async () => {
+        const { team } = await import("./partial/team");
+        return {
+            findOne: toQuery("team", "FindByIdOrHandleInput", team, "full"),
+            findMany: toQuery("teams", "TeamSearchInput", ...(await toSearch(team))),
+            create: toMutation("teamCreate", "TeamCreateInput", team, "full"),
+            update: toMutation("teamUpdate", "TeamUpdateInput", team, "full"),
         };
     },
     transfer: async () => {

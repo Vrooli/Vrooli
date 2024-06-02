@@ -49,7 +49,7 @@ export const standard_findMany = {
         "color": true,
         "label": true,
         "owner": {
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -90,7 +90,7 @@ export const standard_findMany = {
         }
       },
       "owner": {
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,

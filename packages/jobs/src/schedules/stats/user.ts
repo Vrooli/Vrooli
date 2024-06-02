@@ -5,8 +5,8 @@ type BatchApisResult = Record<string, {
     apisCreated: number;
 }>
 
-type BatchOrganizationsResult = Record<string, {
-    organizationsCreated: number;
+type BatchTeamsResult = Record<string, {
+    teamsCreated: number;
 }>
 
 type BatchProjectsResult = Record<string, {
@@ -40,10 +40,10 @@ type BatchRunRoutinesResult = Record<string, {
     runRoutineContextSwitchesAverage: number;
 }>
 
-type BatchSmartContractsResult = Record<string, {
-    smartContractsCreated: number;
-    smartContractsCompleted: number;
-    smartContractCompletionTimeAverage: number;
+type BatchCodesResult = Record<string, {
+    codesCreated: number;
+    codesCompleted: number;
+    codeCompletionTimeAverage: number;
 }>
 
 type BatchStandardsResult = Record<string, {
@@ -98,34 +98,34 @@ const batchApis = async (
 };
 
 /**
- * Batch collects organization stats for a list of users
+ * Batch collects team stats for a list of users
  * @param userIds The IDs of the users to collect stats for
  * @param periodStart When the period started
  * @param periodEnd When the period ended
- * @returns A map of user IDs to organization stats
+ * @returns A map of user IDs to team stats
  */
-const batchOrganizations = async (
+const batchTeams = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchOrganizationsResult> => {
+): Promise<BatchTeamsResult> => {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
-        organizationsCreated: 0,
+        teamsCreated: 0,
     }]));
     try {
-        return await batchGroup<Prisma.organizationFindManyArgs, BatchOrganizationsResult>({
+        return await batchGroup<Prisma.teamFindManyArgs, BatchTeamsResult>({
             initialResult,
             processBatch: async (batch, result) => {
                 // For each, add stats to the user
-                batch.forEach(organization => {
-                    const userId = organization.createdById;
+                batch.forEach(team => {
+                    const userId = team.createdById;
                     if (!userId) return;
                     const currResult = result[userId];
                     if (!currResult) return;
-                    currResult.organizationsCreated += 1;
+                    currResult.teamsCreated += 1;
                 });
             },
-            objectType: "Organization",
+            objectType: "Team",
             select: {
                 id: true,
                 createdById: true,
@@ -136,7 +136,7 @@ const batchOrganizations = async (
             },
         });
     } catch (error) {
-        logger.error("batchOrganizations caught error", { error });
+        logger.error("batchTeams caught error", { error });
     }
     return initialResult;
 };
@@ -485,36 +485,36 @@ const batchRunRoutines = async (
 };
 
 /**
- * Batch collects smart contract stats for a list of users
+ * Batch collects code stats for a list of users
  * @param userIds The IDs of the users to collect stats for
  * @param periodStart When the period started
  * @param periodEnd When the period ended
- * @returns A map of user IDs to smart contract stats
+ * @returns A map of user IDs to code stats
  */
-const batchSmartContracts = async (
+const batchCodes = async (
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchSmartContractsResult> => {
+): Promise<BatchCodesResult> => {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
-        smartContractsCreated: 0,
-        smartContractsCompleted: 0,
-        smartContractCompletionTimeAverage: 0,
+        codesCreated: 0,
+        codesCompleted: 0,
+        codeCompletionTimeAverage: 0,
     }]));
     try {
-        return await batchGroup<Prisma.smart_contractFindManyArgs, BatchSmartContractsResult>({
+        return await batchGroup<Prisma.codeFindManyArgs, BatchCodesResult>({
             initialResult,
             processBatch: async (batch, result) => {
                 // For each, add stats to the user
-                batch.forEach(smartContract => {
-                    const userId = smartContract.createdById;
+                batch.forEach(code => {
+                    const userId = code.createdById;
                     if (!userId) return;
                     const currResult = result[userId];
                     if (!currResult) return;
-                    currResult.smartContractsCreated += 1;
-                    if (smartContract.hasCompleteVersion) {
-                        currResult.smartContractsCompleted += 1;
-                        if (smartContract.completedAt) currResult.smartContractCompletionTimeAverage += (new Date(smartContract.completedAt).getTime() - new Date(smartContract.created_at).getTime());
+                    currResult.codesCreated += 1;
+                    if (code.hasCompleteVersion) {
+                        currResult.codesCompleted += 1;
+                        if (code.completedAt) currResult.codeCompletionTimeAverage += (new Date(code.completedAt).getTime() - new Date(code.created_at).getTime());
                     }
                 });
             },
@@ -523,13 +523,13 @@ const batchSmartContracts = async (
                 Object.keys(result).forEach(userId => {
                     const currResult = result[userId];
                     if (!currResult) return;
-                    if (currResult.smartContractsCompleted > 0) {
-                        currResult.smartContractCompletionTimeAverage /= currResult.smartContractsCompleted;
+                    if (currResult.codesCompleted > 0) {
+                        currResult.codeCompletionTimeAverage /= currResult.codesCompleted;
                     }
                 });
                 return result;
             },
-            objectType: "SmartContract",
+            objectType: "Code",
             select: {
                 id: true,
                 completedAt: true,
@@ -547,7 +547,7 @@ const batchSmartContracts = async (
             },
         });
     } catch (error) {
-        logger.error("batchSmartContracts caught error", { error });
+        logger.error("batchCodes caught error", { error });
     }
     return initialResult;
 };
@@ -639,14 +639,14 @@ export const logUserStats = async (
                 const userIds = batch.map(user => user.id);
                 // Batch collect stats
                 const apiStats = await batchApis(userIds, periodStart, periodEnd);
-                const organizationStats = await batchOrganizations(userIds, periodStart, periodEnd);
+                const codeStats = await batchCodes(userIds, periodStart, periodEnd);
                 const projectStats = await batchProjects(userIds, periodStart, periodEnd);
                 const quizStats = await batchQuizzes(userIds, periodStart, periodEnd);
                 const routineStats = await batchRoutines(userIds, periodStart, periodEnd);
                 const runProjectStats = await batchRunProjects(userIds, periodStart, periodEnd);
                 const runRoutineStats = await batchRunRoutines(userIds, periodStart, periodEnd);
-                const smartContractStats = await batchSmartContracts(userIds, periodStart, periodEnd);
                 const standardStats = await batchStandards(userIds, periodStart, periodEnd);
+                const teamStats = await batchTeams(userIds, periodStart, periodEnd);
                 // Create stats for each user
                 await prismaInstance.stats_user.createMany({
                     data: batch.map(user => ({
@@ -655,14 +655,14 @@ export const logUserStats = async (
                         periodEnd,
                         periodType,
                         ...(apiStats[user.id] || { apisCreated: 0 }),
-                        ...(organizationStats[user.id] || { organizationsCreated: 0 }),
+                        ...(codeStats[user.id] || { codeCompletionTimeAverage: 0, codesCompleted: 0, codesCreated: 0 }),
                         ...(projectStats[user.id] || { projectsCompleted: 0, projectCompletionTimeAverage: 0, projectsCreated: 0 }),
                         ...(quizStats[user.id] || { quizzesFailed: 0, quizzesPassed: 0 }),
                         ...(routineStats[user.id] || { routineCompletionTimeAverage: 0, routinesCompleted: 0, routinesCreated: 0 }),
                         ...(runProjectStats[user.id] || { runProjectCompletionTimeAverage: 0, runProjectContextSwitchesAverage: 0, runProjectsCompleted: 0, runProjectsStarted: 0 }),
                         ...(runRoutineStats[user.id] || { runRoutineCompletionTimeAverage: 0, runRoutineContextSwitchesAverage: 0, runRoutinesCompleted: 0, runRoutinesStarted: 0 }),
-                        ...(smartContractStats[user.id] || { smartContractCompletionTimeAverage: 0, smartContractsCompleted: 0, smartContractsCreated: 0 }),
                         ...(standardStats[user.id] || { standardCompletionTimeAverage: 0, standardsCompleted: 0, standardsCreated: 0 }),
+                        ...(teamStats[user.id] || { organizationsCreated: 0 }),
                     })),
                 });
             },

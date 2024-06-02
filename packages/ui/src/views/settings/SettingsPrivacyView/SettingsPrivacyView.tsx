@@ -65,6 +65,11 @@ const SettingsPrivacyForm = ({
                     />
                     <SettingsToggleListItem
                         disabled={isPrivateField.value}
+                        title={t("PrivateCodes")}
+                        name="isPrivateCodes"
+                    />
+                    <SettingsToggleListItem
+                        disabled={isPrivateField.value}
                         title={t("PrivateProjects")}
                         name="isPrivateProjects"
                     />
@@ -72,11 +77,6 @@ const SettingsPrivacyForm = ({
                         disabled={isPrivateField.value}
                         title={t("PrivateRoutines")}
                         name="isPrivateRoutines"
-                    />
-                    <SettingsToggleListItem
-                        disabled={isPrivateField.value}
-                        title={t("PrivateSmartContracts")}
-                        name="isPrivateSmartContracts"
                     />
                     <SettingsToggleListItem
                         disabled={isPrivateField.value}
@@ -124,9 +124,9 @@ export const SettingsPrivacyView = ({
                             isPrivate: profile?.isPrivate ?? false,
                             isPrivateApis: profile?.isPrivateApis ?? false,
                             isPrivateBookmarks: profile?.isPrivateBookmarks ?? false,
+                            isPrivateCodes: profile?.isPrivateCodes ?? false,
                             isPrivateProjects: profile?.isPrivateProjects ?? false,
                             isPrivateRoutines: profile?.isPrivateRoutines ?? false,
-                            isPrivateSmartContracts: profile?.isPrivateSmartContracts ?? false,
                             isPrivateStandards: profile?.isPrivateStandards ?? false,
                         } as ProfileUpdateInput}
                         onSubmit={(values, helpers) => {

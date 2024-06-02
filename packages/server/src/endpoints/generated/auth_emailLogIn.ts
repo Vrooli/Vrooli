@@ -2611,10 +2611,27 @@ export const auth_emailLogIn = {
                   "kind": "Field",
                   "name": {
                     "kind": "Name",
-                    "value": "focusModes",
+                    "value": "codesCount",
                     "loc": {
                       "start": 5539,
                       "end": 5549
+                    }
+                  },
+                  "arguments": [],
+                  "directives": [],
+                  "loc": {
+                    "start": 5539,
+                    "end": 5549
+                  }
+                },
+                {
+                  "kind": "Field",
+                  "name": {
+                    "kind": "Name",
+                    "value": "focusModes",
+                    "loc": {
+                      "start": 5558,
+                      "end": 5568
                     }
                   },
                   "arguments": [],
@@ -2628,8 +2645,8 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 5564,
-                            "end": 5571
+                            "start": 5583,
+                            "end": 5590
                           }
                         },
                         "arguments": [],
@@ -2643,15 +2660,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 5590,
-                                  "end": 5592
+                                  "start": 5609,
+                                  "end": 5611
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5590,
-                                "end": 5592
+                                "start": 5609,
+                                "end": 5611
                               }
                             },
                             {
@@ -2660,15 +2677,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 5609,
-                                  "end": 5619
+                                  "start": 5628,
+                                  "end": 5638
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5609,
-                                "end": 5619
+                                "start": 5628,
+                                "end": 5638
                               }
                             },
                             {
@@ -2677,8 +2694,8 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 5636,
-                                  "end": 5639
+                                  "start": 5655,
+                                  "end": 5658
                                 }
                               },
                               "arguments": [],
@@ -2692,15 +2709,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5662,
-                                        "end": 5664
+                                        "start": 5681,
+                                        "end": 5683
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5662,
-                                      "end": 5664
+                                      "start": 5681,
+                                      "end": 5683
                                     }
                                   },
                                   {
@@ -2709,15 +2726,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 5685,
-                                        "end": 5695
+                                        "start": 5704,
+                                        "end": 5714
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5685,
-                                      "end": 5695
+                                      "start": 5704,
+                                      "end": 5714
                                     }
                                   },
                                   {
@@ -2726,15 +2743,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 5716,
-                                        "end": 5719
+                                        "start": 5735,
+                                        "end": 5738
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5716,
-                                      "end": 5719
+                                      "start": 5735,
+                                      "end": 5738
                                     }
                                   },
                                   {
@@ -2743,15 +2760,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 5740,
-                                        "end": 5749
+                                        "start": 5759,
+                                        "end": 5768
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5740,
-                                      "end": 5749
+                                      "start": 5759,
+                                      "end": 5768
                                     }
                                   },
                                   {
@@ -2760,8 +2777,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 5770,
-                                        "end": 5782
+                                        "start": 5789,
+                                        "end": 5801
                                       }
                                     },
                                     "arguments": [],
@@ -2775,15 +2792,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5809,
-                                              "end": 5811
+                                              "start": 5828,
+                                              "end": 5830
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5809,
-                                            "end": 5811
+                                            "start": 5828,
+                                            "end": 5830
                                           }
                                         },
                                         {
@@ -2792,15 +2809,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 5836,
-                                              "end": 5844
+                                              "start": 5855,
+                                              "end": 5863
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5836,
-                                            "end": 5844
+                                            "start": 5855,
+                                            "end": 5863
                                           }
                                         },
                                         {
@@ -2809,26 +2826,26 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5869,
-                                              "end": 5880
+                                              "start": 5888,
+                                              "end": 5899
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5869,
-                                            "end": 5880
+                                            "start": 5888,
+                                            "end": 5899
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5783,
-                                        "end": 5902
+                                        "start": 5802,
+                                        "end": 5921
                                       }
                                     },
                                     "loc": {
-                                      "start": 5770,
-                                      "end": 5902
+                                      "start": 5789,
+                                      "end": 5921
                                     }
                                   },
                                   {
@@ -2837,8 +2854,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 5923,
-                                        "end": 5926
+                                        "start": 5942,
+                                        "end": 5945
                                       }
                                     },
                                     "arguments": [],
@@ -2852,15 +2869,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 5953,
-                                              "end": 5958
+                                              "start": 5972,
+                                              "end": 5977
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5953,
-                                            "end": 5958
+                                            "start": 5972,
+                                            "end": 5977
                                           }
                                         },
                                         {
@@ -2869,37 +2886,37 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 5983,
-                                              "end": 5995
+                                              "start": 6002,
+                                              "end": 6014
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5983,
-                                            "end": 5995
+                                            "start": 6002,
+                                            "end": 6014
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5927,
-                                        "end": 6017
+                                        "start": 5946,
+                                        "end": 6036
                                       }
                                     },
                                     "loc": {
-                                      "start": 5923,
-                                      "end": 6017
+                                      "start": 5942,
+                                      "end": 6036
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5640,
-                                  "end": 6035
+                                  "start": 5659,
+                                  "end": 6054
                                 }
                               },
                               "loc": {
-                                "start": 5636,
-                                "end": 6035
+                                "start": 5655,
+                                "end": 6054
                               }
                             },
                             {
@@ -2908,8 +2925,8 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 6052,
-                                  "end": 6061
+                                  "start": 6071,
+                                  "end": 6080
                                 }
                               },
                               "arguments": [],
@@ -2923,8 +2940,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 6084,
-                                        "end": 6090
+                                        "start": 6103,
+                                        "end": 6109
                                       }
                                     },
                                     "arguments": [],
@@ -2938,15 +2955,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6117,
-                                              "end": 6119
+                                              "start": 6136,
+                                              "end": 6138
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6117,
-                                            "end": 6119
+                                            "start": 6136,
+                                            "end": 6138
                                           }
                                         },
                                         {
@@ -2955,15 +2972,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 6144,
-                                              "end": 6149
+                                              "start": 6163,
+                                              "end": 6168
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6144,
-                                            "end": 6149
+                                            "start": 6163,
+                                            "end": 6168
                                           }
                                         },
                                         {
@@ -2972,26 +2989,26 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 6174,
-                                              "end": 6179
+                                              "start": 6193,
+                                              "end": 6198
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6174,
-                                            "end": 6179
+                                            "start": 6193,
+                                            "end": 6198
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6091,
-                                        "end": 6201
+                                        "start": 6110,
+                                        "end": 6220
                                       }
                                     },
                                     "loc": {
-                                      "start": 6084,
-                                      "end": 6201
+                                      "start": 6103,
+                                      "end": 6220
                                     }
                                   },
                                   {
@@ -3000,8 +3017,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "reminderList",
                                       "loc": {
-                                        "start": 6222,
-                                        "end": 6234
+                                        "start": 6241,
+                                        "end": 6253
                                       }
                                     },
                                     "arguments": [],
@@ -3015,15 +3032,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6261,
-                                              "end": 6263
+                                              "start": 6280,
+                                              "end": 6282
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6261,
-                                            "end": 6263
+                                            "start": 6280,
+                                            "end": 6282
                                           }
                                         },
                                         {
@@ -3032,15 +3049,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6288,
-                                              "end": 6298
+                                              "start": 6307,
+                                              "end": 6317
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6288,
-                                            "end": 6298
+                                            "start": 6307,
+                                            "end": 6317
                                           }
                                         },
                                         {
@@ -3049,15 +3066,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 6323,
-                                              "end": 6333
+                                              "start": 6342,
+                                              "end": 6352
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6323,
-                                            "end": 6333
+                                            "start": 6342,
+                                            "end": 6352
                                           }
                                         },
                                         {
@@ -3066,8 +3083,8 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "reminders",
                                             "loc": {
-                                              "start": 6358,
-                                              "end": 6367
+                                              "start": 6377,
+                                              "end": 6386
                                             }
                                           },
                                           "arguments": [],
@@ -3081,15 +3098,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6398,
-                                                    "end": 6400
+                                                    "start": 6417,
+                                                    "end": 6419
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6398,
-                                                  "end": 6400
+                                                  "start": 6417,
+                                                  "end": 6419
                                                 }
                                               },
                                               {
@@ -3098,15 +3115,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 6429,
-                                                    "end": 6439
+                                                    "start": 6448,
+                                                    "end": 6458
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6429,
-                                                  "end": 6439
+                                                  "start": 6448,
+                                                  "end": 6458
                                                 }
                                               },
                                               {
@@ -3115,15 +3132,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 6468,
-                                                    "end": 6478
+                                                    "start": 6487,
+                                                    "end": 6497
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6468,
-                                                  "end": 6478
+                                                  "start": 6487,
+                                                  "end": 6497
                                                 }
                                               },
                                               {
@@ -3132,15 +3149,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6507,
-                                                    "end": 6511
+                                                    "start": 6526,
+                                                    "end": 6530
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6507,
-                                                  "end": 6511
+                                                  "start": 6526,
+                                                  "end": 6530
                                                 }
                                               },
                                               {
@@ -3149,15 +3166,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6540,
-                                                    "end": 6551
+                                                    "start": 6559,
+                                                    "end": 6570
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6540,
-                                                  "end": 6551
+                                                  "start": 6559,
+                                                  "end": 6570
                                                 }
                                               },
                                               {
@@ -3166,15 +3183,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 6580,
-                                                    "end": 6587
+                                                    "start": 6599,
+                                                    "end": 6606
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6580,
-                                                  "end": 6587
+                                                  "start": 6599,
+                                                  "end": 6606
                                                 }
                                               },
                                               {
@@ -3183,15 +3200,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 6616,
-                                                    "end": 6621
+                                                    "start": 6635,
+                                                    "end": 6640
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6616,
-                                                  "end": 6621
+                                                  "start": 6635,
+                                                  "end": 6640
                                                 }
                                               },
                                               {
@@ -3200,15 +3217,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 6650,
-                                                    "end": 6660
+                                                    "start": 6669,
+                                                    "end": 6679
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6650,
-                                                  "end": 6660
+                                                  "start": 6669,
+                                                  "end": 6679
                                                 }
                                               },
                                               {
@@ -3217,8 +3234,8 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "reminderItems",
                                                   "loc": {
-                                                    "start": 6689,
-                                                    "end": 6702
+                                                    "start": 6708,
+                                                    "end": 6721
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3232,15 +3249,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 6737,
-                                                          "end": 6739
+                                                          "start": 6756,
+                                                          "end": 6758
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6737,
-                                                        "end": 6739
+                                                        "start": 6756,
+                                                        "end": 6758
                                                       }
                                                     },
                                                     {
@@ -3249,15 +3266,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "created_at",
                                                         "loc": {
-                                                          "start": 6772,
-                                                          "end": 6782
+                                                          "start": 6791,
+                                                          "end": 6801
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6772,
-                                                        "end": 6782
+                                                        "start": 6791,
+                                                        "end": 6801
                                                       }
                                                     },
                                                     {
@@ -3266,15 +3283,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "updated_at",
                                                         "loc": {
-                                                          "start": 6815,
-                                                          "end": 6825
+                                                          "start": 6834,
+                                                          "end": 6844
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6815,
-                                                        "end": 6825
+                                                        "start": 6834,
+                                                        "end": 6844
                                                       }
                                                     },
                                                     {
@@ -3283,15 +3300,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 6858,
-                                                          "end": 6862
+                                                          "start": 6877,
+                                                          "end": 6881
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6858,
-                                                        "end": 6862
+                                                        "start": 6877,
+                                                        "end": 6881
                                                       }
                                                     },
                                                     {
@@ -3300,15 +3317,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 6895,
-                                                          "end": 6906
+                                                          "start": 6914,
+                                                          "end": 6925
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6895,
-                                                        "end": 6906
+                                                        "start": 6914,
+                                                        "end": 6925
                                                       }
                                                     },
                                                     {
@@ -3317,15 +3334,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "dueDate",
                                                         "loc": {
-                                                          "start": 6939,
-                                                          "end": 6946
+                                                          "start": 6958,
+                                                          "end": 6965
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6939,
-                                                        "end": 6946
+                                                        "start": 6958,
+                                                        "end": 6965
                                                       }
                                                     },
                                                     {
@@ -3334,15 +3351,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "index",
                                                         "loc": {
-                                                          "start": 6979,
-                                                          "end": 6984
+                                                          "start": 6998,
+                                                          "end": 7003
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6979,
-                                                        "end": 6984
+                                                        "start": 6998,
+                                                        "end": 7003
                                                       }
                                                     },
                                                     {
@@ -3351,48 +3368,48 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "isComplete",
                                                         "loc": {
-                                                          "start": 7017,
-                                                          "end": 7027
+                                                          "start": 7036,
+                                                          "end": 7046
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7017,
-                                                        "end": 7027
+                                                        "start": 7036,
+                                                        "end": 7046
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 6703,
-                                                    "end": 7057
+                                                    "start": 6722,
+                                                    "end": 7076
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 6689,
-                                                  "end": 7057
+                                                  "start": 6708,
+                                                  "end": 7076
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6368,
-                                              "end": 7083
+                                              "start": 6387,
+                                              "end": 7102
                                             }
                                           },
                                           "loc": {
-                                            "start": 6358,
-                                            "end": 7083
+                                            "start": 6377,
+                                            "end": 7102
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6235,
-                                        "end": 7105
+                                        "start": 6254,
+                                        "end": 7124
                                       }
                                     },
                                     "loc": {
-                                      "start": 6222,
-                                      "end": 7105
+                                      "start": 6241,
+                                      "end": 7124
                                     }
                                   },
                                   {
@@ -3401,8 +3418,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "resourceList",
                                       "loc": {
-                                        "start": 7126,
-                                        "end": 7138
+                                        "start": 7145,
+                                        "end": 7157
                                       }
                                     },
                                     "arguments": [],
@@ -3416,15 +3433,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 7165,
-                                              "end": 7167
+                                              "start": 7184,
+                                              "end": 7186
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7165,
-                                            "end": 7167
+                                            "start": 7184,
+                                            "end": 7186
                                           }
                                         },
                                         {
@@ -3433,15 +3450,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 7192,
-                                              "end": 7202
+                                              "start": 7211,
+                                              "end": 7221
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7192,
-                                            "end": 7202
+                                            "start": 7211,
+                                            "end": 7221
                                           }
                                         },
                                         {
@@ -3450,8 +3467,8 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 7227,
-                                              "end": 7239
+                                              "start": 7246,
+                                              "end": 7258
                                             }
                                           },
                                           "arguments": [],
@@ -3465,15 +3482,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7270,
-                                                    "end": 7272
+                                                    "start": 7289,
+                                                    "end": 7291
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7270,
-                                                  "end": 7272
+                                                  "start": 7289,
+                                                  "end": 7291
                                                 }
                                               },
                                               {
@@ -3482,15 +3499,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 7301,
-                                                    "end": 7309
+                                                    "start": 7320,
+                                                    "end": 7328
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7301,
-                                                  "end": 7309
+                                                  "start": 7320,
+                                                  "end": 7328
                                                 }
                                               },
                                               {
@@ -3499,15 +3516,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 7338,
-                                                    "end": 7349
+                                                    "start": 7357,
+                                                    "end": 7368
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7338,
-                                                  "end": 7349
+                                                  "start": 7357,
+                                                  "end": 7368
                                                 }
                                               },
                                               {
@@ -3516,26 +3533,26 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 7378,
-                                                    "end": 7382
+                                                    "start": 7397,
+                                                    "end": 7401
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7378,
-                                                  "end": 7382
+                                                  "start": 7397,
+                                                  "end": 7401
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 7240,
-                                              "end": 7408
+                                              "start": 7259,
+                                              "end": 7427
                                             }
                                           },
                                           "loc": {
-                                            "start": 7227,
-                                            "end": 7408
+                                            "start": 7246,
+                                            "end": 7427
                                           }
                                         },
                                         {
@@ -3544,8 +3561,8 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "resources",
                                             "loc": {
-                                              "start": 7433,
-                                              "end": 7442
+                                              "start": 7452,
+                                              "end": 7461
                                             }
                                           },
                                           "arguments": [],
@@ -3559,15 +3576,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7473,
-                                                    "end": 7475
+                                                    "start": 7492,
+                                                    "end": 7494
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7473,
-                                                  "end": 7475
+                                                  "start": 7492,
+                                                  "end": 7494
                                                 }
                                               },
                                               {
@@ -3576,15 +3593,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 7504,
-                                                    "end": 7509
+                                                    "start": 7523,
+                                                    "end": 7528
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7504,
-                                                  "end": 7509
+                                                  "start": 7523,
+                                                  "end": 7528
                                                 }
                                               },
                                               {
@@ -3593,15 +3610,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "link",
                                                   "loc": {
-                                                    "start": 7538,
-                                                    "end": 7542
+                                                    "start": 7557,
+                                                    "end": 7561
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7538,
-                                                  "end": 7542
+                                                  "start": 7557,
+                                                  "end": 7561
                                                 }
                                               },
                                               {
@@ -3610,15 +3627,15 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "usedFor",
                                                   "loc": {
-                                                    "start": 7571,
-                                                    "end": 7578
+                                                    "start": 7590,
+                                                    "end": 7597
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7571,
-                                                  "end": 7578
+                                                  "start": 7590,
+                                                  "end": 7597
                                                 }
                                               },
                                               {
@@ -3627,8 +3644,8 @@ export const auth_emailLogIn = {
                                                   "kind": "Name",
                                                   "value": "translations",
                                                   "loc": {
-                                                    "start": 7607,
-                                                    "end": 7619
+                                                    "start": 7626,
+                                                    "end": 7638
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3642,15 +3659,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 7654,
-                                                          "end": 7656
+                                                          "start": 7673,
+                                                          "end": 7675
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7654,
-                                                        "end": 7656
+                                                        "start": 7673,
+                                                        "end": 7675
                                                       }
                                                     },
                                                     {
@@ -3659,15 +3676,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "language",
                                                         "loc": {
-                                                          "start": 7689,
-                                                          "end": 7697
+                                                          "start": 7708,
+                                                          "end": 7716
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7689,
-                                                        "end": 7697
+                                                        "start": 7708,
+                                                        "end": 7716
                                                       }
                                                     },
                                                     {
@@ -3676,15 +3693,15 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 7730,
-                                                          "end": 7741
+                                                          "start": 7749,
+                                                          "end": 7760
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7730,
-                                                        "end": 7741
+                                                        "start": 7749,
+                                                        "end": 7760
                                                       }
                                                     },
                                                     {
@@ -3693,48 +3710,48 @@ export const auth_emailLogIn = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 7774,
-                                                          "end": 7778
+                                                          "start": 7793,
+                                                          "end": 7797
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7774,
-                                                        "end": 7778
+                                                        "start": 7793,
+                                                        "end": 7797
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 7620,
-                                                    "end": 7808
+                                                    "start": 7639,
+                                                    "end": 7827
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 7607,
-                                                  "end": 7808
+                                                  "start": 7626,
+                                                  "end": 7827
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 7443,
-                                              "end": 7834
+                                              "start": 7462,
+                                              "end": 7853
                                             }
                                           },
                                           "loc": {
-                                            "start": 7433,
-                                            "end": 7834
+                                            "start": 7452,
+                                            "end": 7853
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7139,
-                                        "end": 7856
+                                        "start": 7158,
+                                        "end": 7875
                                       }
                                     },
                                     "loc": {
-                                      "start": 7126,
-                                      "end": 7856
+                                      "start": 7145,
+                                      "end": 7875
                                     }
                                   },
                                   {
@@ -3743,8 +3760,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 7877,
-                                        "end": 7885
+                                        "start": 7896,
+                                        "end": 7904
                                       }
                                     },
                                     "arguments": [],
@@ -3758,25 +3775,25 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 7915,
-                                              "end": 7930
+                                              "start": 7934,
+                                              "end": 7949
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 7912,
-                                            "end": 7930
+                                            "start": 7931,
+                                            "end": 7949
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7886,
-                                        "end": 7952
+                                        "start": 7905,
+                                        "end": 7971
                                       }
                                     },
                                     "loc": {
-                                      "start": 7877,
-                                      "end": 7952
+                                      "start": 7896,
+                                      "end": 7971
                                     }
                                   },
                                   {
@@ -3785,15 +3802,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7973,
-                                        "end": 7975
+                                        "start": 7992,
+                                        "end": 7994
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7973,
-                                      "end": 7975
+                                      "start": 7992,
+                                      "end": 7994
                                     }
                                   },
                                   {
@@ -3802,15 +3819,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7996,
-                                        "end": 8000
+                                        "start": 8015,
+                                        "end": 8019
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7996,
-                                      "end": 8000
+                                      "start": 8015,
+                                      "end": 8019
                                     }
                                   },
                                   {
@@ -3819,15 +3836,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8021,
-                                        "end": 8032
+                                        "start": 8040,
+                                        "end": 8051
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8021,
-                                      "end": 8032
+                                      "start": 8040,
+                                      "end": 8051
                                     }
                                   },
                                   {
@@ -3836,8 +3853,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 8053,
-                                        "end": 8056
+                                        "start": 8072,
+                                        "end": 8075
                                       }
                                     },
                                     "arguments": [],
@@ -3851,15 +3868,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "canDelete",
                                             "loc": {
-                                              "start": 8083,
-                                              "end": 8092
+                                              "start": 8102,
+                                              "end": 8111
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8083,
-                                            "end": 8092
+                                            "start": 8102,
+                                            "end": 8111
                                           }
                                         },
                                         {
@@ -3868,15 +3885,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "canRead",
                                             "loc": {
-                                              "start": 8117,
-                                              "end": 8124
+                                              "start": 8136,
+                                              "end": 8143
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8117,
-                                            "end": 8124
+                                            "start": 8136,
+                                            "end": 8143
                                           }
                                         },
                                         {
@@ -3885,48 +3902,48 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "canUpdate",
                                             "loc": {
-                                              "start": 8149,
-                                              "end": 8158
+                                              "start": 8168,
+                                              "end": 8177
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8149,
-                                            "end": 8158
+                                            "start": 8168,
+                                            "end": 8177
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8057,
-                                        "end": 8180
+                                        "start": 8076,
+                                        "end": 8199
                                       }
                                     },
                                     "loc": {
-                                      "start": 8053,
-                                      "end": 8180
+                                      "start": 8072,
+                                      "end": 8199
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 6062,
-                                  "end": 8198
+                                  "start": 6081,
+                                  "end": 8217
                                 }
                               },
                               "loc": {
-                                "start": 6052,
-                                "end": 8198
+                                "start": 6071,
+                                "end": 8217
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5572,
-                            "end": 8212
+                            "start": 5591,
+                            "end": 8231
                           }
                         },
                         "loc": {
-                          "start": 5564,
-                          "end": 8212
+                          "start": 5583,
+                          "end": 8231
                         }
                       },
                       {
@@ -3935,8 +3952,8 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 8225,
-                            "end": 8231
+                            "start": 8244,
+                            "end": 8250
                           }
                         },
                         "arguments": [],
@@ -3950,15 +3967,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 8250,
-                                  "end": 8252
+                                  "start": 8269,
+                                  "end": 8271
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8250,
-                                "end": 8252
+                                "start": 8269,
+                                "end": 8271
                               }
                             },
                             {
@@ -3967,15 +3984,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 8269,
-                                  "end": 8274
+                                  "start": 8288,
+                                  "end": 8293
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8269,
-                                "end": 8274
+                                "start": 8288,
+                                "end": 8293
                               }
                             },
                             {
@@ -3984,26 +4001,26 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 8291,
-                                  "end": 8296
+                                  "start": 8310,
+                                  "end": 8315
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8291,
-                                "end": 8296
+                                "start": 8310,
+                                "end": 8315
                               }
                             }
                           ],
                           "loc": {
-                            "start": 8232,
-                            "end": 8310
+                            "start": 8251,
+                            "end": 8329
                           }
                         },
                         "loc": {
-                          "start": 8225,
-                          "end": 8310
+                          "start": 8244,
+                          "end": 8329
                         }
                       },
                       {
@@ -4012,8 +4029,8 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 8323,
-                            "end": 8335
+                            "start": 8342,
+                            "end": 8354
                           }
                         },
                         "arguments": [],
@@ -4027,15 +4044,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 8354,
-                                  "end": 8356
+                                  "start": 8373,
+                                  "end": 8375
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8354,
-                                "end": 8356
+                                "start": 8373,
+                                "end": 8375
                               }
                             },
                             {
@@ -4044,15 +4061,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 8373,
-                                  "end": 8383
+                                  "start": 8392,
+                                  "end": 8402
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8373,
-                                "end": 8383
+                                "start": 8392,
+                                "end": 8402
                               }
                             },
                             {
@@ -4061,15 +4078,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 8400,
-                                  "end": 8410
+                                  "start": 8419,
+                                  "end": 8429
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8400,
-                                "end": 8410
+                                "start": 8419,
+                                "end": 8429
                               }
                             },
                             {
@@ -4078,8 +4095,8 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 8427,
-                                  "end": 8436
+                                  "start": 8446,
+                                  "end": 8455
                                 }
                               },
                               "arguments": [],
@@ -4093,15 +4110,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8459,
-                                        "end": 8461
+                                        "start": 8478,
+                                        "end": 8480
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8459,
-                                      "end": 8461
+                                      "start": 8478,
+                                      "end": 8480
                                     }
                                   },
                                   {
@@ -4110,15 +4127,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 8482,
-                                        "end": 8492
+                                        "start": 8501,
+                                        "end": 8511
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8482,
-                                      "end": 8492
+                                      "start": 8501,
+                                      "end": 8511
                                     }
                                   },
                                   {
@@ -4127,15 +4144,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 8513,
-                                        "end": 8523
+                                        "start": 8532,
+                                        "end": 8542
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8513,
-                                      "end": 8523
+                                      "start": 8532,
+                                      "end": 8542
                                     }
                                   },
                                   {
@@ -4144,15 +4161,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8544,
-                                        "end": 8548
+                                        "start": 8563,
+                                        "end": 8567
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8544,
-                                      "end": 8548
+                                      "start": 8563,
+                                      "end": 8567
                                     }
                                   },
                                   {
@@ -4161,15 +4178,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8569,
-                                        "end": 8580
+                                        "start": 8588,
+                                        "end": 8599
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8569,
-                                      "end": 8580
+                                      "start": 8588,
+                                      "end": 8599
                                     }
                                   },
                                   {
@@ -4178,15 +4195,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 8601,
-                                        "end": 8608
+                                        "start": 8620,
+                                        "end": 8627
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8601,
-                                      "end": 8608
+                                      "start": 8620,
+                                      "end": 8627
                                     }
                                   },
                                   {
@@ -4195,15 +4212,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8629,
-                                        "end": 8634
+                                        "start": 8648,
+                                        "end": 8653
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8629,
-                                      "end": 8634
+                                      "start": 8648,
+                                      "end": 8653
                                     }
                                   },
                                   {
@@ -4212,15 +4229,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 8655,
-                                        "end": 8665
+                                        "start": 8674,
+                                        "end": 8684
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8655,
-                                      "end": 8665
+                                      "start": 8674,
+                                      "end": 8684
                                     }
                                   },
                                   {
@@ -4229,8 +4246,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 8686,
-                                        "end": 8699
+                                        "start": 8705,
+                                        "end": 8718
                                       }
                                     },
                                     "arguments": [],
@@ -4244,15 +4261,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 8726,
-                                              "end": 8728
+                                              "start": 8745,
+                                              "end": 8747
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8726,
-                                            "end": 8728
+                                            "start": 8745,
+                                            "end": 8747
                                           }
                                         },
                                         {
@@ -4261,15 +4278,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 8753,
-                                              "end": 8763
+                                              "start": 8772,
+                                              "end": 8782
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8753,
-                                            "end": 8763
+                                            "start": 8772,
+                                            "end": 8782
                                           }
                                         },
                                         {
@@ -4278,15 +4295,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 8788,
-                                              "end": 8798
+                                              "start": 8807,
+                                              "end": 8817
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8788,
-                                            "end": 8798
+                                            "start": 8807,
+                                            "end": 8817
                                           }
                                         },
                                         {
@@ -4295,15 +4312,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 8823,
-                                              "end": 8827
+                                              "start": 8842,
+                                              "end": 8846
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8823,
-                                            "end": 8827
+                                            "start": 8842,
+                                            "end": 8846
                                           }
                                         },
                                         {
@@ -4312,15 +4329,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 8852,
-                                              "end": 8863
+                                              "start": 8871,
+                                              "end": 8882
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8852,
-                                            "end": 8863
+                                            "start": 8871,
+                                            "end": 8882
                                           }
                                         },
                                         {
@@ -4329,15 +4346,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 8888,
-                                              "end": 8895
+                                              "start": 8907,
+                                              "end": 8914
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8888,
-                                            "end": 8895
+                                            "start": 8907,
+                                            "end": 8914
                                           }
                                         },
                                         {
@@ -4346,15 +4363,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 8920,
-                                              "end": 8925
+                                              "start": 8939,
+                                              "end": 8944
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8920,
-                                            "end": 8925
+                                            "start": 8939,
+                                            "end": 8944
                                           }
                                         },
                                         {
@@ -4363,48 +4380,48 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 8950,
-                                              "end": 8960
+                                              "start": 8969,
+                                              "end": 8979
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8950,
-                                            "end": 8960
+                                            "start": 8969,
+                                            "end": 8979
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8700,
-                                        "end": 8982
+                                        "start": 8719,
+                                        "end": 9001
                                       }
                                     },
                                     "loc": {
-                                      "start": 8686,
-                                      "end": 8982
+                                      "start": 8705,
+                                      "end": 9001
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8437,
-                                  "end": 9000
+                                  "start": 8456,
+                                  "end": 9019
                                 }
                               },
                               "loc": {
-                                "start": 8427,
-                                "end": 9000
+                                "start": 8446,
+                                "end": 9019
                               }
                             }
                           ],
                           "loc": {
-                            "start": 8336,
-                            "end": 9014
+                            "start": 8355,
+                            "end": 9033
                           }
                         },
                         "loc": {
-                          "start": 8323,
-                          "end": 9014
+                          "start": 8342,
+                          "end": 9033
                         }
                       },
                       {
@@ -4413,8 +4430,8 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 9027,
-                            "end": 9039
+                            "start": 9046,
+                            "end": 9058
                           }
                         },
                         "arguments": [],
@@ -4428,15 +4445,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 9058,
-                                  "end": 9060
+                                  "start": 9077,
+                                  "end": 9079
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 9058,
-                                "end": 9060
+                                "start": 9077,
+                                "end": 9079
                               }
                             },
                             {
@@ -4445,15 +4462,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 9077,
-                                  "end": 9087
+                                  "start": 9096,
+                                  "end": 9106
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 9077,
-                                "end": 9087
+                                "start": 9096,
+                                "end": 9106
                               }
                             },
                             {
@@ -4462,8 +4479,8 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 9104,
-                                  "end": 9116
+                                  "start": 9123,
+                                  "end": 9135
                                 }
                               },
                               "arguments": [],
@@ -4477,15 +4494,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 9139,
-                                        "end": 9141
+                                        "start": 9158,
+                                        "end": 9160
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9139,
-                                      "end": 9141
+                                      "start": 9158,
+                                      "end": 9160
                                     }
                                   },
                                   {
@@ -4494,15 +4511,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 9162,
-                                        "end": 9170
+                                        "start": 9181,
+                                        "end": 9189
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9162,
-                                      "end": 9170
+                                      "start": 9181,
+                                      "end": 9189
                                     }
                                   },
                                   {
@@ -4511,15 +4528,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 9191,
-                                        "end": 9202
+                                        "start": 9210,
+                                        "end": 9221
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9191,
-                                      "end": 9202
+                                      "start": 9210,
+                                      "end": 9221
                                     }
                                   },
                                   {
@@ -4528,26 +4545,26 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 9223,
-                                        "end": 9227
+                                        "start": 9242,
+                                        "end": 9246
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9223,
-                                      "end": 9227
+                                      "start": 9242,
+                                      "end": 9246
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 9117,
-                                  "end": 9245
+                                  "start": 9136,
+                                  "end": 9264
                                 }
                               },
                               "loc": {
-                                "start": 9104,
-                                "end": 9245
+                                "start": 9123,
+                                "end": 9264
                               }
                             },
                             {
@@ -4556,8 +4573,8 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 9262,
-                                  "end": 9271
+                                  "start": 9281,
+                                  "end": 9290
                                 }
                               },
                               "arguments": [],
@@ -4571,15 +4588,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 9294,
-                                        "end": 9296
+                                        "start": 9313,
+                                        "end": 9315
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9294,
-                                      "end": 9296
+                                      "start": 9313,
+                                      "end": 9315
                                     }
                                   },
                                   {
@@ -4588,15 +4605,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 9317,
-                                        "end": 9322
+                                        "start": 9336,
+                                        "end": 9341
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9317,
-                                      "end": 9322
+                                      "start": 9336,
+                                      "end": 9341
                                     }
                                   },
                                   {
@@ -4605,15 +4622,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 9343,
-                                        "end": 9347
+                                        "start": 9362,
+                                        "end": 9366
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9343,
-                                      "end": 9347
+                                      "start": 9362,
+                                      "end": 9366
                                     }
                                   },
                                   {
@@ -4622,15 +4639,15 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 9368,
-                                        "end": 9375
+                                        "start": 9387,
+                                        "end": 9394
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 9368,
-                                      "end": 9375
+                                      "start": 9387,
+                                      "end": 9394
                                     }
                                   },
                                   {
@@ -4639,8 +4656,8 @@ export const auth_emailLogIn = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 9396,
-                                        "end": 9408
+                                        "start": 9415,
+                                        "end": 9427
                                       }
                                     },
                                     "arguments": [],
@@ -4654,15 +4671,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 9435,
-                                              "end": 9437
+                                              "start": 9454,
+                                              "end": 9456
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9435,
-                                            "end": 9437
+                                            "start": 9454,
+                                            "end": 9456
                                           }
                                         },
                                         {
@@ -4671,15 +4688,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 9462,
-                                              "end": 9470
+                                              "start": 9481,
+                                              "end": 9489
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9462,
-                                            "end": 9470
+                                            "start": 9481,
+                                            "end": 9489
                                           }
                                         },
                                         {
@@ -4688,15 +4705,15 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 9495,
-                                              "end": 9506
+                                              "start": 9514,
+                                              "end": 9525
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9495,
-                                            "end": 9506
+                                            "start": 9514,
+                                            "end": 9525
                                           }
                                         },
                                         {
@@ -4705,48 +4722,48 @@ export const auth_emailLogIn = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 9531,
-                                              "end": 9535
+                                              "start": 9550,
+                                              "end": 9554
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9531,
-                                            "end": 9535
+                                            "start": 9550,
+                                            "end": 9554
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 9409,
-                                        "end": 9557
+                                        "start": 9428,
+                                        "end": 9576
                                       }
                                     },
                                     "loc": {
-                                      "start": 9396,
-                                      "end": 9557
+                                      "start": 9415,
+                                      "end": 9576
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 9272,
-                                  "end": 9575
+                                  "start": 9291,
+                                  "end": 9594
                                 }
                               },
                               "loc": {
-                                "start": 9262,
-                                "end": 9575
+                                "start": 9281,
+                                "end": 9594
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9040,
-                            "end": 9589
+                            "start": 9059,
+                            "end": 9608
                           }
                         },
                         "loc": {
-                          "start": 9027,
-                          "end": 9589
+                          "start": 9046,
+                          "end": 9608
                         }
                       },
                       {
@@ -4755,8 +4772,8 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 9602,
-                            "end": 9610
+                            "start": 9621,
+                            "end": 9629
                           }
                         },
                         "arguments": [],
@@ -4770,25 +4787,25 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 9632,
-                                  "end": 9647
+                                  "start": 9651,
+                                  "end": 9666
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 9629,
-                                "end": 9647
+                                "start": 9648,
+                                "end": 9666
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9611,
-                            "end": 9661
+                            "start": 9630,
+                            "end": 9680
                           }
                         },
                         "loc": {
-                          "start": 9602,
-                          "end": 9661
+                          "start": 9621,
+                          "end": 9680
                         }
                       },
                       {
@@ -4797,15 +4814,15 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 9674,
-                            "end": 9676
+                            "start": 9693,
+                            "end": 9695
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9674,
-                          "end": 9676
+                          "start": 9693,
+                          "end": 9695
                         }
                       },
                       {
@@ -4814,15 +4831,15 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 9689,
-                            "end": 9693
+                            "start": 9708,
+                            "end": 9712
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9689,
-                          "end": 9693
+                          "start": 9708,
+                          "end": 9712
                         }
                       },
                       {
@@ -4831,15 +4848,15 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 9706,
-                            "end": 9717
+                            "start": 9725,
+                            "end": 9736
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9706,
-                          "end": 9717
+                          "start": 9725,
+                          "end": 9736
                         }
                       },
                       {
@@ -4848,8 +4865,8 @@ export const auth_emailLogIn = {
                           "kind": "Name",
                           "value": "you",
                           "loc": {
-                            "start": 9730,
-                            "end": 9733
+                            "start": 9749,
+                            "end": 9752
                           }
                         },
                         "arguments": [],
@@ -4863,15 +4880,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "canDelete",
                                 "loc": {
-                                  "start": 9752,
-                                  "end": 9761
+                                  "start": 9771,
+                                  "end": 9780
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 9752,
-                                "end": 9761
+                                "start": 9771,
+                                "end": 9780
                               }
                             },
                             {
@@ -4880,15 +4897,15 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "canRead",
                                 "loc": {
-                                  "start": 9778,
-                                  "end": 9785
+                                  "start": 9797,
+                                  "end": 9804
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 9778,
-                                "end": 9785
+                                "start": 9797,
+                                "end": 9804
                               }
                             },
                             {
@@ -4897,37 +4914,37 @@ export const auth_emailLogIn = {
                                 "kind": "Name",
                                 "value": "canUpdate",
                                 "loc": {
-                                  "start": 9802,
-                                  "end": 9811
+                                  "start": 9821,
+                                  "end": 9830
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 9802,
-                                "end": 9811
+                                "start": 9821,
+                                "end": 9830
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9734,
-                            "end": 9825
+                            "start": 9753,
+                            "end": 9844
                           }
                         },
                         "loc": {
-                          "start": 9730,
-                          "end": 9825
+                          "start": 9749,
+                          "end": 9844
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5550,
-                      "end": 9835
+                      "start": 5569,
+                      "end": 9854
                     }
                   },
                   "loc": {
-                    "start": 5539,
-                    "end": 9835
+                    "start": 5558,
+                    "end": 9854
                   }
                 },
                 {
@@ -4936,15 +4953,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 9844,
-                      "end": 9850
+                      "start": 9863,
+                      "end": 9869
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9844,
-                    "end": 9850
+                    "start": 9863,
+                    "end": 9869
                   }
                 },
                 {
@@ -4953,15 +4970,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 9859,
-                      "end": 9869
+                      "start": 9878,
+                      "end": 9888
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9859,
-                    "end": 9869
+                    "start": 9878,
+                    "end": 9888
                   }
                 },
                 {
@@ -4970,15 +4987,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 9878,
-                      "end": 9880
+                      "start": 9897,
+                      "end": 9899
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9878,
-                    "end": 9880
+                    "start": 9897,
+                    "end": 9899
                   }
                 },
                 {
@@ -4987,15 +5004,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 9889,
-                      "end": 9898
+                      "start": 9908,
+                      "end": 9917
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9889,
-                    "end": 9898
+                    "start": 9908,
+                    "end": 9917
                   }
                 },
                 {
@@ -5004,15 +5021,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 9907,
-                      "end": 9923
+                      "start": 9926,
+                      "end": 9942
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9907,
-                    "end": 9923
+                    "start": 9926,
+                    "end": 9942
                   }
                 },
                 {
@@ -5021,15 +5038,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 9932,
-                      "end": 9936
+                      "start": 9951,
+                      "end": 9955
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9932,
-                    "end": 9936
+                    "start": 9951,
+                    "end": 9955
                   }
                 },
                 {
@@ -5038,15 +5055,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 9945,
-                      "end": 9955
+                      "start": 9964,
+                      "end": 9974
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9945,
-                    "end": 9955
+                    "start": 9964,
+                    "end": 9974
                   }
                 },
                 {
@@ -5055,15 +5072,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 9964,
-                      "end": 9977
+                      "start": 9983,
+                      "end": 9996
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9964,
-                    "end": 9977
+                    "start": 9983,
+                    "end": 9996
                   }
                 },
                 {
@@ -5072,15 +5089,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 9986,
-                      "end": 10005
+                      "start": 10005,
+                      "end": 10024
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9986,
-                    "end": 10005
+                    "start": 10005,
+                    "end": 10024
                   }
                 },
                 {
@@ -5089,32 +5106,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 10014,
-                      "end": 10027
+                      "start": 10033,
+                      "end": 10046
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 10014,
-                    "end": 10027
-                  }
-                },
-                {
-                  "kind": "Field",
-                  "name": {
-                    "kind": "Name",
-                    "value": "smartContractsCount",
-                    "loc": {
-                      "start": 10036,
-                      "end": 10055
-                    }
-                  },
-                  "arguments": [],
-                  "directives": [],
-                  "loc": {
-                    "start": 10036,
-                    "end": 10055
+                    "start": 10033,
+                    "end": 10046
                   }
                 },
                 {
@@ -5123,15 +5123,15 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 10064,
-                      "end": 10078
+                      "start": 10055,
+                      "end": 10069
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 10064,
-                    "end": 10078
+                    "start": 10055,
+                    "end": 10069
                   }
                 },
                 {
@@ -5140,37 +5140,37 @@ export const auth_emailLogIn = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 10087,
-                      "end": 10092
+                      "start": 10078,
+                      "end": 10083
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 10087,
-                    "end": 10092
+                    "start": 10078,
+                    "end": 10083
                   }
                 }
               ],
               "loc": {
                 "start": 393,
-                "end": 10098
+                "end": 10089
               }
             },
             "loc": {
               "start": 387,
-              "end": 10098
+              "end": 10089
             }
           }
         ],
         "loc": {
           "start": 353,
-          "end": 10102
+          "end": 10093
         }
       },
       "loc": {
         "start": 327,
-        "end": 10102
+        "end": 10093
       }
     },
     {
@@ -8574,10 +8574,27 @@ export const auth_emailLogIn = {
                       "kind": "Field",
                       "name": {
                         "kind": "Name",
-                        "value": "focusModes",
+                        "value": "codesCount",
                         "loc": {
                           "start": 5539,
                           "end": 5549
+                        }
+                      },
+                      "arguments": [],
+                      "directives": [],
+                      "loc": {
+                        "start": 5539,
+                        "end": 5549
+                      }
+                    },
+                    {
+                      "kind": "Field",
+                      "name": {
+                        "kind": "Name",
+                        "value": "focusModes",
+                        "loc": {
+                          "start": 5558,
+                          "end": 5568
                         }
                       },
                       "arguments": [],
@@ -8591,8 +8608,8 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "filters",
                               "loc": {
-                                "start": 5564,
-                                "end": 5571
+                                "start": 5583,
+                                "end": 5590
                               }
                             },
                             "arguments": [],
@@ -8606,15 +8623,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 5590,
-                                      "end": 5592
+                                      "start": 5609,
+                                      "end": 5611
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5590,
-                                    "end": 5592
+                                    "start": 5609,
+                                    "end": 5611
                                   }
                                 },
                                 {
@@ -8623,15 +8640,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "filterType",
                                     "loc": {
-                                      "start": 5609,
-                                      "end": 5619
+                                      "start": 5628,
+                                      "end": 5638
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5609,
-                                    "end": 5619
+                                    "start": 5628,
+                                    "end": 5638
                                   }
                                 },
                                 {
@@ -8640,8 +8657,8 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "tag",
                                     "loc": {
-                                      "start": 5636,
-                                      "end": 5639
+                                      "start": 5655,
+                                      "end": 5658
                                     }
                                   },
                                   "arguments": [],
@@ -8655,15 +8672,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5662,
-                                            "end": 5664
+                                            "start": 5681,
+                                            "end": 5683
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5662,
-                                          "end": 5664
+                                          "start": 5681,
+                                          "end": 5683
                                         }
                                       },
                                       {
@@ -8672,15 +8689,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 5685,
-                                            "end": 5695
+                                            "start": 5704,
+                                            "end": 5714
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5685,
-                                          "end": 5695
+                                          "start": 5704,
+                                          "end": 5714
                                         }
                                       },
                                       {
@@ -8689,15 +8706,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "tag",
                                           "loc": {
-                                            "start": 5716,
-                                            "end": 5719
+                                            "start": 5735,
+                                            "end": 5738
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5716,
-                                          "end": 5719
+                                          "start": 5735,
+                                          "end": 5738
                                         }
                                       },
                                       {
@@ -8706,15 +8723,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "bookmarks",
                                           "loc": {
-                                            "start": 5740,
-                                            "end": 5749
+                                            "start": 5759,
+                                            "end": 5768
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5740,
-                                          "end": 5749
+                                          "start": 5759,
+                                          "end": 5768
                                         }
                                       },
                                       {
@@ -8723,8 +8740,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 5770,
-                                            "end": 5782
+                                            "start": 5789,
+                                            "end": 5801
                                           }
                                         },
                                         "arguments": [],
@@ -8738,15 +8755,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5809,
-                                                  "end": 5811
+                                                  "start": 5828,
+                                                  "end": 5830
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5809,
-                                                "end": 5811
+                                                "start": 5828,
+                                                "end": 5830
                                               }
                                             },
                                             {
@@ -8755,15 +8772,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 5836,
-                                                  "end": 5844
+                                                  "start": 5855,
+                                                  "end": 5863
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5836,
-                                                "end": 5844
+                                                "start": 5855,
+                                                "end": 5863
                                               }
                                             },
                                             {
@@ -8772,26 +8789,26 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 5869,
-                                                  "end": 5880
+                                                  "start": 5888,
+                                                  "end": 5899
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5869,
-                                                "end": 5880
+                                                "start": 5888,
+                                                "end": 5899
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5783,
-                                            "end": 5902
+                                            "start": 5802,
+                                            "end": 5921
                                           }
                                         },
                                         "loc": {
-                                          "start": 5770,
-                                          "end": 5902
+                                          "start": 5789,
+                                          "end": 5921
                                         }
                                       },
                                       {
@@ -8800,8 +8817,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 5923,
-                                            "end": 5926
+                                            "start": 5942,
+                                            "end": 5945
                                           }
                                         },
                                         "arguments": [],
@@ -8815,15 +8832,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "isOwn",
                                                 "loc": {
-                                                  "start": 5953,
-                                                  "end": 5958
+                                                  "start": 5972,
+                                                  "end": 5977
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5953,
-                                                "end": 5958
+                                                "start": 5972,
+                                                "end": 5977
                                               }
                                             },
                                             {
@@ -8832,37 +8849,37 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "isBookmarked",
                                                 "loc": {
-                                                  "start": 5983,
-                                                  "end": 5995
+                                                  "start": 6002,
+                                                  "end": 6014
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5983,
-                                                "end": 5995
+                                                "start": 6002,
+                                                "end": 6014
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5927,
-                                            "end": 6017
+                                            "start": 5946,
+                                            "end": 6036
                                           }
                                         },
                                         "loc": {
-                                          "start": 5923,
-                                          "end": 6017
+                                          "start": 5942,
+                                          "end": 6036
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5640,
-                                      "end": 6035
+                                      "start": 5659,
+                                      "end": 6054
                                     }
                                   },
                                   "loc": {
-                                    "start": 5636,
-                                    "end": 6035
+                                    "start": 5655,
+                                    "end": 6054
                                   }
                                 },
                                 {
@@ -8871,8 +8888,8 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "focusMode",
                                     "loc": {
-                                      "start": 6052,
-                                      "end": 6061
+                                      "start": 6071,
+                                      "end": 6080
                                     }
                                   },
                                   "arguments": [],
@@ -8886,8 +8903,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "labels",
                                           "loc": {
-                                            "start": 6084,
-                                            "end": 6090
+                                            "start": 6103,
+                                            "end": 6109
                                           }
                                         },
                                         "arguments": [],
@@ -8901,15 +8918,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 6117,
-                                                  "end": 6119
+                                                  "start": 6136,
+                                                  "end": 6138
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6117,
-                                                "end": 6119
+                                                "start": 6136,
+                                                "end": 6138
                                               }
                                             },
                                             {
@@ -8918,15 +8935,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "color",
                                                 "loc": {
-                                                  "start": 6144,
-                                                  "end": 6149
+                                                  "start": 6163,
+                                                  "end": 6168
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6144,
-                                                "end": 6149
+                                                "start": 6163,
+                                                "end": 6168
                                               }
                                             },
                                             {
@@ -8935,26 +8952,26 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "label",
                                                 "loc": {
-                                                  "start": 6174,
-                                                  "end": 6179
+                                                  "start": 6193,
+                                                  "end": 6198
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6174,
-                                                "end": 6179
+                                                "start": 6193,
+                                                "end": 6198
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 6091,
-                                            "end": 6201
+                                            "start": 6110,
+                                            "end": 6220
                                           }
                                         },
                                         "loc": {
-                                          "start": 6084,
-                                          "end": 6201
+                                          "start": 6103,
+                                          "end": 6220
                                         }
                                       },
                                       {
@@ -8963,8 +8980,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "reminderList",
                                           "loc": {
-                                            "start": 6222,
-                                            "end": 6234
+                                            "start": 6241,
+                                            "end": 6253
                                           }
                                         },
                                         "arguments": [],
@@ -8978,15 +8995,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 6261,
-                                                  "end": 6263
+                                                  "start": 6280,
+                                                  "end": 6282
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6261,
-                                                "end": 6263
+                                                "start": 6280,
+                                                "end": 6282
                                               }
                                             },
                                             {
@@ -8995,15 +9012,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6288,
-                                                  "end": 6298
+                                                  "start": 6307,
+                                                  "end": 6317
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6288,
-                                                "end": 6298
+                                                "start": 6307,
+                                                "end": 6317
                                               }
                                             },
                                             {
@@ -9012,15 +9029,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 6323,
-                                                  "end": 6333
+                                                  "start": 6342,
+                                                  "end": 6352
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6323,
-                                                "end": 6333
+                                                "start": 6342,
+                                                "end": 6352
                                               }
                                             },
                                             {
@@ -9029,8 +9046,8 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "reminders",
                                                 "loc": {
-                                                  "start": 6358,
-                                                  "end": 6367
+                                                  "start": 6377,
+                                                  "end": 6386
                                                 }
                                               },
                                               "arguments": [],
@@ -9044,15 +9061,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6398,
-                                                        "end": 6400
+                                                        "start": 6417,
+                                                        "end": 6419
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6398,
-                                                      "end": 6400
+                                                      "start": 6417,
+                                                      "end": 6419
                                                     }
                                                   },
                                                   {
@@ -9061,15 +9078,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 6429,
-                                                        "end": 6439
+                                                        "start": 6448,
+                                                        "end": 6458
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6429,
-                                                      "end": 6439
+                                                      "start": 6448,
+                                                      "end": 6458
                                                     }
                                                   },
                                                   {
@@ -9078,15 +9095,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 6468,
-                                                        "end": 6478
+                                                        "start": 6487,
+                                                        "end": 6497
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6468,
-                                                      "end": 6478
+                                                      "start": 6487,
+                                                      "end": 6497
                                                     }
                                                   },
                                                   {
@@ -9095,15 +9112,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 6507,
-                                                        "end": 6511
+                                                        "start": 6526,
+                                                        "end": 6530
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6507,
-                                                      "end": 6511
+                                                      "start": 6526,
+                                                      "end": 6530
                                                     }
                                                   },
                                                   {
@@ -9112,15 +9129,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 6540,
-                                                        "end": 6551
+                                                        "start": 6559,
+                                                        "end": 6570
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6540,
-                                                      "end": 6551
+                                                      "start": 6559,
+                                                      "end": 6570
                                                     }
                                                   },
                                                   {
@@ -9129,15 +9146,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 6580,
-                                                        "end": 6587
+                                                        "start": 6599,
+                                                        "end": 6606
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6580,
-                                                      "end": 6587
+                                                      "start": 6599,
+                                                      "end": 6606
                                                     }
                                                   },
                                                   {
@@ -9146,15 +9163,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 6616,
-                                                        "end": 6621
+                                                        "start": 6635,
+                                                        "end": 6640
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6616,
-                                                      "end": 6621
+                                                      "start": 6635,
+                                                      "end": 6640
                                                     }
                                                   },
                                                   {
@@ -9163,15 +9180,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 6650,
-                                                        "end": 6660
+                                                        "start": 6669,
+                                                        "end": 6679
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6650,
-                                                      "end": 6660
+                                                      "start": 6669,
+                                                      "end": 6679
                                                     }
                                                   },
                                                   {
@@ -9180,8 +9197,8 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "reminderItems",
                                                       "loc": {
-                                                        "start": 6689,
-                                                        "end": 6702
+                                                        "start": 6708,
+                                                        "end": 6721
                                                       }
                                                     },
                                                     "arguments": [],
@@ -9195,15 +9212,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 6737,
-                                                              "end": 6739
+                                                              "start": 6756,
+                                                              "end": 6758
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6737,
-                                                            "end": 6739
+                                                            "start": 6756,
+                                                            "end": 6758
                                                           }
                                                         },
                                                         {
@@ -9212,15 +9229,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "created_at",
                                                             "loc": {
-                                                              "start": 6772,
-                                                              "end": 6782
+                                                              "start": 6791,
+                                                              "end": 6801
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6772,
-                                                            "end": 6782
+                                                            "start": 6791,
+                                                            "end": 6801
                                                           }
                                                         },
                                                         {
@@ -9229,15 +9246,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "updated_at",
                                                             "loc": {
-                                                              "start": 6815,
-                                                              "end": 6825
+                                                              "start": 6834,
+                                                              "end": 6844
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6815,
-                                                            "end": 6825
+                                                            "start": 6834,
+                                                            "end": 6844
                                                           }
                                                         },
                                                         {
@@ -9246,15 +9263,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 6858,
-                                                              "end": 6862
+                                                              "start": 6877,
+                                                              "end": 6881
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6858,
-                                                            "end": 6862
+                                                            "start": 6877,
+                                                            "end": 6881
                                                           }
                                                         },
                                                         {
@@ -9263,15 +9280,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 6895,
-                                                              "end": 6906
+                                                              "start": 6914,
+                                                              "end": 6925
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6895,
-                                                            "end": 6906
+                                                            "start": 6914,
+                                                            "end": 6925
                                                           }
                                                         },
                                                         {
@@ -9280,15 +9297,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "dueDate",
                                                             "loc": {
-                                                              "start": 6939,
-                                                              "end": 6946
+                                                              "start": 6958,
+                                                              "end": 6965
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6939,
-                                                            "end": 6946
+                                                            "start": 6958,
+                                                            "end": 6965
                                                           }
                                                         },
                                                         {
@@ -9297,15 +9314,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "index",
                                                             "loc": {
-                                                              "start": 6979,
-                                                              "end": 6984
+                                                              "start": 6998,
+                                                              "end": 7003
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6979,
-                                                            "end": 6984
+                                                            "start": 6998,
+                                                            "end": 7003
                                                           }
                                                         },
                                                         {
@@ -9314,48 +9331,48 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "isComplete",
                                                             "loc": {
-                                                              "start": 7017,
-                                                              "end": 7027
+                                                              "start": 7036,
+                                                              "end": 7046
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7017,
-                                                            "end": 7027
+                                                            "start": 7036,
+                                                            "end": 7046
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 6703,
-                                                        "end": 7057
+                                                        "start": 6722,
+                                                        "end": 7076
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 6689,
-                                                      "end": 7057
+                                                      "start": 6708,
+                                                      "end": 7076
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6368,
-                                                  "end": 7083
+                                                  "start": 6387,
+                                                  "end": 7102
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6358,
-                                                "end": 7083
+                                                "start": 6377,
+                                                "end": 7102
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 6235,
-                                            "end": 7105
+                                            "start": 6254,
+                                            "end": 7124
                                           }
                                         },
                                         "loc": {
-                                          "start": 6222,
-                                          "end": 7105
+                                          "start": 6241,
+                                          "end": 7124
                                         }
                                       },
                                       {
@@ -9364,8 +9381,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "resourceList",
                                           "loc": {
-                                            "start": 7126,
-                                            "end": 7138
+                                            "start": 7145,
+                                            "end": 7157
                                           }
                                         },
                                         "arguments": [],
@@ -9379,15 +9396,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 7165,
-                                                  "end": 7167
+                                                  "start": 7184,
+                                                  "end": 7186
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 7165,
-                                                "end": 7167
+                                                "start": 7184,
+                                                "end": 7186
                                               }
                                             },
                                             {
@@ -9396,15 +9413,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 7192,
-                                                  "end": 7202
+                                                  "start": 7211,
+                                                  "end": 7221
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 7192,
-                                                "end": 7202
+                                                "start": 7211,
+                                                "end": 7221
                                               }
                                             },
                                             {
@@ -9413,8 +9430,8 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 7227,
-                                                  "end": 7239
+                                                  "start": 7246,
+                                                  "end": 7258
                                                 }
                                               },
                                               "arguments": [],
@@ -9428,15 +9445,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7270,
-                                                        "end": 7272
+                                                        "start": 7289,
+                                                        "end": 7291
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7270,
-                                                      "end": 7272
+                                                      "start": 7289,
+                                                      "end": 7291
                                                     }
                                                   },
                                                   {
@@ -9445,15 +9462,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 7301,
-                                                        "end": 7309
+                                                        "start": 7320,
+                                                        "end": 7328
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7301,
-                                                      "end": 7309
+                                                      "start": 7320,
+                                                      "end": 7328
                                                     }
                                                   },
                                                   {
@@ -9462,15 +9479,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 7338,
-                                                        "end": 7349
+                                                        "start": 7357,
+                                                        "end": 7368
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7338,
-                                                      "end": 7349
+                                                      "start": 7357,
+                                                      "end": 7368
                                                     }
                                                   },
                                                   {
@@ -9479,26 +9496,26 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 7378,
-                                                        "end": 7382
+                                                        "start": 7397,
+                                                        "end": 7401
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7378,
-                                                      "end": 7382
+                                                      "start": 7397,
+                                                      "end": 7401
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 7240,
-                                                  "end": 7408
+                                                  "start": 7259,
+                                                  "end": 7427
                                                 }
                                               },
                                               "loc": {
-                                                "start": 7227,
-                                                "end": 7408
+                                                "start": 7246,
+                                                "end": 7427
                                               }
                                             },
                                             {
@@ -9507,8 +9524,8 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "resources",
                                                 "loc": {
-                                                  "start": 7433,
-                                                  "end": 7442
+                                                  "start": 7452,
+                                                  "end": 7461
                                                 }
                                               },
                                               "arguments": [],
@@ -9522,15 +9539,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7473,
-                                                        "end": 7475
+                                                        "start": 7492,
+                                                        "end": 7494
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7473,
-                                                      "end": 7475
+                                                      "start": 7492,
+                                                      "end": 7494
                                                     }
                                                   },
                                                   {
@@ -9539,15 +9556,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 7504,
-                                                        "end": 7509
+                                                        "start": 7523,
+                                                        "end": 7528
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7504,
-                                                      "end": 7509
+                                                      "start": 7523,
+                                                      "end": 7528
                                                     }
                                                   },
                                                   {
@@ -9556,15 +9573,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "link",
                                                       "loc": {
-                                                        "start": 7538,
-                                                        "end": 7542
+                                                        "start": 7557,
+                                                        "end": 7561
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7538,
-                                                      "end": 7542
+                                                      "start": 7557,
+                                                      "end": 7561
                                                     }
                                                   },
                                                   {
@@ -9573,15 +9590,15 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "usedFor",
                                                       "loc": {
-                                                        "start": 7571,
-                                                        "end": 7578
+                                                        "start": 7590,
+                                                        "end": 7597
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7571,
-                                                      "end": 7578
+                                                      "start": 7590,
+                                                      "end": 7597
                                                     }
                                                   },
                                                   {
@@ -9590,8 +9607,8 @@ export const auth_emailLogIn = {
                                                       "kind": "Name",
                                                       "value": "translations",
                                                       "loc": {
-                                                        "start": 7607,
-                                                        "end": 7619
+                                                        "start": 7626,
+                                                        "end": 7638
                                                       }
                                                     },
                                                     "arguments": [],
@@ -9605,15 +9622,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 7654,
-                                                              "end": 7656
+                                                              "start": 7673,
+                                                              "end": 7675
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7654,
-                                                            "end": 7656
+                                                            "start": 7673,
+                                                            "end": 7675
                                                           }
                                                         },
                                                         {
@@ -9622,15 +9639,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "language",
                                                             "loc": {
-                                                              "start": 7689,
-                                                              "end": 7697
+                                                              "start": 7708,
+                                                              "end": 7716
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7689,
-                                                            "end": 7697
+                                                            "start": 7708,
+                                                            "end": 7716
                                                           }
                                                         },
                                                         {
@@ -9639,15 +9656,15 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 7730,
-                                                              "end": 7741
+                                                              "start": 7749,
+                                                              "end": 7760
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7730,
-                                                            "end": 7741
+                                                            "start": 7749,
+                                                            "end": 7760
                                                           }
                                                         },
                                                         {
@@ -9656,48 +9673,48 @@ export const auth_emailLogIn = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 7774,
-                                                              "end": 7778
+                                                              "start": 7793,
+                                                              "end": 7797
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7774,
-                                                            "end": 7778
+                                                            "start": 7793,
+                                                            "end": 7797
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 7620,
-                                                        "end": 7808
+                                                        "start": 7639,
+                                                        "end": 7827
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 7607,
-                                                      "end": 7808
+                                                      "start": 7626,
+                                                      "end": 7827
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 7443,
-                                                  "end": 7834
+                                                  "start": 7462,
+                                                  "end": 7853
                                                 }
                                               },
                                               "loc": {
-                                                "start": 7433,
-                                                "end": 7834
+                                                "start": 7452,
+                                                "end": 7853
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 7139,
-                                            "end": 7856
+                                            "start": 7158,
+                                            "end": 7875
                                           }
                                         },
                                         "loc": {
-                                          "start": 7126,
-                                          "end": 7856
+                                          "start": 7145,
+                                          "end": 7875
                                         }
                                       },
                                       {
@@ -9706,8 +9723,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "schedule",
                                           "loc": {
-                                            "start": 7877,
-                                            "end": 7885
+                                            "start": 7896,
+                                            "end": 7904
                                           }
                                         },
                                         "arguments": [],
@@ -9721,25 +9738,25 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "Schedule_common",
                                                 "loc": {
-                                                  "start": 7915,
-                                                  "end": 7930
+                                                  "start": 7934,
+                                                  "end": 7949
                                                 }
                                               },
                                               "directives": [],
                                               "loc": {
-                                                "start": 7912,
-                                                "end": 7930
+                                                "start": 7931,
+                                                "end": 7949
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 7886,
-                                            "end": 7952
+                                            "start": 7905,
+                                            "end": 7971
                                           }
                                         },
                                         "loc": {
-                                          "start": 7877,
-                                          "end": 7952
+                                          "start": 7896,
+                                          "end": 7971
                                         }
                                       },
                                       {
@@ -9748,15 +9765,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 7973,
-                                            "end": 7975
+                                            "start": 7992,
+                                            "end": 7994
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7973,
-                                          "end": 7975
+                                          "start": 7992,
+                                          "end": 7994
                                         }
                                       },
                                       {
@@ -9765,15 +9782,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 7996,
-                                            "end": 8000
+                                            "start": 8015,
+                                            "end": 8019
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7996,
-                                          "end": 8000
+                                          "start": 8015,
+                                          "end": 8019
                                         }
                                       },
                                       {
@@ -9782,15 +9799,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8021,
-                                            "end": 8032
+                                            "start": 8040,
+                                            "end": 8051
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8021,
-                                          "end": 8032
+                                          "start": 8040,
+                                          "end": 8051
                                         }
                                       },
                                       {
@@ -9799,8 +9816,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 8053,
-                                            "end": 8056
+                                            "start": 8072,
+                                            "end": 8075
                                           }
                                         },
                                         "arguments": [],
@@ -9814,15 +9831,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "canDelete",
                                                 "loc": {
-                                                  "start": 8083,
-                                                  "end": 8092
+                                                  "start": 8102,
+                                                  "end": 8111
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8083,
-                                                "end": 8092
+                                                "start": 8102,
+                                                "end": 8111
                                               }
                                             },
                                             {
@@ -9831,15 +9848,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "canRead",
                                                 "loc": {
-                                                  "start": 8117,
-                                                  "end": 8124
+                                                  "start": 8136,
+                                                  "end": 8143
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8117,
-                                                "end": 8124
+                                                "start": 8136,
+                                                "end": 8143
                                               }
                                             },
                                             {
@@ -9848,48 +9865,48 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "canUpdate",
                                                 "loc": {
-                                                  "start": 8149,
-                                                  "end": 8158
+                                                  "start": 8168,
+                                                  "end": 8177
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8149,
-                                                "end": 8158
+                                                "start": 8168,
+                                                "end": 8177
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8057,
-                                            "end": 8180
+                                            "start": 8076,
+                                            "end": 8199
                                           }
                                         },
                                         "loc": {
-                                          "start": 8053,
-                                          "end": 8180
+                                          "start": 8072,
+                                          "end": 8199
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 6062,
-                                      "end": 8198
+                                      "start": 6081,
+                                      "end": 8217
                                     }
                                   },
                                   "loc": {
-                                    "start": 6052,
-                                    "end": 8198
+                                    "start": 6071,
+                                    "end": 8217
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5572,
-                                "end": 8212
+                                "start": 5591,
+                                "end": 8231
                               }
                             },
                             "loc": {
-                              "start": 5564,
-                              "end": 8212
+                              "start": 5583,
+                              "end": 8231
                             }
                           },
                           {
@@ -9898,8 +9915,8 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "labels",
                               "loc": {
-                                "start": 8225,
-                                "end": 8231
+                                "start": 8244,
+                                "end": 8250
                               }
                             },
                             "arguments": [],
@@ -9913,15 +9930,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 8250,
-                                      "end": 8252
+                                      "start": 8269,
+                                      "end": 8271
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8250,
-                                    "end": 8252
+                                    "start": 8269,
+                                    "end": 8271
                                   }
                                 },
                                 {
@@ -9930,15 +9947,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "color",
                                     "loc": {
-                                      "start": 8269,
-                                      "end": 8274
+                                      "start": 8288,
+                                      "end": 8293
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8269,
-                                    "end": 8274
+                                    "start": 8288,
+                                    "end": 8293
                                   }
                                 },
                                 {
@@ -9947,26 +9964,26 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "label",
                                     "loc": {
-                                      "start": 8291,
-                                      "end": 8296
+                                      "start": 8310,
+                                      "end": 8315
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8291,
-                                    "end": 8296
+                                    "start": 8310,
+                                    "end": 8315
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 8232,
-                                "end": 8310
+                                "start": 8251,
+                                "end": 8329
                               }
                             },
                             "loc": {
-                              "start": 8225,
-                              "end": 8310
+                              "start": 8244,
+                              "end": 8329
                             }
                           },
                           {
@@ -9975,8 +9992,8 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "reminderList",
                               "loc": {
-                                "start": 8323,
-                                "end": 8335
+                                "start": 8342,
+                                "end": 8354
                               }
                             },
                             "arguments": [],
@@ -9990,15 +10007,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 8354,
-                                      "end": 8356
+                                      "start": 8373,
+                                      "end": 8375
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8354,
-                                    "end": 8356
+                                    "start": 8373,
+                                    "end": 8375
                                   }
                                 },
                                 {
@@ -10007,15 +10024,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 8373,
-                                      "end": 8383
+                                      "start": 8392,
+                                      "end": 8402
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8373,
-                                    "end": 8383
+                                    "start": 8392,
+                                    "end": 8402
                                   }
                                 },
                                 {
@@ -10024,15 +10041,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "updated_at",
                                     "loc": {
-                                      "start": 8400,
-                                      "end": 8410
+                                      "start": 8419,
+                                      "end": 8429
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8400,
-                                    "end": 8410
+                                    "start": 8419,
+                                    "end": 8429
                                   }
                                 },
                                 {
@@ -10041,8 +10058,8 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "reminders",
                                     "loc": {
-                                      "start": 8427,
-                                      "end": 8436
+                                      "start": 8446,
+                                      "end": 8455
                                     }
                                   },
                                   "arguments": [],
@@ -10056,15 +10073,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8459,
-                                            "end": 8461
+                                            "start": 8478,
+                                            "end": 8480
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8459,
-                                          "end": 8461
+                                          "start": 8478,
+                                          "end": 8480
                                         }
                                       },
                                       {
@@ -10073,15 +10090,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 8482,
-                                            "end": 8492
+                                            "start": 8501,
+                                            "end": 8511
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8482,
-                                          "end": 8492
+                                          "start": 8501,
+                                          "end": 8511
                                         }
                                       },
                                       {
@@ -10090,15 +10107,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 8513,
-                                            "end": 8523
+                                            "start": 8532,
+                                            "end": 8542
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8513,
-                                          "end": 8523
+                                          "start": 8532,
+                                          "end": 8542
                                         }
                                       },
                                       {
@@ -10107,15 +10124,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8544,
-                                            "end": 8548
+                                            "start": 8563,
+                                            "end": 8567
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8544,
-                                          "end": 8548
+                                          "start": 8563,
+                                          "end": 8567
                                         }
                                       },
                                       {
@@ -10124,15 +10141,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8569,
-                                            "end": 8580
+                                            "start": 8588,
+                                            "end": 8599
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8569,
-                                          "end": 8580
+                                          "start": 8588,
+                                          "end": 8599
                                         }
                                       },
                                       {
@@ -10141,15 +10158,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "dueDate",
                                           "loc": {
-                                            "start": 8601,
-                                            "end": 8608
+                                            "start": 8620,
+                                            "end": 8627
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8601,
-                                          "end": 8608
+                                          "start": 8620,
+                                          "end": 8627
                                         }
                                       },
                                       {
@@ -10158,15 +10175,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8629,
-                                            "end": 8634
+                                            "start": 8648,
+                                            "end": 8653
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8629,
-                                          "end": 8634
+                                          "start": 8648,
+                                          "end": 8653
                                         }
                                       },
                                       {
@@ -10175,15 +10192,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "isComplete",
                                           "loc": {
-                                            "start": 8655,
-                                            "end": 8665
+                                            "start": 8674,
+                                            "end": 8684
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8655,
-                                          "end": 8665
+                                          "start": 8674,
+                                          "end": 8684
                                         }
                                       },
                                       {
@@ -10192,8 +10209,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "reminderItems",
                                           "loc": {
-                                            "start": 8686,
-                                            "end": 8699
+                                            "start": 8705,
+                                            "end": 8718
                                           }
                                         },
                                         "arguments": [],
@@ -10207,15 +10224,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 8726,
-                                                  "end": 8728
+                                                  "start": 8745,
+                                                  "end": 8747
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8726,
-                                                "end": 8728
+                                                "start": 8745,
+                                                "end": 8747
                                               }
                                             },
                                             {
@@ -10224,15 +10241,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 8753,
-                                                  "end": 8763
+                                                  "start": 8772,
+                                                  "end": 8782
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8753,
-                                                "end": 8763
+                                                "start": 8772,
+                                                "end": 8782
                                               }
                                             },
                                             {
@@ -10241,15 +10258,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 8788,
-                                                  "end": 8798
+                                                  "start": 8807,
+                                                  "end": 8817
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8788,
-                                                "end": 8798
+                                                "start": 8807,
+                                                "end": 8817
                                               }
                                             },
                                             {
@@ -10258,15 +10275,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 8823,
-                                                  "end": 8827
+                                                  "start": 8842,
+                                                  "end": 8846
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8823,
-                                                "end": 8827
+                                                "start": 8842,
+                                                "end": 8846
                                               }
                                             },
                                             {
@@ -10275,15 +10292,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 8852,
-                                                  "end": 8863
+                                                  "start": 8871,
+                                                  "end": 8882
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8852,
-                                                "end": 8863
+                                                "start": 8871,
+                                                "end": 8882
                                               }
                                             },
                                             {
@@ -10292,15 +10309,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 8888,
-                                                  "end": 8895
+                                                  "start": 8907,
+                                                  "end": 8914
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8888,
-                                                "end": 8895
+                                                "start": 8907,
+                                                "end": 8914
                                               }
                                             },
                                             {
@@ -10309,15 +10326,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 8920,
-                                                  "end": 8925
+                                                  "start": 8939,
+                                                  "end": 8944
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8920,
-                                                "end": 8925
+                                                "start": 8939,
+                                                "end": 8944
                                               }
                                             },
                                             {
@@ -10326,48 +10343,48 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 8950,
-                                                  "end": 8960
+                                                  "start": 8969,
+                                                  "end": 8979
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8950,
-                                                "end": 8960
+                                                "start": 8969,
+                                                "end": 8979
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8700,
-                                            "end": 8982
+                                            "start": 8719,
+                                            "end": 9001
                                           }
                                         },
                                         "loc": {
-                                          "start": 8686,
-                                          "end": 8982
+                                          "start": 8705,
+                                          "end": 9001
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8437,
-                                      "end": 9000
+                                      "start": 8456,
+                                      "end": 9019
                                     }
                                   },
                                   "loc": {
-                                    "start": 8427,
-                                    "end": 9000
+                                    "start": 8446,
+                                    "end": 9019
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 8336,
-                                "end": 9014
+                                "start": 8355,
+                                "end": 9033
                               }
                             },
                             "loc": {
-                              "start": 8323,
-                              "end": 9014
+                              "start": 8342,
+                              "end": 9033
                             }
                           },
                           {
@@ -10376,8 +10393,8 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "resourceList",
                               "loc": {
-                                "start": 9027,
-                                "end": 9039
+                                "start": 9046,
+                                "end": 9058
                               }
                             },
                             "arguments": [],
@@ -10391,15 +10408,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 9058,
-                                      "end": 9060
+                                      "start": 9077,
+                                      "end": 9079
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 9058,
-                                    "end": 9060
+                                    "start": 9077,
+                                    "end": 9079
                                   }
                                 },
                                 {
@@ -10408,15 +10425,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 9077,
-                                      "end": 9087
+                                      "start": 9096,
+                                      "end": 9106
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 9077,
-                                    "end": 9087
+                                    "start": 9096,
+                                    "end": 9106
                                   }
                                 },
                                 {
@@ -10425,8 +10442,8 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "translations",
                                     "loc": {
-                                      "start": 9104,
-                                      "end": 9116
+                                      "start": 9123,
+                                      "end": 9135
                                     }
                                   },
                                   "arguments": [],
@@ -10440,15 +10457,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 9139,
-                                            "end": 9141
+                                            "start": 9158,
+                                            "end": 9160
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9139,
-                                          "end": 9141
+                                          "start": 9158,
+                                          "end": 9160
                                         }
                                       },
                                       {
@@ -10457,15 +10474,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "language",
                                           "loc": {
-                                            "start": 9162,
-                                            "end": 9170
+                                            "start": 9181,
+                                            "end": 9189
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9162,
-                                          "end": 9170
+                                          "start": 9181,
+                                          "end": 9189
                                         }
                                       },
                                       {
@@ -10474,15 +10491,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 9191,
-                                            "end": 9202
+                                            "start": 9210,
+                                            "end": 9221
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9191,
-                                          "end": 9202
+                                          "start": 9210,
+                                          "end": 9221
                                         }
                                       },
                                       {
@@ -10491,26 +10508,26 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 9223,
-                                            "end": 9227
+                                            "start": 9242,
+                                            "end": 9246
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9223,
-                                          "end": 9227
+                                          "start": 9242,
+                                          "end": 9246
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 9117,
-                                      "end": 9245
+                                      "start": 9136,
+                                      "end": 9264
                                     }
                                   },
                                   "loc": {
-                                    "start": 9104,
-                                    "end": 9245
+                                    "start": 9123,
+                                    "end": 9264
                                   }
                                 },
                                 {
@@ -10519,8 +10536,8 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "resources",
                                     "loc": {
-                                      "start": 9262,
-                                      "end": 9271
+                                      "start": 9281,
+                                      "end": 9290
                                     }
                                   },
                                   "arguments": [],
@@ -10534,15 +10551,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 9294,
-                                            "end": 9296
+                                            "start": 9313,
+                                            "end": 9315
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9294,
-                                          "end": 9296
+                                          "start": 9313,
+                                          "end": 9315
                                         }
                                       },
                                       {
@@ -10551,15 +10568,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 9317,
-                                            "end": 9322
+                                            "start": 9336,
+                                            "end": 9341
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9317,
-                                          "end": 9322
+                                          "start": 9336,
+                                          "end": 9341
                                         }
                                       },
                                       {
@@ -10568,15 +10585,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "link",
                                           "loc": {
-                                            "start": 9343,
-                                            "end": 9347
+                                            "start": 9362,
+                                            "end": 9366
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9343,
-                                          "end": 9347
+                                          "start": 9362,
+                                          "end": 9366
                                         }
                                       },
                                       {
@@ -10585,15 +10602,15 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "usedFor",
                                           "loc": {
-                                            "start": 9368,
-                                            "end": 9375
+                                            "start": 9387,
+                                            "end": 9394
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 9368,
-                                          "end": 9375
+                                          "start": 9387,
+                                          "end": 9394
                                         }
                                       },
                                       {
@@ -10602,8 +10619,8 @@ export const auth_emailLogIn = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 9396,
-                                            "end": 9408
+                                            "start": 9415,
+                                            "end": 9427
                                           }
                                         },
                                         "arguments": [],
@@ -10617,15 +10634,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 9435,
-                                                  "end": 9437
+                                                  "start": 9454,
+                                                  "end": 9456
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9435,
-                                                "end": 9437
+                                                "start": 9454,
+                                                "end": 9456
                                               }
                                             },
                                             {
@@ -10634,15 +10651,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 9462,
-                                                  "end": 9470
+                                                  "start": 9481,
+                                                  "end": 9489
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9462,
-                                                "end": 9470
+                                                "start": 9481,
+                                                "end": 9489
                                               }
                                             },
                                             {
@@ -10651,15 +10668,15 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 9495,
-                                                  "end": 9506
+                                                  "start": 9514,
+                                                  "end": 9525
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9495,
-                                                "end": 9506
+                                                "start": 9514,
+                                                "end": 9525
                                               }
                                             },
                                             {
@@ -10668,48 +10685,48 @@ export const auth_emailLogIn = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 9531,
-                                                  "end": 9535
+                                                  "start": 9550,
+                                                  "end": 9554
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9531,
-                                                "end": 9535
+                                                "start": 9550,
+                                                "end": 9554
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 9409,
-                                            "end": 9557
+                                            "start": 9428,
+                                            "end": 9576
                                           }
                                         },
                                         "loc": {
-                                          "start": 9396,
-                                          "end": 9557
+                                          "start": 9415,
+                                          "end": 9576
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 9272,
-                                      "end": 9575
+                                      "start": 9291,
+                                      "end": 9594
                                     }
                                   },
                                   "loc": {
-                                    "start": 9262,
-                                    "end": 9575
+                                    "start": 9281,
+                                    "end": 9594
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9040,
-                                "end": 9589
+                                "start": 9059,
+                                "end": 9608
                               }
                             },
                             "loc": {
-                              "start": 9027,
-                              "end": 9589
+                              "start": 9046,
+                              "end": 9608
                             }
                           },
                           {
@@ -10718,8 +10735,8 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "schedule",
                               "loc": {
-                                "start": 9602,
-                                "end": 9610
+                                "start": 9621,
+                                "end": 9629
                               }
                             },
                             "arguments": [],
@@ -10733,25 +10750,25 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "Schedule_common",
                                     "loc": {
-                                      "start": 9632,
-                                      "end": 9647
+                                      "start": 9651,
+                                      "end": 9666
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 9629,
-                                    "end": 9647
+                                    "start": 9648,
+                                    "end": 9666
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9611,
-                                "end": 9661
+                                "start": 9630,
+                                "end": 9680
                               }
                             },
                             "loc": {
-                              "start": 9602,
-                              "end": 9661
+                              "start": 9621,
+                              "end": 9680
                             }
                           },
                           {
@@ -10760,15 +10777,15 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 9674,
-                                "end": 9676
+                                "start": 9693,
+                                "end": 9695
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9674,
-                              "end": 9676
+                              "start": 9693,
+                              "end": 9695
                             }
                           },
                           {
@@ -10777,15 +10794,15 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "name",
                               "loc": {
-                                "start": 9689,
-                                "end": 9693
+                                "start": 9708,
+                                "end": 9712
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9689,
-                              "end": 9693
+                              "start": 9708,
+                              "end": 9712
                             }
                           },
                           {
@@ -10794,15 +10811,15 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "description",
                               "loc": {
-                                "start": 9706,
-                                "end": 9717
+                                "start": 9725,
+                                "end": 9736
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9706,
-                              "end": 9717
+                              "start": 9725,
+                              "end": 9736
                             }
                           },
                           {
@@ -10811,8 +10828,8 @@ export const auth_emailLogIn = {
                               "kind": "Name",
                               "value": "you",
                               "loc": {
-                                "start": 9730,
-                                "end": 9733
+                                "start": 9749,
+                                "end": 9752
                               }
                             },
                             "arguments": [],
@@ -10826,15 +10843,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "canDelete",
                                     "loc": {
-                                      "start": 9752,
-                                      "end": 9761
+                                      "start": 9771,
+                                      "end": 9780
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 9752,
-                                    "end": 9761
+                                    "start": 9771,
+                                    "end": 9780
                                   }
                                 },
                                 {
@@ -10843,15 +10860,15 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "canRead",
                                     "loc": {
-                                      "start": 9778,
-                                      "end": 9785
+                                      "start": 9797,
+                                      "end": 9804
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 9778,
-                                    "end": 9785
+                                    "start": 9797,
+                                    "end": 9804
                                   }
                                 },
                                 {
@@ -10860,37 +10877,37 @@ export const auth_emailLogIn = {
                                     "kind": "Name",
                                     "value": "canUpdate",
                                     "loc": {
-                                      "start": 9802,
-                                      "end": 9811
+                                      "start": 9821,
+                                      "end": 9830
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 9802,
-                                    "end": 9811
+                                    "start": 9821,
+                                    "end": 9830
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9734,
-                                "end": 9825
+                                "start": 9753,
+                                "end": 9844
                               }
                             },
                             "loc": {
-                              "start": 9730,
-                              "end": 9825
+                              "start": 9749,
+                              "end": 9844
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5550,
-                          "end": 9835
+                          "start": 5569,
+                          "end": 9854
                         }
                       },
                       "loc": {
-                        "start": 5539,
-                        "end": 9835
+                        "start": 5558,
+                        "end": 9854
                       }
                     },
                     {
@@ -10899,15 +10916,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 9844,
-                          "end": 9850
+                          "start": 9863,
+                          "end": 9869
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9844,
-                        "end": 9850
+                        "start": 9863,
+                        "end": 9869
                       }
                     },
                     {
@@ -10916,15 +10933,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 9859,
-                          "end": 9869
+                          "start": 9878,
+                          "end": 9888
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9859,
-                        "end": 9869
+                        "start": 9878,
+                        "end": 9888
                       }
                     },
                     {
@@ -10933,15 +10950,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 9878,
-                          "end": 9880
+                          "start": 9897,
+                          "end": 9899
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9878,
-                        "end": 9880
+                        "start": 9897,
+                        "end": 9899
                       }
                     },
                     {
@@ -10950,15 +10967,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 9889,
-                          "end": 9898
+                          "start": 9908,
+                          "end": 9917
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9889,
-                        "end": 9898
+                        "start": 9908,
+                        "end": 9917
                       }
                     },
                     {
@@ -10967,15 +10984,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 9907,
-                          "end": 9923
+                          "start": 9926,
+                          "end": 9942
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9907,
-                        "end": 9923
+                        "start": 9926,
+                        "end": 9942
                       }
                     },
                     {
@@ -10984,15 +11001,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 9932,
-                          "end": 9936
+                          "start": 9951,
+                          "end": 9955
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9932,
-                        "end": 9936
+                        "start": 9951,
+                        "end": 9955
                       }
                     },
                     {
@@ -11001,15 +11018,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 9945,
-                          "end": 9955
+                          "start": 9964,
+                          "end": 9974
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9945,
-                        "end": 9955
+                        "start": 9964,
+                        "end": 9974
                       }
                     },
                     {
@@ -11018,15 +11035,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 9964,
-                          "end": 9977
+                          "start": 9983,
+                          "end": 9996
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9964,
-                        "end": 9977
+                        "start": 9983,
+                        "end": 9996
                       }
                     },
                     {
@@ -11035,15 +11052,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 9986,
-                          "end": 10005
+                          "start": 10005,
+                          "end": 10024
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9986,
-                        "end": 10005
+                        "start": 10005,
+                        "end": 10024
                       }
                     },
                     {
@@ -11052,32 +11069,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 10014,
-                          "end": 10027
+                          "start": 10033,
+                          "end": 10046
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 10014,
-                        "end": 10027
-                      }
-                    },
-                    {
-                      "kind": "Field",
-                      "name": {
-                        "kind": "Name",
-                        "value": "smartContractsCount",
-                        "loc": {
-                          "start": 10036,
-                          "end": 10055
-                        }
-                      },
-                      "arguments": [],
-                      "directives": [],
-                      "loc": {
-                        "start": 10036,
-                        "end": 10055
+                        "start": 10033,
+                        "end": 10046
                       }
                     },
                     {
@@ -11086,15 +11086,15 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 10064,
-                          "end": 10078
+                          "start": 10055,
+                          "end": 10069
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 10064,
-                        "end": 10078
+                        "start": 10055,
+                        "end": 10069
                       }
                     },
                     {
@@ -11103,48 +11103,48 @@ export const auth_emailLogIn = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 10087,
-                          "end": 10092
+                          "start": 10078,
+                          "end": 10083
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 10087,
-                        "end": 10092
+                        "start": 10078,
+                        "end": 10083
                       }
                     }
                   ],
                   "loc": {
                     "start": 393,
-                    "end": 10098
+                    "end": 10089
                   }
                 },
                 "loc": {
                   "start": 387,
-                  "end": 10098
+                  "end": 10089
                 }
               }
             ],
             "loc": {
               "start": 353,
-              "end": 10102
+              "end": 10093
             }
           },
           "loc": {
             "start": 327,
-            "end": 10102
+            "end": 10093
           }
         }
       ],
       "loc": {
         "start": 323,
-        "end": 10104
+        "end": 10095
       }
     },
     "loc": {
       "start": 277,
-      "end": 10104
+      "end": 10095
     }
   },
   "variableValues": {},

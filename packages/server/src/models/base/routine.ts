@@ -10,7 +10,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { RoutineFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type RoutinePre = PreShapeRootResult;
 
@@ -265,7 +265,7 @@ export const RoutineModel: RoutineModelLogic = ({
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -304,13 +304,13 @@ export const RoutineModel: RoutineModelLogic = ({
             data.isDeleted === false &&
             data.isInternal === false &&
             oneIsPublic<RoutineModelInfo["PrismaSelect"]>([
-                ["ownedByOrganization", "Organization"],
+                ["ownedByTeam", "Team"],
                 ["ownedByUser", "User"],
             ], data, ...rest),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -322,7 +322,7 @@ export const RoutineModel: RoutineModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["RoutineVersion", ["root"]],
         }),
@@ -331,8 +331,8 @@ export const RoutineModel: RoutineModelLogic = ({
             public: { isPrivate: false, isDeleted: false },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

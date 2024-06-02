@@ -29,9 +29,9 @@ export const meetingInitialValues = (
     __typename: "Meeting" as const,
     id: DUMMY_ID,
     openToAnyoneWithInvite: false,
-    showOnOrganizationProfile: true,
-    organization: {
-        __typename: "Organization" as const,
+    showOnTeamProfile: true,
+    team: {
+        __typename: "Team" as const,
         id: DUMMY_ID,
     },
     restrictedToRoles: [],

@@ -5,7 +5,7 @@ import { hasObjectChanged } from "utils/shape/general";
 import { createOwner, createRel, shouldConnect } from "./creates";
 
 type OwnerPrefix = "" | "ownedBy";
-type OwnerType = "User" | "Organization";
+type OwnerType = "User" | "Team";
 
 type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 

@@ -21,7 +21,7 @@ export const chatValidation: YupModel<["create", "update"]> = {
         ["invites", ["Create"], "many", "opt", chatInviteValidation, ["chat"]],
         ["labels", ["Connect"], "many", "opt"],
         ["messages", ["Create"], "many", "opt", chatMessageValidation, ["chat"]],
-        ["organization", ["Connect"], "one", "opt"],
+        ["team", ["Connect"], "one", "opt"],
         ["translations", ["Create"], "many", "opt", chatTranslationValidation],
     ], [], d),
     update: (d) => yupObj({

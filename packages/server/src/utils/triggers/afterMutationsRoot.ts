@@ -46,7 +46,7 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
             await TransferModel.transfer().requestSend({
                 objectConnect: objectId,
                 objectType,
-                toOrganizationConnect: owner.__typename === "Organization" ? owner.id : undefined,
+                toTeamConnect: owner.__typename === "Team" ? owner.id : undefined,
                 toUserConnect: owner.__typename === "User" ? owner.id : undefined,
             }, userData);
         }
@@ -81,7 +81,7 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
             await TransferModel.transfer().requestSend({
                 objectConnect: objectId,
                 objectType,
-                toOrganizationConnect: owner.__typename === "Organization" ? owner.id : undefined,
+                toTeamConnect: owner.__typename === "Team" ? owner.id : undefined,
                 toUserConnect: owner.__typename === "User" ? owner.id : undefined,
             }, userData);
         }

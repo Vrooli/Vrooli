@@ -7,6 +7,7 @@ import { resolveUnion } from "./resolvers";
 export const typeDef = gql`
     enum CommentFor {
         ApiVersion
+        CodeVersion
         Issue
         NoteVersion
         Post
@@ -15,7 +16,6 @@ export const typeDef = gql`
         Question
         QuestionAnswer
         RoutineVersion
-        SmartContractVersion
         StandardVersion
     }   
 
@@ -44,7 +44,7 @@ export const typeDef = gql`
         translationsUpdate: [CommentTranslationUpdateInput!]
     }
 
-    union CommentedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion
+    union CommentedOn = ApiVersion | CodeVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | StandardVersion
 
     type Comment {
         id: ID!
@@ -94,13 +94,14 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         minScore: Int
         minBookmarks: Int
+        ownedByTeamId: ID
         ownedByUserId: ID
-        ownedByOrganizationId: ID
         searchString: String
         sortBy: CommentSortBy
         take: Int
         updatedTimeFrame: TimeFrame
         apiVersionId: ID
+        codeVersionId: ID
         issueId: ID
         noteVersionId: ID
         postId: ID
@@ -109,7 +110,6 @@ export const typeDef = gql`
         questionId: ID
         questionAnswerId: ID
         routineVersionId: ID
-        smartContractVersionId: ID
         standardVersionId: ID
         translationLanguages: [String!]
     }

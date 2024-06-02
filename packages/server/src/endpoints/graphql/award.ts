@@ -14,13 +14,13 @@ export const typeDef = gql`
         AccountAnniversary
         AccountNew
         ApiCreate
+        #CodeCreate
+        SmartContractCreate
         CommentCreate
         IssueCreate
         NoteCreate
         ObjectBookmark
         ObjectReact
-        OrganizationCreate
-        OrganizationJoin
         PostCreate
         ProjectCreate
         PullRequestCreate
@@ -34,9 +34,12 @@ export const typeDef = gql`
         RunRoutine
         RunProject
         RoutineCreate
-        SmartContractCreate
         StandardCreate
         Streak
+        #TeamCreate
+        #TeamJoin
+        OrganizationCreate
+        OrganizationJoin
         UserInvite
     }  
 

@@ -44,7 +44,7 @@ export const api_findMany = {
         "color": true,
         "label": true,
         "owner": {
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -85,7 +85,7 @@ export const api_findMany = {
         }
       },
       "owner": {
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,

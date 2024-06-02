@@ -40,7 +40,7 @@ export const typeDef = gql`
         cardType: String
         cardExpDate: String
         cardLast4: String
-        organization: Organization!
+        team: Team!
         user: User!
     }
 

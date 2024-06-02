@@ -19,9 +19,9 @@ export const meetingValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         openToAnyoneWithInvite: opt(bool),
-        showOnOrganizationProfile: opt(bool),
+        showOnTeamProfile: opt(bool),
     }, [
-        ["organization", ["Connect"], "one", "req"],
+        ["team", ["Connect"], "one", "req"],
         ["restrictedToRoles", ["Connect"], "many", "opt"],
         ["invites", ["Create"], "many", "opt", meetingInviteValidation],
         ["labels", ["Connect"], "many", "opt"],
@@ -31,7 +31,7 @@ export const meetingValidation: YupModel<["create", "update"]> = {
     update: (d) => yupObj({
         id: req(id),
         openToAnyoneWithInvite: opt(bool),
-        showOnOrganizationProfile: opt(bool),
+        showOnTeamProfile: opt(bool),
     }, [
         ["restrictedToRoles", ["Connect", "Disconnect"], "many", "opt"],
         ["invites", ["Create", "Update", "Delete"], "many", "opt", meetingInviteValidation],

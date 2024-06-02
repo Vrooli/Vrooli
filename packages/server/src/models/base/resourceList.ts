@@ -10,13 +10,13 @@ import { ResourceListModelInfo, ResourceListModelLogic } from "./types";
 
 const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
+    CodeVersion: "codeVersion",
     FocusMode: "focusMode",
-    Organization: "organization",
     Post: "post",
     ProjectVersion: "projectVersion",
     RoutineVersion: "routineVersion",
-    SmartContractVersion: "smartContractVersion",
     StandardVersion: "standardVersion",
+    Team: "team",
 };
 
 const __typename = "ResourceList" as const;
@@ -51,13 +51,13 @@ export const ResourceListModel: ResourceListModelLogic = ({
         sortBy: ResourceListSortBy,
         searchFields: {
             apiVersionId: true,
+            codeVersionId: true,
             createdTimeFrame: true,
-            organizationId: true,
             postId: true,
             projectVersionId: true,
             routineVersionId: true,
-            smartContractVersionId: true,
             standardVersionId: true,
+            teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             focusModeId: true,

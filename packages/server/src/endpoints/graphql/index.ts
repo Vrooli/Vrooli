@@ -12,6 +12,8 @@ import * as Chat from "./chat";
 import * as ChatInvite from "./chatInvite";
 import * as ChatMessage from "./chatMessage";
 import * as ChatParticipant from "./chatParticipant";
+import * as Code from "./code";
+import * as CodeVersion from "./codeVersion";
 import * as Comment from "./comment";
 import * as Duplicate from "./copy";
 import * as DeleteOneOrMany from "./deleteOneOrMany";
@@ -37,7 +39,6 @@ import * as Note from "./note";
 import * as NoteVersion from "./noteVersion";
 import * as Notification from "./notification";
 import * as NotificationSubscription from "./notificationSubscription";
-import * as Organization from "./organization";
 import * as Payment from "./payment";
 import * as Phone from "./phone";
 import * as Post from "./post";
@@ -76,20 +77,19 @@ import * as RunRoutineStep from "./runRoutineStep";
 import * as Schedule from "./schedule";
 import * as ScheduleException from "./scheduleException";
 import * as ScheduleRecurrence from "./scheduleRecurrence";
-import * as SmartContract from "./smartContract";
-import * as SmartContractVersion from "./smartContractVersion";
 import * as Standard from "./standard";
 import * as StandardVersion from "./standardVersion";
 import * as StatsApi from "./statsApi";
-import * as StatsOrganization from "./statsOrganization";
+import * as StatsCode from "./statsCode";
 import * as StatsProject from "./statsProject";
 import * as StatsQuiz from "./statsQuiz";
 import * as StatsRoutine from "./statsRoutine";
 import * as StatsSite from "./statsSite";
-import * as StatsSmartContract from "./statsSmartContract";
 import * as StatsStandard from "./statsStandard";
+import * as StatsTeam from "./statsTeam";
 import * as StatsUser from "./statsUser";
 import * as Tag from "./tag";
+import * as Team from "./team";
 import * as Transfer from "./transfer";
 import * as Translate from "./translate";
 import * as Unions from "./unions";
@@ -117,6 +117,8 @@ const schemas: SchemaType[] = [
     ChatInvite,
     ChatMessage,
     ChatParticipant,
+    Code,
+    CodeVersion,
     Comment,
     DeleteOneOrMany,
     Duplicate,
@@ -142,7 +144,6 @@ const schemas: SchemaType[] = [
     NoteVersion,
     Notification,
     NotificationSubscription,
-    Organization,
     Payment,
     Phone,
     Post,
@@ -180,20 +181,19 @@ const schemas: SchemaType[] = [
     Schedule,
     ScheduleException,
     ScheduleRecurrence,
-    SmartContract,
-    SmartContractVersion,
     Standard,
     StandardVersion,
     StatsApi,
-    StatsOrganization,
+    StatsCode,
     StatsProject,
     StatsQuiz,
     StatsRoutine,
     StatsSite,
-    StatsSmartContract,
     StatsStandard,
+    StatsTeam,
     StatsUser,
     Tag,
+    Team,
     Transfer,
     Translate,
     Unions,

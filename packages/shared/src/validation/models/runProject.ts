@@ -14,10 +14,10 @@ export const runProjectValidation: YupModel<["create", "update"]> = {
         status: req(runStatus),
         name: req(name),
     }, [
-        ["organization", ["Connect"], "one", "opt"],
         ["projectVersion", ["Connect"], "one", "req"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],
         ["steps", ["Create"], "many", "opt", runProjectStepValidation],
+        ["team", ["Connect"], "one", "opt"],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),

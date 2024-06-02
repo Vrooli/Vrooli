@@ -26,11 +26,11 @@ export const typeDef = gql`
         id: ID!
         isPinned: Boolean
         isPrivate: Boolean!
-        organizationConnect: ID
         repostedFromConnect: ID
         resourceListCreate: ResourceListCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
+        teamConnect: ID
         translationsCreate: [ApiVersionTranslationCreateInput!]
         userConnect: ID
     }
@@ -96,7 +96,7 @@ export const typeDef = gql`
         maxBookmarks: Int
         minScore: Int
         minBookmarks: Int
-        organizationId: ID
+        teamId: ID
         userId: ID
         repostedFromIds: [ID!]
         searchString: String

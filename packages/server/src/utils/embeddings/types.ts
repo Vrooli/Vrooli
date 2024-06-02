@@ -5,10 +5,10 @@
 export type EmbeddableType =
     | "ApiVersion"
     | "Chat"
+    | "CodeVersion"
     | "Issue"
     | "Meeting"
     | "NoteVersion"
-    | "Organization"
     | "Post"
     | "ProjectVersion"
     | "Question"
@@ -17,7 +17,7 @@ export type EmbeddableType =
     | "RoutineVersion"
     | "RunProject"
     | "RunRoutine"
-    | "SmartContractVersion"
     | "StandardVersion"
     | "Tag"
+    | "Team"
     | "User";

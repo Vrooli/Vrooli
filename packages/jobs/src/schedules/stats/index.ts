@@ -1,12 +1,12 @@
 import { PeriodType } from "@prisma/client";
 import { logApiStats } from "./api";
-import { logOrganizationStats } from "./organization";
+import { logCodeStats } from "./code";
 import { logProjectStats } from "./project";
 import { logQuizStats } from "./quiz";
 import { logRoutineStats } from "./routine";
 import { logSiteStats } from "./site";
-import { logSmartContractStats } from "./smartContract";
 import { logStandardStats } from "./standard";
+import { logTeamStats } from "./team";
 import { logUserStats } from "./user";
 
 
@@ -85,11 +85,11 @@ export const initStatsPeriod = (period: string) => {
     Promise.all([
         logSiteStats(...params),
         logApiStats(...params),
-        logOrganizationStats(...params),
+        logTeamStats(...params),
         logProjectStats(...params),
         logQuizStats(...params),
         logRoutineStats(...params),
-        logSmartContractStats(...params),
+        logCodeStats(...params),
         logStandardStats(...params),
         logUserStats(...params),
     ]);

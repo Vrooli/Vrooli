@@ -16,7 +16,7 @@ export const roleValidation: YupModel<["create", "update"]> = {
         permissions: opt(permissions),
     }, [
         ["members", ["Connect"], "many", "opt"],
-        ["organization", ["Connect"], "one", "req"],
+        ["team", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", roleTranslationValidation],
     ], [], d),
     update: (d) => yupObj({

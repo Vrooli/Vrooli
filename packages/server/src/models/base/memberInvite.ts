@@ -6,7 +6,7 @@ import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MemberInviteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { MemberInviteModelInfo, MemberInviteModelLogic, OrganizationModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { MemberInviteModelInfo, MemberInviteModelLogic, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "MemberInvite" as const;
 export const MemberInviteModel: MemberInviteModelLogic = ({
@@ -27,7 +27,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
                 message: noNull(data.message),
                 willBeAdmin: noNull(data.willBeAdmin),
                 willHavePermissions: noNull(data.willHavePermissions),
-                organization: await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "memberInvites", data, ...rest }),
+                team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "memberInvites", data, ...rest }),
                 user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "membershipsInvited", data, ...rest }),
             }),
             update: async ({ data }) => ({
@@ -43,16 +43,16 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
         sortBy: MemberInviteSortBy,
         searchFields: {
             createdTimeFrame: true,
-            organizationId: true,
             status: true,
             statuses: true,
+            teamId: true,
             updatedTimeFrame: true,
             userId: true,
         },
         searchStringQuery: () => ({
             OR: [
                 "messageWrapped",
-                { organization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
+                { team: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
                 { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),
@@ -74,22 +74,22 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
             id: true,
             isAdmin: true,
             permissions: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
             roles: "Role",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
-                organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId),
+                team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
             }),
         },
     }),

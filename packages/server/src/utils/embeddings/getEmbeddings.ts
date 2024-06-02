@@ -13,10 +13,10 @@ const INSTRUCTION_COMMON = "Embed this text";
 const Instructions: { [key in EmbeddableType]: string } = {
     "ApiVersion": INSTRUCTION_COMMON,
     "Chat": INSTRUCTION_COMMON,
+    "CodeVersion": INSTRUCTION_COMMON,
     "Issue": INSTRUCTION_COMMON,
     "Meeting": INSTRUCTION_COMMON,
     "NoteVersion": INSTRUCTION_COMMON,
-    "Organization": INSTRUCTION_COMMON,
     "Post": INSTRUCTION_COMMON,
     "ProjectVersion": INSTRUCTION_COMMON,
     "Question": INSTRUCTION_COMMON,
@@ -25,9 +25,9 @@ const Instructions: { [key in EmbeddableType]: string } = {
     "RoutineVersion": INSTRUCTION_COMMON,
     "RunProject": INSTRUCTION_COMMON,
     "RunRoutine": INSTRUCTION_COMMON,
-    "SmartContractVersion": INSTRUCTION_COMMON,
     "StandardVersion": INSTRUCTION_COMMON,
     "Tag": INSTRUCTION_COMMON,
+    "Team": INSTRUCTION_COMMON,
     "User": INSTRUCTION_COMMON,
 };
 

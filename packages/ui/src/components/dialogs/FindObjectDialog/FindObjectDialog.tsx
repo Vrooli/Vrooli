@@ -23,17 +23,17 @@ import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, Sele
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
 const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert/BotUpsert"));
+const { CodeUpsert } = lazily(() => import("../../../views/objects/code/CodeUpsert/CodeUpsert"));
 const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert/FocusModeUpsert"));
 const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
 const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud/NoteCrud"));
-const { OrganizationUpsert } = lazily(() => import("../../../views/objects/organization/OrganizationUpsert/OrganizationUpsert"));
 const { ProjectCrud } = lazily(() => import("../../../views/objects/project/ProjectCrud/ProjectCrud"));
 const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert/QuestionUpsert"));
 const { RoutineUpsert } = lazily(() => import("../../../views/objects/routine/RoutineUpsert/RoutineUpsert"));
 const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert/RunProjectUpsert"));
 const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert/RunRoutineUpsert"));
-const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert"));
 const { StandardUpsert } = lazily(() => import("../../../views/objects/standard/StandardUpsert/StandardUpsert"));
+const { TeamUpsert } = lazily(() => import("../../../views/objects/team/TeamUpsert/TeamUpsert"));
 
 type RemoveVersion<T extends string> = T extends `${infer U}Version` ? U : T;
 type CreateViewTypes = RemoveVersion<SelectOrCreateObjectType>;
@@ -45,7 +45,12 @@ type CreateViewTypes = RemoveVersion<SelectOrCreateObjectType>;
 export type FindObjectTabOption = "All" |
     SearchPageTabOption | `${SearchPageTabOption}` |
     CalendarPageTabOption | `${CalendarPageTabOption}` |
-    "ApiVersion" | "NoteVersion" | "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "StandardVersion";
+    "ApiVersion" |
+    "CodeVersion" |
+    "NoteVersion" |
+    "ProjectVersion" |
+    "RoutineVersion" |
+    "StandardVersion";
 
 type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
 
@@ -54,17 +59,17 @@ type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
  */
 const createMap: { [K in CreateViewTypes]: UpsertView } = {
     Api: ApiUpsert as UpsertView,
+    Code: CodeUpsert as UpsertView,
     FocusMode: FocusModeUpsert as UpsertView,
     Meeting: MeetingUpsert as UpsertView,
     Note: NoteCrud as UpsertView,
-    Organization: OrganizationUpsert as UpsertView,
     Project: ProjectCrud as UpsertView,
     Question: QuestionUpsert as UpsertView,
     Routine: RoutineUpsert as UpsertView,
     RunProject: RunProjectUpsert as UpsertView,
     RunRoutine: RunRoutineUpsert as UpsertView,
-    SmartContract: SmartContractUpsert as UpsertView,
     Standard: StandardUpsert as UpsertView,
+    Team: TeamUpsert as UpsertView,
     User: BotUpsert as UpsertView,
 };
 

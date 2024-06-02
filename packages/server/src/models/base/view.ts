@@ -11,7 +11,7 @@ import { withRedis } from "../../redisConn";
 import { SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils/defaultPermissions";
 import { ViewFormat } from "../formats";
-import { OrganizationModelLogic, ViewModelLogic } from "./types";
+import { TeamModelLogic, ViewModelLogic } from "./types";
 
 const toWhere = (key: string, nestedKey: string | null, id: string) => {
     if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
@@ -40,18 +40,18 @@ const toCreate = (object: any, relName: string, key?: string) => {
 const whereMapper = {
     Api: (id: string) => toWhere("api", null, id),
     ApiVersion: (id: string) => toWhere("api", "versions", id),
+    Code: (id: string) => toWhere("code", null, id),
+    CodeVersion: (id: string) => toWhere("code", "versions", id),
     Note: (id: string) => toWhere("note", null, id),
     NoteVersion: (id: string) => toWhere("note", "versions", id),
-    Organization: (id: string) => toWhere("organization", null, id),
     Project: (id: string) => toWhere("project", null, id),
     ProjectVersion: (id: string) => toWhere("project", "versions", id),
     Question: (id: string) => toWhere("question", null, id),
     Routine: (id: string) => toWhere("routine", null, id),
     RoutineVersion: (id: string) => toWhere("routine", "versions", id),
-    SmartContract: (id: string) => toWhere("smartContract", null, id),
-    SmartContractVersion: (id: string) => toWhere("smartContract", "versions", id),
     Standard: (id: string) => toWhere("standard", null, id),
     StandardVersion: (id: string) => toWhere("standard", "versions", id),
+    Team: (id: string) => toWhere("team", null, id),
     User: (id: string) => toWhere("user", null, id),
 } as const;
 
@@ -61,18 +61,18 @@ const whereMapper = {
 const selectMapper = {
     Api: toSelect(),
     ApiVersion: toSelect("root"),
+    Code: toSelect(),
+    CodeVersion: toSelect("root"),
     Note: toSelect(),
     NoteVersion: toSelect("root"),
-    Organization: toSelect(),
     Project: toSelect(),
     ProjectVersion: toSelect("root"),
     Question: toSelect(),
     Routine: toSelect(),
     RoutineVersion: toSelect("root"),
-    SmartContract: toSelect(),
-    SmartContractVersion: toSelect("root"),
     Standard: toSelect(),
     StandardVersion: toSelect("root"),
+    Team: toSelect(),
     User: toSelect(),
 } as const;
 
@@ -82,18 +82,18 @@ const selectMapper = {
 const dataMapper = {
     Api: (object: any) => toData(object),
     ApiVersion: (object: any) => toData(object, "root"),
+    Code: (object: any) => toData(object),
+    CodeVersion: (object: any) => toData(object, "root"),
     Note: (object: any) => toData(object),
     NoteVersion: (object: any) => toData(object, "root"),
-    Organization: (object: any) => toData(object),
     Project: (object: any) => toData(object),
     ProjectVersion: (object: any) => toData(object, "root"),
     Question: (object: any) => toData(object),
     Routine: (object: any) => toData(object),
     RoutineVersion: (object: any) => toData(object, "root"),
-    SmartContract: (object: any) => toData(object),
-    SmartContractVersion: (object: any) => toData(object, "root"),
     Standard: (object: any) => toData(object),
     StandardVersion: (object: any) => toData(object, "root"),
+    Team: (object: any) => toData(object),
     User: (object: any) => toData(object),
 };
 
@@ -103,18 +103,18 @@ const dataMapper = {
 const createMapper = {
     Api: (object: any) => toCreate(object, "api"),
     ApiVersion: (object: any) => toCreate(object, "api", "root"),
+    Code: (object: any) => toCreate(object, "code"),
+    CodeVersion: (object: any) => toCreate(object, "code", "root"),
     Note: (object: any) => toCreate(object, "note"),
     NoteVersion: (object: any) => toCreate(object, "note", "root"),
-    Organization: (object: any) => toCreate(object, "organization"),
     Project: (object: any) => toCreate(object, "project"),
     ProjectVersion: (object: any) => toCreate(object, "project", "root"),
     Question: (object: any) => toCreate(object, "question"),
     Routine: (object: any) => toCreate(object, "routine"),
     RoutineVersion: (object: any) => toCreate(object, "routine", "root"),
-    SmartContract: (object: any) => toCreate(object, "smartContract"),
-    SmartContractVersion: (object: any) => toCreate(object, "smartContract", "root"),
     Standard: (object: any) => toCreate(object, "standard"),
     StandardVersion: (object: any) => toCreate(object, "standard", "root"),
+    Team: (object: any) => toCreate(object, "team"),
     User: (object: any) => toCreate(object, "user"),
 };
 
@@ -148,14 +148,14 @@ const clearViews = async (userId: string): Promise<Count> => {
 
 const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] } = {
     Api: "api",
-    Organization: "organization",
+    Code: "code",
     Question: "question",
     Note: "note",
     Post: "post",
     Project: "project",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
+    Team: "team",
     User: "user",
 };
 
@@ -283,25 +283,25 @@ export const ViewModel: ViewModelLogic = ({
         // Check if a view from this user should increment the view count
         let isOwn = false;
         switch (input.viewFor) {
-            case ViewFor.Organization: {
-                // Check if user is an admin or owner of the organization
-                const roles = await ModelMap.get<OrganizationModelLogic>("Organization").query.hasRole(userData.id, [input.forId]);
+            case ViewFor.Team: {
+                // Check if user is an admin or owner of the team
+                const roles = await ModelMap.get<TeamModelLogic>("Team").query.hasRole(userData.id, [input.forId]);
                 isOwn = Boolean(roles[0]);
                 break;
             }
             case ViewFor.Api:
             case ViewFor.ApiVersion:
+            case ViewFor.Code:
+            case ViewFor.CodeVersion:
             case ViewFor.Note:
             case ViewFor.NoteVersion:
             case ViewFor.Project:
             case ViewFor.ProjectVersion:
             case ViewFor.Routine:
             case ViewFor.RoutineVersion:
-            case ViewFor.SmartContract:
-            case ViewFor.SmartContractVersion:
             case ViewFor.Standard:
             case ViewFor.StandardVersion: {
-                // Check if ROOT object is owned by this user or by an organization they are a member of
+                // Check if ROOT object is owned by this user or by a team they are a member of
                 const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 2");
                 const rootObject = await (prismaInstance[rootDbTable] as PrismaDelegate).findFirst({
                     where: {
@@ -309,7 +309,7 @@ export const ViewModel: ViewModelLogic = ({
                             { id: dataMapper[input.viewFor](objectToView).id },
                             {
                                 OR: [
-                                    ModelMap.get<OrganizationModelLogic>("Organization").query.isMemberOfOrganizationQuery(userData.id),
+                                    ModelMap.get<TeamModelLogic>("Team").query.isMemberOfTeamQuery(userData.id),
                                     { ownedByUser: { id: userData.id } },
                                 ],
                             },

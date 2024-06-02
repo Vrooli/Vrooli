@@ -2,7 +2,7 @@ import { Comment, CommentThread, NavigableObject } from "@local/shared";
 
 export interface CommentConnectorProps {
     isOpen: boolean;
-    parentType: "User" | "Organization";
+    parentType: "User" | "Team";
     onToggle: () => unknown;
 }
 

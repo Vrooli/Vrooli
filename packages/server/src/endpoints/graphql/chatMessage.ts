@@ -17,6 +17,10 @@ export const typeDef = gql`
         BotDelete
         BotFind
         BotUpdate
+        DataConverterAdd
+        DataConverterDelete
+        DataConverterFind
+        DataConverterUpdate
         MembersAdd
         MembersDelete
         MembersFind
@@ -74,7 +78,7 @@ export const typeDef = gql`
         translationsUpdate: [ChatMessageTranslationUpdateInput!]
     }
 
-    union ChatMessageedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion
+    union ChatMessageedOn = ApiVersion | CodeVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | StandardVersion
 
     type ChatMessage {
         id: ID!
