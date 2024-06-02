@@ -662,7 +662,7 @@ export const logUserStats = async (
                         ...(runProjectStats[user.id] || { runProjectCompletionTimeAverage: 0, runProjectContextSwitchesAverage: 0, runProjectsCompleted: 0, runProjectsStarted: 0 }),
                         ...(runRoutineStats[user.id] || { runRoutineCompletionTimeAverage: 0, runRoutineContextSwitchesAverage: 0, runRoutinesCompleted: 0, runRoutinesStarted: 0 }),
                         ...(standardStats[user.id] || { standardCompletionTimeAverage: 0, standardsCompleted: 0, standardsCreated: 0 }),
-                        ...(teamStats[user.id] || { organizationsCreated: 0 }),
+                        ...(teamStats[user.id] || { teamsCreated: 0 }),
                     })),
                 });
             },
