@@ -1,4 +1,5 @@
 import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, ParseSearchParamsResult, YouInflated, exists, parseSearchParams, uuidValidate } from "@local/shared";
+import { FetchInputOptions } from "api/types";
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "route";
 import { PartialWithType } from "types";
@@ -6,7 +7,7 @@ import { getCookieFormData, getCookiePartialData, removeCookiePartialData, setCo
 import { defaultYou, getYou } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { FetchInputOptions, useLazyFetch } from "./useLazyFetch";
+import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 
 type UrlObject = { __typename: GqlModelType | `${GqlModelType}`, id?: string };

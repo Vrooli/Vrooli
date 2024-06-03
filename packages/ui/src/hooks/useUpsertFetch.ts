@@ -1,6 +1,7 @@
 import { ListObject, noop, OrArray } from "@local/shared";
 import { Method } from "api";
-import { MakeLazyRequest, useLazyFetch, UseLazyFetchProps } from "./useLazyFetch";
+import { LazyRequestWithResult } from "api/types";
+import { useLazyFetch, UseLazyFetchProps } from "./useLazyFetch";
 
 type CommonProps<IsMutate extends boolean> = {
     isCreate: boolean,
@@ -31,7 +32,7 @@ export const useUpsertFetch = <
 }: UseUpsertFetchParams<typeof isMutate>) => {
     const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(isMutate === false ? {} : endpointCreate as UseLazyFetchProps<TCreateInput>);
     const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(isMutate === false ? {} : endpointUpdate as UseLazyFetchProps<TUpdateInput>);
-    const fetch = (isMutate === false ? noop : isCreate ? fetchCreate : fetchUpdate) as MakeLazyRequest<TCreateInput | TUpdateInput, T>;
+    const fetch = (isMutate === false ? noop : isCreate ? fetchCreate : fetchUpdate) as LazyRequestWithResult<TCreateInput | TUpdateInput, T>;
 
     return {
         fetch,

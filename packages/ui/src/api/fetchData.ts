@@ -1,5 +1,5 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
-import { Method, ServerResponse } from "api";
+import { Method, ServerResponseWithTimestamp } from "api";
 
 // Determine origin of API server
 const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
@@ -50,7 +50,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     inputs,
     options,
     omitRestBase = false,
-}: FetchDataProps<Input>): Promise<ServerResponse<Output>> => {
+}: FetchDataProps<Input>): Promise<ServerResponseWithTimestamp<Output>> => {
 
     // Replace variables in the endpoint with their values from inputs.
     if (inputs !== undefined) {
@@ -91,5 +91,12 @@ export const fetchData = async <Input extends object | undefined, Output>({
         credentials: "include",
     };
 
-    return fetch(url, finalOptions).then(response => response.json()) as Promise<ServerResponse<Output>>;
+    // Capture the current date and time, which can be useful to determine the order of events. 
+    // For example, if you switch quickly between search types, you want to make sure that the 
+    // displayed results are from the fetch that was CALLED last, and not the fetch that was RESOLVED last.
+    const __fetchTimestamp = Date.now();
+
+    return fetch(url, finalOptions)
+        .then(response => response.json())
+        .then(data => ({ ...data, __fetchTimestamp }));
 };
