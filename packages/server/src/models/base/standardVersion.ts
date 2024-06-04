@@ -232,10 +232,10 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             ],
         }),
         /**
-         * isInternal routines should never appear in the query, since they are 
+         * Internal standards should never appear in the query, since they are 
          * only meant for a single input/output
          */
-        customQueryData: () => ({ root: { isInternal: true } }),
+        customQueryData: () => ({ root: { isInternal: false } }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {

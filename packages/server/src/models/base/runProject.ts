@@ -110,10 +110,15 @@ export const RunProjectModel: RunProjectModelLogic = ({
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
-            ["team", "Team"],
-            ["user", "User"],
-        ], data, ...rest),
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            (
+                (data.user === null && data.team === null) ||
+                oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
+                    ["team", "Team"],
+                    ["user", "User"],
+                ], data, ...rest)
+            ),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },

@@ -2,14 +2,14 @@ import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, NoteModelInfo, NoteModelLogic, NoteVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
 
 type NotePre = PreShapeRootResult;
 
@@ -103,7 +103,16 @@ export const NoteModel: NoteModelLogic = ({
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === true,
-        isPublic: (data) => data.isPrivate === false,
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            data.isDeleted === false &&
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<NoteModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
@@ -122,8 +131,23 @@ export const NoteModel: NoteModelLogic = ({
             versions: ["NoteVersion", ["root"]],
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
                     { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

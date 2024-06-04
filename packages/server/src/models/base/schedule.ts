@@ -111,8 +111,17 @@ export const ScheduleModel: ScheduleModelLogic = ({
             ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: {
+                OR: [
+                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private })),
+                ],
+            },
+            public: {
+                // Can use OR because only one relation will be present
+                OR: [
+                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.public })),
+                ],
+            },
             owner: (userId) => ({
                 OR: [
                     ...Object.entries(forMapper).map(([key, value]) => ({ [value]: { some: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) } })),

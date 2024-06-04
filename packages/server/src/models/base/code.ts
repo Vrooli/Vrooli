@@ -10,7 +10,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { CodeFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, CodeModelInfo, CodeModelLogic, CodeVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, CodeModelInfo, CodeModelLogic, CodeVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
 
 type CodePre = PreShapeRootResult;
 
@@ -112,12 +112,16 @@ export const CodeModel: CodeModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, ...rest) => data.isPrivate === false &&
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<CodeModelInfo["PrismaSelect"]>([
-                ["ownedByTeam", "Team"],
-                ["ownedByUser", "User"],
-            ], data, ...rest),
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<CodeModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
@@ -137,8 +141,23 @@ export const CodeModel: CodeModelLogic = ({
             versions: ["CodeVersion", ["root"]],
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },

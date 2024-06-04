@@ -227,12 +227,18 @@ export const ViewModel: ViewModelLogic = ({
             id: true,
             by: "User",
         }),
-        //TODO should set private/public based on viewed object's visibility, 
-        //since you could view it when it was public and then it became private.
-        //Should look into doing this for more than just views.
         visibility: {
-            private: {},
-            public: {},
+            private: {
+                OR: [
+                    ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private })),
+                ],
+            },
+            public: {
+                // Can use OR because only one relation will be present
+                OR: [
+                    ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.public })),
+                ],
+            },
             owner: (userId) => ({
                 by: { id: userId },
             }),

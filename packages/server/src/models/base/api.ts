@@ -3,13 +3,14 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions } from "../../utils/defaultPermissions";
+import { oneIsPublic } from "../../utils/oneIsPublic";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { labelShapeHelper, ownerFields, preShapeRoot, PreShapeRootResult, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
 import { getSingleTypePermissions } from "../../validators/permissions";
 import { ApiFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
 
 type ApiPre = PreShapeRootResult;
 
@@ -110,7 +111,16 @@ export const ApiModel: ApiModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === false,
-        isPublic: (data) => data.isPrivate === false,
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            data.isDeleted === false &&
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<ApiModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
@@ -130,8 +140,25 @@ export const ApiModel: ApiModelLogic = ({
             versions: ["ApiVersion", ["root"]],
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            //TODO for morning: all visiblity private/public need to be updated. Some are just blank when they should at MINIMUM look like the ones below, and ones like this one should also be checking that either the owners are both null, or the owner is also public/private
+            //TODO 2: Finish updating StandardVersionSelectSwitch to be generic. Use it for connecting code to single-step routine. Make sure it still works with inputs, and that we can set "isInternal" through the create standard popup. Also improve look of RoutineUpsert for single-step routines, so that we use a dropdown to select the type (e.g. api, data converter (code), smart contract, instruction, LLM generation, instruction (i.e. does nothing but show description and details), etc.)
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
                     { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

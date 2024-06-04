@@ -1,9 +1,8 @@
 import { MaxObjects, walletValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { WalletFormat } from "../formats";
 import { TeamModelLogic, WalletModelLogic } from "./types";
 
@@ -57,10 +56,7 @@ export const WalletModel: WalletModelLogic = ({
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<Prisma.walletSelect>([
-            ["team", "Team"],
-            ["user", "User"],
-        ], ...rest),
+        isPublic: () => false, // Can make public in the future for donations, but for now keep private for security
         visibility: {
             private: {},
             public: {},

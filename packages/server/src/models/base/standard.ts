@@ -11,7 +11,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { StandardFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
 
 type StandardPre = PreShapeRootResult;
 
@@ -187,10 +187,10 @@ export const StandardModel: StandardModelLogic = ({
             ],
         }),
         /**
-         * isInternal routines should never appear in the query, since they are 
+         * Internal standards should never appear in the query, since they are 
          * only meant for a single input/output
          */
-        customQueryData: () => ({ isInternal: true }),
+        customQueryData: () => ({ isInternal: false }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
@@ -210,12 +210,17 @@ export const StandardModel: StandardModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, ...rest) => data.isPrivate === false &&
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<StandardModelInfo["PrismaSelect"]>([
-                ["ownedByTeam", "Team"],
-                ["ownedByUser", "User"],
-            ], data, ...rest),
+            data.isInternal === false &&
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<StandardModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         permissionResolvers: defaultPermissions,
@@ -235,8 +240,23 @@ export const StandardModel: StandardModelLogic = ({
             User: data?.ownedByUser,
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
                     { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

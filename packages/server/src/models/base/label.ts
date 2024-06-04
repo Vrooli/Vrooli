@@ -86,10 +86,12 @@ export const LabelModel: LabelModelLogic = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<LabelModelInfo["PrismaSelect"]>([
-            ["ownedByTeam", "Team"],
-            ["ownedByUser", "User"],
-        ], ...rest),
+        isPublic: (data, ...rest) =>
+            (data.ownedByUser === null && data.ownedByTeam === null) ||
+            oneIsPublic<LabelModelInfo["PrismaSelect"]>([
+                ["ownedByTeam", "Team"],
+                ["ownedByUser", "User"],
+            ], data, ...rest),
         visibility: {
             private: {},
             public: {},
