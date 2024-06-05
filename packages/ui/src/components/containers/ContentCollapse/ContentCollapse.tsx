@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ContentCollapseProps } from "../types";
 
-export function ContentCollapse({
+export const ContentCollapse = ({
     children,
     helpText,
     id,
@@ -17,7 +17,8 @@ export function ContentCollapse({
     titleVariant,
     titleKey,
     titleVariables,
-}: ContentCollapseProps) {
+    toTheRight,
+}: ContentCollapseProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -69,6 +70,7 @@ export function ContentCollapse({
                             fill={fillColor}
                         />}
                 </IconButton>
+                {toTheRight}
             </Stack>
             {/* Text */}
             <Collapse in={internalIsOpen}>
@@ -76,4 +78,4 @@ export function ContentCollapse({
             </Collapse>
         </Box>
     );
-}
+};

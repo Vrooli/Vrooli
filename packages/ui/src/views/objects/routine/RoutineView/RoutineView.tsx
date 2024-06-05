@@ -38,7 +38,7 @@ import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
-import { BuildView } from "views/BuildView/BuildView";
+import { BuildView } from "views/objects/routine/BuildView/BuildView";
 import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
 import { RoutineViewProps } from "../types";
 

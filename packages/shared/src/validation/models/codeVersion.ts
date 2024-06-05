@@ -1,10 +1,12 @@
 import * as yup from "yup";
-import { bool, description, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import { CodeType } from "../../api/generated";
+import { YupModel, bool, description, enumToYup, id, jsonVariable, maxStrErr, minStrErr, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { codeValidation } from "./code";
 import { resourceListValidation } from "./resourceList";
 
 const codeDefault = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
-const contractType = yup.string().trim().removeEmptyString().max(256, maxStrErr);
+const codeLanguage = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);
+const codeType = enumToYup(CodeType);
 const content = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 
 export const codeVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
@@ -25,9 +27,10 @@ export const codeVersionValidation: YupModel<["create", "update"]> = {
         id: req(id),
         isComplete: opt(bool),
         isPrivate: opt(bool),
-        default: opt(codeDefault),
-        contractType: req(contractType),
+        codeLanguage: req(codeLanguage),
+        codeType: req(codeType),
         content: req(content),
+        default: opt(codeDefault),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
@@ -40,9 +43,9 @@ export const codeVersionValidation: YupModel<["create", "update"]> = {
         id: req(id),
         isComplete: opt(bool),
         isPrivate: opt(bool),
-        default: opt(codeDefault),
-        contractType: opt(contractType),
+        codeLanguage: opt(codeLanguage),
         content: opt(content),
+        default: opt(codeDefault),
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [

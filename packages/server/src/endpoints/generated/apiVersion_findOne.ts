@@ -197,6 +197,7 @@ export const apiVersion_findOne = {
     "name": true,
     "summary": true
   },
+  "schemaText": true,
   "versionNotes": true,
   "id": true,
   "created_at": true,

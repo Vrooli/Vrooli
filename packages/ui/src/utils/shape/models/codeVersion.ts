@@ -9,7 +9,7 @@ export type CodeVersionTranslationShape = Pick<CodeVersionTranslation, "id" | "l
     __typename?: "CodeVersionTranslation";
 }
 
-export type CodeVersionShape = Pick<CodeVersion, "id" | "content" | "contractType" | "default" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
+export type CodeVersionShape = Pick<CodeVersion, "id" | "codeLanguage" | "codeType" | "content" | "default" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "CodeVersion";
     directoryListings?: ProjectVersionDirectoryShape[] | null;
     resourceList?: ResourceListShape | null;
@@ -25,7 +25,7 @@ export const shapeCodeVersionTranslation: ShapeModel<CodeVersionTranslationShape
 
 export const shapeCodeVersion: ShapeModel<CodeVersionShape, CodeVersionCreateInput, CodeVersionUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "content", "contractType", "default", "isComplete", "isPrivate", "versionLabel", "versionNotes");
+        const prims = createPrims(d, "id", "codeLanguage", "codeType", "content", "default", "isComplete", "isPrivate", "versionLabel", "versionNotes");
         return {
             ...prims,
             ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
@@ -35,7 +35,7 @@ export const shapeCodeVersion: ShapeModel<CodeVersionShape, CodeVersionCreateInp
         };
     },
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "content", "contractType", "default", "isPrivate", "versionLabel", "versionNotes"),
+        ...updatePrims(o, u, "id", "codeLanguage", "content", "default", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeCode),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "CodeVersion" } })),

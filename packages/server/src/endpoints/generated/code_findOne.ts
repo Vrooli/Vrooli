@@ -21,6 +21,7 @@ export const code_findOne = {
     "__typename": "CodeVersion"
   },
   "versions": {
+    "content": true,
     "versionNotes": true,
     "pullRequest": {
       "translations": {
@@ -90,9 +91,9 @@ export const code_findOne = {
     "isDeleted": true,
     "isLatest": true,
     "isPrivate": true,
+    "codeLanguage": true,
+    "codeType": true,
     "default": true,
-    "contractType": true,
-    "content": true,
     "versionIndex": true,
     "versionLabel": true,
     "commentsCount": true,

@@ -62,6 +62,7 @@ export interface ContentCollapseProps {
     titleVariant?: TypographyProps["variant"];
     titleKey?: CommonKey;
     titleVariables?: { [x: string]: string | number };
+    toTheRight?: JSX.Element;
 }
 
 export interface TextCollapseProps {

@@ -1,4 +1,4 @@
-import { BookmarkFor, CodeVersion, endpointGetCodeVersion } from "@local/shared";
+import { BookmarkFor, CodeVersion, ListObject, endpointGetCodeVersion } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -159,13 +159,13 @@ export const CodeView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={firstString(name, t("Code"))}
+                title={firstString(name, t("Code", { count: 1 }))}
             />
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={moreMenuAnchor}
-                object={codeVersion as any}
+                object={codeVersion as ListObject}
                 onClose={closeMoreMenu}
             />
             <Box sx={{

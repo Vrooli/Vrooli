@@ -43,6 +43,7 @@ const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
 const { ChatCrud } = lazily(() => import("./views/objects/chat"));
+const { CodeUpsert, CodeView } = lazily(() => import("./views/objects/code"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
@@ -55,7 +56,7 @@ const { ProjectCrud } = lazily(() => import("./views/objects/project"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
 const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
 const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
-const { CodeUpsert, CodeView } = lazily(() => import("./views/objects/code"));
+const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
 const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
 const { UserView } = lazily(() => import("./views/objects/user"));
 
@@ -338,6 +339,15 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <SignupView display="page" />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/add`} mustBeLoggedIn={true} {...props}>
+                    <SmartContractUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <SmartContractUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.SmartContract}/:rootId/:versionId?`} {...props}>
+                    <SmartContractView display="page" />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
                     <StandardUpsert display="page" isCreate={true} />

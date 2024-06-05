@@ -210,6 +210,7 @@ export type ApiVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Api;
+  schemaText?: Maybe<Scalars['String']>;
   translations: Array<ApiVersionTranslation>;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
@@ -228,6 +229,7 @@ export type ApiVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ApiCreateInput>;
+  schemaText?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   versionLabel: Scalars['String'];
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -322,6 +324,7 @@ export type ApiVersionUpdateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rootUpdate?: InputMaybe<ApiUpdateInput>;
+  schemaText?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ApiVersionTranslationUpdateInput>>;
@@ -1077,6 +1080,11 @@ export enum CodeSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
+export enum CodeType {
+  DataConvert = 'DataConvert',
+  SmartContract = 'SmartContract'
+}
+
 export type CodeUpdateInput = {
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
@@ -1096,11 +1104,12 @@ export type CodeUpdateInput = {
 
 export type CodeVersion = {
   __typename: 'CodeVersion';
+  codeLanguage: Scalars['String'];
+  codeType: CodeType;
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   content: Scalars['String'];
-  contractType: Scalars['String'];
   created_at: Scalars['Date'];
   default?: Maybe<Scalars['String']>;
   directoryListings: Array<ProjectVersionDirectory>;
@@ -1127,8 +1136,9 @@ export type CodeVersion = {
 };
 
 export type CodeVersionCreateInput = {
+  codeLanguage: Scalars['String'];
+  codeType: CodeType;
   content: Scalars['String'];
-  contractType: Scalars['String'];
   default?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -1151,7 +1161,6 @@ export type CodeVersionEdge = {
 export type CodeVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
-  contractType?: InputMaybe<Scalars['String']>;
   createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -1226,8 +1235,8 @@ export type CodeVersionTranslationUpdateInput = {
 };
 
 export type CodeVersionUpdateInput = {
+  codeLanguage?: InputMaybe<Scalars['String']>;
   content?: InputMaybe<Scalars['String']>;
-  contractType?: InputMaybe<Scalars['String']>;
   default?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -7503,6 +7512,17 @@ export enum RoutineSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
+export enum RoutineType {
+  Action = 'Action',
+  Api = 'Api',
+  Code = 'Code',
+  Data = 'Data',
+  Generate = 'Generate',
+  Informational = 'Informational',
+  MultiStep = 'MultiStep',
+  SmartContract = 'SmartContract'
+}
+
 export type RoutineUpdateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
@@ -7523,14 +7543,13 @@ export type RoutineUpdateInput = {
 
 export type RoutineVersion = {
   __typename: 'RoutineVersion';
-  apiCallData?: Maybe<Scalars['String']>;
   apiVersion?: Maybe<ApiVersion>;
-  codeCallData?: Maybe<Scalars['String']>;
   codeVersion?: Maybe<CodeVersion>;
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   complexity: Scalars['Int'];
+  configCallData?: Maybe<Scalars['String']>;
   created_at: Scalars['Date'];
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
@@ -7555,6 +7574,7 @@ export type RoutineVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Routine;
+  routineType: RoutineType;
   simplicity: Scalars['Int'];
   suggestedNextByRoutineVersion: Array<RoutineVersion>;
   suggestedNextByRoutineVersionCount: Scalars['Int'];
@@ -7570,10 +7590,9 @@ export type RoutineVersion = {
 };
 
 export type RoutineVersionCreateInput = {
-  apiCallData?: InputMaybe<Scalars['String']>;
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
-  codeCallData?: InputMaybe<Scalars['String']>;
   codeVersionConnect?: InputMaybe<Scalars['ID']>;
+  configCallData?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
@@ -7586,6 +7605,7 @@ export type RoutineVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<RoutineCreateInput>;
+  routineType: RoutineType;
   suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<RoutineVersionTranslationCreateInput>>;
   versionLabel: Scalars['String'];
@@ -7803,12 +7823,11 @@ export type RoutineVersionTranslationUpdateInput = {
 };
 
 export type RoutineVersionUpdateInput = {
-  apiCallData?: InputMaybe<Scalars['String']>;
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
   apiVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
-  codeCallData?: InputMaybe<Scalars['String']>;
   codeVersionConnect?: InputMaybe<Scalars['ID']>;
   codeVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
+  configCallData?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -10205,6 +10224,7 @@ export type ResolversTypes = {
   CodeSearchInput: CodeSearchInput;
   CodeSearchResult: ResolverTypeWrapper<CodeSearchResult>;
   CodeSortBy: CodeSortBy;
+  CodeType: CodeType;
   CodeUpdateInput: CodeUpdateInput;
   CodeVersion: ResolverTypeWrapper<CodeVersion>;
   CodeVersionCreateInput: CodeVersionCreateInput;
@@ -10654,6 +10674,7 @@ export type ResolversTypes = {
   RoutineSearchInput: RoutineSearchInput;
   RoutineSearchResult: ResolverTypeWrapper<RoutineSearchResult>;
   RoutineSortBy: RoutineSortBy;
+  RoutineType: RoutineType;
   RoutineUpdateInput: RoutineUpdateInput;
   RoutineVersion: ResolverTypeWrapper<RoutineVersion>;
   RoutineVersionCreateInput: RoutineVersionCreateInput;
@@ -11642,6 +11663,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Api'], ParentType, ContextType>;
+  schemaText?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ApiVersionTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11978,11 +12000,12 @@ export type CodeSearchResultResolvers<ContextType = any, ParentType extends Reso
 };
 
 export type CodeVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeVersion'] = ResolversParentTypes['CodeVersion']> = {
+  codeLanguage?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  codeType?: Resolver<ResolversTypes['CodeType'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   content?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  contractType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   default?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
@@ -14026,14 +14049,13 @@ export type RoutineSearchResultResolvers<ContextType = any, ParentType extends R
 };
 
 export type RoutineVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersion'] = ResolversParentTypes['RoutineVersion']> = {
-  apiCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
-  codeCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   codeVersion?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  configCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -14058,6 +14080,7 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Routine'], ParentType, ContextType>;
+  routineType?: Resolver<ResolversTypes['RoutineType'], ParentType, ContextType>;
   simplicity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   suggestedNextByRoutineVersion?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   suggestedNextByRoutineVersionCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;

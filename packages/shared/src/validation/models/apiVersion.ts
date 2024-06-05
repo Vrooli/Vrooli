@@ -1,6 +1,9 @@
-import { bool, details, id, name, opt, req, summary, transRel, url, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
+import * as yup from "yup";
+import { bool, details, id, maxStrErr, minStrErr, name, opt, req, summary, transRel, url, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { apiValidation } from "./api";
 import { resourceListValidation } from "./resourceList";
+
+export const schemaText = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16384, maxStrErr);
 
 export const apiVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -21,6 +24,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         callLink: opt(url(d)),
         documentationLink: opt(url(d)),
         isPrivate: opt(bool),
+        schemaText: opt(schemaText),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
@@ -34,6 +38,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         callLink: opt(url(d)),
         documentationLink: opt(url(d)),
         isPrivate: opt(bool),
+        schemaText: opt(schemaText),
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [

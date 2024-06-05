@@ -15,7 +15,7 @@ export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id
     __typename?: "RoutineVersionTranslation";
 }
 
-export type RoutineVersionShape = Pick<RoutineVersion, "id" | "isAutomatable" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes" | "codeCallData"> & {
+export type RoutineVersionShape = Pick<RoutineVersion, "id" | "configCallData" | "isAutomatable" | "isComplete" | "isPrivate" | "routineType" | "versionLabel" | "versionNotes"> & {
     __typename: "RoutineVersion";
     apiVersion?: CanConnect<ApiVersionShape> | null;
     codeVersion?: CanConnect<CodeVersionShape> | null;
@@ -37,7 +37,7 @@ export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslatio
 
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "codeCallData", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes");
+        const prims = createPrims(d, "id", "configCallData", "isAutomatable", "isComplete", "isPrivate", "routineType", "versionLabel", "versionNotes");
         return {
             ...prims,
             ...createRel(d, "apiVersion", ["Connect"], "one"),
@@ -54,7 +54,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         };
     },
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "codeCallData", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
+        ...updatePrims(o, u, "id", "configCallData", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "apiVersion", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "codeVersion", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "directoryListings", ["Connect", "Disconnect"], "many"),

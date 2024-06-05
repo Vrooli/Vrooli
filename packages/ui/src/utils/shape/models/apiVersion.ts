@@ -9,7 +9,7 @@ export type ApiVersionTranslationShape = Pick<ApiVersionTranslation, "id" | "lan
     __typename?: "ApiVersionTranslation";
 }
 
-export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentationLink" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
+export type ApiVersionShape = Pick<ApiVersion, "id" | "callLink" | "documentationLink" | "isComplete" | "isPrivate" | "schemaText" | "versionLabel" | "versionNotes"> & {
     __typename: "ApiVersion";
     directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     resourceList?: ResourceListShape | null;
@@ -24,7 +24,7 @@ export const shapeApiVersionTranslation: ShapeModel<ApiVersionTranslationShape, 
 
 export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput, ApiVersionUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "callLink", "documentationLink", "isComplete", "isPrivate", "versionLabel", "versionNotes");
+        const prims = createPrims(d, "id", "callLink", "documentationLink", "isComplete", "isPrivate", "schemaText", "versionLabel", "versionNotes");
         return {
             ...prims,
             ...createRel(d, "directoryListings", ["Connect"], "many"),
@@ -34,7 +34,7 @@ export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput,
         };
     },
     update: (o, u, a) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "callLink", "documentationLink", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
+        ...updatePrims(o, u, "id", "callLink", "documentationLink", "isComplete", "isPrivate", "schemaText", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "ApiVersion" } })),
         ...updateRel(o, u, "root", ["Update"], "one", shapeApi),

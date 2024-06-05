@@ -1,16 +1,76 @@
+// Next version: Full routine running support.
+# Changes
+
+## Code:
+- Add field for language. Available on create and update (e.g. switching from JavaScript to TypeScript is a plausible reason to need this).
+- Add enum for type (i.e. DataConvert or SmartContract). Only available on create.
+- NOTE: Already has field `contractType`. This should be used when enum is SmartContract to store the type of contract (e.g. ERC20, ERC721 for Ethereum)
+- Add field for address, which is the way to identify the contract on the blockchain. Only available on create.
+- Add field for isAddressVerified, which is a boolean that indicates if the address is correct. This is needed because 
+  it's typically not possible to enter the address on a site like Cardanoscan and see the code, so we'll need to add a job 
+  which checks if the address's code (typically obtained through a hash of the contract code) matches what was entered in the address field.
+  This is not available for the user to set directly.
+- Add field for hash and isHashVerified, which may differ from the address in some cases. Depends on the blockchain. These are not available for the user to set directly.
+- Add field to indicate which blockchain the contract is on.
+
+model code {
+    + codeLanguage string
+    + codeType enum (DataConvert, SmartContract)
+    - contractType string?
+    + contract code_version_contract?
+}
++ model code_version_contract {
+    + address string?
+    + blockchain string
+    + contractType string?
+    + hash string?
+    + isAddressVerified boolean
+    + isHashVerified boolean
+    + codeVersionId string
+    + codeVersion code_version @relation(fields: [codeId], references: [id], onDelete: Cascade)
+}
+
+
+## Routine:
+Variants are:
+- Add field for type, which is an RoutineType enum
+- Add field for action call data, which is used for RoutineType.Action routines to trigger a system action (e.g. create, update, delete). 
+Stores a JSON object depicting the action to take. Example:
+```
+{
+    "action": "create",
+    "object": "user",
+    "data": {
+        "name": "inputId1", // Links to defined routine_version_input
+        "email": "inputId2", // Links to defined routine_version_input
+    }
+}
+```
+All data fields must be defined in the routine_version. When you select an action, it should automatically create them for you, with the correct types.
+- Add field for generate call data, which will be used to define data to call an AI and receive a response. Example:
+```
+{
+    "model": "gpt-4o",
+    "preferredFallbacks": ["gpt-3", "gpt-2"],
+    // All data added sequentially to the model
+    "data": [{
+        input: "inputId1", // Links to defined routine_version_input
+        delimiter: "\n\n", // In this case, adds two new lines after the input
+    }]
+}
+
+model routine_version {
+    + routineType enum
+    // Combining call data fields to one, since only one will be used at a time
+    - actionCallData string?
+    - codeCallData string?
+    + configCallData string? // Used for Action, API, Code, Generate types
+}
+
+
+
 // Next version of schema. Stored in separate file to avoid migrating before we're ready.
 // Supports the following updates:
-// 1. Order routine inputs/outputs ✅
-// 2. Routine scheduling ✅
-// 3. Personal time scheduling ✅
-// 4. Team time scheduling, including meetings ✅
-// 5. Labels (different than tags) for personal or team use ✅
-// 6. Improved versioning of routines and standards ✅
-// 7. Pull requests for updating versioned objects ✅
-// 8. Push notifications with history, and notifications settings ✅
-// 9. Generating API keys ✅
-// 10. Account credits to limit usage. Can pay for premium, which includes
-// higher limits and more features. ✅
 // 11. Payment history for credits (both users and API) ✅
 // 12. Node conditions ✅
 // 13. Routine suggestions ✅
@@ -20,8 +80,6 @@
 // 17. APIs and calling them from routines ✅
 // 18. Notes (organized using projects) ✅
 // 19. Issues. Has comments, votes, reports, labels, and a status. Can be applied to apis, teams, projects, routines, smart contracts, and standards ✅
-// 20. Site statistics ✅
-// 21. Object statistics ✅
 // 22. Suggest run data public, so owners can view it (e.g. polls) ✅
 // 23. Vote table's byId cascade delete, since this was preventing account deletion ✅
 // 24. Referencing an object in a comment, note, or issue. Could maybe get away with using resource list ⚠️

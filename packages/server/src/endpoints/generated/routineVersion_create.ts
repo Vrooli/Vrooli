@@ -1,4 +1,5 @@
 export const routineVersion_create = {
+  "configCallData": true,
   "versionNotes": true,
   "apiVersion": {
     "pullRequest": {
@@ -199,6 +200,7 @@ export const routineVersion_create = {
       "name": true,
       "summary": true
     },
+    "schemaText": true,
     "versionNotes": true,
     "id": true,
     "created_at": true,
@@ -224,6 +226,7 @@ export const routineVersion_create = {
     "__typename": "ApiVersion"
   },
   "codeVersion": {
+    "content": true,
     "versionNotes": true,
     "pullRequest": {
       "translations": {
@@ -276,8 +279,10 @@ export const routineVersion_create = {
           "language": true,
           "description": true,
           "name": true
-        }
-      }
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
     },
     "root": {
       "versionsCount": true,
@@ -451,9 +456,9 @@ export const routineVersion_create = {
     "isDeleted": true,
     "isLatest": true,
     "isPrivate": true,
+    "codeLanguage": true,
+    "codeType": true,
     "default": true,
-    "contractType": true,
-    "content": true,
     "versionIndex": true,
     "versionLabel": true,
     "commentsCount": true,
@@ -1171,16 +1176,15 @@ export const routineVersion_create = {
   "created_at": true,
   "updated_at": true,
   "completedAt": true,
-  "codeCallData": true,
   "isAutomatable": true,
   "isComplete": true,
   "isDeleted": true,
   "isLatest": true,
   "isPrivate": true,
+  "routineType": true,
   "simplicity": true,
   "timesStarted": true,
   "timesCompleted": true,
-  "apiCallData": true,
   "versionIndex": true,
   "versionLabel": true,
   "commentsCount": true,

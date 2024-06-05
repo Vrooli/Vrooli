@@ -1776,6 +1776,7 @@ export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
         forks: "CodeVersion",
         pullRequest: "PullRequest",
         reports: "Report",
+        resourceList: "ResourceList",
         root: "Code",
     },
     prismaRelMap: {
@@ -1785,6 +1786,7 @@ export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
         forks: "CodeVersion",
         pullRequest: "PullRequest",
         reports: "Report",
+        resourceList: "ResourceList",
         root: "Code",
     },
     countFields: {

@@ -22,11 +22,11 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
-export type CreateType = "Api" | "Bot" | "Chat" | "Code" | "Note" | "Project" | "Question" | "Reminder" | "Routine" | "Standard" | "Team";
+export type CreateType = "Api" | "Bot" | "Chat" | "Code" | "Note" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard" | "Team";
 export type ThemeType = "light" | "dark";
 
 type SimpleStoragePayloads = {
-    CreateOrder: CreateType[],
+    CreateOrder: string[],
     Preferences: CookiePreferences,
     Theme: ThemeType,
     FontSize: number,

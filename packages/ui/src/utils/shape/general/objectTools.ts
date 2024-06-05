@@ -23,7 +23,7 @@ export const valueFromDot = (object: any, notation: string): any => {
 /**
  * Maps the keys of an object to dot notation
  */
-export function convertToDot(obj: Record<string, any>, parent = [], keyValue = {}) {
+export const convertToDot = (obj: Record<string, any>, parent = [], keyValue = {}) => {
     for (const key in obj) {
         const keyPath: any = [...parent, key];
         if (obj[key] !== null && typeof obj[key] === "object") {

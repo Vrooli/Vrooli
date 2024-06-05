@@ -31,7 +31,7 @@ yup.addMethod(yup.bool, "toBool", function () {
 export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be a valid UUID", (value) => value === null || value === undefined || (typeof value === "string" && uuidValidate(value)));
 
 // protocol fields
-export const apiCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
+export const configCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
 export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
@@ -40,7 +40,6 @@ export const pushNotificationKeys = yup.object().shape({
     p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
     auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
 });
-export const codeCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
     yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
         "link",

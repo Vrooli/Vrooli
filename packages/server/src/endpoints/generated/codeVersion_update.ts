@@ -1,4 +1,5 @@
 export const codeVersion_update = {
+  "content": true,
   "versionNotes": true,
   "pullRequest": {
     "translations": {
@@ -51,8 +52,10 @@ export const codeVersion_update = {
         "language": true,
         "description": true,
         "name": true
-      }
-    }
+      },
+      "__typename": "Resource"
+    },
+    "__typename": "ResourceList"
   },
   "root": {
     "versionsCount": true,
@@ -226,9 +229,9 @@ export const codeVersion_update = {
   "isDeleted": true,
   "isLatest": true,
   "isPrivate": true,
+  "codeLanguage": true,
+  "codeType": true,
   "default": true,
-  "contractType": true,
-  "content": true,
   "versionIndex": true,
   "versionLabel": true,
   "commentsCount": true,

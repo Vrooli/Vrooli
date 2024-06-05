@@ -1,10 +1,13 @@
-import { YupModel, apiCallData, bool, codeCallData, description, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
+import { RoutineType } from "../../api/generated";
+import { YupModel, bool, configCallData, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { nodeValidation } from "./node";
 import { nodeLinkValidation } from "./nodeLink";
 import { resourceListValidation } from "./resourceList";
 import { routineValidation } from "./routine";
 import { routineVersionInputValidation } from "./routineVersionInput";
 import { routineVersionOutputValidation } from "./routineVersionOutput";
+
+const routineType = enumToYup(RoutineType);
 
 export const routineVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -22,11 +25,11 @@ export const routineVersionTranslationValidation: YupModel<["create", "update"]>
 export const routineVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        apiCallData: opt(apiCallData),
-        codeCallData: opt(codeCallData),
+        configCallData: opt(configCallData),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
+        routineType: req(routineType),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [
@@ -44,8 +47,7 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     ], [["rootConnect", "rootCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
-        apiCallData: opt(apiCallData),
-        codeCallData: opt(codeCallData),
+        configCallData: opt(configCallData),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),

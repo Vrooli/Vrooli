@@ -4,7 +4,7 @@ import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInputBase, StandardLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -52,6 +52,7 @@ const apiInitialValues = (
             id: DUMMY_ID,
         },
     },
+    schemaText: "",
     versionLabel: "1.0.0",
     ...existing,
     root: {
@@ -286,9 +287,9 @@ const ApiForm = ({
                             }
                             {
                                 hasDocUrl === false && (
-                                    <CodeInputBase
+                                    <CodeInput
                                         disabled={false}
-                                        limitTo={[StandardLanguage.Json, StandardLanguage.Graphql]}
+                                        limitTo={[CodeLanguage.Json, CodeLanguage.Graphql]}
                                         name="schemaText"
                                     />
                                 )

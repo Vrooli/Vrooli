@@ -25,7 +25,7 @@ export const errorToCode = (response: ServerResponse): ErrorKey => {
 /**
  * Finds the error message in an ServerResponse object
  * @param response A response from the server
- * @param langauges User's languages
+ * @param languages User's languages
  * @returns The first error message, or code if message not found
  */
 export const errorToMessage = (response: ServerResponse, languages: string[]): string => {

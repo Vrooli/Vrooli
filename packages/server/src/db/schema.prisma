@@ -1789,8 +1789,7 @@ model routine_version {
     created_at                        DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at                        DateTime                      @default(now()) @db.Timestamptz(6)
     completedAt                       DateTime?                     @db.Timestamptz(6)
-    apiCallData                       String?                       @db.VarChar(8192)
-    codeCallData                      String?                       @db.VarChar(8192)
+    configCallData                    String?                       @db.VarChar(8192)
     complexity                        Int                           @default(1)
     intendToPullRequest               Boolean                       @default(false)
     isAutomatable                     Boolean                       @default(false)
@@ -1799,6 +1798,7 @@ model routine_version {
     isLatest                          Boolean                       @default(false)
     isPrivate                         Boolean                       @default(false)
     rootId                            String                        @db.Uuid
+    routineType                       RoutineType                   @default(Informational)
     simplicity                        Int                           @default(1)
     timesStarted                      Int                           @default(0)
     timesCompleted                    Int                           @default(0)
@@ -2113,9 +2113,10 @@ model code_version {
     id                      String                      @id @default(uuid()) @db.Uuid
     created_at              DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    codeLanguage            String                      @db.VarChar(128)
+    codeType                CodeType                    @default(DataConvert)
     completedAt             DateTime?                   @db.Timestamptz(6)
     default                 String?                     @db.VarChar(2048)
-    contractType            String                      @db.VarChar(256)
     content                 String                      @db.VarChar(8192)
     isLatest                Boolean                     @default(false)
     resourceListId          String?                     @unique @db.Uuid
@@ -2130,6 +2131,7 @@ model code_version {
     isPrivate               Boolean                     @default(false)
     calledByRoutineVersions routine_version[]
     comments                comment[]
+    contract                code_version_contract?
     forks                   code[]                      @relation("code_version_fork")
     pullRequest             pull_request?               @relation("pull_request_from_code_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
     reports                 report[]
@@ -2154,6 +2156,18 @@ model code_version_translation {
     codeVersion          code_version                @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
 
     @@unique([codeVersionId, language])
+}
+
+model code_version_contract {
+    id                String       @id @default(uuid()) @db.Uuid
+    address           String?      @db.VarChar(256)
+    blockchain        String       @db.VarChar(128)
+    codeVersionId     String       @unique @db.Uuid
+    contractType      String?      @db.VarChar(256)
+    hash              String?      @db.VarChar(256)
+    isAddressVerified Boolean      @default(false)
+    isHashVerified    Boolean      @default(false)
+    codeVersion       code_version @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
 }
 
 model code_tags {
@@ -2780,6 +2794,11 @@ enum ChatInviteStatus {
     Declined
 }
 
+enum CodeType {
+    DataConvert
+    SmartContract
+}
+
 enum FocusModeFilterType {
     Blur
     Hide
@@ -2881,6 +2900,17 @@ enum ResourceUsedFor {
     Scheduling
     Social
     Tutorial
+}
+
+enum RoutineType {
+    Action
+    Api
+    Code
+    Data
+    Generate
+    Informational
+    MultiStep
+    SmartContract
 }
 
 enum RunStatus {

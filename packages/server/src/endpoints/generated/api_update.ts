@@ -60,6 +60,7 @@ export const api_update = {
       "name": true,
       "summary": true
     },
+    "schemaText": true,
     "versionNotes": true,
     "id": true,
     "created_at": true,

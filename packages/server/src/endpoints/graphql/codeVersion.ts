@@ -3,6 +3,11 @@ import { gql } from "apollo-server-express";
 import { CodeVersionEndpoints, EndpointsCodeVersion } from "../logic/codeVersion";
 
 export const typeDef = gql`
+    enum CodeType {
+        DataConvert
+        SmartContract
+    }
+
     enum CodeVersionSortBy {
         CalledByRoutinesAsc
         CalledByRoutinesDesc
@@ -24,9 +29,10 @@ export const typeDef = gql`
         id: ID!
         isComplete: Boolean
         isPrivate: Boolean!
-        default: String
-        contractType: String!
+        codeLanguage: String!
+        codeType: CodeType!
         content: String!
+        default: String
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -39,9 +45,9 @@ export const typeDef = gql`
         id: ID!
         isComplete: Boolean
         isPrivate: Boolean
-        default: String
-        contractType: String
+        codeLanguage: String
         content: String
+        default: String
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -57,14 +63,15 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        codeLanguage: String!
+        codeType: CodeType!
         completedAt: Date
+        content: String!
+        default: String
         isComplete: Boolean!
         isDeleted: Boolean!
         isLatest: Boolean!
         isPrivate: Boolean!
-        default: String
-        contractType: String!
-        content: String!
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
@@ -127,7 +134,6 @@ export const typeDef = gql`
         rootId: ID
         searchString: String
         sortBy: CodeVersionSortBy
-        contractType: String
         tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame

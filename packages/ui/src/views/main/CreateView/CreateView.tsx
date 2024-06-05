@@ -3,7 +3,7 @@ import { PageContainer } from "components/containers/PageContainer/PageContainer
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, TeamIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TerminalIcon } from "icons";
+import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -80,6 +80,12 @@ export const createCards: CreateInfo[] = [
         description: "CreateCodeDescription",
         Icon: TerminalIcon,
         id: "create-code-card",
+    },
+    {
+        objectType: "SmartContract",
+        description: "CreateSmartContractDescription",
+        Icon: SmartContractIcon,
+        id: "create-smart-contract-card",
         incomplete: true,
     },
     {
@@ -89,13 +95,13 @@ export const createCards: CreateInfo[] = [
         id: "create-api-card",
         incomplete: true,
     },
-];
+] as const;
 
 const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
     const history = getCookie("CreateOrder");
     cards.sort((a, b) => {
-        const aIndex = history.indexOf(a.objectType);
-        const bIndex = history.indexOf(b.objectType);
+        const aIndex = history.indexOf(a.id);
+        const bIndex = history.indexOf(b.id);
         if (aIndex === -1) return 1;
         if (bIndex === -1) return -1;
         return aIndex - bIndex;
@@ -115,16 +121,18 @@ export const CreateView = ({
         return cardsCopy;
     }, []);
 
-    const onSelect = useCallback((objectType: CreateType) => {
+    const onSelect = useCallback((id: typeof createCards[number]["id"]) => {
+        const { objectType } = createCards.find(card => card.id === id) ?? {};
+        if (!objectType) return;
         // Update location
         setLocation(`${LINKS[objectType === "Bot" ? "User" : objectType]}/add`);
         // Update usage history
         const history = getCookie("CreateOrder");
-        const index = history.indexOf(objectType);
+        const index = history.indexOf(id);
         if (index !== -1) {
             history.splice(index, 1);
         }
-        history.unshift(objectType);
+        history.unshift(id);
         setCookie("CreateOrder", history);
     }, [setLocation]);
 
@@ -143,7 +151,7 @@ export const CreateView = ({
                         Icon={Icon}
                         id={id}
                         key={index}
-                        onClick={() => onSelect(objectType)}
+                        onClick={() => onSelect(id)}
                         title={t(objectType, { count: 1 })}
                         warning={incomplete ? "Coming soon" : undefined}
                     />

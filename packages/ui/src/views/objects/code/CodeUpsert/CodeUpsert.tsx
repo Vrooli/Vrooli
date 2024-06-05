@@ -1,10 +1,10 @@
-import { CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput, DUMMY_ID, LINKS, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault } from "@local/shared";
+import { CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput, DUMMY_ID, LINKS, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault } from "@local/shared";
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInput, StandardLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -14,14 +14,14 @@ import { RelationshipList } from "components/lists/RelationshipList/Relationship
 import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
+import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { SearchIcon } from "icons";
+import { HelpIcon, SearchIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -39,11 +39,12 @@ const codeInitialValues = (
 ): CodeVersionShape => ({
     __typename: "CodeVersion" as const,
     id: DUMMY_ID,
+    codeLanguage: CodeLanguage.Haskell,
+    codeType: CodeType.DataConvert,
+    content: "",
     directoryListings: [],
     isComplete: false,
     isPrivate: false,
-    content: "",
-    contractType: "",
     resourceList: {
         __typename: "ResourceList" as const,
         id: DUMMY_ID,
@@ -60,6 +61,7 @@ const codeInitialValues = (
         isPrivate: false,
         owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
         parent: null,
+        permissions: JSON.stringify({}),
         tags: [],
         ...existing?.root,
     },
@@ -75,6 +77,25 @@ const codeInitialValues = (
 
 const transformCodeVersionValues = (values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) =>
     isCreate ? shapeCodeVersion.create(values) : shapeCodeVersion.update(existing, values);
+
+/** Code to display when an example is requested */
+const exampleCode = `
+function parseList(input) {
+    try {
+        // Parse the input string into an array of strings split by commas
+        const stringArray = input.split(',');
+
+        // Map each string element to an integer
+        const numberArray = stringArray.map(element => parseInt(element.trim(), 10));
+
+        // Return the array of numbers
+        return numberArray;
+    } catch (error) {
+        // Return an error message if the input is not as expected
+        return { error: "Invalid input format" };
+    }
+}
+`.trim();
 
 const CodeForm = ({
     disabled,
@@ -141,10 +162,19 @@ const CodeForm = ({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
+    const [codeLanguageField, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
+    const [contentField, , contentHelpers] = useField<string>("content");
+    const showExample = () => {
+        // We only have an example for JavaScript, so switch to that
+        codeLanguageHelpers.setValue(CodeLanguage.Javascript);
+        // Set value to hard-coded example
+        contentHelpers.setValue(exampleCode);
+    };
+
     return (
         <MaybeLargeDialog
             display={display}
-            id="smart-contract-upsert-dialog"
+            id="code-upsert-dialog"
             isOpen={isOpen}
             onClose={onClose}
         >
@@ -219,10 +249,33 @@ const CodeForm = ({
                         />
                     </ContentCollapse>
                     <Divider />
-                    <ContentCollapse title="Contract" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                    <ContentCollapse
+                        title="Code"
+                        titleVariant="h4"
+                        isOpen={true}
+                        toTheRight={
+                            <>
+                                <Button
+                                    variant="outlined"
+                                    onClick={showExample}
+                                    startIcon={<HelpIcon />}
+                                    sx={{ marginLeft: 2 }}
+                                >
+                                    Show example
+                                </Button>
+                                {/* <IconButton
+                                    onClick={toggleFullscreen}
+                                    sx={{ marginLeft: 2 }}
+                                >
+                                    {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                </IconButton> */}
+                            </>
+                        }
+                        sxs={{ titleContainer: { marginBottom: 1 } }}
+                    >
                         <CodeInput
                             disabled={false}
-                            limitTo={[StandardLanguage.Solidity, StandardLanguage.Haskell]}
+                            limitTo={[CodeLanguage.Javascript]}
                             name="content"
                         />
                     </ContentCollapse>

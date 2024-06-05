@@ -40,6 +40,7 @@ export const LINKS = {
     SettingsPrivacy: "/settings/privacy",
     SettingsProfile: "/settings/profile",
     Signup: "/auth/signup",
+    SmartContract: "/contract",
     Standard: "/standard",
     Stats: "/stats", // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Tag: "/tag",

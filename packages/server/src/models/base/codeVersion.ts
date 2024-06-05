@@ -14,8 +14,8 @@ type CodeVersionPre = PreShapeVersionResult;
 const __typename = "CodeVersion" as const;
 export const CodeVersionModel: CodeVersionModelLogic = ({
     __typename,
-    dbTable: "smart_contract_version",
-    dbTranslationTable: "smart_contract_version_translation",
+    dbTable: "code_version",
+    dbTranslationTable: "code_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -57,8 +57,9 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
                 const preData = rest.preMap[__typename] as CodeVersionPre;
                 return {
                     id: data.id,
+                    codeLanguage: data.codeLanguage,
+                    codeType: data.codeType,
                     content: data.content,
-                    contractType: data.contractType,
                     default: noNull(data.default),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
@@ -68,13 +69,12 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "codeVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Code", parentRelationshipName: "versions", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as CodeVersionPre;
                 return {
                     content: noNull(data.content),
-                    contractType: noNull(data.contractType),
                     default: noNull(data.default),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
@@ -84,7 +84,7 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "codeVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Code", parentRelationshipName: "versions", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {

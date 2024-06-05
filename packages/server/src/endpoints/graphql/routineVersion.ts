@@ -1,8 +1,19 @@
-import { RoutineVersionSortBy } from "@local/shared";
+import { RoutineType, RoutineVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic/routineVersion";
 
 export const typeDef = gql`
+    enum RoutineType {
+        Action
+        Api
+        Code
+        Data
+        Generate
+        Informational
+        MultiStep
+        SmartContract
+    }
+
     enum RoutineVersionSortBy {
         CommentsAsc
         CommentsDesc
@@ -26,11 +37,11 @@ export const typeDef = gql`
 
     input RoutineVersionCreateInput {
         id: ID!
-        apiCallData: String
-        codeCallData: String
+        configCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean!
+        routineType: RoutineType!
         versionLabel: String!
         versionNotes: String
         apiVersionConnect: ID
@@ -48,8 +59,7 @@ export const typeDef = gql`
     }
     input RoutineVersionUpdateInput {
         id: ID!
-        apiCallData: String
-        codeCallData: String
+        configCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean
@@ -84,7 +94,7 @@ export const typeDef = gql`
     }
     type RoutineVersion {
         id: ID!
-        codeCallData: String
+        configCallData: String
         completedAt: Date
         complexity: Int!
         created_at: Date!
@@ -95,13 +105,14 @@ export const typeDef = gql`
         isLatest: Boolean!
         isPrivate: Boolean!
         simplicity: Int!
+        routineType: RoutineType!
         timesStarted: Int!
         timesCompleted: Int!
-        apiCallData: String
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         apiVersion: ApiVersion
+        codeVersion: CodeVersion
         comments: [Comment!]!
         commentsCount: Int!
         directoryListings: [ProjectVersionDirectory!]!
@@ -121,7 +132,6 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         root: Routine!
-        codeVersion: CodeVersion
         suggestedNextByRoutineVersion: [RoutineVersion!]!
         suggestedNextByRoutineVersionCount: Int!
         translations: [RoutineVersionTranslation!]!
@@ -227,10 +237,12 @@ export const typeDef = gql`
 `;
 
 export const resolvers: {
+    RoutineType: typeof RoutineType;
     RoutineVersionSortBy: typeof RoutineVersionSortBy;
     Query: EndpointsRoutineVersion["Query"];
     Mutation: EndpointsRoutineVersion["Mutation"];
 } = {
+    RoutineType,
     RoutineVersionSortBy,
     ...RoutineVersionEndpoints,
 };

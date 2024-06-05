@@ -60,6 +60,7 @@ export const node_update = {
     "name": true
   },
   "routineVersion": {
+    "configCallData": true,
     "versionNotes": true,
     "apiVersion": {
       "pullRequest": {
@@ -260,6 +261,7 @@ export const node_update = {
         "name": true,
         "summary": true
       },
+      "schemaText": true,
       "versionNotes": true,
       "id": true,
       "created_at": true,
@@ -285,6 +287,7 @@ export const node_update = {
       "__typename": "ApiVersion"
     },
     "codeVersion": {
+      "content": true,
       "versionNotes": true,
       "pullRequest": {
         "translations": {
@@ -337,8 +340,10 @@ export const node_update = {
             "language": true,
             "description": true,
             "name": true
-          }
-        }
+          },
+          "__typename": "Resource"
+        },
+        "__typename": "ResourceList"
       },
       "root": {
         "versionsCount": true,
@@ -512,9 +517,9 @@ export const node_update = {
       "isDeleted": true,
       "isLatest": true,
       "isPrivate": true,
+      "codeLanguage": true,
+      "codeType": true,
       "default": true,
-      "contractType": true,
-      "content": true,
       "versionIndex": true,
       "versionLabel": true,
       "commentsCount": true,
@@ -1145,16 +1150,15 @@ export const node_update = {
     "created_at": true,
     "updated_at": true,
     "completedAt": true,
-    "codeCallData": true,
     "isAutomatable": true,
     "isComplete": true,
     "isDeleted": true,
     "isLatest": true,
     "isPrivate": true,
+    "routineType": true,
     "simplicity": true,
     "timesStarted": true,
     "timesCompleted": true,
-    "apiCallData": true,
     "versionIndex": true,
     "versionLabel": true,
     "commentsCount": true,

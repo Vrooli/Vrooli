@@ -1,4 +1,4 @@
-import { ListObject, OrArray, RoutineVersion } from "@local/shared";
+import { ListObject, OrArray } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
 import { ChatShape } from "utils/shape/models/chat";
@@ -70,20 +70,6 @@ export type StatsObjectViewProps<T extends ListObject> = ViewProps & {
     object: T | null | undefined;
 }
 export type ReportsViewProps = ViewProps
-export type BuildViewProps = ViewProps & {
-    handleCancel: () => unknown;
-    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => unknown;
-    isEditing: boolean;
-    loading: boolean;
-    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
-    translationData: {
-        language: string;
-        setLanguage: (language: string) => unknown;
-        handleAddLanguage: (language: string) => unknown;
-        handleDeleteLanguage: (language: string) => unknown;
-        languages: string[];
-    };
-}
 export interface ErrorBoundaryProps {
     children: ReactNode;
 }

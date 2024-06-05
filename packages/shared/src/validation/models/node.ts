@@ -1,5 +1,5 @@
-import { NodeType } from "@local/shared";
 import * as yup from "yup";
+import { NodeType } from "../../api/generated";
 import { description, enumToYup, id, minNumErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { nodeEndValidation } from "./nodeEnd";
 import { nodeLoopValidation } from "./nodeLoop";
