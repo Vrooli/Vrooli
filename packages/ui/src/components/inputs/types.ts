@@ -276,6 +276,8 @@ export interface IntegerInputBaseProps extends Omit<BoxProps, "onChange"> {
     step?: number;
     tooltip?: string;
     value: number;
+    /** If provided, displays this text instead of 0 */
+    zeroText?: string;
 }
 
 export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;

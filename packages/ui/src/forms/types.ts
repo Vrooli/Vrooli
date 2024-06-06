@@ -1,6 +1,6 @@
 import { InputType, ListObject, Node, OrArray } from "@local/shared";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
-import { CodeInputProps as CP, DropzoneProps as DP, LanguageInputProps as LP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as IP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
@@ -159,7 +159,7 @@ export interface TextProps {
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, "defaultValue" | "name"> {
+export interface IntegerInputProps extends Omit<IP, "defaultValue" | "name"> {
     defaultValue?: any; // Ignored, but required by some components
 }
 

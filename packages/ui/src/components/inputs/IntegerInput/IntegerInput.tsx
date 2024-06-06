@@ -1,7 +1,50 @@
-import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
+import { Box, FormControl, FormHelperText, Input, InputLabel, Palette, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { useCallback } from "react";
 import { IntegerInputBaseProps, IntegerInputProps } from "../types";
+
+export const getNumberInRange = (
+    updatedNumber: number,
+    max: number,
+    min: number,
+) => {
+    let result = updatedNumber;
+    if (result > max) result = max;
+    if (result < min) result = min;
+    return result;
+};
+
+export const calculateUpdatedNumber = (
+    updatedNumber: string,
+    max: number,
+    min: number,
+    allowDecimal: boolean = false,
+) => {
+    let asNumber = Number(updatedNumber);
+    if (!Number.isFinite(asNumber)) asNumber = 0;
+    let result = getNumberInRange(asNumber, max, min);
+    if (!allowDecimal) result = Math.round(result);
+    return result;
+};
+
+export const getColorForLabel = (
+    value: number | string,
+    min: number,
+    max: number,
+    palette: Palette,
+    zeroText: string | undefined,
+) => {
+    let asNumber = zeroText && value === zeroText ? 0 : Number(value);
+    if (!Number.isFinite(asNumber)) {
+        asNumber = Number.MIN_SAFE_INTEGER;
+    }
+    if (asNumber < min || asNumber > max) {
+        return palette.error.main;
+    } else if (asNumber === min || asNumber === max) {
+        return palette.warning.main;
+    } else {
+        return palette.background.textSecondary;
+    }
+};
 
 export const IntegerInputBase = ({
     allowDecimal = false,
@@ -21,15 +64,13 @@ export const IntegerInputBase = ({
     step = 1,
     tooltip = "",
     value,
+    zeroText,
     ...props
 }: IntegerInputBaseProps) => {
     const { palette } = useTheme();
 
-    const updateValue = useCallback((quantity) => {
-        if (quantity > max) quantity = max;
-        if (quantity < min) quantity = min;
-        onChange(quantity);
-    }, [max, min, onChange]);
+    const offsetValue = (value ?? 0) + offset;
+    const displayValue = offsetValue === 0 && zeroText ? zeroText : offsetValue
 
     return (
         <Tooltip title={tooltip}>
@@ -49,11 +90,7 @@ export const IntegerInputBase = ({
                     <InputLabel
                         htmlFor={`quantity-box-${name}`}
                         sx={{
-                            color: (value < min || value > max) ?
-                                palette.error.main :
-                                (value === min || value === max) ?
-                                    palette.warning.main :
-                                    palette.background.textSecondary,
+                            color: getColorForLabel(displayValue, min, max, palette, zeroText),
                             paddingTop: "12px",
                         }}
                     >{label}</InputLabel>
@@ -70,8 +107,9 @@ export const IntegerInputBase = ({
                             max,
                             pattern: "[0-9]*",
                         }}
-                        value={(value ?? 0) + offset}
-                        onChange={(e) => updateValue(Number(e.target.value) - offset)}
+                        value={displayValue}
+                        onChange={(e) => onChange(calculateUpdatedNumber(e.target.value, max, min, allowDecimal))}
+                        placeholder={zeroText}
                         sx={{
                             color: palette.background.textPrimary,
                             marginLeft: 1,

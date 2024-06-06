@@ -7,7 +7,6 @@ export const GeneratedIntegerInput = ({
     fieldData,
     index,
 }: GeneratedInputComponentProps) => {
-    console.log('rendering integer input');
     const props = useMemo(() => fieldData.props as IntegerInputProps, [fieldData.props]);
 
     return (
@@ -16,9 +15,10 @@ export const GeneratedIntegerInput = ({
             key={`field-${fieldData.fieldName}-${index}`}
             tabIndex={index}
             label={fieldData.label}
-            min={props.min ?? 0}
+            min={props.min}
             name={fieldData.fieldName}
-            tooltip={props.tooltip ?? ''}
+            tooltip={props.tooltip}
+            zeroText={props.zeroText}
         />
     );
 }

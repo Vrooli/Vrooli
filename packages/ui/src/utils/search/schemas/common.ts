@@ -90,6 +90,7 @@ export const bookmarksFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MinNo"),
         },
     },
     {
@@ -99,6 +100,7 @@ export const bookmarksFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MaxNo"),
         },
     },
 ]);
@@ -134,6 +136,7 @@ export const votesFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MinNo"),
         },
     },
     {
@@ -143,6 +146,7 @@ export const votesFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MaxNo"),
         },
     },
 ]);
@@ -164,6 +168,7 @@ export const simplicityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MinNo"),
         },
     },
     {
@@ -173,6 +178,7 @@ export const simplicityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MaxNo"),
         },
     },
 ]);
@@ -194,6 +200,7 @@ export const complexityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MinNo"),
         },
     },
     {
@@ -203,6 +210,7 @@ export const complexityFields = (): FieldData[] => ([
         props: {
             min: 0,
             defaultValue: 0,
+            zeroText: i18next.t("MaxNo"),
         },
     },
 ]);
