@@ -29,6 +29,7 @@ export const LINKS = {
     Routine: "/routine",
     ResetPassword: "/auth/password-reset",
     Search: "/search",
+    SearchVersion: "/search/version",
     Settings: "/settings",
     SettingsApi: "/settings/api",
     SettingsAuthentication: "/settings/auth",

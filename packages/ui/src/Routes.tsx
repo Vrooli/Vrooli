@@ -47,6 +47,7 @@ const { CodeUpsert, CodeView } = lazily(() => import("./views/objects/code"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
+const { SearchVersionView } = lazily(() => import("./views/SearchVersionView/SearchVersionView"));
 const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
@@ -299,6 +300,15 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <SearchView display="page" />
+                </NavRoute>
+                <NavRoute
+                    path={`${LINKS.SearchVersion}/:params*`}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                    {...props}
+                >
+                    <SearchVersionView display="page" />
                 </NavRoute>
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
                     <SettingsView display="page" />

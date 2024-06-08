@@ -5091,6 +5091,11 @@
             "$ref": "#/components/schemas/Api",
             "title": "ApiVersion.root"
           },
+          "schemaText": {
+            "title": "ApiVersion.schemaText",
+            "nullable": true,
+            "type": "string"
+          },
           "translations": {
             "items": {
               "$ref": "#/components/schemas/ApiVersionTranslation"
@@ -5217,6 +5222,11 @@
               }
             ],
             "title": "ApiVersionCreateInput.rootCreate"
+          },
+          "schemaText": {
+            "title": "ApiVersionCreateInput.schemaText",
+            "nullable": true,
+            "type": "string"
           },
           "translationsCreate": {
             "anyOf": [
@@ -5717,6 +5727,11 @@
             ],
             "title": "ApiVersionUpdateInput.rootUpdate"
           },
+          "schemaText": {
+            "title": "ApiVersionUpdateInput.schemaText",
+            "nullable": true,
+            "type": "string"
+          },
           "translationsCreate": {
             "anyOf": [
               {
@@ -5888,6 +5903,8 @@
               "RoutineDelete",
               "RoutineFind",
               "RoutineUpdate",
+              "RunProjectStart",
+              "RunRoutineStart",
               "ScheduleAdd",
               "ScheduleDelete",
               "ScheduleFind",
@@ -10050,6 +10067,22 @@
             ],
             "type": "string"
           },
+          "calledByRoutineVersionsCount": {
+            "title": "CodeVersion.calledByRoutineVersionsCount",
+            "type": "number"
+          },
+          "codeLanguage": {
+            "title": "CodeVersion.codeLanguage",
+            "type": "string"
+          },
+          "codeType": {
+            "enum": [
+              "DataConvert",
+              "SmartContract"
+            ],
+            "title": "CodeVersion.codeType",
+            "type": "string"
+          },
           "comments": {
             "items": {
               "$ref": "#/components/schemas/Comment"
@@ -10068,10 +10101,6 @@
           },
           "content": {
             "title": "CodeVersion.content",
-            "type": "string"
-          },
-          "contractType": {
-            "title": "CodeVersion.contractType",
             "type": "string"
           },
           "created_at": {
@@ -10201,10 +10230,12 @@
         },
         "required": [
           "__typename",
+          "calledByRoutineVersionsCount",
+          "codeLanguage",
+          "codeType",
           "comments",
           "commentsCount",
           "content",
-          "contractType",
           "created_at",
           "directoryListings",
           "directoryListingsCount",
@@ -10231,12 +10262,20 @@
       },
       "CodeVersionCreateInput": {
         "properties": {
-          "content": {
-            "title": "CodeVersionCreateInput.content",
+          "codeLanguage": {
+            "title": "CodeVersionCreateInput.codeLanguage",
             "type": "string"
           },
-          "contractType": {
-            "title": "CodeVersionCreateInput.contractType",
+          "codeType": {
+            "enum": [
+              "DataConvert",
+              "SmartContract"
+            ],
+            "title": "CodeVersionCreateInput.codeType",
+            "type": "string"
+          },
+          "content": {
+            "title": "CodeVersionCreateInput.content",
             "type": "string"
           },
           "default": {
@@ -10330,8 +10369,9 @@
           }
         },
         "required": [
+          "codeLanguage",
+          "codeType",
           "content",
-          "contractType",
           "id",
           "isPrivate",
           "rootConnect",
@@ -10387,11 +10427,6 @@
               }
             ],
             "title": "CodeVersionSearchInput.completedTimeFrame"
-          },
-          "contractType": {
-            "title": "CodeVersionSearchInput.contractType",
-            "nullable": true,
-            "type": "string"
           },
           "createdByIdRoot": {
             "title": "CodeVersionSearchInput.createdByIdRoot",
@@ -10742,13 +10777,13 @@
       },
       "CodeVersionUpdateInput": {
         "properties": {
-          "content": {
-            "title": "CodeVersionUpdateInput.content",
+          "codeLanguage": {
+            "title": "CodeVersionUpdateInput.codeLanguage",
             "nullable": true,
             "type": "string"
           },
-          "contractType": {
-            "title": "CodeVersionUpdateInput.contractType",
+          "content": {
+            "title": "CodeVersionUpdateInput.content",
             "nullable": true,
             "type": "string"
           },
@@ -35099,11 +35134,6 @@
             ],
             "type": "string"
           },
-          "apiCallData": {
-            "title": "RoutineVersion.apiCallData",
-            "nullable": true,
-            "type": "string"
-          },
           "apiVersion": {
             "anyOf": [
               {
@@ -35116,11 +35146,6 @@
               }
             ],
             "title": "RoutineVersion.apiVersion"
-          },
-          "codeCallData": {
-            "title": "RoutineVersion.codeCallData",
-            "nullable": true,
-            "type": "string"
           },
           "codeVersion": {
             "anyOf": [
@@ -35154,6 +35179,11 @@
           "complexity": {
             "title": "RoutineVersion.complexity",
             "type": "number"
+          },
+          "configCallData": {
+            "title": "RoutineVersion.configCallData",
+            "nullable": true,
+            "type": "string"
           },
           "created_at": {
             "title": "RoutineVersion.created_at",
@@ -35291,6 +35321,20 @@
             "$ref": "#/components/schemas/Routine",
             "title": "RoutineVersion.root"
           },
+          "routineType": {
+            "enum": [
+              "Action",
+              "Api",
+              "Code",
+              "Data",
+              "Generate",
+              "Informational",
+              "MultiStep",
+              "SmartContract"
+            ],
+            "title": "RoutineVersion.routineType",
+            "type": "string"
+          },
           "simplicity": {
             "title": "RoutineVersion.simplicity",
             "type": "number"
@@ -35373,6 +35417,7 @@
           "reports",
           "reportsCount",
           "root",
+          "routineType",
           "simplicity",
           "suggestedNextByRoutineVersion",
           "suggestedNextByRoutineVersionCount",
@@ -35391,23 +35436,18 @@
       },
       "RoutineVersionCreateInput": {
         "properties": {
-          "apiCallData": {
-            "title": "RoutineVersionCreateInput.apiCallData",
-            "nullable": true,
-            "type": "string"
-          },
           "apiVersionConnect": {
             "title": "RoutineVersionCreateInput.apiVersionConnect",
             "nullable": true,
             "type": "string"
           },
-          "codeCallData": {
-            "title": "RoutineVersionCreateInput.codeCallData",
+          "codeVersionConnect": {
+            "title": "RoutineVersionCreateInput.codeVersionConnect",
             "nullable": true,
             "type": "string"
           },
-          "codeVersionConnect": {
-            "title": "RoutineVersionCreateInput.codeVersionConnect",
+          "configCallData": {
+            "title": "RoutineVersionCreateInput.configCallData",
             "nullable": true,
             "type": "string"
           },
@@ -35540,6 +35580,20 @@
             ],
             "title": "RoutineVersionCreateInput.rootCreate"
           },
+          "routineType": {
+            "enum": [
+              "Action",
+              "Api",
+              "Code",
+              "Data",
+              "Generate",
+              "Informational",
+              "MultiStep",
+              "SmartContract"
+            ],
+            "title": "RoutineVersionCreateInput.routineType",
+            "type": "string"
+          },
           "suggestedNextByRoutineVersionConnect": {
             "anyOf": [
               {
@@ -35585,6 +35639,7 @@
         "required": [
           "id",
           "isPrivate",
+          "routineType",
           "versionLabel"
         ],
         "additionalProperties": false,
@@ -36696,11 +36751,6 @@
       },
       "RoutineVersionUpdateInput": {
         "properties": {
-          "apiCallData": {
-            "title": "RoutineVersionUpdateInput.apiCallData",
-            "nullable": true,
-            "type": "string"
-          },
           "apiVersionConnect": {
             "title": "RoutineVersionUpdateInput.apiVersionConnect",
             "nullable": true,
@@ -36711,11 +36761,6 @@
             "nullable": true,
             "type": "boolean"
           },
-          "codeCallData": {
-            "title": "RoutineVersionUpdateInput.codeCallData",
-            "nullable": true,
-            "type": "string"
-          },
           "codeVersionConnect": {
             "title": "RoutineVersionUpdateInput.codeVersionConnect",
             "nullable": true,
@@ -36725,6 +36770,11 @@
             "title": "RoutineVersionUpdateInput.codeVersionDisconnect",
             "nullable": true,
             "type": "boolean"
+          },
+          "configCallData": {
+            "title": "RoutineVersionUpdateInput.configCallData",
+            "nullable": true,
+            "type": "string"
           },
           "directoryListingsConnect": {
             "anyOf": [
@@ -43231,6 +43281,8 @@
               "RoutineDelete",
               "RoutineFind",
               "RoutineUpdate",
+              "RunProjectStart",
+              "RunRoutineStart",
               "ScheduleAdd",
               "ScheduleDelete",
               "ScheduleFind",

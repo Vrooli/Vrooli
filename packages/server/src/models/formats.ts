@@ -1738,7 +1738,7 @@ export const CodeFormat: Formatter<CodeModelInfo> = {
         bookmarkedBy: "User",
         tags: "Tag",
         transfers: "Transfer",
-        versions: "NoteVersion",
+        versions: "CodeVersion",
     },
     unionFields: {
         owner: {},
@@ -1756,7 +1756,7 @@ export const CodeFormat: Formatter<CodeModelInfo> = {
         bookmarkedBy: "User",
         tags: "Tag",
         transfers: "Transfer",
-        versions: "NoteVersion",
+        versions: "CodeVersion",
     },
     joinMap: { labels: "label", bookmarkedBy: "user", tags: "tag" },
     countFields: {
@@ -1790,6 +1790,7 @@ export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
         root: "Code",
     },
     countFields: {
+        calledByRoutineVersionsCount: true,
         commentsCount: true,
         directoryListingsCount: true,
         forksCount: true,

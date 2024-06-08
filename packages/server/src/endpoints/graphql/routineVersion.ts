@@ -176,6 +176,7 @@ export const typeDef = gql`
 
     input RoutineVersionSearchInput {
         after: String
+        codeVersionId: ID
         createdByIdRoot: ID
         createdTimeFrame: TimeFrame
         directoryListingsId: ID

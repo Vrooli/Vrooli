@@ -1104,6 +1104,7 @@ export type CodeUpdateInput = {
 
 export type CodeVersion = {
   __typename: 'CodeVersion';
+  calledByRoutineVersionsCount: Scalars['Int'];
   codeLanguage: Scalars['String'];
   codeType: CodeType;
   comments: Array<Comment>;
@@ -1160,6 +1161,7 @@ export type CodeVersionEdge = {
 
 export type CodeVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  calledByRoutineVersionId?: InputMaybe<Scalars['ID']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
   createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -2099,6 +2101,8 @@ export enum LlmTask {
   RoutineDelete = 'RoutineDelete',
   RoutineFind = 'RoutineFind',
   RoutineUpdate = 'RoutineUpdate',
+  RunProjectStart = 'RunProjectStart',
+  RunRoutineStart = 'RunRoutineStart',
   ScheduleAdd = 'ScheduleAdd',
   ScheduleDelete = 'ScheduleDelete',
   ScheduleFind = 'ScheduleFind',
@@ -7731,6 +7735,7 @@ export type RoutineVersionOutputUpdateInput = {
 
 export type RoutineVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  codeVersionId?: InputMaybe<Scalars['ID']>;
   createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
@@ -8817,6 +8822,7 @@ export type StandardVersionSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -12000,6 +12006,7 @@ export type CodeSearchResultResolvers<ContextType = any, ParentType extends Reso
 };
 
 export type CodeVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeVersion'] = ResolversParentTypes['CodeVersion']> = {
+  calledByRoutineVersionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   codeLanguage?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   codeType?: Resolver<ResolversTypes['CodeType'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;

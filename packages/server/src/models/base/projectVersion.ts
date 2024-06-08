@@ -214,6 +214,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             isCompleteWithRoot: true,
             isCompleteWithRootExcludeOwnedByTeamId: true,
             isCompleteWithRootExcludeOwnedByUserId: true,
+            isLatest: true,
             maxComplexity: true,
             maxSimplicity: true,
             maxTimesCompleted: true,

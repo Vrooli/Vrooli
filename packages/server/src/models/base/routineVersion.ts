@@ -159,6 +159,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         defaultSort: RoutineVersionSortBy.DateCompletedDesc,
         sortBy: RoutineVersionSortBy,
         searchFields: {
+            codeVersionId: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
             directoryListingsId: true,
@@ -171,6 +172,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             isInternalWithRootExcludeOwnedByUserId: true,
             isExternalWithRootExcludeOwnedByTeamId: true,
             isExternalWithRootExcludeOwnedByUserId: true,
+            isLatest: true,
             maxComplexity: true,
             maxSimplicity: true,
             maxTimesCompleted: true,

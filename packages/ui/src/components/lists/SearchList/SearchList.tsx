@@ -118,7 +118,6 @@ export function SearchList<DataType extends ListObject>({
     }, [getScrollingContainer, handleScroll]);
 
     const handleSearch = useCallback((newString: string) => {
-        console.log("handleSearch called", newString);
         setSearchString(newString);
     }, [setSearchString]);
 

@@ -19,7 +19,7 @@ export const QuizModel: QuizModelLogic = ({
     dbTranslationTable: "quiz_translation",
     display: () => ({
         label: {
-            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
         embed: {

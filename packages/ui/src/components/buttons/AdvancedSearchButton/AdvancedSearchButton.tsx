@@ -1,4 +1,4 @@
-import { parseSearchParams } from "@local/shared";
+import { parseSearchParams, ParseSearchParamsResult } from "@local/shared";
 import { Box, Button, Grid, Tooltip, Typography, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { GeneratedGrid } from "components/inputs/generated";
@@ -16,8 +16,6 @@ import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
 import { searchButtonStyle } from "../styles";
 import { AdvancedSearchButtonProps } from "../types";
 
-type SearchQuery = { [x: string]: object | string | number | boolean | null };
-
 const titleId = "advanced-search-dialog-title";
 
 const AdvancedSearchDialog = ({
@@ -27,7 +25,7 @@ const AdvancedSearchDialog = ({
     searchType,
 }: {
     handleClose: () => unknown;
-    handleSearch: (searchQuery: SearchQuery) => unknown;
+    handleSearch: (searchQuery: ParseSearchParamsResult) => unknown;
     isOpen: boolean;
     searchType: SearchType | `${SearchType}`;
 }) => {
@@ -47,7 +45,7 @@ const AdvancedSearchDialog = ({
         // Parse search params from URL, and filter out search fields that are not in schema
         const urlValues = schema ? convertSearchForFormik(parseSearchParams(), schema) : {} as { [key: string]: object | string | number | boolean | null };
         // Filter out search params that are not in schema
-        const values: SearchQuery = {};
+        const values: ParseSearchParamsResult = {};
         // Add fieldInputs to values
         fieldInputs.forEach((field) => {
             values[field.fieldName] = field.props.defaultValue;
@@ -171,15 +169,13 @@ export const AdvancedSearchButton = ({
     const handleAdvancedSearchDialogClose = useCallback(() => {
         setAdvancedSearchDialogOpen(false);
     }, []);
-    const handleAdvancedSearchDialogSubmit = useCallback((values: SearchQuery) => {
+    const handleAdvancedSearchDialogSubmit = useCallback((values: ParseSearchParamsResult) => {
         if (!controlsUrl) return;
-        // Remove 0 values
-        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
         // Remove schema fields from search params
         removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
         // Add set fields to search params
-        addSearchParams(setLocation, valuesWithoutBlanks);
-        setAdvancedSearchParams(valuesWithoutBlanks);
+        addSearchParams(setLocation, values);
+        setAdvancedSearchParams(values);
     }, [advancedSearchSchema?.fields, controlsUrl, setAdvancedSearchParams, setLocation]);
 
     // Set dialog open stats in url search params

@@ -31,6 +31,7 @@ export const codeVersion: GqlPartial<CodeVersion> = {
         default: true,
         versionIndex: true,
         versionLabel: true,
+        calledByRoutineVersionsCount: true,
         commentsCount: true,
         directoryListingsCount: true,
         forksCount: true,

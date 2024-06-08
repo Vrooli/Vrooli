@@ -18,7 +18,7 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
     dbTranslationTable: "code_version_translation",
     display: () => ({
         label: {
-            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
         embed: {
@@ -98,10 +98,12 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
         defaultSort: CodeVersionSortBy.DateUpdatedDesc,
         sortBy: CodeVersionSortBy,
         searchFields: {
+            calledByRoutineVersionId: true,
             completedTimeFrame: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
+            isLatest: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,

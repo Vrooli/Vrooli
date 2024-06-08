@@ -207,6 +207,8 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
+            isInternalWithRoot: true,
+            isLatest: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,

@@ -63,6 +63,7 @@ export type ParticipantManageViewProps = ViewProps & {
 export type PremiumViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps
 export type SearchViewProps = ViewProps
+export type SearchVersionViewProps = ViewProps
 export type SignupViewProps = ViewProps
 export type StatsSiteViewProps = ViewProps
 export type StatsObjectViewProps<T extends ListObject> = ViewProps & {

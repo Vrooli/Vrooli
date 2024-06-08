@@ -96,6 +96,7 @@ export const code_update = {
     "default": true,
     "versionIndex": true,
     "versionLabel": true,
+    "calledByRoutineVersionsCount": true,
     "commentsCount": true,
     "directoryListingsCount": true,
     "forksCount": true,

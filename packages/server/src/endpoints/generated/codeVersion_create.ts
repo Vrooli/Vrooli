@@ -234,6 +234,7 @@ export const codeVersion_create = {
   "default": true,
   "versionIndex": true,
   "versionLabel": true,
+  "calledByRoutineVersionsCount": true,
   "commentsCount": true,
   "directoryListingsCount": true,
   "forksCount": true,

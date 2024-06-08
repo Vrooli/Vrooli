@@ -123,6 +123,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
         searchFields: {
             createdByIdRoot: true,
             createdTimeFrame: true,
+            isLatest: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,

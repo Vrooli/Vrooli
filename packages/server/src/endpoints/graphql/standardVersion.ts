@@ -121,6 +121,7 @@ export const typeDef = gql`
         ownedByUserIdRoot: ID
         ids: [ID!]
         isCompleteWithRoot: Boolean
+        isInternalWithRoot: Boolean
         isLatest: Boolean
         translationLanguages: [String!]
         maxBookmarksRoot: Int

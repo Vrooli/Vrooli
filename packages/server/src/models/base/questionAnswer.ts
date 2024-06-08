@@ -12,7 +12,7 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     dbTranslationTable: "question_answer_translation",
     display: () => ({
         label: {
-            select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),
+            select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
     }),

@@ -75,6 +75,7 @@ export const typeDef = gql`
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
+        calledByRoutineVersionsCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
         directoryListings: [ProjectVersionDirectory!]!
@@ -115,6 +116,7 @@ export const typeDef = gql`
 
     input CodeVersionSearchInput {
         after: String
+        calledByRoutineVersionId: ID
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
         createdByIdRoot: ID

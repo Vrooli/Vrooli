@@ -230,18 +230,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
         lastParams.current = deepClone(params.current);
-        console.log("fetching data", params.current.findManyEndpoint, {
-            take,
-            sortBy: params.current.sortBy,
-            searchString: params.current.searchString,
-            createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
-                after: params.current.timeFrame.after?.toISOString(),
-                before: params.current.timeFrame.before?.toISOString(),
-            } : undefined,
-            ...after.current,
-            ...params.current.where,
-            ...params.current.advancedSearchParams,
-        });
         // params.current.loading = true;
         getPageData({
             take,

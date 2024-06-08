@@ -109,6 +109,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
+            isLatest: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,

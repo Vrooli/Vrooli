@@ -193,6 +193,15 @@ export enum SearchPageTabOption {
     User = "User",
 }
 
+export enum SearchVersionPageTabOption {
+    ApiVersion = "ApiVersion",
+    CodeVersion = "CodeVersion",
+    NoteVersion = "NoteVersion",
+    ProjectVersion = "ProjectVersion",
+    RoutineVersion = "RoutineVersion",
+    StandardVersion = "StandardVersion",
+}
+
 export enum UserPageTabOption {
     Details = "Details",
     Project = "Project",
@@ -313,6 +322,51 @@ export const searchViewTabParams: TabParam<SearchViewTabsInfo>[] = [{
     key: "Code",
     titleKey: "Code",
     searchType: "Code",
+    where: () => ({}),
+}];
+
+export type SearchVersionViewTabsInfo = {
+    IsSearchable: true;
+    Key: SearchVersionPageTabOption;
+    Payload: undefined;
+    WhereParams: undefined;
+}
+
+export const searchVersionViewTabParams: TabParam<SearchVersionViewTabsInfo>[] = [{
+    Icon: RoutineIcon,
+    key: "RoutineVersion",
+    titleKey: "Routine",
+    searchType: "RoutineVersion",
+    where: () => ({ isInternalWithRoot: false }),
+}, {
+    Icon: ProjectIcon,
+    key: "ProjectVersion",
+    titleKey: "Project",
+    searchType: "ProjectVersion",
+    where: () => ({}),
+}, {
+    Icon: NoteIcon,
+    key: "NoteVersion",
+    titleKey: "Note",
+    searchType: "NoteVersion",
+    where: () => ({}),
+}, {
+    Icon: StandardIcon,
+    key: "StandardVersion",
+    titleKey: "Standard",
+    searchType: "StandardVersion",
+    where: () => ({ isInternalWithRoot: false }),
+}, {
+    Icon: ApiIcon,
+    key: "ApiVersion",
+    titleKey: "Api",
+    searchType: "ApiVersion",
+    where: () => ({}),
+}, {
+    Icon: TerminalIcon,
+    key: "CodeVersion",
+    titleKey: "Code",
+    searchType: "CodeVersion",
     where: () => ({}),
 }];
 
