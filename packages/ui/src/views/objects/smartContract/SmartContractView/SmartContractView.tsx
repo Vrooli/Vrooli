@@ -1,158 +1,79 @@
-import { BookmarkFor, CodeVersion, ListObject, endpointGetCodeVersion } from "@local/shared";
-import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { CodeVersion, CommentFor, LINKS, ResourceList as ResourceListType, Tag, endpointGetCodeVersion, exists, noopSubmit } from "@local/shared";
+import { Box, Button, Divider, IconButton, Stack, useTheme } from "@mui/material";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
+import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
+import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { TagList } from "components/lists/TagList/TagList";
+import { ResourceList } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { Title } from "components/text/Title/Title";
+import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
+import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
+import { Formik } from "formik";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { EditIcon, EllipsisIcon, TerminalIcon } from "icons";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AddIcon, EditIcon, SearchIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { OverviewContainer } from "styles";
-import { placeholderColor } from "utils/display/listTools";
+import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { SearchVersionPageTabOption } from "utils/search/objectToSearch";
+import { CodeShape } from "utils/shape/models/code";
+import { ResourceListShape } from "utils/shape/models/resourceList";
+import { TagShape } from "utils/shape/models/tag";
+import { smartContractInitialValues } from "../SmartContractUpsert/SmartContractUpsert";
 import { SmartContractViewProps } from "../types";
 
 export const SmartContractView = ({
     display,
+    isOpen,
     onClose,
 }: SmartContractViewProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
-    const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const profileColors = useMemo(() => placeholderColor(), []);
+    const { t } = useTranslation();
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { id, isLoading, object: codeVersion, permissions, setObject: setCodeVersion } = useObjectFromUrl<CodeVersion>({
+    const { isLoading, object: existing, permissions, setObject: setCodeVersion } = useObjectFromUrl<CodeVersion>({
         ...endpointGetCodeVersion,
         objectType: "CodeVersion",
     });
 
-    const availableLanguages = useMemo<string[]>(() => (codeVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [codeVersion?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, name } = useMemo(() => {
-        const { description, name } = getTranslation(codeVersion, [language]);
-        return {
-            description: description && description.trim().length > 0 ? description : undefined,
-            name,
-        };
-    }, [language, codeVersion]);
+    const { name, description } = useMemo(() => {
+        const { description, name } = getTranslation(existing, [language]);
+        return { name, description };
+    }, [existing, language]);
 
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
+    const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
+    const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
 
     const actionData = useObjectActions({
-        object: codeVersion,
-        objectType: "CodeVersion",
+        object: existing,
+        objectType: "Code",
+        openAddCommentDialog,
         setLocation,
         setObject: setCodeVersion,
     });
 
-    /**
-     * Displays name, avatar, description, and quick links
-     */
-    const overviewComponent = useMemo(() => (
-        <OverviewContainer>
-            <Avatar
-                src="/broken-image.jpg" //TODO
-                sx={{
-                    backgroundColor: profileColors[0],
-                    color: profileColors[1],
-                    boxShadow: 2,
-                    transform: "translateX(-50%)",
-                    width: "min(100px, 25vw)",
-                    height: "min(100px, 25vw)",
-                    left: "50%",
-                    top: "-55px",
-                    position: "absolute",
-                    fontSize: "min(50px, 10vw)",
-                }}
-            >
-                <TerminalIcon fill="white" width='75%' height='75%' />
-            </Avatar>
-            <Tooltip title={t("MoreOptions")}>
-                <IconButton
-                    aria-label={t("MoreOptions")}
-                    size="small"
-                    onClick={openMoreMenu}
-                    sx={{
-                        display: "block",
-                        marginLeft: "auto",
-                        marginRight: 1,
-                    }}
-                >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
-                </IconButton>
-            </Tooltip>
-            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
-                {/* Title */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "50%", color: "grey.500", paddingTop: 2, paddingBottom: 2 }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : <Title
-                        title={name}
-                        variant="header"
-                        options={permissions.canUpdate ? [{
-                            label: t("Edit"),
-                            Icon: EditIcon,
-                            onClick: () => { actionData.onActionStart("Edit"); },
-                        }] : []}
-                    />
-                }
-                {/* Joined date */}
-                <DateDisplay
-                    loading={isLoading}
-                    showIcon={true}
-                    textBeforeDate="Joined"
-                    timestamp={codeVersion?.created_at}
-                    width={"33%"}
-                />
-                {/* Bio */}
-                {
-                    isLoading ? (
-                        <Stack sx={{ width: "85%", color: "grey.500" }} spacing={2}>
-                            <LinearProgress color="inherit" />
-                            <LinearProgress color="inherit" />
-                        </Stack>
-                    ) : (
-                        <Typography variant="body1" sx={{ color: description ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? "No description set"}</Typography>
-                    )
-                }
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <ShareButton object={codeVersion} />
-                    <ReportsLink object={codeVersion} />
-                    <BookmarkButton
-                        disabled={!permissions.canBookmark}
-                        objectId={codeVersion?.id ?? ""}
-                        bookmarkFor={BookmarkFor.Code}
-                        isBookmarked={codeVersion?.root?.you?.isBookmarked ?? false}
-                        bookmarks={codeVersion?.root?.bookmarks ?? 0}
-                        onChange={(isBookmarked: boolean) => { }}
-                    />
-                </Stack>
-            </Stack>
-        </OverviewContainer>
-    ), [actionData, palette.background.textSecondary, palette.background.textPrimary, profileColors, openMoreMenu, isLoading, name, permissions.canUpdate, permissions.canBookmark, t, codeVersion, description]);
+    const initialValues = useMemo(() => smartContractInitialValues(session, existing), [existing, session]);
+    const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as CodeShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     return (
         <>
@@ -160,36 +81,139 @@ export const SmartContractView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(name, t("SmartContract", { count: 1 }))}
+                below={availableLanguages.length > 1 && <SelectLanguageMenu
+                    currentLanguage={language}
+                    handleCurrent={setLanguage}
+                    languages={availableLanguages}
+                />}
             />
-            {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ObjectActionMenu
-                actionData={actionData}
-                anchorEl={moreMenuAnchor}
-                object={codeVersion as ListObject}
-                onClose={closeMoreMenu}
-            />
-            <Box sx={{
-                background: palette.mode === "light" ? "#b2b3b3" : "#303030",
-                display: "flex",
-                paddingTop: 5,
-                paddingBottom: { xs: 0, sm: 2, md: 5 },
-                position: "relative",
-            }}>
-                {/* Language display/select */}
-                <Box sx={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
+            <Formik
+                enableReinitialize={true}
+                initialValues={initialValues}
+                onSubmit={noopSubmit}
+            >
+                {(formik) => <Stack direction="column" spacing={4} sx={{
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    width: "min(100%, 700px)",
+                    padding: 2,
                 }}>
-                    {availableLanguages.length > 1 && <SelectLanguageMenu
-                        currentLanguage={language}
-                        handleCurrent={setLanguage}
-                        languages={availableLanguages}
+                    {/* Relationships */}
+                    <RelationshipList
+                        isEditing={false}
+                        objectType={"Code"}
+                    />
+                    {/* Resources */}
+                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
+                        horizontal
+                        list={resourceList as unknown as ResourceListType}
+                        canUpdate={false}
+                        // eslint-disable-next-line @typescript-eslint/no-empty-function
+                        handleUpdate={() => { }}
+                        loading={isLoading}
+                        parent={{ __typename: "CodeVersion", id: existing?.id ?? "" }}
                     />}
-                </Box>
-                {overviewComponent}
-            </Box>
-            {/* TODO */}
+                    {!!description && <TextCollapse
+                        title="Description"
+                        text={description}
+                        loading={isLoading}
+                        loadingLines={2}
+                    />}
+                    {/* Tags */}
+                    {exists(tags) && tags.length > 0 && <TagList
+                        maxCharacters={30}
+                        parentId={existing?.id ?? ""}
+                        tags={tags as Tag[]}
+                        sx={{ marginTop: 4 }}
+                    />}
+                    <ContentCollapse
+                        title="Contract"
+                        titleVariant="h4"
+                        isOpen={true}
+                        sxs={{ titleContainer: { marginBottom: 1 } }}
+                    >
+                        <CodeInput
+                            disabled={true}
+                            limitTo={[CodeLanguage.Javascript]}
+                            name="content"
+                        />
+                    </ContentCollapse>
+                    <Divider />
+                    <ContentCollapse
+                        title={t("StatisticsShort")}
+                        titleVariant="h4"
+                        isOpen={true}
+                        sxs={{ titleContainer: { marginBottom: 1 } }}
+                    >
+                        <Button
+                            href={`${LINKS.SearchVersion}?type=${SearchVersionPageTabOption.RoutineVersion}&codeVersionId=${existing.id}`}
+                            sx={{
+                                color: palette.background.textSecondary,
+                                display: "flex",
+                                marginBottom: 2,
+                                textAlign: "center",
+                                textTransform: "none",
+                            }}
+                            variant="text"
+                            endIcon={<SearchIcon />}
+                        >
+                            {t("RoutinesConnected", { count: existing?.calledByRoutineVersionsCount ?? 0 })}
+                        </Button>
+                        {permissions.canUpdate && <Button
+                            fullWidth
+                            onClick={() => { }}
+                            startIcon={<AddIcon />}
+                            variant="outlined"
+                        >
+                            {t("CreateRoutine")}
+                        </Button>}
+                    </ContentCollapse>
+                    <Box>
+                        {/* Date and version labels */}
+                        <Stack direction="row" spacing={1} mt={2} mb={1}>
+                            {/* Date created */}
+                            <DateDisplay
+                                loading={isLoading}
+                                showIcon={true}
+                                timestamp={existing?.created_at}
+                            />
+                            <VersionDisplay
+                                currentVersion={existing}
+                                prefix={" - "}
+                                versions={existing?.root?.versions}
+                            />
+                        </Stack>
+                        {/* Votes, reports, and other basic stats */}
+                        <StatsCompact
+                            handleObjectUpdate={() => { }}
+                            object={existing}
+                        />
+                        {/* Action buttons */}
+                        <ObjectActionsRow
+                            actionData={actionData}
+                            exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                            object={existing}
+                        />
+                    </Box>
+                    <Divider />
+                    <CommentContainer
+                        forceAddCommentOpen={isAddCommentOpen}
+                        language={language}
+                        objectId={existing?.id ?? ""}
+                        objectType={CommentFor.RoutineVersion}
+                        onAddCommentClose={closeAddCommentDialog}
+                    />
+                </Stack>}
+            </Formik>
+            {/* Edit button (if canUpdate), positioned at bottom corner of screen */}
+            <SideActionsButtons display={display}>
+                {/* Edit button */}
+                {permissions.canUpdate ? (
+                    <IconButton aria-label={t("UpdateSmartContract")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </IconButton>
+                ) : null}
+            </SideActionsButtons>
         </>
     );
 };

@@ -33,12 +33,13 @@ import { CodeVersionShape, shapeCodeVersion } from "utils/shape/models/codeVersi
 import { validateFormValues } from "utils/validateFormValues";
 import { CodeFormProps, CodeUpsertProps } from "../types";
 
-const codeInitialValues = (
+export const codeInitialValues = (
     session: Session | undefined,
     existing?: Partial<CodeVersion> | undefined,
 ): CodeVersionShape => ({
     __typename: "CodeVersion" as const,
     id: DUMMY_ID,
+    calledByRoutineVersionsCount: 0,
     codeLanguage: CodeLanguage.Haskell,
     codeType: CodeType.DataConvert,
     content: "",

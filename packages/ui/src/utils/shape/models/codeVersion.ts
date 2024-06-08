@@ -9,7 +9,7 @@ export type CodeVersionTranslationShape = Pick<CodeVersionTranslation, "id" | "l
     __typename?: "CodeVersionTranslation";
 }
 
-export type CodeVersionShape = Pick<CodeVersion, "id" | "codeLanguage" | "codeType" | "content" | "default" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
+export type CodeVersionShape = Pick<CodeVersion, "id" | "calledByRoutineVersionsCount" | "codeLanguage" | "codeType" | "content" | "default" | "isComplete" | "isPrivate" | "versionLabel" | "versionNotes"> & {
     __typename: "CodeVersion";
     directoryListings?: ProjectVersionDirectoryShape[] | null;
     resourceList?: ResourceListShape | null;
