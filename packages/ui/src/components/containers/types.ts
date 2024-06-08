@@ -48,6 +48,8 @@ export type DialogActionItem = [string, SvgComponent, boolean, boolean, () => un
 
 export interface ContentCollapseProps {
     children?: React.ReactNode;
+    /** True if the container is not collapsible. Defaults to false. */
+    disableCollapse?: boolean;
     helpText?: string;
     id?: string;
     isOpen?: boolean;

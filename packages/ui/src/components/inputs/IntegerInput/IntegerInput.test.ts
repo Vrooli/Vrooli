@@ -115,7 +115,7 @@ describe('getColorForLabel', () => {
     });
 
     test('should treat the zeroText as zero and return the appropriate color', () => {
-        expect(getColorForLabel('ZERO', 0, 5, palette, 'ZERO')).toBe('grey');
+        expect(getColorForLabel('ZERO', -1, 5, palette, 'ZERO')).toBe('grey');
         expect(getColorForLabel('ZERO', -5, 0, palette, 'ZERO')).toBe('orange'); // Assuming ZERO is zero and zero is max
         expect(getColorForLabel('ZERO', 0, 10, palette, 'ZERO')).toBe('orange'); // Assuming ZERO is zero and zero is min
     });

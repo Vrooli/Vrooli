@@ -7,6 +7,7 @@ import { ContentCollapseProps } from "../types";
 
 export const ContentCollapse = ({
     children,
+    disableCollapse,
     helpText,
     id,
     isOpen = true,
@@ -55,7 +56,7 @@ export const ContentCollapse = ({
                     markdown={helpText}
                     sx={sxs?.helpButton ?? {}}
                 />}
-                <IconButton
+                {!disableCollapse && <IconButton
                     id={`toggle-expand-icon-button-${title}`}
                     aria-label={t(internalIsOpen ? "Collapse" : "Expand")}
                     onClick={toggleOpen}
@@ -69,13 +70,15 @@ export const ContentCollapse = ({
                             id={`toggle-expand-icon-${title}`}
                             fill={fillColor}
                         />}
-                </IconButton>
+                </IconButton>}
                 {toTheRight}
             </Stack>
-            {/* Text */}
-            <Collapse in={internalIsOpen}>
-                {children}
-            </Collapse>
+            {/* Text within Collapse, or just children if collapse is disabled */}
+            {disableCollapse ? children : (
+                <Collapse in={internalIsOpen}>
+                    {children}
+                </Collapse>
+            )}
         </Box>
     );
 };

@@ -521,14 +521,12 @@ export interface GridContainerBase {
  * This is used with the schema fields to determine which inputs to render.
  */
 export interface GridContainer extends GridContainerBase {
-    /**
-     * Total number of fields in this container
-     */
-    totalItems: number;
-    /**
-     * Determines if the border should be displayed
-     */
+    /** True if the container is not collapsible. Defaults to false. */
+    disableCollapse?: boolean;
+    /** Determines if the border should be displayed */
     showBorder?: boolean;
+    /** Total number of fields in this container */
+    totalItems: number;
 }
 
 //==============================================================

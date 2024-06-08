@@ -12,12 +12,14 @@ export const searchFormLayout = (title: CommonKey): FormSchema["formLayout"] => 
 export const languagesContainer = (): GridContainer => ({
     title: i18next.t("Language", { count: 2 }),
     description: i18next.t("LanguagesHelp"),
+    disableCollapse: true,
     totalItems: 1,
 });
 export const languagesVersionContainer = languagesContainer;
 export const bookmarksContainer = (): GridContainer => ({
     title: i18next.t("Bookmark", { count: 2 }),
     description: i18next.t("BookmarksHelp"),
+    disableCollapse: true,
     totalItems: 2,
     spacing: 2,
 });
@@ -25,11 +27,13 @@ export const bookmarksRootContainer = bookmarksContainer;
 export const tagsContainer = (): GridContainer => ({
     title: i18next.t("Tag", { count: 2 }),
     description: i18next.t("TagsHelp"),
+    disableCollapse: true,
     totalItems: 1,
 });
 export const tagsRootContainer = tagsContainer;
 export const votesContainer = (): GridContainer => ({
     title: i18next.t("Vote", { count: 2 }),
+    disableCollapse: true,
     description: i18next.t("VotesHelp"),
     totalItems: 2,
     spacing: 2,
@@ -38,6 +42,7 @@ export const votesRootContainer = votesContainer;
 export const simplicityContainer = (): GridContainer => ({
     title: i18next.t("Simplicity"),
     description: i18next.t("SimplicityHelp"),
+    disableCollapse: true,
     totalItems: 2,
     spacing: 2,
 });
@@ -45,11 +50,12 @@ export const simplicityRootContainer = simplicityContainer;
 export const complexityContainer = (): GridContainer => ({
     title: i18next.t("Complexity"),
     description: i18next.t("ComplexityHelp"),
+    disableCollapse: true,
     totalItems: 2,
     spacing: 2,
 });
 export const complexityRootContainer = complexityContainer;
-export const hasCompleteVersionContainer: GridContainer = { totalItems: 1 };
+export const hasCompleteVersionContainer: GridContainer = { disableCollapse: true, totalItems: 1 };
 export const isCompleteWithRootContainer: GridContainer = hasCompleteVersionContainer;
 export const isLatestContainer: GridContainer = hasCompleteVersionContainer;
 

@@ -61,7 +61,7 @@ export const CommandPalette = () => {
             //     id: LINKS.Tutorial,
             // });
         }
-        const queryItems = listToAutocomplete(parseData(data, "Popular"), languages);
+        const queryItems = listToAutocomplete(parseData(data), languages);
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [t, searchString, data, languages, shortcutsItems]);
 

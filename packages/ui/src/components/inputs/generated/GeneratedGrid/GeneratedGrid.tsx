@@ -114,6 +114,7 @@ export const GeneratedGrid = ({
                 >
                     {/* If a title is provided, the items are wrapped in a collapsible container */}
                     {currLayout?.title ? <ContentCollapse
+                        disableCollapse={currLayout.disableCollapse}
                         helpText={currLayout.description ?? undefined}
                         title={currLayout.title}
                         titleComponent="legend"
@@ -131,6 +132,7 @@ export const GeneratedGrid = ({
             direction={layout?.direction ?? 'row'}
             key={`form-container`}
             spacing={layout?.spacing}
+            sx={{ width: "100%" }}
         >
             {grids}
         </Stack>

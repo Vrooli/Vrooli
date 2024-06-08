@@ -2,8 +2,8 @@ import { ApiVersion, Bookmark, ChatParticipant, CodeVersion, GqlModelType, Membe
 import { LINKS } from "../consts/ui";
 import { isOfType } from "./objects";
 
-type Primitive = string | number | boolean | object;
-export type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult | null | undefined };
+export type UrlPrimitive = string | number | boolean | object;
+export type ParseSearchParamsResult = { [x: string]: UrlPrimitive | UrlPrimitive[] | ParseSearchParamsResult | null | undefined };
 
 /**
  * All possible permissions/user-statuses any object can have
