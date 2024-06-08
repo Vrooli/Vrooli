@@ -31,7 +31,7 @@
         "@replit/codemirror-lang-solidity": "^6.0.1",
         "@replit/codemirror-lang-svelte": "^6.0.0",
         "@stripe/stripe-js": "^1.52.0",
-        "@uiw/react-codemirror": "^4.21.2",
+        "@uiw/react-codemirror": "^4.22.2",
         "cm6-graphql": "^0.0.8",
         "codemirror-lang-r": "^0.1.0-2",
         "d3-scale": "^4.0.2",

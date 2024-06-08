@@ -1,4 +1,4 @@
-import { ListObject, ResourceListFor, StandardVersion, Tag } from "@local/shared";
+import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
@@ -6,7 +6,7 @@ import { JSONVariable } from "forms/types";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
 import { TagShape } from "utils/shape/models/tag";
-import { StandardLanguage } from "./CodeInput/CodeInput";
+import { CodeLanguage } from "./CodeInput/CodeInput";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -21,6 +21,14 @@ export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
 };
 
 export interface CodeInputBaseProps {
+    /**
+     * The current language of the code input
+     */
+    codeLanguage: CodeLanguage;
+    /**
+     * The code itself
+     */
+    content: string;
     defaultValue?: string;
     disabled?: boolean;
     /**
@@ -60,7 +68,12 @@ export interface CodeInputBaseProps {
      * }
      */
     format?: string;
-    limitTo?: StandardLanguage[];
+    handleCodeLanguageChange: (language: CodeLanguage) => unknown;
+    handleContentChange: (content: string) => unknown;
+    /**
+     * Limit the languages that can be selected in the language dropdown.
+     */
+    limitTo?: CodeLanguage[];
     name: string;
     /**
      * Dictionary which describes variables (e.g. <name>, <age>) in
@@ -81,7 +94,7 @@ export interface CodeInputBaseProps {
     variables?: { [x: string]: JSONVariable };
 }
 
-export type CodeInputProps = Omit<CodeInputBaseProps, "defaultValue" | "format" | "variables">
+export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables">
 
 export interface DateInputProps {
     isOptional?: boolean;
@@ -326,14 +339,24 @@ export interface SelectorBaseProps<T extends string | number | { [x: string]: an
     };
 }
 
-export type StandardVersionSelectSwitchProps = {
-    /** Indicates if the standard is allowed to be updated */
-    canUpdateStandardVersion: boolean;
-    selected: {
-        translations: StandardVersion["translations"];
-    } | null;
-    onChange: (value: StandardVersion | null) => unknown;
+export type ObjectVersionSelectPayloads = {
+    ApiVersion: ApiVersion,
+    CodeVersion: CodeVersion,
+    NoteVersion: NoteVersion,
+    ProjectVersion: ProjectVersion,
+    RoutineVersion: RoutineVersion,
+    StandardVersion: StandardVersion,
+}
+export type ObjectVersionSelectSwitchProps<T extends keyof ObjectVersionSelectPayloads> = {
+    canUpdate: boolean;
     disabled?: boolean;
+    label: string;
+    selected: {
+        translations: ObjectVersionSelectPayloads[T]["translations"];
+    } | null;
+    objectType: T;
+    onChange: (value: ObjectVersionSelectPayloads[T] | null) => unknown;
+    tooltip: string;
 }
 
 export type TagSelectorBaseProps = {
