@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkFor, CommentFor, CommonKey, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, getReactionScore } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
-import { BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon, UpvoteWideIcon } from "icons";
+import { ArrowDownIcon, ArrowUpIcon, BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, CommentIcon, DeleteIcon, DonateIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon } from "icons";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
@@ -133,7 +133,7 @@ export const getAvailableActions = (object: ListObject | null | undefined, sessi
 const allOptionsMap: { [key in ObjectAction]: [CommonKey, SvgComponent, string, boolean] } = ({
     [ObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
     [ObjectAction.BookmarkUndo]: ["BookmarkUndo", BookmarkFilledIcon, "#cbae30", false],
-    [ObjectAction.Comment]: ["Comment", ReplyIcon, "default", false],
+    [ObjectAction.Comment]: ["Comment", CommentIcon, "default", false],
     [ObjectAction.Delete]: ["Delete", DeleteIcon, "default", false],
     [ObjectAction.Donate]: ["Donate", DonateIcon, "default", true],
     [ObjectAction.Edit]: ["Edit", EditIcon, "default", false],
@@ -142,8 +142,8 @@ const allOptionsMap: { [key in ObjectAction]: [CommonKey, SvgComponent, string, 
     [ObjectAction.Report]: ["Report", ReportIcon, "default", false],
     [ObjectAction.Share]: ["Share", ShareIcon, "default", false],
     [ObjectAction.Stats]: ["StatisticsShort", StatsIcon, "default", true],
-    [ObjectAction.VoteDown]: ["VoteDown", DownvoteWideIcon, "default", false],
-    [ObjectAction.VoteUp]: ["VoteUp", UpvoteWideIcon, "default", false],
+    [ObjectAction.VoteDown]: ["VoteDown", ArrowDownIcon, "default", false],
+    [ObjectAction.VoteUp]: ["VoteUp", ArrowUpIcon, "default", false],
 });
 
 export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] => {

@@ -303,20 +303,6 @@ export const DownloadIcon = (props: SvgProps) => (
     />
 );
 
-export const DownvoteTallIcon = (props: SvgProps) => (
-    <SvgPath
-        props={props}
-        d="M20.16 4.894H3.84L12 19.106l8.16-14.212z"
-    />
-);
-
-export const DownvoteWideIcon = (props: SvgProps) => (
-    <SvgPath
-        props={props}
-        d="M21.058 6.807H2.942L12 17.192Z"
-    />
-);
-
 export const DragIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -1134,20 +1120,6 @@ export const UnlockIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
         d="M12 17a2 2 0 0 1-2-2c0-1.1.9-2 2-2a2 2 0 0 1 2 2 2 2 0 0 1-2 2zM6 8h1V6a5 5 0 0 1 5-5c2.8 0 4.7 1.6 5 4.2h-1.9c-.2-1.7-1.4-2.3-3.1-2.3A3.1 3.1 0 0 0 8.9 6v2H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10c0-1.1.9-2 2-2Zm0 12h12V10H6Z"
-    />
-);
-
-export const UpvoteTallIcon = (props: SvgProps) => (
-    <SvgPath
-        props={props}
-        d="M20.16 19.1H3.84L12 4.9l8.16 14.2z"
-    />
-);
-
-export const UpvoteWideIcon = (props: SvgProps) => (
-    <SvgPath
-        props={props}
-        d="M21.06 17.2H2.94L12 6.8l9.06 10.4Z"
     />
 );
 

@@ -1,15 +1,15 @@
 import { getReactionScore, removeModifiers } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useVoter } from "hooks/useVoter";
-import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from "icons";
+import { ArrowDownIcon, ArrowUpIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { VoteButtonProps } from "../types";
 
 export const VoteButton = ({
-    direction = "column",
     disabled = false,
     emoji,
     score,
@@ -20,6 +20,7 @@ export const VoteButton = ({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const { t } = useTranslation();
 
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
@@ -84,62 +85,70 @@ export const VoteButton = ({
         handleVote(event, vote);
     }, [userId, disabled, internalEmoji, handleVote]);
 
-    const { UpvoteIcon, upvoteColor } = useMemo(() => {
-        const upvoteColor = (!userId || disabled) ? palette.background.textSecondary :
-            getReactionScore(internalEmoji) > 0 ? "#34c38b" :
-                "#687074";
-        const UpvoteIcon = direction === "column" ? UpvoteWideIcon : UpvoteTallIcon;
-        return { UpvoteIcon, upvoteColor };
-    }, [userId, disabled, palette.background.textSecondary, internalEmoji, direction]);
+    const upvoteColor = (!userId || disabled) ?
+        palette.background.textSecondary :
+        getReactionScore(internalEmoji) > 0 ?
+            "#34c38b" :
+            "#687074";
 
-    const { DownvoteIcon, downvoteColor } = useMemo(() => {
-        const downvoteColor = (!userId || disabled) ? palette.background.textSecondary :
-            getReactionScore(internalEmoji) < 0 ? "#af2929" :
-                "#687074";
-        const DownvoteIcon = direction === "column" ? DownvoteWideIcon : DownvoteTallIcon;
-        return { DownvoteIcon, downvoteColor };
-    }, [userId, disabled, palette.background.textSecondary, internalEmoji, direction]);
+    const downvoteColor = (!userId || disabled) ?
+        palette.background.textSecondary :
+        getReactionScore(internalEmoji) < 0 ?
+            "#af2929" :
+            "#687074";
 
     return (
-        <Stack direction={direction} sx={{ pointerEvents: "none" }}>
+        <Stack direction="row" sx={{ pointerEvents: "none" }}>
             {/* Upvote arrow */}
-            <Box
-                display="inline-block"
-                onClick={handleUpvoteClick}
-                role="button"
-                aria-pressed={getReactionScore(internalEmoji) > 0}
-                sx={{
-                    cursor: (userId && !disabled) ? "pointer" : "default",
-                    pointerEvents: "all",
-                    display: "flex",
-                    "&:hover": {
-                        filter: (userId && !disabled) ? "brightness(120%)" : "none",
-                        transition: "filter 0.2s",
-                    },
-                }}
-            >
-                <UpvoteIcon width="36px" height="36px" fill={upvoteColor} />
-            </Box>
+            <Tooltip title={t("VoteUp")}>
+                <Box
+                    display="inline-block"
+                    onClick={handleUpvoteClick}
+                    role="button"
+                    aria-pressed={getReactionScore(internalEmoji) > 0}
+                    sx={{
+                        cursor: (userId && !disabled) ? "pointer" : "default",
+                        pointerEvents: "all",
+                        display: "flex",
+                        "&:hover": {
+                            filter: (userId && !disabled) ? "brightness(120%)" : "none",
+                            transition: "filter 0.2s",
+                        },
+                    }}
+                >
+                    <ArrowUpIcon width="24px" height="24px" fill={upvoteColor} />
+                </Box>
+            </Tooltip>
             {/* Score */}
-            <Typography variant="body1" textAlign="center" sx={{ margin: "auto", pointerEvents: "none" }}>{internalScore}</Typography>
-            {/* Downvote arrow */}
-            <Box
-                display="inline-block"
-                onClick={handleDownvoteClick}
-                role="button"
-                aria-pressed={getReactionScore(internalEmoji) < 0}
+            <Typography
+                variant="body1"
+                textAlign="center"
                 sx={{
-                    cursor: (userId && !disabled) ? "pointer" : "default",
-                    pointerEvents: "all",
-                    display: "flex",
-                    "&:hover": {
-                        filter: (userId && !disabled) ? "brightness(120%)" : "none",
-                        transition: "filter 0.2s",
-                    },
+                    marginLeft: "4px",
+                    marginRight: "4px",
+                    pointerEvents: "none",
                 }}
-            >
-                <DownvoteIcon width="36px" height="36px" fill={downvoteColor} />
-            </Box>
+            >{internalScore}</Typography>
+            {/* Downvote arrow */}
+            <Tooltip title={t("VoteDown")}>
+                <Box
+                    display="inline-block"
+                    onClick={handleDownvoteClick}
+                    role="button"
+                    aria-pressed={getReactionScore(internalEmoji) < 0}
+                    sx={{
+                        cursor: (userId && !disabled) ? "pointer" : "default",
+                        pointerEvents: "all",
+                        display: "flex",
+                        "&:hover": {
+                            filter: (userId && !disabled) ? "brightness(120%)" : "none",
+                            transition: "filter 0.2s",
+                        },
+                    }}
+                >
+                    <ArrowDownIcon width="24px" height="24px" fill={downvoteColor} />
+                </Box>
+            </Tooltip>
         </Stack>
     );
 };
