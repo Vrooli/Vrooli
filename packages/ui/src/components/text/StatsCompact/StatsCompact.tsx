@@ -35,7 +35,6 @@ export const StatsCompact = <T extends ListObject>({
         >
             {/* Votes. Show even if you can't vote */}
             {object && object.__typename.replace("Version", "") in ReactionFor && <VoteButton
-                direction="row"
                 disabled={!you.canReact}
                 emoji={you.reaction}
                 objectId={object.id ?? ""}

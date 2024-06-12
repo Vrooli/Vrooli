@@ -147,12 +147,11 @@ export const StandardView = ({
                         {/* Date created */}
                         <DateDisplay
                             loading={isLoading}
-                            showIcon={true}
                             timestamp={existing?.created_at}
                         />
                         <VersionDisplay
                             currentVersion={existing}
-                            prefix={" - "}
+                            prefix={" - v"}
                             versions={existing?.root?.versions}
                         />
                     </Stack>

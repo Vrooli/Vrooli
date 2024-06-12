@@ -165,7 +165,7 @@ const SubroutineForm = ({
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
-                    prefix={" - "}
+                    prefix={" - v"}
                     versions={versionsField.value ?? []}
                 />
                 {/* Position */}

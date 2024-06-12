@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, Node, NodeLink, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, Node, NodeLink, noop, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Button, Checkbox, Divider, FormControlLabel, Grid, Tooltip, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -18,12 +18,13 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { FormBuildView } from "forms/FormBuildView/FormBuildView";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SearchIcon, SmartContractIcon, TerminalIcon } from "icons";
+import { ApiIcon, RoutineIcon, SearchIcon, SmartContractIcon, TerminalIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -33,6 +34,7 @@ import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/t
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
+import { routineTypes } from "utils/search/schemas/routine";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -89,50 +91,6 @@ export const routineInitialValues = (
 
 const transformRoutineVersionValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
     isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
-
-const routineTypes = [
-    {
-        type: RoutineType.Informational,
-        label: "Informational/Placeholder",
-        description: "Contains no additional data. Used to provide instructions, a way to prompt users for information, or as a placeholder.",
-        Icon: HelpIcon,
-    }, {
-        type: RoutineType.MultiStep,
-        label: "Multi-step",
-        description: "A combination of other routines, using a graph to define the order of execution.",
-        Icon: RoutineIcon,
-    }, {
-        type: RoutineType.Generate,
-        label: "Generate",
-        description: "Sends inputs to an AI (e.g. GPT-4o) and returns its output.",
-        Icon: MagicIcon,
-    }, {
-        type: RoutineType.Data,
-        label: "Data",
-        description: "Contains a single output and nothing else. Useful for providing hard-coded data to other routines, such as a prompt for a \"Generate\" routine.",
-        Icon: CaseSensitiveIcon,
-    }, {
-        type: RoutineType.Action,
-        label: "Action",
-        description: "Performs specific actions within Vrooli, such as creating, updating, or deleting objects.",
-        Icon: ActionIcon,
-    }, {
-        type: RoutineType.Code,
-        label: "Code",
-        description: "Runs sandboxed JavaScript code to convert inputs to outputs. Useful for converting plaintext to structured data. Does not have access to the internet.",
-        Icon: TerminalIcon,
-    }, {
-        type: RoutineType.Api,
-        label: "API",
-        description: "Sends inputs to an API and returns its output. Useful for connecting to external services.",
-        Icon: ApiIcon,
-    }, {
-        type: RoutineType.SmartContract,
-        label: "Smart Contract",
-        description: "Connects to a smart contract on the blockchain, sending inputs and returning outputs.",
-        Icon: SmartContractIcon,
-    },
-];
 
 const RoutineForm = ({
     disabled,
@@ -407,17 +365,14 @@ const RoutineForm = ({
             case RoutineType.Informational:
                 // Allow inputs to be entered. Since nothing else is connected to the routine, these inputs 
                 // will have to be filled out manually by a user or bot
-                return (
-                    <>
-                        <InputOutputContainer
-                            isEditing={true}
-                            handleUpdate={inputsHelpers.setValue as any}
-                            isInput={true}
-                            language={language}
-                            list={inputsField.value}
-                        />
-                    </>
-                );
+                //  {/* <InputOutputContainer
+                //             isEditing={true}
+                //             handleUpdate={inputsHelpers.setValue as any}
+                //             isInput={true}
+                //             language={language}
+                //             list={inputsField.value}
+                //         /> */}
+                return <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
             case RoutineType.MultiStep:
                 // Display graph editor
                 return (
@@ -488,7 +443,7 @@ const RoutineForm = ({
                     </>
                 );
         }
-    }, [handleAddLanguage, handleDeleteLanguage, handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, inputsField.value, inputsHelpers.setValue, isGraphOpen, language, languages, nodeLinksField.value, nodesField.value, outputsField.value, outputsHelpers.setValue, routineType, setLanguage]);
+    }, [handleAddLanguage, handleDeleteLanguage, handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, inputsField.value, inputsHelpers.setValue, isGraphOpen, language, languages, model, nodeLinksField.value, nodesField.value, outputsField.value, outputsHelpers.setValue, routineType, setLanguage, t]);
 
     return (
         <MaybeLargeDialog

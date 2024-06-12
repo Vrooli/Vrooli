@@ -7,6 +7,9 @@ import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem
 import { TagShape } from "utils/shape/models/tag";
 import { NodeWithEndCrudProps, NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
+import { ViewProps } from "views/types";
+
+export type FormBuildViewProps = ViewProps;
 
 //==============================================================
 /* #region Specific Form Props */

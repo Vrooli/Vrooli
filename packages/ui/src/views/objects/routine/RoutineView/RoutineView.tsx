@@ -1,5 +1,5 @@
 import { CommentFor, ResourceList as ResourceListType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, parseSearchParams, setDotNotationValue } from "@local/shared";
-import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
+import { Box, Button, Divider, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -179,18 +179,6 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    const comments = useMemo(() => (
-        <Box sx={containerProps(palette)}>
-            <CommentContainer
-                forceAddCommentOpen={isAddCommentOpen}
-                language={language}
-                objectId={existing?.id ?? ""}
-                objectType={CommentFor.RoutineVersion}
-                onAddCommentClose={closeAddCommentDialog}
-            />
-        </Box>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
-
     return (
         <>
             <TopBar
@@ -324,7 +312,7 @@ export const RoutineView = ({
                             />
                             <VersionDisplay
                                 currentVersion={existing}
-                                prefix={" - "}
+                                prefix={" - v"}
                                 versions={existing?.root?.versions}
                             />
                         </Stack>
@@ -340,8 +328,14 @@ export const RoutineView = ({
                             object={existing}
                         />
                     </Box>
-                    {/* Comments */}
-                    {comments}
+                    <Divider />
+                    <CommentContainer
+                        forceAddCommentOpen={isAddCommentOpen}
+                        language={language}
+                        objectId={existing?.id ?? ""}
+                        objectType={CommentFor.RoutineVersion}
+                        onAddCommentClose={closeAddCommentDialog}
+                    />
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}

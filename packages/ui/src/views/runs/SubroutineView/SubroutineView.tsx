@@ -318,12 +318,11 @@ export const SubroutineView = ({
                             {/* Date created */}
                             <DateDisplay
                                 loading={loading}
-                                showIcon={true}
                                 timestamp={internalRoutineVersion?.created_at}
                             />
                             <VersionDisplay
                                 currentVersion={internalRoutineVersion}
-                                prefix={" - "}
+                                prefix={" - v"}
                                 versions={internalRoutineVersion?.root?.versions}
                             />
                         </Stack>

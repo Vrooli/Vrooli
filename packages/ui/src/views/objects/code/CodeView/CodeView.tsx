@@ -168,18 +168,18 @@ export const CodeView = ({
                             {t("CreateRoutine")}
                         </Button>}
                     </ContentCollapse>
+                    <Divider />
                     <Box>
                         {/* Date and version labels */}
-                        <Stack direction="row" spacing={1} mt={2} mb={1}>
+                        <Stack direction="row" spacing={1} mb={1}>
                             {/* Date created */}
                             <DateDisplay
                                 loading={isLoading}
-                                showIcon={true}
                                 timestamp={existing?.created_at}
                             />
                             <VersionDisplay
                                 currentVersion={existing}
-                                prefix={" - "}
+                                prefix={" - v"}
                                 versions={existing?.root?.versions}
                             />
                         </Stack>
