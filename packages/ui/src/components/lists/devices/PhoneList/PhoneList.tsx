@@ -94,6 +94,8 @@ export function PhoneListItem({
         </Stack>
     );
 
+    //TODO current twilio number only supports US and Canada (I think?). Need to add support countries list, and 
+    // prevent validation process when number is not from US or Canada
     const [validateMutation, { loading: loadingValidateText }] = useLazyFetch<ValidateVerificationTextInput, Success>(endpointPostPhoneValidateText);
     const validateText = useCallback(() => {
         if (loadingValidateText || verificationCode.length === 0) return;
