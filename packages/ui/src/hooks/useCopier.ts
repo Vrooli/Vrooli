@@ -32,6 +32,7 @@ export const useCopier = ({
             return;
         }
         if (!hasCopyingSupport) {
+            console.error("Cannot copy this object type", objectType, objectId);
             PubSub.get().publish("snack", { messageKey: "CopyNotSupported", severity: "Error" });
             return;
         }

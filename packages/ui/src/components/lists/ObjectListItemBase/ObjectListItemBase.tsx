@@ -8,7 +8,7 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import usePress from "hooks/usePress";
-import { BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
+import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -189,6 +189,10 @@ export function ObjectListItemBase<T extends ListObject>({
             // Otherwise, show a group
             return <ProfileGroup users={attendeesOrParticipants.map((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Chat["participants"][0])?.user ?? p as Meeting["attendees"][0])} />;
         }
+        // Other custom object icons
+        if (isOfType(object, "BookmarkList")) {
+            return <BookmarkFilledIcon fill="#cbae30" width={isMobile ? "40px" : "50px"} height={isMobile ? "40px" : "50px"} />;
+        }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
         // Show vote buttons if supported
@@ -245,7 +249,6 @@ export function ObjectListItemBase<T extends ListObject>({
                 {/* Add upvote/downvote if mobile */}
                 {isMobile && canReact && object && (
                     <VoteButton
-                        direction='row'
                         disabled={!canReact}
                         emoji={reaction}
                         objectId={object?.id ?? ""}
