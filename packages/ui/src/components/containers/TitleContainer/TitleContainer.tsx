@@ -23,7 +23,7 @@ export function TitleContainer({
                 Icon={Icon}
                 options={options.filter(({ Icon }) => Icon) as TitleProps["options"]}
                 title={title}
-                variant="subheader"
+                variant="subsection"
             />
             <Box
                 sx={{

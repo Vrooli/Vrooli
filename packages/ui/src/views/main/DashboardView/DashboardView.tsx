@@ -153,7 +153,7 @@ export const DashboardView = ({
     // Handle tabs
     const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => ([
         ...allFocusModes.map((mode, index) => ({
-            color: palette.background.textPrimary,
+            color: palette.primary.contrastText,
             data: mode,
             index,
             key: mode.id,
@@ -161,7 +161,7 @@ export const DashboardView = ({
             searchPlaceholder: "",
         })),
         {
-            color: palette.background.textPrimary,
+            color: palette.primary.contrastText,
             data: undefined,
             Icon: AddIcon,
             index: allFocusModes.length,
@@ -169,7 +169,7 @@ export const DashboardView = ({
             label: "Add",
             searchPlaceholder: "",
         },
-    ]), [allFocusModes, palette.background.textPrimary]);
+    ]), [allFocusModes, palette.primary.contrastText]);
     const currTab = useMemo(() => {
         if (typeof activeFocusMode === "string") return "Add";
         const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.mode?.id);
@@ -487,10 +487,12 @@ export const DashboardView = ({
                         />
                     </Box>
                     {/* Events */}
-                    {upcomingEvents.length > 0 && <ListTitleContainer
+                    <ListTitleContainer
                         Icon={MonthIcon}
                         id="main-event-list"
                         isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
+                        emptyText="No upcoming events"
+                        loading={isFeedLoading}
                         title={t("Schedule", { count: 1 })}
                         options={[{
                             Icon: OpenInNewIcon,
@@ -505,12 +507,14 @@ export const DashboardView = ({
                             loading={isFeedLoading}
                             onAction={onEventAction}
                         />
-                    </ListTitleContainer>}
+                    </ListTitleContainer>
                     {/* Reminders */}
-                    {reminders.length > 0 && <ListTitleContainer
+                    <ListTitleContainer
                         Icon={ReminderIcon}
                         id="main-reminder-list"
                         isEmpty={reminders.length === 0 && !isFeedLoading}
+                        emptyText="No reminders"
+                        loading={isFeedLoading}
                         title={t("Reminder", { count: 2 })}
                         options={[{
                             Icon: OpenInNewIcon,
@@ -529,7 +533,7 @@ export const DashboardView = ({
                             loading={isFeedLoading}
                             onAction={onReminderAction}
                         />
-                    </ListTitleContainer>}
+                    </ListTitleContainer>
                 </>}
                 {showChat && <ChatBubbleTree
                     branches={messageTree.branches}
