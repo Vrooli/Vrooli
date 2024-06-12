@@ -12,9 +12,9 @@ export type EndpointsAward = {
 const objectType = "Award";
 export const AwardEndpoints: EndpointsAward = {
     Query: {
-        awards: async (_, { input }, { prisma, req }, info) => {
+        awards: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

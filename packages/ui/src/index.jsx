@@ -16,7 +16,7 @@ root.render(
 );
 
 // Enable service worker in production for PWA and offline support
-if (import.meta.env.PROD) {
+if (process.env.PROD) {
     serviceWorkerRegistration.register({
         onUpdate: (registration) => {
             if (registration && registration.waiting) {
@@ -48,9 +48,9 @@ if (import.meta.env.PROD) {
 
 // // Measure performance with Google Analytics. 
 // // See results at https://analytics.google.com/
-// ReactGA.initialize(import.meta.env.VITE_GOOGLE_TRACKING_ID);
+// ReactGA.initialize(process.env.VITE_GOOGLE_TRACKING_ID);
 // const sendToAnalytics = ({ name, delta, id }) => {
-//     console.log("sendToAnalytics", { name, delta, id }, import.meta.env.VITE_GOOGLE_TRACKING_ID);
+//     console.log("sendToAnalytics", { name, delta, id }, process.env.VITE_GOOGLE_TRACKING_ID);
 //     ReactGA.event({
 //         category: "Web Vitals",
 //         action: name,

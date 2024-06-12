@@ -3,11 +3,6 @@ import { GraphQLResolveInfo } from "graphql";
 import { SessionUserToken } from "../types";
 
 /**
- * Recursively pads object with "select" fields
- */
-export type WithSelect<T> = { select: { [K in keyof T]: T[K] extends object ? WithSelect<T[K]> : true } };
-
-/**
  * Shape 1 of 4 for GraphQL to Prisma conversion (i.e. GraphQL data before conversion)
  */
 export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
@@ -191,42 +186,6 @@ export type RelDisconnect<IDField extends string> = { [key in IDField]: string }
 export type RelCreate<Shaped extends { [x: string]: any }> = Shaped
 export type RelUpdate<Shaped extends { [x: string]: any }, IDField extends string> = { where: { [key in IDField]: string }, data: Shaped }
 export type RelDelete<IDField extends string> = { [key in IDField]: string }
-
-// Optional if IsRequired is false
-type MaybeOptional<T extends { [x: string]: any }, IsRequired extends boolean> =
-    IsRequired extends true ? T : T | undefined;
-
-export type BuiltRelationship<
-    IDField extends string,
-    IsAdd extends boolean,
-    IsOneToOne extends boolean,
-    IsRequired extends boolean,
-    Shaped extends { [x: string]: any },
-> = MaybeOptional<(
-    IsAdd extends true ?
-    IsOneToOne extends true ?
-    {
-        connect?: RelConnect<IDField>,
-        create?: RelCreate<Shaped>,
-    } : {
-        connect?: RelConnect<IDField>[],
-        create?: RelCreate<Shaped>[],
-    }
-    : IsOneToOne extends true ?
-    {
-        connect?: RelConnect<IDField>,
-        disconnect?: boolean,
-        delete?: boolean,
-        create?: RelCreate<Shaped>,
-        update?: RelUpdate<Shaped, IDField>["data"],
-    } : {
-        connect?: RelConnect<IDField>[],
-        disconnect?: RelDisconnect<IDField>[],
-        delete?: RelDelete<IDField>[],
-        create?: RelCreate<Shaped>[],
-        update?: RelUpdate<Shaped, IDField>[],
-    }
-), IsRequired>
 
 export type VisibilityBuilderProps = {
     objectType: `${GqlModelType}`,

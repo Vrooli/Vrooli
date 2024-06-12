@@ -1,7 +1,7 @@
-import { Routine } from "@local/shared";
+import { ListObject, Routine } from "@local/shared";
 import { BoxProps, TypographyProps } from "@mui/material";
 import { SvgComponent, SxType } from "types";
-import { ListObject } from "utils/display/listTools";
+import { DisplayAdornment } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
@@ -33,7 +33,7 @@ export interface TextShrinkProps extends TypographyProps {
 
 export interface TitleProps {
     /** Informational icons displayed to the right of the title */
-    adornments?: JSX.Element[];
+    adornments?: DisplayAdornment[];
     help?: string;
     /** Icon displayed to the left of the title */
     Icon?: SvgComponent;
@@ -51,7 +51,7 @@ export interface TitleProps {
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
     /** Determines size */
-    variant?: "header" | "subheader";
+    variant?: "header" | "subheader" | "subsection";
 }
 
 export interface VersionDisplayProps extends BoxProps {

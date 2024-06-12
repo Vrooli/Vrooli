@@ -57,6 +57,7 @@ export const standardVersion_create = {
     "__typename": "ResourceList"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,
@@ -65,7 +66,8 @@ export const standardVersion_create = {
       "versionLabel": true,
       "root": {
         "id": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Standard"
       },
       "translations": {
         "id": true,
@@ -74,7 +76,7 @@ export const standardVersion_create = {
         "jsonVariable": true,
         "name": true
       },
-      "__typename": "Project"
+      "__typename": "StandardVersion"
     },
     "stats": {
       "id": true,
@@ -96,19 +98,7 @@ export const standardVersion_create = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -130,7 +120,19 @@ export const standardVersion_create = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -140,19 +142,7 @@ export const standardVersion_create = {
       "__typename": "Label"
     },
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -174,7 +164,19 @@ export const standardVersion_create = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "permissions": true,

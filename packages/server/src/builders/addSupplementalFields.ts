@@ -1,6 +1,6 @@
 import { GqlModelType, OrArray } from "@local/shared";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
@@ -9,14 +9,12 @@ import { PartialGraphQLInfo } from "./types";
 /**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
  * Groups objects types together, so database is called only once for each type.
- * @param prisma Prisma client
  * @param userData Requesting user's data
  * @param data Array of GraphQL-shaped data, where each object contains at least an ID
  * @param partialInfo PartialGraphQLInfo object
  * @returns data array with supplemental fields added to each object
  */
 export const addSupplementalFields = async (
-    prisma: PrismaType,
     userData: SessionUserToken | null,
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: OrArray<PartialGraphQLInfo>,
@@ -33,7 +31,7 @@ export const addSupplementalFields = async (
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
         const supplemental = ModelMap.get(type as GqlModelType, false)?.search?.supplemental;
         const valuesWithSupplements = supplemental ?
-            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
+            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], userData }) :
             objectData;
         // Supplements are calculated for an array of objects, so we must loop through 
         // Add each value to supplementsByObjectId

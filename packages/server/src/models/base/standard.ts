@@ -3,51 +3,59 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { StandardFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+
+type StandardPre = PreShapeRootResult;
 
 const __typename = "Standard" as const;
 export const StandardModel: StandardModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.standard,
+    dbTable: "standard",
     display: () => rootObjectDisplay(ModelMap.get<StandardVersionModelLogic>("StandardVersion")),
     format: StandardFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<StandardPre> => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isInternal: noNull(data.isInternal),
-                isPrivate: data.isPrivate,
-                permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", relation: "labels", data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isInternal: noNull(data.isInternal),
-                isPrivate: noNull(data.isPrivate),
-                permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", relation: "labels", data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardPre;
+                return {
+                    id: data.id,
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Standard", data, ...rest }),
+                };
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardPre;
+                return {
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "standards", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "StandardVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Standard", data, ...rest }),
+                };
+            },
         },
         trigger: {
             afterMutations: async (params) => {
@@ -87,7 +95,7 @@ export const StandardModel: StandardModelLogic = ({
         //         // Find shapes of all initial standards
         //         for (const standard of initialCombined) {
         //             const initialShape = await this.shapeCreate(userId, standard);
-        //             const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
+        //             const exists = await querier().findMatchingStandardVersion(standard, userId, true, false)
         //             if (exists) existingIds.push(exists.id);
         //         }
         //         // All existing shapes are the new connects
@@ -106,15 +114,13 @@ export const StandardModel: StandardModelLogic = ({
     query: {
         /**
          * Checks for existing standards with the same shape. Useful to avoid duplicates
-         * @param prisma Prisma client
          * @param data StandardCreateData to check
          * @param userData The ID of the user creating the standard
-         * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
+         * @param uniqueToCreator Whether to check if the standard is unique to the user/team 
          * @param isInternal Used to determine if the standard should show up in search results
          * @returns data of matching standard, or null if no match
          */
         async findMatchingStandardVersion(
-            prisma: PrismaType,
             data: StandardCreateInput,
             userData: SessionUserToken,
             uniqueToCreator: boolean,
@@ -125,14 +131,14 @@ export const StandardModel: StandardModelLogic = ({
             // const props = sortify(data.props, userData.languages);
             // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
             // // Find all standards that match the given standard
-            // const standards = await prisma.standard_version.findMany({
+            // const standards = await prismaInstance.standard_version.findMany({
             //     where: {
             //         root: {
             //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
             //             isDeleted: false,
             //             isPrivate: false,
-            //             createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
-            //             createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
+            //             createdByUserId: (uniqueToCreator && !data.createdByTeamId) ? userData.id : undefined,
+            //             createdByTeamId: (uniqueToCreator && data.createdByTeamId) ? data.createdByTeamId : undefined,
             //         },
             //         default: data.default ?? null,
             //         props: props,
@@ -164,7 +170,7 @@ export const StandardModel: StandardModelLogic = ({
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -181,21 +187,21 @@ export const StandardModel: StandardModelLogic = ({
             ],
         }),
         /**
-         * isInternal routines should never appear in the query, since they are 
+         * Internal standards should never appear in the query, since they are 
          * only meant for a single input/output
          */
-        customQueryData: () => ({ isInternal: true }),
+        customQueryData: () => ({ isInternal: false }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? ["en"], "project.translatedName"),
                 };
             },
         },
@@ -204,12 +210,17 @@ export const StandardModel: StandardModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, ...rest) => data.isPrivate === false &&
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<StandardModelInfo["PrismaSelect"]>([
-                ["ownedByOrganization", "Organization"],
-                ["ownedByUser", "User"],
-            ], data, ...rest),
+            data.isInternal === false &&
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<StandardModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         permissionResolvers: defaultPermissions,
@@ -220,25 +231,40 @@ export const StandardModel: StandardModelLogic = ({
             isDeleted: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["StandardVersion", ["root"]],
         }),
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },
-        // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+        // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
         // TODO when deleting, anonymize standards which are being used by inputs/outputs
     }),
 });

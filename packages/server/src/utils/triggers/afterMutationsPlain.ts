@@ -1,7 +1,9 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
 import { ModelMap } from "../../models/base";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.trigger.afterMutations of non-root and non-version objects. 
@@ -11,34 +13,32 @@ export const afterMutationsPlain = async ({
     createdIds,
     deletedIds,
     objectType,
-    ownerOrganizationField,
+    ownerTeamField,
     ownerUserField,
-    prisma,
     updatedIds,
     userData,
 }: {
     createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
-    ownerOrganizationField?: string,
+    ownerTeamField?: string,
     ownerUserField?: string,
-    prisma: PrismaType,
     updatedIds: string[]
     userData: SessionUserToken,
 }) => {
     // Find owners of created and updated items
-    const ownerMap: { [key: string]: { id: string, __typename: "User" | "Organization" } } = {};
+    const ownerMap: { [key: string]: { id: string, __typename: "User" | "Team" } } = {};
     const createAndUpdateIds = [...createdIds, ...updatedIds];
-    const { delegate } = ModelMap.getLogic(["delegate"], objectType);
-    // Create select object depending on whether ownerOrganizationField and ownerUserField are defined
+    const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
+    // Create select object depending on whether ownerTeamField and ownerUserField are defined
     const select = { id: true };
-    if (ownerOrganizationField) {
-        select[ownerOrganizationField] = { select: { id: true } };
+    if (ownerTeamField) {
+        select[ownerTeamField] = { select: { id: true } };
     }
     if (ownerUserField) {
         select[ownerUserField] = { select: { id: true } };
     }
-    const ownersData = await delegate(prisma).findMany({
+    const ownersData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
         where: { id: { in: createAndUpdateIds } },
         select,
     });
@@ -48,8 +48,8 @@ export const afterMutationsPlain = async ({
         const id = createAndUpdateIds[i];
         const owner = ownersData.find(o => o.id === id);
         if (owner) {
-            if (ownerOrganizationField && owner[ownerOrganizationField]) {
-                ownerMap[id] = { id: owner[ownerOrganizationField].id, __typename: "Organization" };
+            if (ownerTeamField && owner[ownerTeamField]) {
+                ownerMap[id] = { id: owner[ownerTeamField].id, __typename: "Team" };
             }
             if (ownerUserField && owner[ownerUserField]) {
                 ownerMap[id] = { id: owner[ownerUserField].id, __typename: "User" };
@@ -58,7 +58,7 @@ export const afterMutationsPlain = async ({
     }
     // Loop through created items
     for (const objectId of createdIds) {
-        Trigger(prisma, userData.languages).objectCreated({
+        Trigger(userData.languages).objectCreated({
             createdById: userData.id,
             hasCompleteAndPublic: true, // N/A
             hasParent: false, // N/A
@@ -69,7 +69,7 @@ export const afterMutationsPlain = async ({
     }
     // Loop through updated items
     for (const objectId of updatedIds) {
-        Trigger(prisma, userData.languages).objectUpdated({
+        Trigger(userData.languages).objectUpdated({
             updatedById: userData.id,
             hasCompleteAndPublic: true, // Not applicable
             hasParent: false, // Not applicable
@@ -81,7 +81,7 @@ export const afterMutationsPlain = async ({
     }
     // Loop through deleted items
     for (const objectId of deletedIds) {
-        Trigger(prisma, userData.languages).objectDeleted({
+        Trigger(userData.languages).objectDeleted({
             deletedById: userData.id,
             wasCompleteAndPublic: true, // Not applicable
             hasBeenTransferred: true, // Not applicable

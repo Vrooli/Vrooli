@@ -5,21 +5,37 @@ import cors from "cors";
 import express from "express";
 import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
+import path from "path";
+import { fileURLToPath } from "url";
 import { app } from "./app";
 import * as auth from "./auth/request";
 import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
-import { io } from "./io";
 import { context, depthLimit } from "./middleware";
 import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
-import { chatSocketHandlers, notificationSocketHandlers } from "./sockets";
+import { io } from "./sockets/io";
+import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
+import { userSocketRoomHandlers } from "./sockets/rooms/user";
+import { setupEmailQueue } from "./tasks/email/queue";
+import { setupExportQueue } from "./tasks/export/queue";
+import { setupImportQueue } from "./tasks/import/queue";
+import { setupLlmQueue } from "./tasks/llm/queue";
+import { LlmServiceRegistry } from "./tasks/llm/registry";
+import { setupLlmTaskQueue } from "./tasks/llmTask/queue";
+import { setupPushQueue } from "./tasks/push/queue";
+import { setupRunQueue } from "./tasks/run/queue";
+import { setupSandboxQueue } from "./tasks/sandbox";
+import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const main = async () => {
     logger.info("Starting server...");
@@ -38,6 +54,18 @@ const main = async () => {
 
     // Initialize singletons
     await ModelMap.init();
+    await LlmServiceRegistry.init();
+
+    // Setup queues
+    await setupLlmTaskQueue();
+    await setupEmailQueue();
+    await setupExportQueue();
+    await setupImportQueue();
+    await setupLlmQueue();
+    await setupPushQueue();
+    await setupSandboxQueue();
+    await setupSmsQueue();
+    await setupRunQueue();
 
     // Setup databases
     // Prisma
@@ -96,7 +124,7 @@ const main = async () => {
     setupStripe(app);
 
     // Set static folders
-    // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
+    app.use("/llm/configs", express.static(path.join(__dirname, "../../shared/dist/llm/configs")));
 
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {
@@ -106,39 +134,25 @@ const main = async () => {
     // Set up image uploading for GraphQL
     app.use("/api/v2/graphql", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
 
-    // Apollo server for latest API version
-    const apollo_options_latest = new ApolloServer({
-        cache: "bounded",
-        introspection: debug,
-        schema,
-        context: (c) => context(c), // Allows request and response to be included in the context
-        validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
-    });
-    // Start server
-    await apollo_options_latest.start();
-    // Configure server with ExpressJS settings and path
-    apollo_options_latest.applyMiddleware({
-        app,
-        path: "/api/v2/graphql",
-        cors: false,
-    });
-    // Additional Apollo server that wraps the latest version. Uses previous endpoint, and transforms the schema
-    // to be compatible with the latest version.
-    // const apollo_options_previous = new ApolloServer({
-    //     cache: 'bounded' as any,
-    //     introspection: debug,
-    //     schema: schema,
-    //     context: (c) => context(c), // Allows request and response to be included in the context
-    //     validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
-    // });
-    // // Start server
-    // await apollo_options_previous.start();
-    // // Configure server with ExpressJS settings and path
-    // apollo_options_previous.applyMiddleware({
-    //     app,
-    //     path: `/api/v2`,
-    //     cors: false
-    // });
+    // GraphQL server for latest API version, if needed. We use GraphQL to generate 
+    // types, so this needs to run at least in development.
+    if (debug) {
+        const apollo_options_latest = new ApolloServer({
+            cache: "bounded",
+            introspection: debug,
+            schema,
+            context: (c) => context(c), // Allows request and response to be included in the context
+            validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
+        });
+        // Start server
+        await apollo_options_latest.start();
+        // Configure server with ExpressJS settings and path
+        apollo_options_latest.applyMiddleware({
+            app,
+            path: "/api/v2/graphql",
+            cors: false,
+        });
+    }
 
     // Set up websocket server
     // Pass the session to the socket, after it's been authenticated
@@ -146,15 +160,12 @@ const main = async () => {
     // Listen for new WebSocket connections
     io.on("connection", (socket) => {
         // Add handlers
-        chatSocketHandlers(io, socket);
-        notificationSocketHandlers(io, socket);
-        // Handle disconnect
-        socket.on("disconnect", () => {
-            console.log("user disconnected");
-        });
+        chatSocketRoomHandlers(socket);
+        userSocketRoomHandlers(socket);
     });
 
-    // Unhandled Rejection Handler
+    // Unhandled Rejection Handler. This is a last resort for catching errors that were not caught by the application. 
+    // If you see this error, please try to find its source and catch it there.
     process.on("unhandledRejection", (reason, promise) => {
         logger.error("🚨 Unhandled Rejection", { trace: "0003", reason, promise });
     });
@@ -165,14 +176,20 @@ const main = async () => {
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 };
 
-main();
+// Only call this from the "server" package
+if (process.env.npm_package_name === "@local/server") {
+    main();
+}
 
 // Export files for "jobs" package
 export * from "./builders";
+export * from "./db/instance";
 export * from "./events";
 export * from "./models";
 export * from "./notify";
 export * from "./redisConn";
+export * from "./server";
+export * from "./sockets/events";
 export * from "./tasks";
 export * from "./utils";
 export * from "./validators";

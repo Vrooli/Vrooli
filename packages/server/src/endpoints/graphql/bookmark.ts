@@ -12,23 +12,23 @@ export const typeDef = gql`
     
     enum BookmarkFor {
         Api
+        Code
         Comment
         Issue
         Note
-        Organization
         Post
         Project
         Question
         QuestionAnswer
         Quiz
         Routine
-        SmartContract
         Standard
         Tag
+        Team
         User
     }   
 
-    union BookmarkTo = Api | Comment | Issue | Note | Organization | Project | Post | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard | Tag | User
+    union BookmarkTo = Api | Code | Comment | Issue | Note | Project | Post | Question | QuestionAnswer | Quiz | Routine | Standard | Tag | Team | User
 
     input BookmarkCreateInput {
         id: ID!
@@ -54,6 +54,7 @@ export const typeDef = gql`
     input BookmarkSearchInput {
         after: String
         apiId: ID
+        codeId: ID
         commentId: ID
         excludeLinkedToTag: Boolean
         ids: [ID!]
@@ -62,7 +63,6 @@ export const typeDef = gql`
         listLabel: String
         listId: ID
         noteId: ID
-        organizationId: ID
         postId: ID
         projectId: ID
         questionId: ID
@@ -70,12 +70,13 @@ export const typeDef = gql`
         quizId: ID
         routineId: ID
         searchString: String
-        smartContractId: ID
         sortBy: BookmarkSortBy
         standardId: ID
         tagId: ID
         take: Int
+        teamId: ID
         userId: ID
+        visibility: VisibilityType
     }
     type BookmarkSearchResult {
         pageInfo: PageInfo!

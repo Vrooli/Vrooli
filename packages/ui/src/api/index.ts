@@ -10,6 +10,7 @@ export type ServerResponse<Output = any> = {
     data?: Output;
     version?: string;
 };
+export type ServerResponseWithTimestamp<T = any> = ServerResponse<T> & { __fetchTimestamp: number };
 
 export * from "./errorParser";
 export * from "./fetchData";

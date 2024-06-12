@@ -32,6 +32,7 @@ export const noteVersion_findOne = {
     "__typename": "PullRequest"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,
@@ -40,7 +41,8 @@ export const noteVersion_findOne = {
       "versionLabel": true,
       "root": {
         "id": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Note"
       },
       "translations": {
         "id": true,
@@ -53,7 +55,7 @@ export const noteVersion_findOne = {
           "text": true
         }
       },
-      "__typename": "Note"
+      "__typename": "NoteVersion"
     },
     "id": true,
     "created_at": true,
@@ -67,19 +69,7 @@ export const noteVersion_findOne = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -101,7 +91,19 @@ export const noteVersion_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -111,19 +113,7 @@ export const noteVersion_findOne = {
       "__typename": "Label"
     },
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -145,7 +135,19 @@ export const noteVersion_findOne = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "permissions": true,

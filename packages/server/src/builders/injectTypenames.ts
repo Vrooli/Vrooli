@@ -1,7 +1,7 @@
 import { GqlModelType } from "@local/shared";
 import { FormatMap } from "../models/formats";
 import { GqlRelMap, ModelLogicType } from "../models/types";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 import { PartialGraphQLInfo } from "./types";
 
 /**

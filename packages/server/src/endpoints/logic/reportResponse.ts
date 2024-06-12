@@ -19,23 +19,23 @@ export type EndpointsReportResponse = {
 const objectType = "ReportResponse";
 export const ReportResponseEndpoints: EndpointsReportResponse = {
     Query: {
-        reportResponse: async (_, { input }, { prisma, req }, info) => {
+        reportResponse: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        reportResponses: async (_, { input }, { prisma, req }, info) => {
+        reportResponses: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        reportResponseCreate: async (_, { input }, { prisma, req }, info) => {
+        reportResponseCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        reportResponseUpdate: async (_, { input }, { prisma, req }, info) => {
+        reportResponseUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

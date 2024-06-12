@@ -32,8 +32,11 @@ export const typeDef = gql`
         periodType: StatPeriodType!
         activeUsers: Int!                           
         apiCalls: Int!                         
-        apisCreated: Int!                           
-        organizationsCreated: Int!                        
+        apisCreated: Int!           
+        codesCreated: Int!     
+        codesCompleted: Int!          
+        codeCompletionTimeAverage: Float!
+        codeCalls: Int!                  
         projectsCreated: Int!                           
         projectsCompleted: Int!                       
         projectCompletionTimeAverage: Float!
@@ -51,14 +54,11 @@ export const typeDef = gql`
         runRoutinesStarted: Int!          
         runRoutinesCompleted: Int!          
         runRoutineCompletionTimeAverage: Float! 
-        runRoutineContextSwitchesAverage: Float! 
-        smartContractsCreated: Int!     
-        smartContractsCompleted: Int!          
-        smartContractCompletionTimeAverage: Float!
-        smartContractCalls: Int!     
+        runRoutineContextSwitchesAverage: Float!    
         standardsCreated: Int!       
         standardsCompleted: Int!              
         standardCompletionTimeAverage: Float!
+        teamsCreated: Int!                        
         verifiedEmailsCreated: Int!     
         verifiedWalletsCreated: Int!                       
     }

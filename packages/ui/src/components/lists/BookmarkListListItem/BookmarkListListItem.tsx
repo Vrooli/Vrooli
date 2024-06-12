@@ -1,4 +1,6 @@
+import { useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
+import { ChevronRightIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -11,6 +13,7 @@ export function BookmarkListListItem({
     ...props
 }: BookmarkListListItemProps) {
     const session = useContext(SessionContext);
+    const { palette } = useTheme();
 
     const { title } = useMemo(() => {
         const { title: listTitle } = getDisplay(data, getUserLanguages(session));
@@ -27,6 +30,7 @@ export function BookmarkListListItem({
             hideUpdateButton={true}
             objectType="BookmarkList"
             onAction={onAction}
+            toTheRight={<ChevronRightIcon fill={palette.background.textSecondary} />}
         />
     );
 }

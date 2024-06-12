@@ -25,52 +25,52 @@ export type EndpointsTransfer = {
 const objectType = "Transfer";
 export const TransferEndpoints: EndpointsTransfer = {
     Query: {
-        transfer: async (_, { input }, { prisma, req }, info) => {
+        transfer: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        transfers: async (_, { input }, { prisma, req }, info) => {
+        transfers: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        transferRequestSend: async (_, { input }, { prisma, req }, info) => {
+        transferRequestSend: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            const transferId = await TransferModel.transfer(prisma).requestSend(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req });
+            const transferId = await TransferModel.transfer().requestSend(info, input, userData);
+            return readOneHelper({ info, input: { id: transferId }, objectType, req });
         },
-        transferRequestReceive: async (_, { input }, { prisma, req }, info) => {
+        transferRequestReceive: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            const transferId = await TransferModel.transfer(prisma).requestReceive(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req });
+            const transferId = await TransferModel.transfer().requestReceive(info, input, userData);
+            return readOneHelper({ info, input: { id: transferId }, objectType, req });
         },
-        transferUpdate: async (_, { input }, { prisma, req }, info) => {
+        transferUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
-        transferCancel: async (_, { input }, { prisma, req }, info) => {
-            await rateLimit({ maxUser: 250, req });
-            const userData = assertRequestFrom(req, { isUser: true });
-            throw new CustomError("0000", "NotImplemented", ["en"]);
-            // const transferId = await TransferModel.transfer(prisma).cancel(info, input, userData);
-            // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
-        },
-        transferAccept: async (_, { input }, { prisma, req }, info) => {
+        transferCancel: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
             throw new CustomError("0000", "NotImplemented", ["en"]);
-            // const transferId = await TransferModel.transfer(prisma).accept(info, input, userData);
-            // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            // const transferId = await TransferModel.transfer().cancel(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, req })
         },
-        transferDeny: async (_, { input }, { prisma, req }, info) => {
+        transferAccept: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
             throw new CustomError("0000", "NotImplemented", ["en"]);
-            // const transferId = await TransferModel.transfer(prisma).deny(info, input, userData);
-            // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            // const transferId = await TransferModel.transfer().accept(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, req })
+        },
+        transferDeny: async (_, { input }, { req }, info) => {
+            await rateLimit({ maxUser: 250, req });
+            const userData = assertRequestFrom(req, { isUser: true });
+            throw new CustomError("0000", "NotImplemented", ["en"]);
+            // const transferId = await TransferModel.transfer().deny(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, req })
         },
     },
 };

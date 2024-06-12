@@ -12,7 +12,8 @@ import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModel
 const __typename = "QuizQuestion" as const;
 export const QuizQuestionModel: QuizQuestionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.quiz_question,
+    dbTable: "quiz_question",
+    dbTranslationTable: "quiz_question_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),
@@ -26,15 +27,15 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
                 id: data.id,
                 order: noNull(data.order),
                 points: noNull(data.points),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
-                ...(await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, objectType: "Quiz", parentRelationshipName: "quizQuestions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                standardVersion: await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest }),
+                quiz: await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, objectType: "Quiz", parentRelationshipName: "quizQuestions", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 order: noNull(data.order),
                 points: noNull(data.points),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Update"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                standardVersion: await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Update"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "quizQuestions", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: quizQuestionValidation,
@@ -58,10 +59,10 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

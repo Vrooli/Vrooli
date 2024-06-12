@@ -1,6 +1,6 @@
 import { isObject } from "@local/shared";
 import { ModelMap } from "../models/base";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
 import { removeJoinTables } from "./removeJoinTables";
@@ -13,10 +13,10 @@ import { constructUnions } from "./unions";
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
-export function modelToGql<GqlModel extends Record<string, any>>(
+export const modelToGql = <GqlModel extends Record<string, any>>(
     data: { [x: string]: any },
     partialInfo: PartialGraphQLInfo,
-): GqlModel {
+): GqlModel => {
     // Convert data to usable shape
     const type = partialInfo?.__typename;
     const format = ModelMap.get(type, false)?.format;
@@ -45,4 +45,4 @@ export function modelToGql<GqlModel extends Record<string, any>>(
         }
     }
     return data as GqlModel;
-}
+};

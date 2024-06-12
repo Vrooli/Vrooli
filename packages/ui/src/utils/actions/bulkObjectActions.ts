@@ -1,9 +1,9 @@
-import { BookmarkFor, CommonKey, CopyType, DeleteType, ReportFor, Session } from "@local/shared";
+import { BookmarkFor, CommonKey, CopyType, DeleteType, ListObject, ReportFor, Session } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "icons";
 import { SvgComponent } from "types";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { getYou, ListObject } from "utils/display/listTools";
+import { getYou } from "utils/display/listTools";
 
 /**
  * All available bulk actions
@@ -48,34 +48,29 @@ const getBulkYou = (objects: ListObject[]) => {
  * Actions follow the order: Edit, Bookmark, ProjectAdd, Export, Report, Delete
  * @param objects All selected objects
  * @param session Current session. Many actions require a logged in user.
- * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a bookmark button)
  */
-export const getAvailableBulkActions = (objects: ListObject[], objectType: ListObject["__typename"], session: Session | undefined, exclude: BulkObjectAction[] = []): BulkObjectAction[] => {
+export const getAvailableBulkActions = (objects: ListObject[], session: Session | undefined): BulkObjectAction[] => {
     if (objects.length <= 0) return [];
     const isLoggedIn = checkIfLoggedIn(session);
     const { canCopy, canDelete, canReport, canBookmark, isBookmarked } = getBulkYou(objects);
-    let options: BulkObjectAction[] = [];
+    const options: BulkObjectAction[] = [];
     // Check Bookmark/BookmarkUndo
-    if (isLoggedIn && canBookmark && objectType in BookmarkFor) {
+    if (isLoggedIn && canBookmark && objects.some(object => object.__typename in BookmarkFor)) {
         options.push(isBookmarked ? BulkObjectAction.BookmarkUndo : BulkObjectAction.Bookmark);
     }
     // If you can see an object, you can add it to a project
     options.push(BulkObjectAction.ProjectAdd);
     // Check Export
-    if (isLoggedIn && canCopy && objectType in CopyType) {
+    if (isLoggedIn && canCopy && objects.some(object => object.__typename in CopyType)) {
         options.push(BulkObjectAction.Export);
     }
     // Check Report
-    if (isLoggedIn && canReport && objectType in ReportFor) {
+    if (isLoggedIn && canReport && objects.some(object => object.__typename in ReportFor)) {
         options.push(BulkObjectAction.Report);
     }
     // Check Delete
-    if (isLoggedIn && canDelete && objectType in DeleteType) {
+    if (isLoggedIn && canDelete && objects.some(object => object.__typename in DeleteType)) {
         options.push(BulkObjectAction.Delete);
-    }
-    // Omit excluded actions
-    if (exclude) {
-        options = options.filter((action) => !exclude.includes(action));
     }
     return options;
 };

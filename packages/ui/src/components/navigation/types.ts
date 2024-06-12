@@ -9,6 +9,7 @@ export interface ContactInfoProps {
 export type NavbarProps = {
     below?: JSX.Element | boolean | undefined;
     help?: string | undefined;
+    keepVisible?: boolean | undefined;
     options?: {
         Icon: SvgComponent;
         label: string;
@@ -26,11 +27,12 @@ export type NavbarProps = {
 export type SettingsTopBarProps = TopBarProps
 
 export interface TopBarProps extends TitleProps {
-    display: ViewDisplayType
-    onClose?: () => unknown,
-    below?: JSX.Element | boolean
-    hideTitleOnDesktop?: boolean,
+    below?: JSX.Element | boolean;
+    display: ViewDisplayType;
+    keepVisible?: boolean;
+    hideTitleOnDesktop?: boolean;
+    onClose?: () => unknown;
     startComponent?: JSX.Element;
-    tabTitle?: string,
-    titleId?: string
+    tabTitle?: string;
+    titleId?: string;
 }

@@ -14,7 +14,7 @@ import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportRespo
 const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.report_response,
+    dbTable: "report_response",
     display: () => ({
         label: {
             select: () => ({
@@ -33,7 +33,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
                 details: noNull(data.details),
                 language: noNull(data.language),
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "report", relTypes: ["Connect"], isOneToOne: true, objectType: "Report", parentRelationshipName: "responses", data, ...rest })),
+                report: await shapeHelper({ relation: "report", relTypes: ["Connect"], isOneToOne: true, objectType: "Report", parentRelationshipName: "responses", data, ...rest }),
             }),
             update: async ({ data }) => ({
                 actionSuggested: noNull(data.actionSuggested),
@@ -62,10 +62,10 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
         supplemental: {
             graphqlFields: SuppFields[__typename],
             dbFields: ["createdById"],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

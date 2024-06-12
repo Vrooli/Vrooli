@@ -1,7 +1,7 @@
 import { bool, description, id, index, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { routineVersionValidation } from "./routineVersion";
 
-export const nodeRoutineListItemTranslationValidation: YupModel = transRel({
+export const nodeRoutineListItemTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -12,7 +12,7 @@ export const nodeRoutineListItemTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const nodeRoutineListItemValidation: YupModel = {
+export const nodeRoutineListItemValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         index: req(index),

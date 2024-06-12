@@ -1,7 +1,8 @@
-import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, reportValidation } from "@local/shared";
-import { Prisma, ReportStatus } from "@prisma/client";
+import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
@@ -11,23 +12,23 @@ import { ReportModelLogic } from "./types";
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
     ChatMessage: "chatMessage",
+    CodeVersion: "codeVersion",
     Comment: "comment",
     Issue: "issue",
-    Organization: "organization",
     NoteVersion: "noteVersion",
     Post: "post",
     ProjectVersion: "projectVersion",
     RoutineVersion: "routineVersion",
-    SmartContractVersion: "smartContractVersion",
     StandardVersion: "standardVersion",
     Tag: "tag",
+    Team: "team",
     User: "user",
 };
 
 const __typename = "Report" as const;
 export const ReportModel: ReportModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.report,
+    dbTable: "report",
     display: () => ({
         label: {
             select: () => ({
@@ -46,10 +47,10 @@ export const ReportModel: ReportModelLogic = ({
     format: ReportFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, prisma, userData }) => {
+            pre: async ({ Create, userData }) => {
                 // Make sure user does not have any open reports on these objects
                 if (Create.length) {
-                    const existing = await prisma.report.findMany({
+                    const existing = await prismaInstance.report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },
@@ -81,9 +82,9 @@ export const ReportModel: ReportModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 for (const objectId of createdIds) {
-                    // await Trigger(prisma, userData.languages).reportActivity({
+                    // await Trigger(userData.languages).reportActivity({
                     //     objectId,
                     // });
                 }
@@ -97,19 +98,19 @@ export const ReportModel: ReportModelLogic = ({
         searchFields: {
             apiVersionId: true,
             chatMessageId: true,
+            codeVersionId: true,
             commentId: true,
             createdTimeFrame: true,
             fromId: true,
             issueId: true,
             languageIn: true,
             noteVersionId: true,
-            organizationId: true,
             postId: true,
             projectVersionId: true,
             routineVersionId: true,
-            smartContractVersionId: true,
             standardVersionId: true,
             tagId: true,
+            teamId: true,
             updatedTimeFrame: true,
             userId: true,
         },
@@ -121,10 +122,10 @@ export const ReportModel: ReportModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

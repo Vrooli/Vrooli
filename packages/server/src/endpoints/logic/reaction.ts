@@ -17,10 +17,10 @@ export type EndpointsReaction = {
 const objectType = "Reaction";
 export const ReactionEndpoints: EndpointsReaction = {
     Query: {
-        reactions: async (_, { input }, { prisma, req }, info) => {
+        reactions: async (_, { input }, { req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 2000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
+            return readManyHelper({ info, input, objectType, req, additionalQueries: { userId: userData.id } });
         },
     },
     Mutation: {
@@ -28,10 +28,10 @@ export const ReactionEndpoints: EndpointsReaction = {
          * Adds or removes a reaction on an object. A user can only have one reaction per object, meaning 
          * the previous reaction is overruled
          */
-        react: async (_, { input }, { prisma, req }) => {
+        react: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
-            const success = await ReactionModel.react(prisma, userData, input);
+            const success = await ReactionModel.react(userData, input);
             return { __typename: "Success", success };
         },
     },

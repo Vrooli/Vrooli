@@ -3,27 +3,30 @@ import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
-import { preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuestionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, QuestionModelLogic, ReactionModelLogic } from "./types";
 
+type QuestionPre = PreShapeEmbeddableTranslatableResult;
+
 const forMapper: { [key in QuestionForType]: keyof Prisma.questionUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Note: "note",
-    Organization: "organization",
     Project: "project",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
+    Team: "team",
 };
 
 const __typename = "Question" as const;
 export const QuestionModel: QuestionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.question,
+    dbTable: "question",
+    dbTranslationTable: "question_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -43,32 +46,38 @@ export const QuestionModel: QuestionModelLogic = ({
     format: QuestionFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<QuestionPre> => {
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: data.isPrivate,
-                referencing: noNull(data.referencing),
-                createdBy: { connect: { id: rest.userData.id } },
-                ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Question", relation: "tags", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                ...(data.acceptedAnswerConnect ? {
-                    answers: {
-                        update: {
-                            where: { id: data.acceptedAnswerConnect },
-                            data: { isAccepted: true },
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as QuestionPre;
+                return {
+                    id: data.id,
+                    isPrivate: data.isPrivate,
+                    referencing: noNull(data.referencing),
+                    createdBy: { connect: { id: rest.userData.id } },
+                    ...((data.forObjectConnect && data.forObjectType) ? ({ [forMapper[data.forObjectType]]: { connect: { id: data.forObjectConnect } } }) : {}),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Question", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                };
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as QuestionPre;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    ...(data.acceptedAnswerConnect ? {
+                        answers: {
+                            update: {
+                                where: { id: data.acceptedAnswerConnect },
+                                data: { isAccepted: true },
+                            },
                         },
-                    },
-                } : {}),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Question", relation: "tags", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
+                    } : {}),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Question", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                };
+            },
         },
         trigger: {
             afterMutations: async (params) => {
@@ -90,12 +99,12 @@ export const QuestionModel: QuestionModelLogic = ({
             hasAcceptedAnswer: true,
             createdById: true,
             apiId: true,
+            codeId: true,
             noteId: true,
-            organizationId: true,
             projectId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
+            teamId: true,
             translationLanguages: true,
             maxScore: true,
             maxBookmarks: true,
@@ -111,12 +120,12 @@ export const QuestionModel: QuestionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },

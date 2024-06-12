@@ -1,9 +1,9 @@
-import { Box, Button, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { stringifySearchParams } from "@local/shared";
+import { Box, Button, Checkbox, Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import BunnyCrash from "assets/img/BunnyCrash.svg";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CopyIcon, HomeIcon, RefreshIcon } from "icons";
 import { Component } from "react";
-import { stringifySearchParams } from "route";
-import { SlideImage, SlideImageContainer } from "styles";
+import { SlideImage } from "styles";
 import { ErrorBoundaryProps } from "../../views/types";
 
 interface ErrorBoundaryState {
@@ -14,6 +14,7 @@ interface ErrorBoundaryState {
     hasError: boolean;
     error: Error | null;
     mailToUrl: string;
+    shouldSendReport: boolean;
     showDetails: boolean;
 }
 
@@ -25,7 +26,17 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false, error: null, mailToUrl: "mailto:official@vrooli.com", showDetails: false };
+
+        const storedSendReport = localStorage.getItem("shouldSendReport");
+        const sendReportInitialValue = storedSendReport === null ? true : storedSendReport === "true";
+
+        this.state = {
+            hasError: false,
+            error: null,
+            mailToUrl: "mailto:official@vrooli.com",
+            shouldSendReport: sendReportInitialValue,
+            showDetails: false,
+        };
     }
 
     static getDerivedStateFromError(error: Error) {
@@ -50,6 +61,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         navigator.clipboard.writeText(text ?? "");
     };
 
+    // TODO send report if true and either button is pressed
+    toggleSendReport = () => {
+        this.setState(prevState => {
+            // Update localStorage when state changes
+            const updatedValue = !prevState.shouldSendReport;
+            localStorage.setItem("shouldSendReport", String(updatedValue));
+            return { shouldSendReport: updatedValue };
+        });
+    };
+
     render() {
         const { hasError, error, mailToUrl, showDetails } = this.state;
         if (hasError) {
@@ -57,7 +78,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <Box
                     sx={{
                         display: "flex",
-                        overflowY: "scroll",
+                        overflow: "auto",
                         justifyContent: "center",
                         alignItems: "center",
                         height: "100%",
@@ -68,7 +89,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         bottom: 0,
                         paddingLeft: "16px",
                         paddingRight: "16px",
-                        backgroundColor: "#072c6a",
+                        backgroundColor: "#2b3539",
+                        maxWidth: "100vw",
+                        maxHeight: "100vh",
                         color: "white",
                         // Style visited, active, and hovered links
                         "& span, p": {
@@ -87,25 +110,48 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         },
                     }}
                 >
-                    <Stack direction="column" spacing={4} style={{ textAlign: "center" }}>
-                        <SlideImageContainer>
+                    <Stack
+                        direction="column"
+                        spacing={4}
+                        style={{
+                            textAlign: "center",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                        }}
+                    >
+                        <Box sx={{
+                            justifyContent: "center",
+                            height: "100%",
+                            display: "flex",
+                            "& > img": {
+                                maxWidth: `min(500px, ${showDetails ? "33%" : "100%"})`,
+                                maxHeight: "100%",
+                                zIndex: "3",
+                            },
+                        }}>
                             <SlideImage
                                 alt="A lop-eared bunny calling for tech support."
                                 src={BunnyCrash}
                             />
-                        </SlideImageContainer>
-                        <Typography variant="h4">Something went wrong 😔</Typography>
+                        </Box>
+                        <Typography variant="h4">Uh oh! Something went wrong 😔</Typography>
                         <Box sx={{
                             border: "1px solid red",
                             borderRadius: "8px",
                             background: "#480202",
                             color: "white",
+                            maxWidth: "100%",
+                            maxHeight: "50vh",
+                            minHeight: "40px",
+                            overflow: "auto",
                         }}>
                             <Stack
                                 direction="row"
                                 spacing={1}
                                 justifyContent="center"
                                 alignItems="center"
+                                sx={{ backgroundColor: showDetails ? "#300101" : "inherit" }}
+
                             >
                                 <Tooltip title="Copy">
                                     <IconButton onClick={this.copyError}>
@@ -120,9 +166,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                                 </IconButton>
                             </Stack>
                             {showDetails && (
-                                <Typography variant="body2" style={{ whiteSpace: "pre-wrap", lineHeight: "2", paddingBottom: "8px", paddingTop: "8px" }}>
-                                    {error?.stack ?? ""}
-                                </Typography>
+                                <>
+                                    <Divider sx={{ backgroundColor: "#950000" }} />
+                                    <Typography
+                                        variant="body2"
+                                        style={{
+                                            textAlign: "left",
+                                            whiteSpace: "pre-wrap",
+                                            lineHeight: "2",
+                                            padding: "8px",
+                                        }}
+                                    >
+                                        {error?.stack ?? ""}
+                                    </Typography>
+                                </>
                             )}
                         </Box>
                         <Typography variant="body1">
@@ -132,8 +189,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             </a>{" "}
                             and we will try to help you as soon as possible.
                         </Typography>
-                        <Stack direction="row" spacing={2} pt={2} pb={8} justifyContent="center" alignItems="center">
+                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                            <Checkbox
+                                checked={this.state.shouldSendReport}
+                                onChange={this.toggleSendReport}
+                                sx={{
+                                    color: "white",
+                                    "&.Mui-checked": {
+                                        color: "#42f9a3",
+                                    },
+                                }}
+                            />
+                            <Typography>Send crash logs</Typography>
+                        </Box>
+                        <Stack direction="row" spacing={2} pt={2} pb={4} justifyContent="center" alignItems="center">
                             <Button
+                                fullWidth
                                 variant="contained"
                                 startIcon={<RefreshIcon />}
                                 onClick={this.handleRefresh}
@@ -142,6 +213,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                                 Refresh
                             </Button>
                             <Button
+                                fullWidth
                                 variant="contained"
                                 startIcon={<HomeIcon />}
                                 onClick={() => window.location.assign("/")}

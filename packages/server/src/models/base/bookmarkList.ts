@@ -8,7 +8,7 @@ import { BookmarkListModelLogic } from "./types";
 const __typename = "BookmarkList" as const;
 export const BookmarkListModel: BookmarkListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.bookmark_list,
+    dbTable: "bookmark_list",
     display: () => ({
         label: {
             select: () => ({ id: true, label: true }),
@@ -23,11 +23,11 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
                 index: -1, //TODO
                 label: data.label,
                 user: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+                bookmarks: await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 label: noNull(data.label),
-                ...(await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest })),
+                bookmarks: await shapeHelper({ relation: "bookmarks", relTypes: ["Connect", "Create", "Update", "Delete"], isOneToOne: false, objectType: "Bookmark", parentRelationshipName: "list", data, ...rest }),
             }),
         },
         yup: bookmarkListValidation,

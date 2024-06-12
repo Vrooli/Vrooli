@@ -14,6 +14,7 @@ export type Scalars = {
   Int: number;
   Float: number;
   Date: any;
+  JSONObject: any;
   Upload: any;
 };
 
@@ -69,7 +70,7 @@ export type ApiCreateInput = {
   isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
@@ -97,8 +98,8 @@ export type ApiKey = {
 export type ApiKeyCreateInput = {
   absoluteMax: Scalars['Int'];
   creditsUsedBeforeLimit: Scalars['Int'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
   stopAtLimit: Scalars['Boolean'];
+  teamConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type ApiKeyDeleteOneInput = {
@@ -132,7 +133,7 @@ export type ApiSearchInput = {
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   pullRequestsId?: InputMaybe<Scalars['ID']>;
@@ -178,7 +179,7 @@ export type ApiUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -209,6 +210,7 @@ export type ApiVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Api;
+  schemaText?: Maybe<Scalars['String']>;
   translations: Array<ApiVersionTranslation>;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
@@ -227,6 +229,7 @@ export type ApiVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ApiCreateInput>;
+  schemaText?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   versionLabel: Scalars['String'];
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -251,7 +254,7 @@ export type ApiVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByTeamIdRoot?: InputMaybe<Scalars['ID']>;
   ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ApiVersionSortBy>;
@@ -321,6 +324,7 @@ export type ApiVersionUpdateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rootUpdate?: InputMaybe<ApiUpdateInput>;
+  schemaText?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ApiVersionTranslationUpdateInput>>;
@@ -339,6 +343,16 @@ export type ApiYou = {
   isBookmarked: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
   reaction?: Maybe<Scalars['String']>;
+};
+
+export type AutoFillInput = {
+  data: Scalars['JSONObject'];
+  task: LlmTask;
+};
+
+export type AutoFillResult = {
+  __typename: 'AutoFillResult';
+  data: Scalars['JSONObject'];
 };
 
 export type Award = {
@@ -436,19 +450,19 @@ export type BookmarkEdge = {
 
 export enum BookmarkFor {
   Api = 'Api',
+  Code = 'Code',
   Comment = 'Comment',
   Issue = 'Issue',
   Note = 'Note',
-  Organization = 'Organization',
   Post = 'Post',
   Project = 'Project',
   Question = 'Question',
   QuestionAnswer = 'QuestionAnswer',
   Quiz = 'Quiz',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
   Standard = 'Standard',
   Tag = 'Tag',
+  Team = 'Team',
   User = 'User'
 }
 
@@ -512,6 +526,7 @@ export type BookmarkListUpdateInput = {
 export type BookmarkSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiId?: InputMaybe<Scalars['ID']>;
+  codeId?: InputMaybe<Scalars['ID']>;
   commentId?: InputMaybe<Scalars['ID']>;
   excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -520,7 +535,6 @@ export type BookmarkSearchInput = {
   listId?: InputMaybe<Scalars['ID']>;
   listLabel?: InputMaybe<Scalars['String']>;
   noteId?: InputMaybe<Scalars['ID']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   postId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   questionAnswerId?: InputMaybe<Scalars['ID']>;
@@ -528,12 +542,13 @@ export type BookmarkSearchInput = {
   quizId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<BookmarkSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   tagId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type BookmarkSearchResult = {
@@ -547,7 +562,7 @@ export enum BookmarkSortBy {
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
-export type BookmarkTo = Api | Comment | Issue | Note | Organization | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard | Tag | User;
+export type BookmarkTo = Api | Code | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | Standard | Tag | Team | User;
 
 export type BookmarkUpdateInput = {
   id: Scalars['ID'];
@@ -581,6 +596,10 @@ export type BotUpdateInput = {
   translationsUpdate?: InputMaybe<Array<UserTranslationUpdateInput>>;
 };
 
+export type CancelTaskInput = {
+  taskId: Scalars['ID'];
+};
+
 export type Chat = {
   __typename: 'Chat';
   created_at: Scalars['Date'];
@@ -591,10 +610,10 @@ export type Chat = {
   labelsCount: Scalars['Int'];
   messages: Array<ChatMessage>;
   openToAnyoneWithInvite: Scalars['Boolean'];
-  organization?: Maybe<Organization>;
   participants: Array<ChatParticipant>;
   participantsCount: Scalars['Int'];
   restrictedToRoles: Array<Role>;
+  team?: Maybe<Team>;
   translations: Array<ChatTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
@@ -608,9 +627,9 @@ export type ChatCreateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   messagesCreate?: InputMaybe<Array<ChatMessageCreateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
-  organizationConnect?: InputMaybe<Scalars['ID']>;
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
   task?: InputMaybe<Scalars['String']>;
+  teamConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ChatTranslationCreateInput>>;
 };
 
@@ -716,7 +735,7 @@ export type ChatMessageCreateInput = {
   id: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<ChatMessageTranslationCreateInput>>;
   userConnect: Scalars['ID'];
-  versionOfId?: InputMaybe<Scalars['ID']>;
+  versionIndex: Scalars['Int'];
 };
 
 export type ChatMessageEdge = {
@@ -807,7 +826,7 @@ export type ChatMessageYou = {
   reaction?: Maybe<Scalars['String']>;
 };
 
-export type ChatMessageedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion;
+export type ChatMessageedOn = ApiVersion | CodeVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | StandardVersion;
 
 export type ChatParticipant = {
   __typename: 'ChatParticipant';
@@ -863,10 +882,10 @@ export type ChatSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ChatSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -941,6 +960,314 @@ export type ChatYou = {
   canUpdate: Scalars['Boolean'];
 };
 
+export type CheckTaskStatusesInput = {
+  taskIds: Array<Scalars['ID']>;
+};
+
+export type CheckTaskStatusesResult = {
+  __typename: 'CheckTaskStatusesResult';
+  statuses: Array<LlmTaskStatusInfo>;
+};
+
+export type Code = {
+  __typename: 'Code';
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
+  completedAt?: Maybe<Scalars['Date']>;
+  createdBy?: Maybe<User>;
+  created_at: Scalars['Date'];
+  hasCompleteVersion: Scalars['Boolean'];
+  id: Scalars['ID'];
+  isDeleted: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
+  issues: Array<Issue>;
+  issuesCount: Scalars['Int'];
+  labels: Array<Label>;
+  owner?: Maybe<Owner>;
+  parent?: Maybe<CodeVersion>;
+  permissions: Scalars['String'];
+  pullRequests: Array<PullRequest>;
+  pullRequestsCount: Scalars['Int'];
+  questions: Array<Question>;
+  questionsCount: Scalars['Int'];
+  score: Scalars['Int'];
+  stats: Array<StatsCode>;
+  tags: Array<Tag>;
+  transfers: Array<Transfer>;
+  transfersCount: Scalars['Int'];
+  translatedName: Scalars['String'];
+  updated_at: Scalars['Date'];
+  versions: Array<CodeVersion>;
+  versionsCount?: Maybe<Scalars['Int']>;
+  views: Scalars['Int'];
+  you: CodeYou;
+};
+
+export type CodeCreateInput = {
+  id: Scalars['ID'];
+  isPrivate: Scalars['Boolean'];
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
+  parentConnect?: InputMaybe<Scalars['ID']>;
+  permissions?: InputMaybe<Scalars['String']>;
+  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  versionsCreate?: InputMaybe<Array<CodeVersionCreateInput>>;
+};
+
+export type CodeEdge = {
+  __typename: 'CodeEdge';
+  cursor: Scalars['String'];
+  node: Code;
+};
+
+export type CodeSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdById?: InputMaybe<Scalars['ID']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  issuesId?: InputMaybe<Scalars['ID']>;
+  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxScore?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
+  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  parentId?: InputMaybe<Scalars['ID']>;
+  pullRequestsId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<CodeSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type CodeSearchResult = {
+  __typename: 'CodeSearchResult';
+  edges: Array<CodeEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum CodeSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
+  DateCompletedAsc = 'DateCompletedAsc',
+  DateCompletedDesc = 'DateCompletedDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  IssuesAsc = 'IssuesAsc',
+  IssuesDesc = 'IssuesDesc',
+  PullRequestsAsc = 'PullRequestsAsc',
+  PullRequestsDesc = 'PullRequestsDesc',
+  QuestionsAsc = 'QuestionsAsc',
+  QuestionsDesc = 'QuestionsDesc',
+  ScoreAsc = 'ScoreAsc',
+  ScoreDesc = 'ScoreDesc',
+  VersionsAsc = 'VersionsAsc',
+  VersionsDesc = 'VersionsDesc',
+  ViewsAsc = 'ViewsAsc',
+  ViewsDesc = 'ViewsDesc'
+}
+
+export enum CodeType {
+  DataConvert = 'DataConvert',
+  SmartContract = 'SmartContract'
+}
+
+export type CodeUpdateInput = {
+  id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
+  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
+  permissions?: InputMaybe<Scalars['String']>;
+  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  versionsCreate?: InputMaybe<Array<CodeVersionCreateInput>>;
+  versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  versionsUpdate?: InputMaybe<Array<CodeVersionUpdateInput>>;
+};
+
+export type CodeVersion = {
+  __typename: 'CodeVersion';
+  calledByRoutineVersionsCount: Scalars['Int'];
+  codeLanguage: Scalars['String'];
+  codeType: CodeType;
+  comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
+  completedAt?: Maybe<Scalars['Date']>;
+  content: Scalars['String'];
+  created_at: Scalars['Date'];
+  default?: Maybe<Scalars['String']>;
+  directoryListings: Array<ProjectVersionDirectory>;
+  directoryListingsCount: Scalars['Int'];
+  forks: Array<Code>;
+  forksCount: Scalars['Int'];
+  id: Scalars['ID'];
+  isComplete: Scalars['Boolean'];
+  isDeleted: Scalars['Boolean'];
+  isLatest: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
+  pullRequest?: Maybe<PullRequest>;
+  reports: Array<Report>;
+  reportsCount: Scalars['Int'];
+  resourceList?: Maybe<ResourceList>;
+  root: Code;
+  translations: Array<CodeVersionTranslation>;
+  translationsCount: Scalars['Int'];
+  updated_at: Scalars['Date'];
+  versionIndex: Scalars['Int'];
+  versionLabel: Scalars['String'];
+  versionNotes?: Maybe<Scalars['String']>;
+  you: VersionYou;
+};
+
+export type CodeVersionCreateInput = {
+  codeLanguage: Scalars['String'];
+  codeType: CodeType;
+  content: Scalars['String'];
+  default?: InputMaybe<Scalars['String']>;
+  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  rootConnect: Scalars['ID'];
+  rootCreate?: InputMaybe<CodeCreateInput>;
+  translationsCreate?: InputMaybe<Array<CodeVersionTranslationCreateInput>>;
+  versionLabel: Scalars['String'];
+  versionNotes?: InputMaybe<Scalars['String']>;
+};
+
+export type CodeVersionEdge = {
+  __typename: 'CodeVersionEdge';
+  cursor: Scalars['String'];
+  node: CodeVersion;
+};
+
+export type CodeVersionSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  calledByRoutineVersionId?: InputMaybe<Scalars['ID']>;
+  completedTimeFrame?: InputMaybe<TimeFrame>;
+  createdByIdRoot?: InputMaybe<Scalars['ID']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
+  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  maxScoreRoot?: InputMaybe<Scalars['Int']>;
+  maxViewsRoot?: InputMaybe<Scalars['Int']>;
+  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
+  ownedByTeamIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  rootId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<CodeVersionSortBy>;
+  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type CodeVersionSearchResult = {
+  __typename: 'CodeVersionSearchResult';
+  edges: Array<CodeVersionEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum CodeVersionSortBy {
+  CalledByRoutinesAsc = 'CalledByRoutinesAsc',
+  CalledByRoutinesDesc = 'CalledByRoutinesDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  DirectoryListingsAsc = 'DirectoryListingsAsc',
+  DirectoryListingsDesc = 'DirectoryListingsDesc',
+  ForksAsc = 'ForksAsc',
+  ForksDesc = 'ForksDesc',
+  ReportsAsc = 'ReportsAsc',
+  ReportsDesc = 'ReportsDesc'
+}
+
+export type CodeVersionTranslation = {
+  __typename: 'CodeVersionTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  jsonVariable?: Maybe<Scalars['String']>;
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type CodeVersionTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  jsonVariable?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type CodeVersionTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  jsonVariable?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  name?: InputMaybe<Scalars['String']>;
+};
+
+export type CodeVersionUpdateInput = {
+  codeLanguage?: InputMaybe<Scalars['String']>;
+  content?: InputMaybe<Scalars['String']>;
+  default?: InputMaybe<Scalars['String']>;
+  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  rootUpdate?: InputMaybe<CodeUpdateInput>;
+  translationsCreate?: InputMaybe<Array<CodeVersionTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<CodeVersionTranslationUpdateInput>>;
+  versionLabel?: InputMaybe<Scalars['String']>;
+  versionNotes?: InputMaybe<Scalars['String']>;
+};
+
+export type CodeYou = {
+  __typename: 'CodeYou';
+  canBookmark: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canReact: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canTransfer: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
+  isViewed: Scalars['Boolean'];
+  reaction?: Maybe<Scalars['String']>;
+};
+
 export type Comment = {
   __typename: 'Comment';
   bookmarkedBy?: Maybe<Array<User>>;
@@ -968,6 +1295,7 @@ export type CommentCreateInput = {
 
 export enum CommentFor {
   ApiVersion = 'ApiVersion',
+  CodeVersion = 'CodeVersion',
   Issue = 'Issue',
   NoteVersion = 'NoteVersion',
   Post = 'Post',
@@ -976,19 +1304,19 @@ export enum CommentFor {
   Question = 'Question',
   QuestionAnswer = 'QuestionAnswer',
   RoutineVersion = 'RoutineVersion',
-  SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion'
 }
 
 export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiVersionId?: InputMaybe<Scalars['ID']>;
+  codeVersionId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   issueId?: InputMaybe<Scalars['ID']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   noteVersionId?: InputMaybe<Scalars['ID']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   postId?: InputMaybe<Scalars['ID']>;
   projectVersionId?: InputMaybe<Scalars['ID']>;
@@ -997,7 +1325,6 @@ export type CommentSearchInput = {
   questionId?: InputMaybe<Scalars['ID']>;
   routineVersionId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractVersionId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<CommentSortBy>;
   standardVersionId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
@@ -1069,7 +1396,7 @@ export type CommentYou = {
   reaction?: Maybe<Scalars['String']>;
 };
 
-export type CommentedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion;
+export type CommentedOn = ApiVersion | CodeVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | StandardVersion;
 
 export type CopyInput = {
   id: Scalars['ID'];
@@ -1080,22 +1407,22 @@ export type CopyInput = {
 export type CopyResult = {
   __typename: 'CopyResult';
   apiVersion?: Maybe<ApiVersion>;
+  codeVersion?: Maybe<CodeVersion>;
   noteVersion?: Maybe<NoteVersion>;
-  organization?: Maybe<Organization>;
   projectVersion?: Maybe<ProjectVersion>;
   routineVersion?: Maybe<RoutineVersion>;
-  smartContractVersion?: Maybe<SmartContractVersion>;
   standardVersion?: Maybe<StandardVersion>;
+  team?: Maybe<Team>;
 };
 
 export enum CopyType {
   ApiVersion = 'ApiVersion',
+  CodeVersion = 'CodeVersion',
   NoteVersion = 'NoteVersion',
-  Organization = 'Organization',
   ProjectVersion = 'ProjectVersion',
   RoutineVersion = 'RoutineVersion',
-  SmartContractVersion = 'SmartContractVersion',
-  StandardVersion = 'StandardVersion'
+  StandardVersion = 'StandardVersion',
+  Team = 'Team'
 }
 
 export type Count = {
@@ -1104,8 +1431,7 @@ export type Count = {
 };
 
 export type DeleteManyInput = {
-  ids: Array<Scalars['ID']>;
-  objectType: DeleteType;
+  objects: Array<DeleteOneInput>;
 };
 
 export type DeleteOneInput = {
@@ -1115,6 +1441,7 @@ export type DeleteOneInput = {
 
 export enum DeleteType {
   Api = 'Api',
+  ApiKey = 'ApiKey',
   ApiVersion = 'ApiVersion',
   Bookmark = 'Bookmark',
   BookmarkList = 'BookmarkList',
@@ -1122,6 +1449,8 @@ export enum DeleteType {
   ChatInvite = 'ChatInvite',
   ChatMessage = 'ChatMessage',
   ChatParticipant = 'ChatParticipant',
+  Code = 'Code',
+  CodeVersion = 'CodeVersion',
   Comment = 'Comment',
   Email = 'Email',
   FocusMode = 'FocusMode',
@@ -1134,7 +1463,7 @@ export enum DeleteType {
   Note = 'Note',
   NoteVersion = 'NoteVersion',
   Notification = 'Notification',
-  Organization = 'Organization',
+  Phone = 'Phone',
   Post = 'Post',
   Project = 'Project',
   ProjectVersion = 'ProjectVersion',
@@ -1147,15 +1476,15 @@ export enum DeleteType {
   ReminderList = 'ReminderList',
   Report = 'Report',
   Resource = 'Resource',
+  Role = 'Role',
   Routine = 'Routine',
   RoutineVersion = 'RoutineVersion',
   RunProject = 'RunProject',
   RunRoutine = 'RunRoutine',
   Schedule = 'Schedule',
-  SmartContract = 'SmartContract',
-  SmartContractVersion = 'SmartContractVersion',
   Standard = 'Standard',
   StandardVersion = 'StandardVersion',
+  Team = 'Team',
   Transfer = 'Transfer',
   User = 'User',
   Wallet = 'Wallet'
@@ -1170,6 +1499,7 @@ export type Email = {
 
 export type EmailCreateInput = {
   emailAddress: Scalars['String'];
+  id: Scalars['ID'];
 };
 
 export type EmailLogInInput = {
@@ -1224,6 +1554,7 @@ export type FocusMode = {
   resourceList?: Maybe<ResourceList>;
   schedule?: Maybe<Schedule>;
   updated_at: Scalars['Date'];
+  you: FocusModeYou;
 };
 
 export type FocusModeCreateInput = {
@@ -1318,6 +1649,13 @@ export type FocusModeUpdateInput = {
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
 };
 
+export type FocusModeYou = {
+  __typename: 'FocusModeYou';
+  canDelete: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+};
+
 export enum GqlModelType {
   Api = 'Api',
   ApiKey = 'ApiKey',
@@ -1330,6 +1668,8 @@ export enum GqlModelType {
   ChatMessage = 'ChatMessage',
   ChatMessageSearchTreeResult = 'ChatMessageSearchTreeResult',
   ChatParticipant = 'ChatParticipant',
+  Code = 'Code',
+  CodeVersion = 'CodeVersion',
   Comment = 'Comment',
   Copy = 'Copy',
   Email = 'Email',
@@ -1356,15 +1696,14 @@ export enum GqlModelType {
   NoteVersion = 'NoteVersion',
   Notification = 'Notification',
   NotificationSubscription = 'NotificationSubscription',
-  Organization = 'Organization',
   Payment = 'Payment',
   Phone = 'Phone',
   PopularResult = 'PopularResult',
   Post = 'Post',
   Premium = 'Premium',
   Project = 'Project',
-  ProjectOrOrganizationSearchResult = 'ProjectOrOrganizationSearchResult',
   ProjectOrRoutineSearchResult = 'ProjectOrRoutineSearchResult',
+  ProjectOrTeamSearchResult = 'ProjectOrTeamSearchResult',
   ProjectVersion = 'ProjectVersion',
   ProjectVersionContentsSearchResult = 'ProjectVersionContentsSearchResult',
   ProjectVersionDirectory = 'ProjectVersionDirectory',
@@ -1402,20 +1741,19 @@ export enum GqlModelType {
   ScheduleRecurrence = 'ScheduleRecurrence',
   Session = 'Session',
   SessionUser = 'SessionUser',
-  SmartContract = 'SmartContract',
-  SmartContractVersion = 'SmartContractVersion',
   Standard = 'Standard',
   StandardVersion = 'StandardVersion',
   StatsApi = 'StatsApi',
-  StatsOrganization = 'StatsOrganization',
+  StatsCode = 'StatsCode',
   StatsProject = 'StatsProject',
   StatsQuiz = 'StatsQuiz',
   StatsRoutine = 'StatsRoutine',
   StatsSite = 'StatsSite',
-  StatsSmartContract = 'StatsSmartContract',
   StatsStandard = 'StatsStandard',
+  StatsTeam = 'StatsTeam',
   StatsUser = 'StatsUser',
   Tag = 'Tag',
+  Team = 'Team',
   Transfer = 'Transfer',
   User = 'User',
   View = 'View',
@@ -1487,18 +1825,19 @@ export type IssueEdge = {
 
 export enum IssueFor {
   Api = 'Api',
+  Code = 'Code',
   Note = 'Note',
-  Organization = 'Organization',
   Project = 'Project',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
-  Standard = 'Standard'
+  Standard = 'Standard',
+  Team = 'Team'
 }
 
 export type IssueSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiId?: InputMaybe<Scalars['ID']>;
   closedById?: InputMaybe<Scalars['ID']>;
+  codeId?: InputMaybe<Scalars['ID']>;
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -1506,16 +1845,15 @@ export type IssueSearchInput = {
   minScore?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   noteId?: InputMaybe<Scalars['ID']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   referencedVersionId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<IssueSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   status?: InputMaybe<IssueStatus>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -1551,7 +1889,7 @@ export enum IssueStatus {
   Rejected = 'Rejected'
 }
 
-export type IssueTo = Api | Note | Organization | Project | Routine | SmartContract | Standard;
+export type IssueTo = Api | Code | Note | Project | Routine | Standard | Team;
 
 export type IssueTranslation = {
   __typename: 'IssueTranslation';
@@ -1602,6 +1940,8 @@ export type Label = {
   __typename: 'Label';
   apis?: Maybe<Array<Api>>;
   apisCount: Scalars['Int'];
+  codes?: Maybe<Array<Code>>;
+  codesCount: Scalars['Int'];
   color?: Maybe<Scalars['String']>;
   created_at: Scalars['Date'];
   focusModes?: Maybe<Array<FocusMode>>;
@@ -1621,8 +1961,6 @@ export type Label = {
   routinesCount: Scalars['Int'];
   schedules?: Maybe<Array<Schedule>>;
   schedulesCount: Scalars['Int'];
-  smartContracts?: Maybe<Array<SmartContract>>;
-  smartContractsCount: Scalars['Int'];
   standards?: Maybe<Array<Standard>>;
   standardsCount: Scalars['Int'];
   translations: Array<LabelTranslation>;
@@ -1635,7 +1973,7 @@ export type LabelCreateInput = {
   color?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   label: Scalars['String'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
+  teamConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<LabelTranslationCreateInput>>;
 };
 
@@ -1649,7 +1987,7 @@ export type LabelSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<LabelSortBy>;
@@ -1694,6 +2032,8 @@ export type LabelTranslationUpdateInput = {
 export type LabelUpdateInput = {
   apisConnect?: InputMaybe<Array<Scalars['ID']>>;
   apisDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  codesConnect?: InputMaybe<Array<Scalars['ID']>>;
+  codesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   color?: InputMaybe<Scalars['String']>;
   focusModesConnect?: InputMaybe<Array<Scalars['ID']>>;
   focusModesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1711,8 +2051,6 @@ export type LabelUpdateInput = {
   routinesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   schedulesConnect?: InputMaybe<Array<Scalars['ID']>>;
   schedulesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  smartContractsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  smartContractsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   standardsConnect?: InputMaybe<Array<Scalars['ID']>>;
   standardsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<LabelTranslationCreateInput>>;
@@ -1724,6 +2062,79 @@ export type LabelYou = {
   __typename: 'LabelYou';
   canDelete: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
+};
+
+export enum LlmTask {
+  ApiAdd = 'ApiAdd',
+  ApiDelete = 'ApiDelete',
+  ApiFind = 'ApiFind',
+  ApiUpdate = 'ApiUpdate',
+  BotAdd = 'BotAdd',
+  BotDelete = 'BotDelete',
+  BotFind = 'BotFind',
+  BotUpdate = 'BotUpdate',
+  DataConverterAdd = 'DataConverterAdd',
+  DataConverterDelete = 'DataConverterDelete',
+  DataConverterFind = 'DataConverterFind',
+  DataConverterUpdate = 'DataConverterUpdate',
+  MembersAdd = 'MembersAdd',
+  MembersDelete = 'MembersDelete',
+  MembersFind = 'MembersFind',
+  MembersUpdate = 'MembersUpdate',
+  NoteAdd = 'NoteAdd',
+  NoteDelete = 'NoteDelete',
+  NoteFind = 'NoteFind',
+  NoteUpdate = 'NoteUpdate',
+  ProjectAdd = 'ProjectAdd',
+  ProjectDelete = 'ProjectDelete',
+  ProjectFind = 'ProjectFind',
+  ProjectUpdate = 'ProjectUpdate',
+  ReminderAdd = 'ReminderAdd',
+  ReminderDelete = 'ReminderDelete',
+  ReminderFind = 'ReminderFind',
+  ReminderUpdate = 'ReminderUpdate',
+  RoleAdd = 'RoleAdd',
+  RoleDelete = 'RoleDelete',
+  RoleFind = 'RoleFind',
+  RoleUpdate = 'RoleUpdate',
+  RoutineAdd = 'RoutineAdd',
+  RoutineDelete = 'RoutineDelete',
+  RoutineFind = 'RoutineFind',
+  RoutineUpdate = 'RoutineUpdate',
+  RunProjectStart = 'RunProjectStart',
+  RunRoutineStart = 'RunRoutineStart',
+  ScheduleAdd = 'ScheduleAdd',
+  ScheduleDelete = 'ScheduleDelete',
+  ScheduleFind = 'ScheduleFind',
+  ScheduleUpdate = 'ScheduleUpdate',
+  SmartContractAdd = 'SmartContractAdd',
+  SmartContractDelete = 'SmartContractDelete',
+  SmartContractFind = 'SmartContractFind',
+  SmartContractUpdate = 'SmartContractUpdate',
+  StandardAdd = 'StandardAdd',
+  StandardDelete = 'StandardDelete',
+  StandardFind = 'StandardFind',
+  StandardUpdate = 'StandardUpdate',
+  Start = 'Start',
+  TeamAdd = 'TeamAdd',
+  TeamDelete = 'TeamDelete',
+  TeamFind = 'TeamFind',
+  TeamUpdate = 'TeamUpdate'
+}
+
+export enum LlmTaskStatus {
+  Canceling = 'Canceling',
+  Completed = 'Completed',
+  Failed = 'Failed',
+  Running = 'Running',
+  Scheduled = 'Scheduled',
+  Suggested = 'Suggested'
+}
+
+export type LlmTaskStatusInfo = {
+  __typename: 'LlmTaskStatusInfo';
+  id: Scalars['ID'];
+  status?: Maybe<LlmTaskStatus>;
 };
 
 export type LogOutInput = {
@@ -1741,10 +2152,10 @@ export type Meeting = {
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
   openToAnyoneWithInvite: Scalars['Boolean'];
-  organization: Organization;
   restrictedToRoles: Array<Role>;
   schedule?: Maybe<Schedule>;
-  showOnOrganizationProfile: Scalars['Boolean'];
+  showOnTeamProfile: Scalars['Boolean'];
+  team: Team;
   translations: Array<MeetingTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
@@ -1757,10 +2168,10 @@ export type MeetingCreateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
-  organizationConnect: Scalars['ID'];
   restrictedToRolesConnect?: InputMaybe<Array<Scalars['ID']>>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
-  showOnOrganizationProfile?: InputMaybe<Scalars['Boolean']>;
+  showOnTeamProfile?: InputMaybe<Scalars['Boolean']>;
+  teamConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<MeetingTranslationCreateInput>>;
 };
 
@@ -1800,12 +2211,12 @@ export type MeetingInviteSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   meetingId?: InputMaybe<Scalars['ID']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MeetingInviteSortBy>;
   status?: InputMaybe<MeetingInviteStatus>;
   statuses?: InputMaybe<Array<MeetingInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -1853,13 +2264,13 @@ export type MeetingSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   scheduleEndTimeFrame?: InputMaybe<TimeFrame>;
   scheduleStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
-  showOnOrganizationProfile?: InputMaybe<Scalars['Boolean']>;
+  showOnTeamProfile?: InputMaybe<Scalars['Boolean']>;
   sortBy?: InputMaybe<MeetingSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -1916,7 +2327,7 @@ export type MeetingUpdateInput = {
   restrictedToRolesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
-  showOnOrganizationProfile?: InputMaybe<Scalars['Boolean']>;
+  showOnTeamProfile?: InputMaybe<Scalars['Boolean']>;
   translationsCreate?: InputMaybe<Array<MeetingTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<MeetingTranslationUpdateInput>>;
@@ -1934,9 +2345,9 @@ export type Member = {
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   isAdmin: Scalars['Boolean'];
-  organization: Organization;
   permissions: Scalars['String'];
   roles: Array<Role>;
+  team: Team;
   updated_at: Scalars['Date'];
   user: User;
   you: MemberYou;
@@ -1953,8 +2364,8 @@ export type MemberInvite = {
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   message?: Maybe<Scalars['String']>;
-  organization: Organization;
   status: MemberInviteStatus;
+  team: Team;
   updated_at: Scalars['Date'];
   user: User;
   willBeAdmin: Scalars['Boolean'];
@@ -1965,7 +2376,7 @@ export type MemberInvite = {
 export type MemberInviteCreateInput = {
   id: Scalars['ID'];
   message?: InputMaybe<Scalars['String']>;
-  organizationConnect: Scalars['ID'];
+  teamConnect: Scalars['ID'];
   userConnect: Scalars['ID'];
   willBeAdmin?: InputMaybe<Scalars['Boolean']>;
   willHavePermissions?: InputMaybe<Scalars['String']>;
@@ -1981,12 +2392,12 @@ export type MemberInviteSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MemberInviteSortBy>;
   status?: InputMaybe<MemberInviteStatus>;
   statuses?: InputMaybe<Array<MemberInviteStatus>>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -2031,11 +2442,11 @@ export type MemberSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isAdmin?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   roles?: InputMaybe<Array<Scalars['String']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<MemberSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -2077,12 +2488,14 @@ export type Mutation = {
   apiUpdate: Api;
   apiVersionCreate: ApiVersion;
   apiVersionUpdate: ApiVersion;
+  autoFill: AutoFillResult;
   bookmarkCreate: Bookmark;
   bookmarkListCreate: BookmarkList;
   bookmarkListUpdate: BookmarkList;
   bookmarkUpdate: Bookmark;
   botCreate: User;
   botUpdate: User;
+  cancelTask: Success;
   chatCreate: Chat;
   chatInviteAccept: ChatInvite;
   chatInviteCreate: ChatInvite;
@@ -2094,6 +2507,11 @@ export type Mutation = {
   chatMessageUpdate: ChatMessage;
   chatParticipantUpdate: ChatParticipant;
   chatUpdate: Chat;
+  checkTaskStatuses: CheckTaskStatusesResult;
+  codeCreate: Code;
+  codeUpdate: Api;
+  codeVersionCreate: CodeVersion;
+  codeVersionUpdate: CodeVersion;
   commentCreate: Comment;
   commentUpdate: Comment;
   copy: CopyResult;
@@ -2142,8 +2560,6 @@ export type Mutation = {
   notificationSettingsUpdate: NotificationSettings;
   notificationSubscriptionCreate: NotificationSubscription;
   notificationSubscriptionUpdate: NotificationSubscription;
-  organizationCreate: Organization;
-  organizationUpdate: Organization;
   phoneCreate: Phone;
   postCreate: Post;
   postUpdate: Post;
@@ -2152,6 +2568,8 @@ export type Mutation = {
   projectCreate: Project;
   projectUpdate: Project;
   projectVersionCreate: ProjectVersion;
+  projectVersionDirectoryCreate: ProjectVersionDirectory;
+  projectVersionDirectoryUpdate: ProjectVersionDirectory;
   projectVersionUpdate: ProjectVersion;
   pullRequestAccept: PullRequest;
   pullRequestCreate: PullRequest;
@@ -2169,6 +2587,7 @@ export type Mutation = {
   quizCreate: Quiz;
   quizUpdate: Quiz;
   react: Success;
+  regenerateResponse: Success;
   reminderCreate: Reminder;
   reminderListCreate: ReminderList;
   reminderListUpdate: ReminderList;
@@ -2206,17 +2625,16 @@ export type Mutation = {
   sendVerificationEmail: Success;
   sendVerificationText: Success;
   setActiveFocusMode: ActiveFocusMode;
-  smartContractCreate: SmartContract;
-  smartContractUpdate: Api;
-  smartContractVersionCreate: SmartContractVersion;
-  smartContractVersionUpdate: SmartContractVersion;
   standardCreate: Standard;
   standardUpdate: Standard;
   standardVersionCreate: StandardVersion;
   standardVersionUpdate: StandardVersion;
+  startTask: Success;
   switchCurrentAccount: Session;
   tagCreate: Tag;
   tagUpdate: Tag;
+  teamCreate: Team;
+  teamUpdate: Team;
   transferAccept: Transfer;
   transferCancel: Transfer;
   transferDeny: Transfer;
@@ -2225,6 +2643,7 @@ export type Mutation = {
   transferUpdate: Transfer;
   userDeleteOne: Session;
   validateSession: Session;
+  validateVerificationText: Success;
   walletComplete: WalletComplete;
   walletInit: Scalars['String'];
   walletUpdate: Wallet;
@@ -2271,6 +2690,11 @@ export type MutationApiVersionUpdateArgs = {
 };
 
 
+export type MutationAutoFillArgs = {
+  input: AutoFillInput;
+};
+
+
 export type MutationBookmarkCreateArgs = {
   input: BookmarkCreateInput;
 };
@@ -2298,6 +2722,11 @@ export type MutationBotCreateArgs = {
 
 export type MutationBotUpdateArgs = {
   input: BotUpdateInput;
+};
+
+
+export type MutationCancelTaskArgs = {
+  input: CancelTaskInput;
 };
 
 
@@ -2353,6 +2782,31 @@ export type MutationChatParticipantUpdateArgs = {
 
 export type MutationChatUpdateArgs = {
   input: ChatUpdateInput;
+};
+
+
+export type MutationCheckTaskStatusesArgs = {
+  input: CheckTaskStatusesInput;
+};
+
+
+export type MutationCodeCreateArgs = {
+  input: CodeCreateInput;
+};
+
+
+export type MutationCodeUpdateArgs = {
+  input: CodeUpdateInput;
+};
+
+
+export type MutationCodeVersionCreateArgs = {
+  input: CodeVersionCreateInput;
+};
+
+
+export type MutationCodeVersionUpdateArgs = {
+  input: CodeVersionUpdateInput;
 };
 
 
@@ -2576,16 +3030,6 @@ export type MutationNotificationSubscriptionUpdateArgs = {
 };
 
 
-export type MutationOrganizationCreateArgs = {
-  input: OrganizationCreateInput;
-};
-
-
-export type MutationOrganizationUpdateArgs = {
-  input: OrganizationUpdateInput;
-};
-
-
 export type MutationPhoneCreateArgs = {
   input: PhoneCreateInput;
 };
@@ -2623,6 +3067,16 @@ export type MutationProjectUpdateArgs = {
 
 export type MutationProjectVersionCreateArgs = {
   input: ProjectVersionCreateInput;
+};
+
+
+export type MutationProjectVersionDirectoryCreateArgs = {
+  input: ProjectVersionDirectoryCreateInput;
+};
+
+
+export type MutationProjectVersionDirectoryUpdateArgs = {
+  input: ProjectVersionDirectoryUpdateInput;
 };
 
 
@@ -2708,6 +3162,11 @@ export type MutationQuizUpdateArgs = {
 
 export type MutationReactArgs = {
   input: ReactInput;
+};
+
+
+export type MutationRegenerateResponseArgs = {
+  input: RegenerateResponseInput;
 };
 
 
@@ -2886,26 +3345,6 @@ export type MutationSetActiveFocusModeArgs = {
 };
 
 
-export type MutationSmartContractCreateArgs = {
-  input: SmartContractCreateInput;
-};
-
-
-export type MutationSmartContractUpdateArgs = {
-  input: SmartContractUpdateInput;
-};
-
-
-export type MutationSmartContractVersionCreateArgs = {
-  input: SmartContractVersionCreateInput;
-};
-
-
-export type MutationSmartContractVersionUpdateArgs = {
-  input: SmartContractVersionUpdateInput;
-};
-
-
 export type MutationStandardCreateArgs = {
   input: StandardCreateInput;
 };
@@ -2926,6 +3365,11 @@ export type MutationStandardVersionUpdateArgs = {
 };
 
 
+export type MutationStartTaskArgs = {
+  input: StartTaskInput;
+};
+
+
 export type MutationSwitchCurrentAccountArgs = {
   input: SwitchCurrentAccountInput;
 };
@@ -2938,6 +3382,16 @@ export type MutationTagCreateArgs = {
 
 export type MutationTagUpdateArgs = {
   input: TagUpdateInput;
+};
+
+
+export type MutationTeamCreateArgs = {
+  input: TeamCreateInput;
+};
+
+
+export type MutationTeamUpdateArgs = {
+  input: TeamUpdateInput;
 };
 
 
@@ -2978,6 +3432,11 @@ export type MutationUserDeleteOneArgs = {
 
 export type MutationValidateSessionArgs = {
   input: ValidateSessionInput;
+};
+
+
+export type MutationValidateVerificationTextArgs = {
+  input: ValidateVerificationTextInput;
 };
 
 
@@ -3353,7 +3812,7 @@ export type NoteCreateInput = {
   isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
@@ -3396,7 +3855,7 @@ export type NoteSearchInput = {
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -3441,7 +3900,7 @@ export type NoteUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -3505,7 +3964,7 @@ export type NoteVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByTeamIdRoot?: InputMaybe<Scalars['ID']>;
   ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<NoteVersionSortBy>;
@@ -3729,187 +4188,7 @@ export type NotificationSubscriptionUpdateInput = {
   silent?: InputMaybe<Scalars['Boolean']>;
 };
 
-export type Organization = {
-  __typename: 'Organization';
-  apis: Array<Api>;
-  apisCount: Scalars['Int'];
-  bannerImage?: Maybe<Scalars['String']>;
-  bookmarkedBy: Array<User>;
-  bookmarks: Scalars['Int'];
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
-  created_at: Scalars['Date'];
-  directoryListings: Array<ProjectVersionDirectory>;
-  forks: Array<Organization>;
-  handle?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  isOpenToNewMembers: Scalars['Boolean'];
-  isPrivate: Scalars['Boolean'];
-  issues: Array<Issue>;
-  issuesCount: Scalars['Int'];
-  labels: Array<Label>;
-  labelsCount: Scalars['Int'];
-  meetings: Array<Meeting>;
-  meetingsCount: Scalars['Int'];
-  members: Array<Member>;
-  membersCount: Scalars['Int'];
-  notes: Array<Note>;
-  notesCount: Scalars['Int'];
-  parent?: Maybe<Organization>;
-  paymentHistory: Array<Payment>;
-  permissions: Scalars['String'];
-  posts: Array<Post>;
-  postsCount: Scalars['Int'];
-  premium?: Maybe<Premium>;
-  profileImage?: Maybe<Scalars['String']>;
-  projects: Array<Project>;
-  projectsCount: Scalars['Int'];
-  questions: Array<Question>;
-  questionsCount: Scalars['Int'];
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceList?: Maybe<ResourceList>;
-  roles?: Maybe<Array<Role>>;
-  rolesCount: Scalars['Int'];
-  routines: Array<Routine>;
-  routinesCount: Scalars['Int'];
-  smartContracts: Array<SmartContract>;
-  smartContractsCount: Scalars['Int'];
-  standards: Array<Standard>;
-  standardsCount: Scalars['Int'];
-  stats: Array<StatsOrganization>;
-  tags: Array<Tag>;
-  transfersIncoming: Array<Transfer>;
-  transfersOutgoing: Array<Transfer>;
-  translatedName: Scalars['String'];
-  translations: Array<OrganizationTranslation>;
-  translationsCount: Scalars['Int'];
-  updated_at: Scalars['Date'];
-  views: Scalars['Int'];
-  wallets: Array<Wallet>;
-  you: OrganizationYou;
-};
-
-export type OrganizationCreateInput = {
-  bannerImage?: InputMaybe<Scalars['Upload']>;
-  handle?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  isPrivate: Scalars['Boolean'];
-  memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
-  permissions?: InputMaybe<Scalars['String']>;
-  profileImage?: InputMaybe<Scalars['Upload']>;
-  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
-};
-
-export type OrganizationEdge = {
-  __typename: 'OrganizationEdge';
-  cursor: Scalars['String'];
-  node: Organization;
-};
-
-export type OrganizationSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  maxBookmarks?: InputMaybe<Scalars['Int']>;
-  maxViews?: InputMaybe<Scalars['Int']>;
-  memberUserIds?: InputMaybe<Array<Scalars['ID']>>;
-  minBookmarks?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  projectId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  routineId?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<OrganizationSortBy>;
-  standardId?: InputMaybe<Scalars['ID']>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
-  take?: InputMaybe<Scalars['Int']>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  visibility?: InputMaybe<VisibilityType>;
-};
-
-export type OrganizationSearchResult = {
-  __typename: 'OrganizationSearchResult';
-  edges: Array<OrganizationEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum OrganizationSortBy {
-  BookmarksAsc = 'BookmarksAsc',
-  BookmarksDesc = 'BookmarksDesc',
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
-
-export type OrganizationTranslation = {
-  __typename: 'OrganizationTranslation';
-  bio?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type OrganizationTranslationCreateInput = {
-  bio?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type OrganizationTranslationUpdateInput = {
-  bio?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name?: InputMaybe<Scalars['String']>;
-};
-
-export type OrganizationUpdateInput = {
-  bannerImage?: InputMaybe<Scalars['Upload']>;
-  handle?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
-  memberInvitesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  membersDelete?: InputMaybe<Array<Scalars['ID']>>;
-  permissions?: InputMaybe<Scalars['String']>;
-  profileImage?: InputMaybe<Scalars['Upload']>;
-  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-  rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
-  rolesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  rolesUpdate?: InputMaybe<Array<RoleUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<OrganizationTranslationUpdateInput>>;
-};
-
-export type OrganizationYou = {
-  __typename: 'OrganizationYou';
-  canAddMembers: Scalars['Boolean'];
-  canBookmark: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canRead: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canUpdate: Scalars['Boolean'];
-  isBookmarked: Scalars['Boolean'];
-  isViewed: Scalars['Boolean'];
-  yourMembership?: Maybe<Member>;
-};
-
-export type Owner = Organization | User;
+export type Owner = Team | User;
 
 export type PageInfo = {
   __typename: 'PageInfo';
@@ -3928,10 +4207,10 @@ export type Payment = {
   currency: Scalars['String'];
   description: Scalars['String'];
   id: Scalars['ID'];
-  organization: Organization;
   paymentMethod: Scalars['String'];
   paymentType: PaymentType;
   status: PaymentStatus;
+  team: Team;
   updated_at: Scalars['Date'];
   user: User;
 };
@@ -3978,6 +4257,7 @@ export enum PaymentStatus {
 }
 
 export enum PaymentType {
+  Credits = 'Credits',
   Donation = 'Donation',
   PremiumMonthly = 'PremiumMonthly',
   PremiumYearly = 'PremiumYearly'
@@ -3991,10 +4271,11 @@ export type Phone = {
 };
 
 export type PhoneCreateInput = {
+  id: Scalars['ID'];
   phoneNumber: Scalars['String'];
 };
 
-export type Popular = Api | Note | Organization | Project | Question | Routine | SmartContract | Standard | User;
+export type Popular = Api | Code | Note | Project | Question | Routine | Standard | Team | User;
 
 export type PopularEdge = {
   __typename: 'PopularEdge';
@@ -4004,44 +4285,44 @@ export type PopularEdge = {
 
 export enum PopularObjectType {
   Api = 'Api',
+  Code = 'Code',
   Note = 'Note',
-  Organization = 'Organization',
   Project = 'Project',
   Question = 'Question',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
   Standard = 'Standard',
+  Team = 'Team',
   User = 'User'
 }
 
 export type PopularPageInfo = {
   __typename: 'PopularPageInfo';
   endCursorApi?: Maybe<Scalars['String']>;
+  endCursorCode?: Maybe<Scalars['String']>;
   endCursorNote?: Maybe<Scalars['String']>;
-  endCursorOrganization?: Maybe<Scalars['String']>;
   endCursorProject?: Maybe<Scalars['String']>;
   endCursorQuestion?: Maybe<Scalars['String']>;
   endCursorRoutine?: Maybe<Scalars['String']>;
-  endCursorSmartContract?: Maybe<Scalars['String']>;
   endCursorStandard?: Maybe<Scalars['String']>;
+  endCursorTeam?: Maybe<Scalars['String']>;
   endCursorUser?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
 };
 
 export type PopularSearchInput = {
   apiAfter?: InputMaybe<Scalars['String']>;
+  codeAfter?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   noteAfter?: InputMaybe<Scalars['String']>;
   objectType?: InputMaybe<PopularObjectType>;
-  organizationAfter?: InputMaybe<Scalars['String']>;
   projectAfter?: InputMaybe<Scalars['String']>;
   questionAfter?: InputMaybe<Scalars['String']>;
   routineAfter?: InputMaybe<Scalars['String']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractAfter?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<PopularSortBy>;
   standardAfter?: InputMaybe<Scalars['String']>;
   take?: InputMaybe<Scalars['Int']>;
+  teamAfter?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userAfter?: InputMaybe<Scalars['String']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -4085,11 +4366,11 @@ export type PostCreateInput = {
   id: Scalars['ID'];
   isPinned?: InputMaybe<Scalars['Boolean']>;
   isPrivate: Scalars['Boolean'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
   repostedFromConnect?: InputMaybe<Scalars['ID']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  teamConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
 };
@@ -4110,12 +4391,12 @@ export type PostSearchInput = {
   maxScore?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   repostedFromIds?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<PostSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -4208,8 +4489,9 @@ export type ProfileUpdateInput = {
   isPrivateApis?: InputMaybe<Scalars['Boolean']>;
   isPrivateApisCreated?: InputMaybe<Scalars['Boolean']>;
   isPrivateBookmarks?: InputMaybe<Scalars['Boolean']>;
+  isPrivateCodes?: InputMaybe<Scalars['Boolean']>;
+  isPrivateCodesCreated?: InputMaybe<Scalars['Boolean']>;
   isPrivateMemberships?: InputMaybe<Scalars['Boolean']>;
-  isPrivateOrganizationsCreated?: InputMaybe<Scalars['Boolean']>;
   isPrivateProjects?: InputMaybe<Scalars['Boolean']>;
   isPrivateProjectsCreated?: InputMaybe<Scalars['Boolean']>;
   isPrivatePullRequests?: InputMaybe<Scalars['Boolean']>;
@@ -4219,9 +4501,9 @@ export type ProfileUpdateInput = {
   isPrivateRoles?: InputMaybe<Scalars['Boolean']>;
   isPrivateRoutines?: InputMaybe<Scalars['Boolean']>;
   isPrivateRoutinesCreated?: InputMaybe<Scalars['Boolean']>;
-  isPrivateSmartContracts?: InputMaybe<Scalars['Boolean']>;
   isPrivateStandards?: InputMaybe<Scalars['Boolean']>;
   isPrivateStandardsCreated?: InputMaybe<Scalars['Boolean']>;
+  isPrivateTeamsCreated?: InputMaybe<Scalars['Boolean']>;
   isPrivateVotes?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   name?: InputMaybe<Scalars['String']>;
@@ -4275,7 +4557,7 @@ export type ProjectCreateInput = {
   isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
@@ -4289,68 +4571,6 @@ export type ProjectEdge = {
   cursor: Scalars['String'];
   node: Project;
 };
-
-export type ProjectOrOrganization = Organization | Project;
-
-export type ProjectOrOrganizationEdge = {
-  __typename: 'ProjectOrOrganizationEdge';
-  cursor: Scalars['String'];
-  node: ProjectOrOrganization;
-};
-
-export type ProjectOrOrganizationPageInfo = {
-  __typename: 'ProjectOrOrganizationPageInfo';
-  endCursorOrganization?: Maybe<Scalars['String']>;
-  endCursorProject?: Maybe<Scalars['String']>;
-  hasNextPage: Scalars['Boolean'];
-};
-
-export type ProjectOrOrganizationSearchInput = {
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  maxBookmarks?: InputMaybe<Scalars['Int']>;
-  maxViews?: InputMaybe<Scalars['Int']>;
-  minBookmarks?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  objectType?: InputMaybe<Scalars['String']>;
-  organizationAfter?: InputMaybe<Scalars['String']>;
-  organizationIsOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  organizationProjectId?: InputMaybe<Scalars['ID']>;
-  organizationRoutineId?: InputMaybe<Scalars['ID']>;
-  projectAfter?: InputMaybe<Scalars['String']>;
-  projectIsComplete?: InputMaybe<Scalars['Boolean']>;
-  projectIsCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  projectMaxScore?: InputMaybe<Scalars['Int']>;
-  projectMinScore?: InputMaybe<Scalars['Int']>;
-  projectOrganizationId?: InputMaybe<Scalars['ID']>;
-  projectParentId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ProjectOrOrganizationSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
-  take?: InputMaybe<Scalars['Int']>;
-  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
-  visibility?: InputMaybe<VisibilityType>;
-};
-
-export type ProjectOrOrganizationSearchResult = {
-  __typename: 'ProjectOrOrganizationSearchResult';
-  edges: Array<ProjectOrOrganizationEdge>;
-  pageInfo: ProjectOrOrganizationPageInfo;
-};
-
-export enum ProjectOrOrganizationSortBy {
-  BookmarksAsc = 'BookmarksAsc',
-  BookmarksDesc = 'BookmarksDesc',
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
 
 export type ProjectOrRoutine = Project | Routine;
 
@@ -4379,7 +4599,6 @@ export type ProjectOrRoutineSearchInput = {
   minScore?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   objectType?: InputMaybe<Scalars['String']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectAfter?: InputMaybe<Scalars['String']>;
   reportId?: InputMaybe<Scalars['ID']>;
@@ -4397,6 +4616,7 @@ export type ProjectOrRoutineSearchInput = {
   sortBy?: InputMaybe<ProjectOrRoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -4432,6 +4652,68 @@ export enum ProjectOrRoutineSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
+export type ProjectOrTeam = Project | Team;
+
+export type ProjectOrTeamEdge = {
+  __typename: 'ProjectOrTeamEdge';
+  cursor: Scalars['String'];
+  node: ProjectOrTeam;
+};
+
+export type ProjectOrTeamPageInfo = {
+  __typename: 'ProjectOrTeamPageInfo';
+  endCursorProject?: Maybe<Scalars['String']>;
+  endCursorTeam?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
+export type ProjectOrTeamSearchInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
+  objectType?: InputMaybe<Scalars['String']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
+  projectIsComplete?: InputMaybe<Scalars['Boolean']>;
+  projectIsCompleteExceptions?: InputMaybe<Array<SearchException>>;
+  projectMaxScore?: InputMaybe<Scalars['Int']>;
+  projectMinScore?: InputMaybe<Scalars['Int']>;
+  projectParentId?: InputMaybe<Scalars['ID']>;
+  projectTeamId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectOrTeamSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  teamAfter?: InputMaybe<Scalars['String']>;
+  teamIsOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  teamProjectId?: InputMaybe<Scalars['ID']>;
+  teamRoutineId?: InputMaybe<Scalars['ID']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type ProjectOrTeamSearchResult = {
+  __typename: 'ProjectOrTeamSearchResult';
+  edges: Array<ProjectOrTeamEdge>;
+  pageInfo: ProjectOrTeamPageInfo;
+};
+
+export enum ProjectOrTeamSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
 export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
@@ -4447,7 +4729,7 @@ export type ProjectSearchInput = {
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   pullRequestsId?: InputMaybe<Scalars['ID']>;
@@ -4496,7 +4778,7 @@ export type ProjectUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -4557,13 +4839,13 @@ export type ProjectVersionContentsSearchInput = {
 export type ProjectVersionContentsSearchResult = {
   __typename: 'ProjectVersionContentsSearchResult';
   apiVersion?: Maybe<ApiVersion>;
+  codeVersion?: Maybe<CodeVersion>;
   directory?: Maybe<ProjectVersionDirectory>;
   noteVersion?: Maybe<NoteVersion>;
-  organization?: Maybe<Organization>;
   projectVersion?: Maybe<ProjectVersion>;
   routineVersion?: Maybe<RoutineVersion>;
-  smartContractVersion?: Maybe<SmartContractVersion>;
   standardVersion?: Maybe<StandardVersion>;
+  team?: Maybe<Team>;
 };
 
 export enum ProjectVersionContentsSortBy {
@@ -4589,13 +4871,13 @@ export type ProjectVersionCreateInput = {
 export type ProjectVersionDirectory = {
   __typename: 'ProjectVersionDirectory';
   childApiVersions: Array<ApiVersion>;
+  childCodeVersions: Array<CodeVersion>;
   childNoteVersions: Array<NoteVersion>;
   childOrder?: Maybe<Scalars['String']>;
-  childOrganizations: Array<Organization>;
   childProjectVersions: Array<ProjectVersion>;
   childRoutineVersions: Array<RoutineVersion>;
-  childSmartContractVersions: Array<SmartContractVersion>;
   childStandardVersions: Array<StandardVersion>;
+  childTeams: Array<Team>;
   children: Array<ProjectVersionDirectory>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -4609,13 +4891,13 @@ export type ProjectVersionDirectory = {
 
 export type ProjectVersionDirectoryCreateInput = {
   childApiVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childCodeVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childNoteVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childOrder?: InputMaybe<Scalars['String']>;
-  childOrganizationsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childProjectVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childRoutineVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  childSmartContractVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childStandardVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childTeamsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isRoot?: InputMaybe<Scalars['Boolean']>;
   parentDirectoryConnect?: InputMaybe<Scalars['ID']>;
@@ -4678,19 +4960,19 @@ export type ProjectVersionDirectoryTranslationUpdateInput = {
 export type ProjectVersionDirectoryUpdateInput = {
   childApiVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childApiVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childCodeVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childCodeVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   childNoteVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childNoteVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   childOrder?: InputMaybe<Scalars['String']>;
-  childOrganizationsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  childOrganizationsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   childProjectVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childProjectVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   childRoutineVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childRoutineVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  childSmartContractVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  childSmartContractVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   childStandardVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   childStandardVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  childTeamsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  childTeamsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isRoot?: InputMaybe<Scalars['Boolean']>;
   parentDirectoryConnect?: InputMaybe<Scalars['ID']>;
@@ -4714,7 +4996,7 @@ export type ProjectVersionSearchInput = {
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
-  isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isCompleteWithRootExcludeOwnedByTeamId?: InputMaybe<Scalars['ID']>;
   isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
@@ -4729,7 +5011,7 @@ export type ProjectVersionSearchInput = {
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByTeamIdRoot?: InputMaybe<Scalars['ID']>;
   ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -4864,14 +5146,14 @@ export type PullRequestEdge = {
   node: PullRequest;
 };
 
-export type PullRequestFrom = ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
+export type PullRequestFrom = ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion;
 
 export enum PullRequestFromObjectType {
   ApiVersion = 'ApiVersion',
+  CodeVersion = 'CodeVersion',
   NoteVersion = 'NoteVersion',
   ProjectVersion = 'ProjectVersion',
   RoutineVersion = 'RoutineVersion',
-  SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion'
 }
 
@@ -4914,14 +5196,14 @@ export enum PullRequestStatus {
   Rejected = 'Rejected'
 }
 
-export type PullRequestTo = Api | Note | Project | Routine | SmartContract | Standard;
+export type PullRequestTo = Api | Code | Note | Project | Routine | Standard;
 
 export enum PullRequestToObjectType {
   Api = 'Api',
+  Code = 'Code',
   Note = 'Note',
   Project = 'Project',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
   Standard = 'Standard'
 }
 
@@ -5006,6 +5288,10 @@ export type Query = {
   chatParticipant?: Maybe<ChatParticipant>;
   chatParticipants: ChatParticipantSearchResult;
   chats: ChatSearchResult;
+  code?: Maybe<Code>;
+  codeVersion?: Maybe<CodeVersion>;
+  codeVersions: CodeVersionSearchResult;
+  codes: CodeSearchResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   focusMode?: Maybe<FocusMode>;
@@ -5032,8 +5318,6 @@ export type Query = {
   notificationSubscription?: Maybe<NotificationSubscription>;
   notificationSubscriptions: NotificationSubscriptionSearchResult;
   notifications: NotificationSearchResult;
-  organization?: Maybe<Organization>;
-  organizations: OrganizationSearchResult;
   payment?: Maybe<Payment>;
   payments: PaymentSearchResult;
   popular: PopularSearchResult;
@@ -5041,11 +5325,12 @@ export type Query = {
   posts: PostSearchResult;
   profile: User;
   project?: Maybe<Project>;
-  projectOrOrganizations: ProjectOrOrganizationSearchResult;
   projectOrRoutines: ProjectOrRoutineSearchResult;
+  projectOrTeams: ProjectOrTeamSearchResult;
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionContents: ProjectVersionContentsSearchResult;
   projectVersionDirectories: ProjectVersionDirectorySearchResult;
+  projectVersionDirectory?: Maybe<ProjectVersionDirectory>;
   projectVersions: ProjectVersionSearchResult;
   projects: ProjectSearchResult;
   pullRequest?: Maybe<PullRequest>;
@@ -5094,25 +5379,23 @@ export type Query = {
   scheduleRecurrence?: Maybe<ScheduleRecurrence>;
   scheduleRecurrences: ScheduleRecurrenceSearchResult;
   schedules: ScheduleSearchResult;
-  smartContract?: Maybe<SmartContract>;
-  smartContractVersion?: Maybe<SmartContractVersion>;
-  smartContractVersions: SmartContractVersionSearchResult;
-  smartContracts: SmartContractSearchResult;
   standard?: Maybe<Standard>;
   standardVersion?: Maybe<StandardVersion>;
   standardVersions: StandardVersionSearchResult;
   standards: StandardSearchResult;
   statsApi: StatsApiSearchResult;
-  statsOrganization: StatsOrganizationSearchResult;
+  statsCode: StatsCodeSearchResult;
   statsProject: StatsProjectSearchResult;
   statsQuiz: StatsQuizSearchResult;
   statsRoutine: StatsRoutineSearchResult;
   statsSite: StatsSiteSearchResult;
-  statsSmartContract: StatsSmartContractSearchResult;
   statsStandard: StatsStandardSearchResult;
+  statsTeam: StatsTeamSearchResult;
   statsUser: StatsUserSearchResult;
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
+  team?: Maybe<Team>;
+  teams: TeamSearchResult;
   transfer?: Maybe<Transfer>;
   transfers: TransferSearchResult;
   translate: Translate;
@@ -5209,6 +5492,26 @@ export type QueryChatParticipantsArgs = {
 
 export type QueryChatsArgs = {
   input: ChatSearchInput;
+};
+
+
+export type QueryCodeArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryCodeVersionArgs = {
+  input: FindVersionInput;
+};
+
+
+export type QueryCodeVersionsArgs = {
+  input: CodeVersionSearchInput;
+};
+
+
+export type QueryCodesArgs = {
+  input: CodeSearchInput;
 };
 
 
@@ -5337,16 +5640,6 @@ export type QueryNotificationsArgs = {
 };
 
 
-export type QueryOrganizationArgs = {
-  input: FindByIdOrHandleInput;
-};
-
-
-export type QueryOrganizationsArgs = {
-  input: OrganizationSearchInput;
-};
-
-
 export type QueryPaymentArgs = {
   input: FindByIdInput;
 };
@@ -5377,13 +5670,13 @@ export type QueryProjectArgs = {
 };
 
 
-export type QueryProjectOrOrganizationsArgs = {
-  input: ProjectOrOrganizationSearchInput;
+export type QueryProjectOrRoutinesArgs = {
+  input: ProjectOrRoutineSearchInput;
 };
 
 
-export type QueryProjectOrRoutinesArgs = {
-  input: ProjectOrRoutineSearchInput;
+export type QueryProjectOrTeamsArgs = {
+  input: ProjectOrTeamSearchInput;
 };
 
 
@@ -5399,6 +5692,11 @@ export type QueryProjectVersionContentsArgs = {
 
 export type QueryProjectVersionDirectoriesArgs = {
   input: ProjectVersionDirectorySearchInput;
+};
+
+
+export type QueryProjectVersionDirectoryArgs = {
+  input: FindByIdInput;
 };
 
 
@@ -5637,26 +5935,6 @@ export type QuerySchedulesArgs = {
 };
 
 
-export type QuerySmartContractArgs = {
-  input: FindByIdInput;
-};
-
-
-export type QuerySmartContractVersionArgs = {
-  input: FindVersionInput;
-};
-
-
-export type QuerySmartContractVersionsArgs = {
-  input: SmartContractVersionSearchInput;
-};
-
-
-export type QuerySmartContractsArgs = {
-  input: SmartContractSearchInput;
-};
-
-
 export type QueryStandardArgs = {
   input: FindByIdInput;
 };
@@ -5682,8 +5960,8 @@ export type QueryStatsApiArgs = {
 };
 
 
-export type QueryStatsOrganizationArgs = {
-  input: StatsOrganizationSearchInput;
+export type QueryStatsCodeArgs = {
+  input: StatsCodeSearchInput;
 };
 
 
@@ -5707,13 +5985,13 @@ export type QueryStatsSiteArgs = {
 };
 
 
-export type QueryStatsSmartContractArgs = {
-  input: StatsSmartContractSearchInput;
+export type QueryStatsStandardArgs = {
+  input: StatsStandardSearchInput;
 };
 
 
-export type QueryStatsStandardArgs = {
-  input: StatsStandardSearchInput;
+export type QueryStatsTeamArgs = {
+  input: StatsTeamSearchInput;
 };
 
 
@@ -5729,6 +6007,16 @@ export type QueryTagArgs = {
 
 export type QueryTagsArgs = {
   input: TagSearchInput;
+};
+
+
+export type QueryTeamArgs = {
+  input: FindByIdOrHandleInput;
+};
+
+
+export type QueryTeamsArgs = {
+  input: TeamSearchInput;
 };
 
 
@@ -5889,21 +6177,22 @@ export type QuestionEdge = {
   node: Question;
 };
 
-export type QuestionFor = Api | Note | Organization | Project | Routine | SmartContract | Standard;
+export type QuestionFor = Api | Code | Note | Project | Routine | Standard | Team;
 
 export enum QuestionForType {
   Api = 'Api',
+  Code = 'Code',
   Note = 'Note',
-  Organization = 'Organization',
   Project = 'Project',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
-  Standard = 'Standard'
+  Standard = 'Standard',
+  Team = 'Team'
 }
 
 export type QuestionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiId?: InputMaybe<Scalars['ID']>;
+  codeId?: InputMaybe<Scalars['ID']>;
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -5914,14 +6203,13 @@ export type QuestionSearchInput = {
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   noteId?: InputMaybe<Scalars['ID']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<QuestionSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
@@ -6406,6 +6694,7 @@ export type ReactionEdge = {
 export enum ReactionFor {
   Api = 'Api',
   ChatMessage = 'ChatMessage',
+  Code = 'Code',
   Comment = 'Comment',
   Issue = 'Issue',
   Note = 'Note',
@@ -6415,7 +6704,6 @@ export enum ReactionFor {
   QuestionAnswer = 'QuestionAnswer',
   Quiz = 'Quiz',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
   Standard = 'Standard'
 }
 
@@ -6445,10 +6733,14 @@ export type ReactionSummary = {
   emoji: Scalars['String'];
 };
 
-export type ReactionTo = Api | ChatMessage | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard;
+export type ReactionTo = Api | ChatMessage | Code | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | Standard;
 
 export type ReadAssetsInput = {
   files: Array<Scalars['String']>;
+};
+
+export type RegenerateResponseInput = {
+  messageId: Scalars['ID'];
 };
 
 export type Reminder = {
@@ -6588,6 +6880,7 @@ export type Report = {
   reason: Scalars['String'];
   responses: Array<ReportResponse>;
   responsesCount: Scalars['Int'];
+  status: ReportStatus;
   updated_at: Scalars['Date'];
   you: ReportYou;
 };
@@ -6610,16 +6903,16 @@ export type ReportEdge = {
 export enum ReportFor {
   ApiVersion = 'ApiVersion',
   ChatMessage = 'ChatMessage',
+  CodeVersion = 'CodeVersion',
   Comment = 'Comment',
   Issue = 'Issue',
   NoteVersion = 'NoteVersion',
-  Organization = 'Organization',
   Post = 'Post',
   ProjectVersion = 'ProjectVersion',
   RoutineVersion = 'RoutineVersion',
-  SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion',
   Tag = 'Tag',
+  Team = 'Team',
   User = 'User'
 }
 
@@ -6691,6 +6984,7 @@ export type ReportSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiVersionId?: InputMaybe<Scalars['ID']>;
   chatMessageId?: InputMaybe<Scalars['ID']>;
+  codeVersionId?: InputMaybe<Scalars['ID']>;
   commentId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   fromId?: InputMaybe<Scalars['ID']>;
@@ -6698,16 +6992,15 @@ export type ReportSearchInput = {
   issueId?: InputMaybe<Scalars['ID']>;
   languageIn?: InputMaybe<Array<Scalars['String']>>;
   noteVersionId?: InputMaybe<Scalars['ID']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   postId?: InputMaybe<Scalars['ID']>;
   projectVersionId?: InputMaybe<Scalars['ID']>;
   routineVersionId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractVersionId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<ReportSortBy>;
   standardVersionId?: InputMaybe<Scalars['ID']>;
   tagId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
@@ -6723,6 +7016,15 @@ export enum ReportSortBy {
   DateCreatedDesc = 'DateCreatedDesc',
   ResponsesAsc = 'ResponsesAsc',
   ResponsesDesc = 'ResponsesDesc'
+}
+
+export enum ReportStatus {
+  ClosedDeleted = 'ClosedDeleted',
+  ClosedFalseReport = 'ClosedFalseReport',
+  ClosedHidden = 'ClosedHidden',
+  ClosedNonIssue = 'ClosedNonIssue',
+  ClosedSuspended = 'ClosedSuspended',
+  Open = 'Open'
 }
 
 export enum ReportSuggestedAction {
@@ -6843,32 +7145,32 @@ export type ResourceListEdge = {
 
 export enum ResourceListFor {
   ApiVersion = 'ApiVersion',
+  CodeVersion = 'CodeVersion',
   FocusMode = 'FocusMode',
-  Organization = 'Organization',
   Post = 'Post',
   ProjectVersion = 'ProjectVersion',
   RoutineVersion = 'RoutineVersion',
-  SmartContractVersion = 'SmartContractVersion',
-  StandardVersion = 'StandardVersion'
+  StandardVersion = 'StandardVersion',
+  Team = 'Team'
 }
 
-export type ResourceListOn = ApiVersion | FocusMode | Organization | Post | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
+export type ResourceListOn = ApiVersion | CodeVersion | FocusMode | Post | ProjectVersion | RoutineVersion | StandardVersion | Team;
 
 export type ResourceListSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiVersionId?: InputMaybe<Scalars['ID']>;
+  codeVersionId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   focusModeId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   postId?: InputMaybe<Scalars['ID']>;
   projectVersionId?: InputMaybe<Scalars['ID']>;
   routineVersionId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractVersionId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<ResourceListSortBy>;
   standardVersionId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId?: InputMaybe<Scalars['ID']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
@@ -7015,8 +7317,8 @@ export type Role = {
   members?: Maybe<Array<Member>>;
   membersCount: Scalars['Int'];
   name: Scalars['String'];
-  organization: Organization;
   permissions: Scalars['String'];
+  team: Team;
   translations: Array<RoleTranslation>;
   updated_at: Scalars['Date'];
 };
@@ -7025,8 +7327,8 @@ export type RoleCreateInput = {
   id: Scalars['ID'];
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   name: Scalars['String'];
-  organizationConnect: Scalars['ID'];
   permissions: Scalars['String'];
+  teamConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<RoleTranslationCreateInput>>;
 };
 
@@ -7040,10 +7342,10 @@ export type RoleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  organizationId: Scalars['ID'];
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoleSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  teamId: Scalars['ID'];
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7139,7 +7441,7 @@ export type RoutineCreateInput = {
   isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
@@ -7164,13 +7466,14 @@ export type RoutineSearchInput = {
   isInternal?: InputMaybe<Scalars['Boolean']>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  latestVersionRoutineType?: InputMaybe<RoutineType>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   pullRequestsId?: InputMaybe<Scalars['ID']>;
@@ -7214,6 +7517,17 @@ export enum RoutineSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
+export enum RoutineType {
+  Action = 'Action',
+  Api = 'Api',
+  Code = 'Code',
+  Data = 'Data',
+  Generate = 'Generate',
+  Informational = 'Informational',
+  MultiStep = 'MultiStep',
+  SmartContract = 'SmartContract'
+}
+
 export type RoutineUpdateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
@@ -7221,7 +7535,7 @@ export type RoutineUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -7234,12 +7548,13 @@ export type RoutineUpdateInput = {
 
 export type RoutineVersion = {
   __typename: 'RoutineVersion';
-  apiCallData?: Maybe<Scalars['String']>;
   apiVersion?: Maybe<ApiVersion>;
+  codeVersion?: Maybe<CodeVersion>;
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   complexity: Scalars['Int'];
+  configCallData?: Maybe<Scalars['String']>;
   created_at: Scalars['Date'];
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
@@ -7264,9 +7579,8 @@ export type RoutineVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Routine;
+  routineType: RoutineType;
   simplicity: Scalars['Int'];
-  smartContractCallData?: Maybe<Scalars['String']>;
-  smartContractVersion?: Maybe<SmartContractVersion>;
   suggestedNextByRoutineVersion: Array<RoutineVersion>;
   suggestedNextByRoutineVersionCount: Scalars['Int'];
   timesCompleted: Scalars['Int'];
@@ -7281,8 +7595,9 @@ export type RoutineVersion = {
 };
 
 export type RoutineVersionCreateInput = {
-  apiCallData?: InputMaybe<Scalars['String']>;
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
+  codeVersionConnect?: InputMaybe<Scalars['ID']>;
+  configCallData?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
@@ -7295,8 +7610,7 @@ export type RoutineVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<RoutineCreateInput>;
-  smartContractCallData?: InputMaybe<Scalars['String']>;
-  smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
+  routineType: RoutineType;
   suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<RoutineVersionTranslationCreateInput>>;
   versionLabel: Scalars['String'];
@@ -7422,18 +7736,19 @@ export type RoutineVersionOutputUpdateInput = {
 
 export type RoutineVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  codeVersionId?: InputMaybe<Scalars['ID']>;
   createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
-  isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isCompleteWithRootExcludeOwnedByTeamId?: InputMaybe<Scalars['ID']>;
   isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
-  isExternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isExternalWithRootExcludeOwnedByTeamId?: InputMaybe<Scalars['ID']>;
   isExternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
   isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
-  isInternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isInternalWithRootExcludeOwnedByTeamId?: InputMaybe<Scalars['ID']>;
   isInternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
@@ -7448,10 +7763,11 @@ export type RoutineVersionSearchInput = {
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByTeamIdRoot?: InputMaybe<Scalars['ID']>;
   ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
+  routineType?: InputMaybe<RoutineType>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
@@ -7514,9 +7830,11 @@ export type RoutineVersionTranslationUpdateInput = {
 };
 
 export type RoutineVersionUpdateInput = {
-  apiCallData?: InputMaybe<Scalars['String']>;
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
   apiVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
+  codeVersionConnect?: InputMaybe<Scalars['ID']>;
+  codeVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
+  configCallData?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -7538,9 +7856,6 @@ export type RoutineVersionUpdateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rootUpdate?: InputMaybe<RoutineUpdateInput>;
-  smartContractCallData?: InputMaybe<Scalars['String']>;
-  smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
-  smartContractVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars['ID']>>;
   suggestedNextByRoutineVersionDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<RoutineVersionTranslationCreateInput>>;
@@ -7586,13 +7901,13 @@ export type RunProject = {
   id: Scalars['ID'];
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
-  organization?: Maybe<Organization>;
   projectVersion?: Maybe<ProjectVersion>;
   schedule?: Maybe<Schedule>;
   startedAt?: Maybe<Scalars['Date']>;
   status: RunStatus;
   steps: Array<RunProjectStep>;
   stepsCount: Scalars['Int'];
+  team?: Maybe<Team>;
   timeElapsed?: Maybe<Scalars['Int']>;
   user?: Maybe<User>;
   you: RunProjectYou;
@@ -7618,11 +7933,11 @@ export type RunProjectCreateInput = {
   id: Scalars['ID'];
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
   projectVersionConnect: Scalars['ID'];
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   status: RunStatus;
   stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
+  teamConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type RunProjectEdge = {
@@ -7801,7 +8116,6 @@ export type RunRoutine = {
   inputsCount: Scalars['Int'];
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
-  organization?: Maybe<Organization>;
   routineVersion?: Maybe<RoutineVersion>;
   runProject?: Maybe<RunProject>;
   schedule?: Maybe<Schedule>;
@@ -7809,6 +8123,7 @@ export type RunRoutine = {
   status: RunStatus;
   steps: Array<RunRoutineStep>;
   stepsCount: Scalars['Int'];
+  team?: Maybe<Team>;
   timeElapsed?: Maybe<Scalars['Int']>;
   user?: Maybe<User>;
   wasRunAutomatically: Scalars['Boolean'];
@@ -7840,12 +8155,12 @@ export type RunRoutineCreateInput = {
   inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
-  organizationConnect?: InputMaybe<Scalars['ID']>;
   routineVersionConnect: Scalars['ID'];
   runProjectConnect?: InputMaybe<Scalars['ID']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   status: RunStatus;
   stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
+  teamConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type RunRoutineEdge = {
@@ -8285,7 +8600,8 @@ export type SessionUser = {
   activeFocusMode?: Maybe<ActiveFocusMode>;
   apisCount: Scalars['Int'];
   bookmarkLists: Array<BookmarkList>;
-  credits: Scalars['Int'];
+  codesCount: Scalars['Int'];
+  credits: Scalars['String'];
   focusModes: Array<FocusMode>;
   handle?: Maybe<Scalars['String']>;
   hasPremium: Scalars['Boolean'];
@@ -8298,7 +8614,6 @@ export type SessionUser = {
   projectsCount: Scalars['Int'];
   questionsAskedCount: Scalars['Int'];
   routinesCount: Scalars['Int'];
-  smartContractsCount: Scalars['Int'];
   standardsCount: Scalars['Int'];
   theme?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
@@ -8308,297 +8623,6 @@ export type SetActiveFocusModeInput = {
   id: Scalars['ID'];
   stopCondition: FocusModeStopCondition;
   stopTime?: InputMaybe<Scalars['Date']>;
-};
-
-export type SmartContract = {
-  __typename: 'SmartContract';
-  bookmarkedBy: Array<User>;
-  bookmarks: Scalars['Int'];
-  completedAt?: Maybe<Scalars['Date']>;
-  createdBy?: Maybe<User>;
-  created_at: Scalars['Date'];
-  hasCompleteVersion: Scalars['Boolean'];
-  id: Scalars['ID'];
-  isDeleted: Scalars['Boolean'];
-  isPrivate: Scalars['Boolean'];
-  issues: Array<Issue>;
-  issuesCount: Scalars['Int'];
-  labels: Array<Label>;
-  owner?: Maybe<Owner>;
-  parent?: Maybe<SmartContractVersion>;
-  permissions: Scalars['String'];
-  pullRequests: Array<PullRequest>;
-  pullRequestsCount: Scalars['Int'];
-  questions: Array<Question>;
-  questionsCount: Scalars['Int'];
-  score: Scalars['Int'];
-  stats: Array<StatsSmartContract>;
-  tags: Array<Tag>;
-  transfers: Array<Transfer>;
-  transfersCount: Scalars['Int'];
-  translatedName: Scalars['String'];
-  updated_at: Scalars['Date'];
-  versions: Array<SmartContractVersion>;
-  versionsCount?: Maybe<Scalars['Int']>;
-  views: Scalars['Int'];
-  you: SmartContractYou;
-};
-
-export type SmartContractCreateInput = {
-  id: Scalars['ID'];
-  isPrivate: Scalars['Boolean'];
-  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
-  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
-  parentConnect?: InputMaybe<Scalars['ID']>;
-  permissions?: InputMaybe<Scalars['String']>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
-};
-
-export type SmartContractEdge = {
-  __typename: 'SmartContractEdge';
-  cursor: Scalars['String'];
-  node: SmartContract;
-};
-
-export type SmartContractSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  createdById?: InputMaybe<Scalars['ID']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
-  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  issuesId?: InputMaybe<Scalars['ID']>;
-  labelsIds?: InputMaybe<Array<Scalars['ID']>>;
-  maxBookmarks?: InputMaybe<Scalars['Int']>;
-  maxScore?: InputMaybe<Scalars['Int']>;
-  maxViews?: InputMaybe<Scalars['Int']>;
-  minBookmarks?: InputMaybe<Scalars['Int']>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
-  ownedByUserId?: InputMaybe<Scalars['ID']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  pullRequestsId?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<SmartContractSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
-  take?: InputMaybe<Scalars['Int']>;
-  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  visibility?: InputMaybe<VisibilityType>;
-};
-
-export type SmartContractSearchResult = {
-  __typename: 'SmartContractSearchResult';
-  edges: Array<SmartContractEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum SmartContractSortBy {
-  BookmarksAsc = 'BookmarksAsc',
-  BookmarksDesc = 'BookmarksDesc',
-  DateCompletedAsc = 'DateCompletedAsc',
-  DateCompletedDesc = 'DateCompletedDesc',
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  IssuesAsc = 'IssuesAsc',
-  IssuesDesc = 'IssuesDesc',
-  PullRequestsAsc = 'PullRequestsAsc',
-  PullRequestsDesc = 'PullRequestsDesc',
-  QuestionsAsc = 'QuestionsAsc',
-  QuestionsDesc = 'QuestionsDesc',
-  ScoreAsc = 'ScoreAsc',
-  ScoreDesc = 'ScoreDesc',
-  VersionsAsc = 'VersionsAsc',
-  VersionsDesc = 'VersionsDesc',
-  ViewsAsc = 'ViewsAsc',
-  ViewsDesc = 'ViewsDesc'
-}
-
-export type SmartContractUpdateInput = {
-  id: Scalars['ID'];
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
-  ownedByUserConnect?: InputMaybe<Scalars['ID']>;
-  permissions?: InputMaybe<Scalars['String']>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
-  versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  versionsUpdate?: InputMaybe<Array<SmartContractVersionUpdateInput>>;
-};
-
-export type SmartContractVersion = {
-  __typename: 'SmartContractVersion';
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
-  completedAt?: Maybe<Scalars['Date']>;
-  content: Scalars['String'];
-  contractType: Scalars['String'];
-  created_at: Scalars['Date'];
-  default?: Maybe<Scalars['String']>;
-  directoryListings: Array<ProjectVersionDirectory>;
-  directoryListingsCount: Scalars['Int'];
-  forks: Array<SmartContract>;
-  forksCount: Scalars['Int'];
-  id: Scalars['ID'];
-  isComplete: Scalars['Boolean'];
-  isDeleted: Scalars['Boolean'];
-  isLatest: Scalars['Boolean'];
-  isPrivate: Scalars['Boolean'];
-  pullRequest?: Maybe<PullRequest>;
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceList?: Maybe<ResourceList>;
-  root: SmartContract;
-  translations: Array<SmartContractVersionTranslation>;
-  translationsCount: Scalars['Int'];
-  updated_at: Scalars['Date'];
-  versionIndex: Scalars['Int'];
-  versionLabel: Scalars['String'];
-  versionNotes?: Maybe<Scalars['String']>;
-  you: VersionYou;
-};
-
-export type SmartContractVersionCreateInput = {
-  content: Scalars['String'];
-  contractType: Scalars['String'];
-  default?: InputMaybe<Scalars['String']>;
-  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate: Scalars['Boolean'];
-  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  rootConnect: Scalars['ID'];
-  rootCreate?: InputMaybe<SmartContractCreateInput>;
-  translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
-  versionLabel: Scalars['String'];
-  versionNotes?: InputMaybe<Scalars['String']>;
-};
-
-export type SmartContractVersionEdge = {
-  __typename: 'SmartContractVersionEdge';
-  cursor: Scalars['String'];
-  node: SmartContractVersion;
-};
-
-export type SmartContractVersionSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  completedTimeFrame?: InputMaybe<TimeFrame>;
-  contractType?: InputMaybe<Scalars['String']>;
-  createdByIdRoot?: InputMaybe<Scalars['ID']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
-  isLatest?: InputMaybe<Scalars['Boolean']>;
-  maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
-  maxScoreRoot?: InputMaybe<Scalars['Int']>;
-  maxViewsRoot?: InputMaybe<Scalars['Int']>;
-  minBookmarksRoot?: InputMaybe<Scalars['Int']>;
-  minScoreRoot?: InputMaybe<Scalars['Int']>;
-  minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
-  ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  rootId?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<SmartContractVersionSortBy>;
-  tagsRoot?: InputMaybe<Array<Scalars['String']>>;
-  take?: InputMaybe<Scalars['Int']>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
-  visibility?: InputMaybe<VisibilityType>;
-};
-
-export type SmartContractVersionSearchResult = {
-  __typename: 'SmartContractVersionSearchResult';
-  edges: Array<SmartContractVersionEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum SmartContractVersionSortBy {
-  CalledByRoutinesAsc = 'CalledByRoutinesAsc',
-  CalledByRoutinesDesc = 'CalledByRoutinesDesc',
-  CommentsAsc = 'CommentsAsc',
-  CommentsDesc = 'CommentsDesc',
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  DirectoryListingsAsc = 'DirectoryListingsAsc',
-  DirectoryListingsDesc = 'DirectoryListingsDesc',
-  ForksAsc = 'ForksAsc',
-  ForksDesc = 'ForksDesc',
-  ReportsAsc = 'ReportsAsc',
-  ReportsDesc = 'ReportsDesc'
-}
-
-export type SmartContractVersionTranslation = {
-  __typename: 'SmartContractVersionTranslation';
-  description?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  jsonVariable?: Maybe<Scalars['String']>;
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type SmartContractVersionTranslationCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  jsonVariable?: InputMaybe<Scalars['String']>;
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type SmartContractVersionTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  jsonVariable?: InputMaybe<Scalars['String']>;
-  language: Scalars['String'];
-  name?: InputMaybe<Scalars['String']>;
-};
-
-export type SmartContractVersionUpdateInput = {
-  content?: InputMaybe<Scalars['String']>;
-  contractType?: InputMaybe<Scalars['String']>;
-  default?: InputMaybe<Scalars['String']>;
-  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
-  rootUpdate?: InputMaybe<SmartContractUpdateInput>;
-  translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<SmartContractVersionTranslationUpdateInput>>;
-  versionLabel?: InputMaybe<Scalars['String']>;
-  versionNotes?: InputMaybe<Scalars['String']>;
-};
-
-export type SmartContractYou = {
-  __typename: 'SmartContractYou';
-  canBookmark: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canReact: Scalars['Boolean'];
-  canRead: Scalars['Boolean'];
-  canTransfer: Scalars['Boolean'];
-  canUpdate: Scalars['Boolean'];
-  isBookmarked: Scalars['Boolean'];
-  isViewed: Scalars['Boolean'];
-  reaction?: Maybe<Scalars['String']>;
 };
 
 export type Standard = {
@@ -8644,7 +8668,7 @@ export type StandardCreateInput = {
   isPrivate: Scalars['Boolean'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
@@ -8675,7 +8699,7 @@ export type StandardSearchInput = {
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByTeamId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   pullRequestsId?: InputMaybe<Scalars['ID']>;
@@ -8724,7 +8748,7 @@ export type StandardUpdateInput = {
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  ownedByOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  ownedByTeamConnect?: InputMaybe<Scalars['ID']>;
   ownedByUserConnect?: InputMaybe<Scalars['ID']>;
   permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -8800,6 +8824,7 @@ export type StandardVersionSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   maxBookmarksRoot?: InputMaybe<Scalars['Int']>;
   maxScoreRoot?: InputMaybe<Scalars['Int']>;
@@ -8807,7 +8832,7 @@ export type StandardVersionSearchInput = {
   minBookmarksRoot?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
-  ownedByOrganizationIdRoot?: InputMaybe<Scalars['ID']>;
+  ownedByTeamIdRoot?: InputMaybe<Scalars['ID']>;
   ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
@@ -8904,6 +8929,15 @@ export type StandardYou = {
   reaction?: Maybe<Scalars['String']>;
 };
 
+export type StartTaskInput = {
+  botId: Scalars['String'];
+  label: Scalars['String'];
+  messageId: Scalars['ID'];
+  properties: Scalars['JSONObject'];
+  task: LlmTask;
+  taskId: Scalars['ID'];
+};
+
 export enum StatPeriodType {
   Daily = 'Daily',
   Hourly = 'Hourly',
@@ -8949,48 +8983,39 @@ export enum StatsApiSortBy {
   PeriodStartDesc = 'PeriodStartDesc'
 }
 
-export type StatsOrganization = {
-  __typename: 'StatsOrganization';
-  apis: Scalars['Int'];
+export type StatsCode = {
+  __typename: 'StatsCode';
+  calls: Scalars['Int'];
   id: Scalars['ID'];
-  members: Scalars['Int'];
-  notes: Scalars['Int'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
   periodType: StatPeriodType;
-  projects: Scalars['Int'];
-  routines: Scalars['Int'];
-  runRoutineCompletionTimeAverage: Scalars['Float'];
-  runRoutineContextSwitchesAverage: Scalars['Float'];
-  runRoutinesCompleted: Scalars['Int'];
-  runRoutinesStarted: Scalars['Int'];
-  smartContracts: Scalars['Int'];
-  standards: Scalars['Int'];
+  routineVersions: Scalars['Int'];
 };
 
-export type StatsOrganizationEdge = {
-  __typename: 'StatsOrganizationEdge';
+export type StatsCodeEdge = {
+  __typename: 'StatsCodeEdge';
   cursor: Scalars['String'];
-  node: StatsOrganization;
+  node: StatsCode;
 };
 
-export type StatsOrganizationSearchInput = {
+export type StatsCodeSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   periodTimeFrame?: InputMaybe<TimeFrame>;
   periodType: StatPeriodType;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<StatsOrganizationSortBy>;
+  sortBy?: InputMaybe<StatsCodeSortBy>;
   take?: InputMaybe<Scalars['Int']>;
 };
 
-export type StatsOrganizationSearchResult = {
-  __typename: 'StatsOrganizationSearchResult';
-  edges: Array<StatsOrganizationEdge>;
+export type StatsCodeSearchResult = {
+  __typename: 'StatsCodeSearchResult';
+  edges: Array<StatsCodeEdge>;
   pageInfo: PageInfo;
 };
 
-export enum StatsOrganizationSortBy {
+export enum StatsCodeSortBy {
   PeriodStartAsc = 'PeriodStartAsc',
   PeriodStartDesc = 'PeriodStartDesc'
 }
@@ -8998,10 +9023,10 @@ export enum StatsOrganizationSortBy {
 export type StatsProject = {
   __typename: 'StatsProject';
   apis: Scalars['Int'];
+  codes: Scalars['Int'];
   directories: Scalars['Int'];
   id: Scalars['ID'];
   notes: Scalars['Int'];
-  organizations: Scalars['Int'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
   periodType: StatPeriodType;
@@ -9011,8 +9036,8 @@ export type StatsProject = {
   runContextSwitchesAverage: Scalars['Float'];
   runsCompleted: Scalars['Int'];
   runsStarted: Scalars['Int'];
-  smartContracts: Scalars['Int'];
   standards: Scalars['Int'];
+  teams: Scalars['Int'];
 };
 
 export type StatsProjectEdge = {
@@ -9126,8 +9151,11 @@ export type StatsSite = {
   activeUsers: Scalars['Int'];
   apiCalls: Scalars['Int'];
   apisCreated: Scalars['Int'];
+  codeCalls: Scalars['Int'];
+  codeCompletionTimeAverage: Scalars['Float'];
+  codesCompleted: Scalars['Int'];
+  codesCreated: Scalars['Int'];
   id: Scalars['ID'];
-  organizationsCreated: Scalars['Int'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
   periodType: StatPeriodType;
@@ -9149,13 +9177,10 @@ export type StatsSite = {
   runRoutineContextSwitchesAverage: Scalars['Float'];
   runRoutinesCompleted: Scalars['Int'];
   runRoutinesStarted: Scalars['Int'];
-  smartContractCalls: Scalars['Int'];
-  smartContractCompletionTimeAverage: Scalars['Float'];
-  smartContractsCompleted: Scalars['Int'];
-  smartContractsCreated: Scalars['Int'];
   standardCompletionTimeAverage: Scalars['Float'];
   standardsCompleted: Scalars['Int'];
   standardsCreated: Scalars['Int'];
+  teamsCreated: Scalars['Int'];
   verifiedEmailsCreated: Scalars['Int'];
   verifiedWalletsCreated: Scalars['Int'];
 };
@@ -9183,43 +9208,6 @@ export type StatsSiteSearchResult = {
 };
 
 export enum StatsSiteSortBy {
-  PeriodStartAsc = 'PeriodStartAsc',
-  PeriodStartDesc = 'PeriodStartDesc'
-}
-
-export type StatsSmartContract = {
-  __typename: 'StatsSmartContract';
-  calls: Scalars['Int'];
-  id: Scalars['ID'];
-  periodEnd: Scalars['Date'];
-  periodStart: Scalars['Date'];
-  periodType: StatPeriodType;
-  routineVersions: Scalars['Int'];
-};
-
-export type StatsSmartContractEdge = {
-  __typename: 'StatsSmartContractEdge';
-  cursor: Scalars['String'];
-  node: StatsSmartContract;
-};
-
-export type StatsSmartContractSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  periodTimeFrame?: InputMaybe<TimeFrame>;
-  periodType: StatPeriodType;
-  searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<StatsSmartContractSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type StatsSmartContractSearchResult = {
-  __typename: 'StatsSmartContractSearchResult';
-  edges: Array<StatsSmartContractEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum StatsSmartContractSortBy {
   PeriodStartAsc = 'PeriodStartAsc',
   PeriodStartDesc = 'PeriodStartDesc'
 }
@@ -9261,11 +9249,59 @@ export enum StatsStandardSortBy {
   PeriodStartDesc = 'PeriodStartDesc'
 }
 
+export type StatsTeam = {
+  __typename: 'StatsTeam';
+  apis: Scalars['Int'];
+  codes: Scalars['Int'];
+  id: Scalars['ID'];
+  members: Scalars['Int'];
+  notes: Scalars['Int'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
+  projects: Scalars['Int'];
+  routines: Scalars['Int'];
+  runRoutineCompletionTimeAverage: Scalars['Float'];
+  runRoutineContextSwitchesAverage: Scalars['Float'];
+  runRoutinesCompleted: Scalars['Int'];
+  runRoutinesStarted: Scalars['Int'];
+  standards: Scalars['Int'];
+};
+
+export type StatsTeamEdge = {
+  __typename: 'StatsTeamEdge';
+  cursor: Scalars['String'];
+  node: StatsTeam;
+};
+
+export type StatsTeamSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsTeamSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsTeamSearchResult = {
+  __typename: 'StatsTeamSearchResult';
+  edges: Array<StatsTeamEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsTeamSortBy {
+  PeriodStartAsc = 'PeriodStartAsc',
+  PeriodStartDesc = 'PeriodStartDesc'
+}
+
 export type StatsUser = {
   __typename: 'StatsUser';
   apisCreated: Scalars['Int'];
+  codeCompletionTimeAverage: Scalars['Float'];
+  codesCompleted: Scalars['Int'];
+  codesCreated: Scalars['Int'];
   id: Scalars['ID'];
-  organizationsCreated: Scalars['Int'];
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
   periodType: StatPeriodType;
@@ -9285,12 +9321,10 @@ export type StatsUser = {
   runRoutineContextSwitchesAverage: Scalars['Float'];
   runRoutinesCompleted: Scalars['Int'];
   runRoutinesStarted: Scalars['Int'];
-  smartContractCompletionTimeAverage: Scalars['Float'];
-  smartContractsCompleted: Scalars['Int'];
-  smartContractsCreated: Scalars['Int'];
   standardCompletionTimeAverage: Scalars['Float'];
   standardsCompleted: Scalars['Int'];
   standardsCreated: Scalars['Int'];
+  teamssCreated: Scalars['Int'];
 };
 
 export type StatsUserEdge = {
@@ -9322,11 +9356,11 @@ export enum StatsUserSortBy {
 
 export enum SubscribableObject {
   Api = 'Api',
+  Code = 'Code',
   Comment = 'Comment',
   Issue = 'Issue',
   Meeting = 'Meeting',
   Note = 'Note',
-  Organization = 'Organization',
   Project = 'Project',
   PullRequest = 'PullRequest',
   Question = 'Question',
@@ -9334,11 +9368,11 @@ export enum SubscribableObject {
   Report = 'Report',
   Routine = 'Routine',
   Schedule = 'Schedule',
-  SmartContract = 'SmartContract',
-  Standard = 'Standard'
+  Standard = 'Standard',
+  Team = 'Team'
 }
 
-export type SubscribedObject = Api | Comment | Issue | Meeting | Note | Organization | Project | PullRequest | Question | Quiz | Report | Routine | Schedule | SmartContract | Standard;
+export type SubscribedObject = Api | Code | Comment | Issue | Meeting | Note | Project | PullRequest | Question | Quiz | Report | Routine | Schedule | Standard | Team;
 
 export type Success = {
   __typename: 'Success';
@@ -9354,17 +9388,17 @@ export type Tag = {
   apis: Array<Api>;
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
+  codes: Array<Code>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   notes: Array<Note>;
-  organizations: Array<Organization>;
   posts: Array<Post>;
   projects: Array<Project>;
   reports: Array<Report>;
   routines: Array<Routine>;
-  smartContracts: Array<SmartContract>;
   standards: Array<Standard>;
   tag: Scalars['String'];
+  teams: Array<Team>;
   translations: Array<TagTranslation>;
   updated_at: Scalars['Date'];
   you: TagYou;
@@ -9391,6 +9425,7 @@ export type TagSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
+  offset?: InputMaybe<Scalars['Int']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -9405,8 +9440,12 @@ export type TagSearchResult = {
 };
 
 export enum TagSortBy {
-  New = 'New',
-  Top = 'Top'
+  EmbedDateCreatedAsc = 'EmbedDateCreatedAsc',
+  EmbedDateCreatedDesc = 'EmbedDateCreatedDesc',
+  EmbedDateUpdatedAsc = 'EmbedDateUpdatedAsc',
+  EmbedDateUpdatedDesc = 'EmbedDateUpdatedDesc',
+  EmbedTopAsc = 'EmbedTopAsc',
+  EmbedTopDesc = 'EmbedTopDesc'
 }
 
 export type TagTranslation = {
@@ -9443,6 +9482,186 @@ export type TagYou = {
   isOwn: Scalars['Boolean'];
 };
 
+export type Team = {
+  __typename: 'Team';
+  apis: Array<Api>;
+  apisCount: Scalars['Int'];
+  bannerImage?: Maybe<Scalars['String']>;
+  bookmarkedBy: Array<User>;
+  bookmarks: Scalars['Int'];
+  codes: Array<Code>;
+  codesCount: Scalars['Int'];
+  comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
+  created_at: Scalars['Date'];
+  directoryListings: Array<ProjectVersionDirectory>;
+  forks: Array<Team>;
+  handle?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  isOpenToNewMembers: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
+  issues: Array<Issue>;
+  issuesCount: Scalars['Int'];
+  labels: Array<Label>;
+  labelsCount: Scalars['Int'];
+  meetings: Array<Meeting>;
+  meetingsCount: Scalars['Int'];
+  members: Array<Member>;
+  membersCount: Scalars['Int'];
+  notes: Array<Note>;
+  notesCount: Scalars['Int'];
+  parent?: Maybe<Team>;
+  paymentHistory: Array<Payment>;
+  permissions: Scalars['String'];
+  posts: Array<Post>;
+  postsCount: Scalars['Int'];
+  premium?: Maybe<Premium>;
+  profileImage?: Maybe<Scalars['String']>;
+  projects: Array<Project>;
+  projectsCount: Scalars['Int'];
+  questions: Array<Question>;
+  questionsCount: Scalars['Int'];
+  reports: Array<Report>;
+  reportsCount: Scalars['Int'];
+  resourceList?: Maybe<ResourceList>;
+  roles?: Maybe<Array<Role>>;
+  rolesCount: Scalars['Int'];
+  routines: Array<Routine>;
+  routinesCount: Scalars['Int'];
+  standards: Array<Standard>;
+  standardsCount: Scalars['Int'];
+  stats: Array<StatsTeam>;
+  tags: Array<Tag>;
+  transfersIncoming: Array<Transfer>;
+  transfersOutgoing: Array<Transfer>;
+  translatedName: Scalars['String'];
+  translations: Array<TeamTranslation>;
+  translationsCount: Scalars['Int'];
+  updated_at: Scalars['Date'];
+  views: Scalars['Int'];
+  wallets: Array<Wallet>;
+  you: TeamYou;
+};
+
+export type TeamCreateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
+  handle?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
+  memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
+  permissions?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  translationsCreate?: InputMaybe<Array<TeamTranslationCreateInput>>;
+};
+
+export type TeamEdge = {
+  __typename: 'TeamEdge';
+  cursor: Scalars['String'];
+  node: Team;
+};
+
+export type TeamSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  maxBookmarks?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
+  memberUserIds?: InputMaybe<Array<Scalars['ID']>>;
+  minBookmarks?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<TeamSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type TeamSearchResult = {
+  __typename: 'TeamSearchResult';
+  edges: Array<TeamEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum TeamSortBy {
+  BookmarksAsc = 'BookmarksAsc',
+  BookmarksDesc = 'BookmarksDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export type TeamTranslation = {
+  __typename: 'TeamTranslation';
+  bio?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type TeamTranslationCreateInput = {
+  bio?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type TeamTranslationUpdateInput = {
+  bio?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name?: InputMaybe<Scalars['String']>;
+};
+
+export type TeamUpdateInput = {
+  bannerImage?: InputMaybe<Scalars['Upload']>;
+  handle?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
+  memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
+  memberInvitesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  membersDelete?: InputMaybe<Array<Scalars['ID']>>;
+  permissions?: InputMaybe<Scalars['String']>;
+  profileImage?: InputMaybe<Scalars['Upload']>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
+  rolesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  rolesUpdate?: InputMaybe<Array<RoleUpdateInput>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
+  translationsCreate?: InputMaybe<Array<TeamTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<TeamTranslationUpdateInput>>;
+};
+
+export type TeamYou = {
+  __typename: 'TeamYou';
+  canAddMembers: Scalars['Boolean'];
+  canBookmark: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
+  isBookmarked: Scalars['Boolean'];
+  isViewed: Scalars['Boolean'];
+  yourMembership?: Maybe<Member>;
+};
+
 export type TimeFrame = {
   after?: InputMaybe<Scalars['Date']>;
   before?: InputMaybe<Scalars['Date']>;
@@ -9472,14 +9691,14 @@ export type TransferEdge = {
   node: Transfer;
 };
 
-export type TransferObject = Api | Note | Project | Routine | SmartContract | Standard;
+export type TransferObject = Api | Code | Note | Project | Routine | Standard;
 
 export enum TransferObjectType {
   Api = 'Api',
+  Code = 'Code',
   Note = 'Note',
   Project = 'Project',
   Routine = 'Routine',
-  SmartContract = 'SmartContract',
   Standard = 'Standard'
 }
 
@@ -9487,33 +9706,33 @@ export type TransferRequestReceiveInput = {
   message?: InputMaybe<Scalars['String']>;
   objectConnect: Scalars['ID'];
   objectType: TransferObjectType;
-  toOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  toTeamConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type TransferRequestSendInput = {
   message?: InputMaybe<Scalars['String']>;
   objectConnect: Scalars['ID'];
   objectType: TransferObjectType;
-  toOrganizationConnect?: InputMaybe<Scalars['ID']>;
+  toTeamConnect?: InputMaybe<Scalars['ID']>;
   toUserConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type TransferSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   apiId?: InputMaybe<Scalars['ID']>;
+  codeId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
-  fromOrganizationId?: InputMaybe<Scalars['ID']>;
+  fromTeamId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   noteId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  smartContractId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<TransferSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   status?: InputMaybe<TransferStatus>;
   take?: InputMaybe<Scalars['Int']>;
-  toOrganizationId?: InputMaybe<Scalars['ID']>;
+  toTeamId?: InputMaybe<Scalars['ID']>;
   toUserId?: InputMaybe<Scalars['ID']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -9573,6 +9792,9 @@ export type User = {
   bookmarkedBy: Array<User>;
   bookmarks: Scalars['Int'];
   botSettings?: Maybe<Scalars['String']>;
+  codes?: Maybe<Array<Code>>;
+  codesCount: Scalars['Int'];
+  codesCreated?: Maybe<Array<Code>>;
   comments?: Maybe<Array<Comment>>;
   created_at: Scalars['Date'];
   emails?: Maybe<Array<Email>>;
@@ -9587,8 +9809,9 @@ export type User = {
   isPrivateApis: Scalars['Boolean'];
   isPrivateApisCreated: Scalars['Boolean'];
   isPrivateBookmarks: Scalars['Boolean'];
+  isPrivateCodes: Scalars['Boolean'];
+  isPrivateCodesCreated: Scalars['Boolean'];
   isPrivateMemberships: Scalars['Boolean'];
-  isPrivateOrganizationsCreated: Scalars['Boolean'];
   isPrivateProjects: Scalars['Boolean'];
   isPrivateProjectsCreated: Scalars['Boolean'];
   isPrivatePullRequests: Scalars['Boolean'];
@@ -9598,9 +9821,9 @@ export type User = {
   isPrivateRoles: Scalars['Boolean'];
   isPrivateRoutines: Scalars['Boolean'];
   isPrivateRoutinesCreated: Scalars['Boolean'];
-  isPrivateSmartContracts: Scalars['Boolean'];
   isPrivateStandards: Scalars['Boolean'];
   isPrivateStandardsCreated: Scalars['Boolean'];
+  isPrivateTeamsCreated: Scalars['Boolean'];
   isPrivateVotes: Scalars['Boolean'];
   issuesClosed?: Maybe<Array<Issue>>;
   issuesCreated?: Maybe<Array<Issue>>;
@@ -9617,8 +9840,8 @@ export type User = {
   notificationSettings?: Maybe<Scalars['String']>;
   notificationSubscriptions?: Maybe<Array<NotificationSubscription>>;
   notifications?: Maybe<Array<Notification>>;
-  organizationsCreate?: Maybe<Array<Organization>>;
   paymentHistory?: Maybe<Array<Payment>>;
+  phones?: Maybe<Array<Phone>>;
   premium?: Maybe<Premium>;
   profileImage?: Maybe<Scalars['String']>;
   projects?: Maybe<Array<Project>>;
@@ -9644,14 +9867,12 @@ export type User = {
   runProjects?: Maybe<Array<RunProject>>;
   runRoutines?: Maybe<Array<RunRoutine>>;
   sentReports?: Maybe<Array<Report>>;
-  smartContracts?: Maybe<Array<SmartContract>>;
-  smartContractsCount: Scalars['Int'];
-  smartContractsCreated?: Maybe<Array<SmartContract>>;
   standards?: Maybe<Array<Standard>>;
   standardsCount: Scalars['Int'];
   standardsCreated?: Maybe<Array<Standard>>;
   status?: Maybe<AccountStatus>;
   tags?: Maybe<Array<Tag>>;
+  teamsCreated?: Maybe<Array<Team>>;
   theme?: Maybe<Scalars['String']>;
   transfersIncoming?: Maybe<Array<Transfer>>;
   transfersOutgoing?: Maybe<Array<Transfer>>;
@@ -9685,7 +9906,7 @@ export type UserSearchInput = {
   isBotDepictingPerson?: InputMaybe<Scalars['Boolean']>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
-  memberInOrganizationId?: InputMaybe<Scalars['ID']>;
+  memberInTeamId?: InputMaybe<Scalars['ID']>;
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   notInChatId?: InputMaybe<Scalars['ID']>;
@@ -9743,6 +9964,11 @@ export type ValidateSessionInput = {
   timeZone: Scalars['String'];
 };
 
+export type ValidateVerificationTextInput = {
+  phoneNumber: Scalars['String'];
+  verificationCode: Scalars['String'];
+};
+
 export type VersionYou = {
   __typename: 'VersionYou';
   canComment: Scalars['Boolean'];
@@ -9789,7 +10015,7 @@ export enum ViewSortBy {
   LastViewedDesc = 'LastViewedDesc'
 }
 
-export type ViewTo = Api | Issue | Note | Organization | Post | Project | Question | Routine | SmartContract | Standard | User;
+export type ViewTo = Api | Code | Issue | Note | Post | Project | Question | Routine | Standard | Team | User;
 
 export enum VisibilityType {
   All = 'All',
@@ -9802,9 +10028,9 @@ export type Wallet = {
   __typename: 'Wallet';
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
-  organization?: Maybe<Organization>;
   publicAddress?: Maybe<Scalars['String']>;
   stakingAddress: Scalars['String'];
+  team?: Maybe<Team>;
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
 };
@@ -9929,6 +10155,8 @@ export type ResolversTypes = {
   ApiVersionTranslationUpdateInput: ApiVersionTranslationUpdateInput;
   ApiVersionUpdateInput: ApiVersionUpdateInput;
   ApiYou: ResolverTypeWrapper<ApiYou>;
+  AutoFillInput: AutoFillInput;
+  AutoFillResult: ResolverTypeWrapper<AutoFillResult>;
   Award: ResolverTypeWrapper<Award>;
   AwardCategory: AwardCategory;
   AwardEdge: ResolverTypeWrapper<AwardEdge>;
@@ -9949,11 +10177,12 @@ export type ResolversTypes = {
   BookmarkSearchInput: BookmarkSearchInput;
   BookmarkSearchResult: ResolverTypeWrapper<BookmarkSearchResult>;
   BookmarkSortBy: BookmarkSortBy;
-  BookmarkTo: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['Tag'] | ResolversTypes['User'];
+  BookmarkTo: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['Standard'] | ResolversTypes['Tag'] | ResolversTypes['Team'] | ResolversTypes['User'];
   BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
   BotCreateInput: BotCreateInput;
   BotUpdateInput: BotUpdateInput;
+  CancelTaskInput: CancelTaskInput;
   Chat: ResolverTypeWrapper<Chat>;
   ChatCreateInput: ChatCreateInput;
   ChatEdge: ResolverTypeWrapper<ChatEdge>;
@@ -9980,7 +10209,7 @@ export type ResolversTypes = {
   ChatMessageTranslationUpdateInput: ChatMessageTranslationUpdateInput;
   ChatMessageUpdateInput: ChatMessageUpdateInput;
   ChatMessageYou: ResolverTypeWrapper<ChatMessageYou>;
-  ChatMessageedOn: ResolversTypes['ApiVersion'] | ResolversTypes['Issue'] | ResolversTypes['NoteVersion'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  ChatMessageedOn: ResolversTypes['ApiVersion'] | ResolversTypes['CodeVersion'] | ResolversTypes['Issue'] | ResolversTypes['NoteVersion'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['RoutineVersion'] | ResolversTypes['StandardVersion'];
   ChatParticipant: ResolverTypeWrapper<ChatParticipant>;
   ChatParticipantEdge: ResolverTypeWrapper<ChatParticipantEdge>;
   ChatParticipantSearchInput: ChatParticipantSearchInput;
@@ -9995,6 +10224,27 @@ export type ResolversTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ResolverTypeWrapper<ChatYou>;
+  CheckTaskStatusesInput: CheckTaskStatusesInput;
+  CheckTaskStatusesResult: ResolverTypeWrapper<CheckTaskStatusesResult>;
+  Code: ResolverTypeWrapper<Omit<Code, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
+  CodeCreateInput: CodeCreateInput;
+  CodeEdge: ResolverTypeWrapper<CodeEdge>;
+  CodeSearchInput: CodeSearchInput;
+  CodeSearchResult: ResolverTypeWrapper<CodeSearchResult>;
+  CodeSortBy: CodeSortBy;
+  CodeType: CodeType;
+  CodeUpdateInput: CodeUpdateInput;
+  CodeVersion: ResolverTypeWrapper<CodeVersion>;
+  CodeVersionCreateInput: CodeVersionCreateInput;
+  CodeVersionEdge: ResolverTypeWrapper<CodeVersionEdge>;
+  CodeVersionSearchInput: CodeVersionSearchInput;
+  CodeVersionSearchResult: ResolverTypeWrapper<CodeVersionSearchResult>;
+  CodeVersionSortBy: CodeVersionSortBy;
+  CodeVersionTranslation: ResolverTypeWrapper<CodeVersionTranslation>;
+  CodeVersionTranslationCreateInput: CodeVersionTranslationCreateInput;
+  CodeVersionTranslationUpdateInput: CodeVersionTranslationUpdateInput;
+  CodeVersionUpdateInput: CodeVersionUpdateInput;
+  CodeYou: ResolverTypeWrapper<CodeYou>;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
   CommentFor: CommentFor;
@@ -10007,7 +10257,7 @@ export type ResolversTypes = {
   CommentTranslationUpdateInput: CommentTranslationUpdateInput;
   CommentUpdateInput: CommentUpdateInput;
   CommentYou: ResolverTypeWrapper<CommentYou>;
-  CommentedOn: ResolversTypes['ApiVersion'] | ResolversTypes['Issue'] | ResolversTypes['NoteVersion'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  CommentedOn: ResolversTypes['ApiVersion'] | ResolversTypes['CodeVersion'] | ResolversTypes['Issue'] | ResolversTypes['NoteVersion'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['RoutineVersion'] | ResolversTypes['StandardVersion'];
   CopyInput: CopyInput;
   CopyResult: ResolverTypeWrapper<CopyResult>;
   CopyType: CopyType;
@@ -10037,6 +10287,7 @@ export type ResolversTypes = {
   FocusModeSortBy: FocusModeSortBy;
   FocusModeStopCondition: FocusModeStopCondition;
   FocusModeUpdateInput: FocusModeUpdateInput;
+  FocusModeYou: ResolverTypeWrapper<FocusModeYou>;
   GqlModelType: GqlModelType;
   HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
@@ -10052,12 +10303,13 @@ export type ResolversTypes = {
   IssueSearchResult: ResolverTypeWrapper<IssueSearchResult>;
   IssueSortBy: IssueSortBy;
   IssueStatus: IssueStatus;
-  IssueTo: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
+  IssueTo: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['Standard'] | ResolversTypes['Team'];
   IssueTranslation: ResolverTypeWrapper<IssueTranslation>;
   IssueTranslationCreateInput: IssueTranslationCreateInput;
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
   IssueYou: ResolverTypeWrapper<IssueYou>;
+  JSONObject: ResolverTypeWrapper<Scalars['JSONObject']>;
   Label: ResolverTypeWrapper<Omit<Label, 'owner'> & { owner: ResolversTypes['Owner'] }>;
   LabelCreateInput: LabelCreateInput;
   LabelEdge: ResolverTypeWrapper<LabelEdge>;
@@ -10069,6 +10321,9 @@ export type ResolversTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
+  LlmTask: LlmTask;
+  LlmTaskStatus: LlmTaskStatus;
+  LlmTaskStatusInfo: ResolverTypeWrapper<LlmTaskStatusInfo>;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
@@ -10181,18 +10436,7 @@ export type ResolversTypes = {
   NotificationSubscriptionSearchResult: ResolverTypeWrapper<NotificationSubscriptionSearchResult>;
   NotificationSubscriptionSortBy: NotificationSubscriptionSortBy;
   NotificationSubscriptionUpdateInput: NotificationSubscriptionUpdateInput;
-  Organization: ResolverTypeWrapper<Organization>;
-  OrganizationCreateInput: OrganizationCreateInput;
-  OrganizationEdge: ResolverTypeWrapper<OrganizationEdge>;
-  OrganizationSearchInput: OrganizationSearchInput;
-  OrganizationSearchResult: ResolverTypeWrapper<OrganizationSearchResult>;
-  OrganizationSortBy: OrganizationSortBy;
-  OrganizationTranslation: ResolverTypeWrapper<OrganizationTranslation>;
-  OrganizationTranslationCreateInput: OrganizationTranslationCreateInput;
-  OrganizationTranslationUpdateInput: OrganizationTranslationUpdateInput;
-  OrganizationUpdateInput: OrganizationUpdateInput;
-  OrganizationYou: ResolverTypeWrapper<OrganizationYou>;
-  Owner: ResolversTypes['Organization'] | ResolversTypes['User'];
+  Owner: ResolversTypes['Team'] | ResolversTypes['User'];
   PageInfo: ResolverTypeWrapper<PageInfo>;
   Payment: ResolverTypeWrapper<Payment>;
   PaymentEdge: ResolverTypeWrapper<PaymentEdge>;
@@ -10203,7 +10447,7 @@ export type ResolversTypes = {
   PaymentType: PaymentType;
   Phone: ResolverTypeWrapper<Phone>;
   PhoneCreateInput: PhoneCreateInput;
-  Popular: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['User'];
+  Popular: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['Standard'] | ResolversTypes['Team'] | ResolversTypes['User'];
   PopularEdge: ResolverTypeWrapper<Omit<PopularEdge, 'node'> & { node: ResolversTypes['Popular'] }>;
   PopularObjectType: PopularObjectType;
   PopularPageInfo: ResolverTypeWrapper<PopularPageInfo>;
@@ -10226,18 +10470,18 @@ export type ResolversTypes = {
   Project: ResolverTypeWrapper<Omit<Project, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   ProjectCreateInput: ProjectCreateInput;
   ProjectEdge: ResolverTypeWrapper<ProjectEdge>;
-  ProjectOrOrganization: ResolversTypes['Organization'] | ResolversTypes['Project'];
-  ProjectOrOrganizationEdge: ResolverTypeWrapper<Omit<ProjectOrOrganizationEdge, 'node'> & { node: ResolversTypes['ProjectOrOrganization'] }>;
-  ProjectOrOrganizationPageInfo: ResolverTypeWrapper<ProjectOrOrganizationPageInfo>;
-  ProjectOrOrganizationSearchInput: ProjectOrOrganizationSearchInput;
-  ProjectOrOrganizationSearchResult: ResolverTypeWrapper<ProjectOrOrganizationSearchResult>;
-  ProjectOrOrganizationSortBy: ProjectOrOrganizationSortBy;
   ProjectOrRoutine: ResolversTypes['Project'] | ResolversTypes['Routine'];
   ProjectOrRoutineEdge: ResolverTypeWrapper<Omit<ProjectOrRoutineEdge, 'node'> & { node: ResolversTypes['ProjectOrRoutine'] }>;
   ProjectOrRoutinePageInfo: ResolverTypeWrapper<ProjectOrRoutinePageInfo>;
   ProjectOrRoutineSearchInput: ProjectOrRoutineSearchInput;
   ProjectOrRoutineSearchResult: ResolverTypeWrapper<ProjectOrRoutineSearchResult>;
   ProjectOrRoutineSortBy: ProjectOrRoutineSortBy;
+  ProjectOrTeam: ResolversTypes['Project'] | ResolversTypes['Team'];
+  ProjectOrTeamEdge: ResolverTypeWrapper<Omit<ProjectOrTeamEdge, 'node'> & { node: ResolversTypes['ProjectOrTeam'] }>;
+  ProjectOrTeamPageInfo: ResolverTypeWrapper<ProjectOrTeamPageInfo>;
+  ProjectOrTeamSearchInput: ProjectOrTeamSearchInput;
+  ProjectOrTeamSearchResult: ResolverTypeWrapper<ProjectOrTeamSearchResult>;
+  ProjectOrTeamSortBy: ProjectOrTeamSortBy;
   ProjectSearchInput: ProjectSearchInput;
   ProjectSearchResult: ResolverTypeWrapper<ProjectSearchResult>;
   ProjectSortBy: ProjectSortBy;
@@ -10270,13 +10514,13 @@ export type ResolversTypes = {
   PullRequest: ResolverTypeWrapper<Omit<PullRequest, 'from' | 'to'> & { from: ResolversTypes['PullRequestFrom'], to: ResolversTypes['PullRequestTo'] }>;
   PullRequestCreateInput: PullRequestCreateInput;
   PullRequestEdge: ResolverTypeWrapper<PullRequestEdge>;
-  PullRequestFrom: ResolversTypes['ApiVersion'] | ResolversTypes['NoteVersion'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  PullRequestFrom: ResolversTypes['ApiVersion'] | ResolversTypes['CodeVersion'] | ResolversTypes['NoteVersion'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['StandardVersion'];
   PullRequestFromObjectType: PullRequestFromObjectType;
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: ResolverTypeWrapper<PullRequestSearchResult>;
   PullRequestSortBy: PullRequestSortBy;
   PullRequestStatus: PullRequestStatus;
-  PullRequestTo: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
+  PullRequestTo: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['Standard'];
   PullRequestToObjectType: PullRequestToObjectType;
   PullRequestTranslation: ResolverTypeWrapper<PullRequestTranslation>;
   PullRequestTranslationCreateInput: PullRequestTranslationCreateInput;
@@ -10301,7 +10545,7 @@ export type ResolversTypes = {
   QuestionAnswerUpdateInput: QuestionAnswerUpdateInput;
   QuestionCreateInput: QuestionCreateInput;
   QuestionEdge: ResolverTypeWrapper<QuestionEdge>;
-  QuestionFor: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
+  QuestionFor: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['Standard'] | ResolversTypes['Team'];
   QuestionForType: QuestionForType;
   QuestionSearchInput: QuestionSearchInput;
   QuestionSearchResult: ResolverTypeWrapper<QuestionSearchResult>;
@@ -10358,8 +10602,9 @@ export type ResolversTypes = {
   ReactionSearchResult: ResolverTypeWrapper<ReactionSearchResult>;
   ReactionSortBy: ReactionSortBy;
   ReactionSummary: ResolverTypeWrapper<ReactionSummary>;
-  ReactionTo: ResolversTypes['Api'] | ResolversTypes['ChatMessage'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
+  ReactionTo: ResolversTypes['Api'] | ResolversTypes['ChatMessage'] | ResolversTypes['Code'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['QuestionAnswer'] | ResolversTypes['Quiz'] | ResolversTypes['Routine'] | ResolversTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
+  RegenerateResponseInput: RegenerateResponseInput;
   Reminder: ResolverTypeWrapper<Reminder>;
   ReminderCreateInput: ReminderCreateInput;
   ReminderEdge: ResolverTypeWrapper<ReminderEdge>;
@@ -10388,6 +10633,7 @@ export type ResolversTypes = {
   ReportSearchInput: ReportSearchInput;
   ReportSearchResult: ResolverTypeWrapper<ReportSearchResult>;
   ReportSortBy: ReportSortBy;
+  ReportStatus: ReportStatus;
   ReportSuggestedAction: ReportSuggestedAction;
   ReportUpdateInput: ReportUpdateInput;
   ReportYou: ResolverTypeWrapper<ReportYou>;
@@ -10403,7 +10649,7 @@ export type ResolversTypes = {
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResolverTypeWrapper<ResourceListEdge>;
   ResourceListFor: ResourceListFor;
-  ResourceListOn: ResolversTypes['ApiVersion'] | ResolversTypes['FocusMode'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
+  ResourceListOn: ResolversTypes['ApiVersion'] | ResolversTypes['CodeVersion'] | ResolversTypes['FocusMode'] | ResolversTypes['Post'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['StandardVersion'] | ResolversTypes['Team'];
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResolverTypeWrapper<ResourceListSearchResult>;
   ResourceListSortBy: ResourceListSortBy;
@@ -10436,6 +10682,7 @@ export type ResolversTypes = {
   RoutineSearchInput: RoutineSearchInput;
   RoutineSearchResult: ResolverTypeWrapper<RoutineSearchResult>;
   RoutineSortBy: RoutineSortBy;
+  RoutineType: RoutineType;
   RoutineUpdateInput: RoutineUpdateInput;
   RoutineVersion: ResolverTypeWrapper<RoutineVersion>;
   RoutineVersionCreateInput: RoutineVersionCreateInput;
@@ -10533,24 +10780,6 @@ export type ResolversTypes = {
   Session: ResolverTypeWrapper<Session>;
   SessionUser: ResolverTypeWrapper<SessionUser>;
   SetActiveFocusModeInput: SetActiveFocusModeInput;
-  SmartContract: ResolverTypeWrapper<Omit<SmartContract, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
-  SmartContractCreateInput: SmartContractCreateInput;
-  SmartContractEdge: ResolverTypeWrapper<SmartContractEdge>;
-  SmartContractSearchInput: SmartContractSearchInput;
-  SmartContractSearchResult: ResolverTypeWrapper<SmartContractSearchResult>;
-  SmartContractSortBy: SmartContractSortBy;
-  SmartContractUpdateInput: SmartContractUpdateInput;
-  SmartContractVersion: ResolverTypeWrapper<SmartContractVersion>;
-  SmartContractVersionCreateInput: SmartContractVersionCreateInput;
-  SmartContractVersionEdge: ResolverTypeWrapper<SmartContractVersionEdge>;
-  SmartContractVersionSearchInput: SmartContractVersionSearchInput;
-  SmartContractVersionSearchResult: ResolverTypeWrapper<SmartContractVersionSearchResult>;
-  SmartContractVersionSortBy: SmartContractVersionSortBy;
-  SmartContractVersionTranslation: ResolverTypeWrapper<SmartContractVersionTranslation>;
-  SmartContractVersionTranslationCreateInput: SmartContractVersionTranslationCreateInput;
-  SmartContractVersionTranslationUpdateInput: SmartContractVersionTranslationUpdateInput;
-  SmartContractVersionUpdateInput: SmartContractVersionUpdateInput;
-  SmartContractYou: ResolverTypeWrapper<SmartContractYou>;
   Standard: ResolverTypeWrapper<Omit<Standard, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   StandardCreateInput: StandardCreateInput;
   StandardEdge: ResolverTypeWrapper<StandardEdge>;
@@ -10569,17 +10798,18 @@ export type ResolversTypes = {
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: ResolverTypeWrapper<StandardYou>;
+  StartTaskInput: StartTaskInput;
   StatPeriodType: StatPeriodType;
   StatsApi: ResolverTypeWrapper<StatsApi>;
   StatsApiEdge: ResolverTypeWrapper<StatsApiEdge>;
   StatsApiSearchInput: StatsApiSearchInput;
   StatsApiSearchResult: ResolverTypeWrapper<StatsApiSearchResult>;
   StatsApiSortBy: StatsApiSortBy;
-  StatsOrganization: ResolverTypeWrapper<StatsOrganization>;
-  StatsOrganizationEdge: ResolverTypeWrapper<StatsOrganizationEdge>;
-  StatsOrganizationSearchInput: StatsOrganizationSearchInput;
-  StatsOrganizationSearchResult: ResolverTypeWrapper<StatsOrganizationSearchResult>;
-  StatsOrganizationSortBy: StatsOrganizationSortBy;
+  StatsCode: ResolverTypeWrapper<StatsCode>;
+  StatsCodeEdge: ResolverTypeWrapper<StatsCodeEdge>;
+  StatsCodeSearchInput: StatsCodeSearchInput;
+  StatsCodeSearchResult: ResolverTypeWrapper<StatsCodeSearchResult>;
+  StatsCodeSortBy: StatsCodeSortBy;
   StatsProject: ResolverTypeWrapper<StatsProject>;
   StatsProjectEdge: ResolverTypeWrapper<StatsProjectEdge>;
   StatsProjectSearchInput: StatsProjectSearchInput;
@@ -10600,16 +10830,16 @@ export type ResolversTypes = {
   StatsSiteSearchInput: StatsSiteSearchInput;
   StatsSiteSearchResult: ResolverTypeWrapper<StatsSiteSearchResult>;
   StatsSiteSortBy: StatsSiteSortBy;
-  StatsSmartContract: ResolverTypeWrapper<StatsSmartContract>;
-  StatsSmartContractEdge: ResolverTypeWrapper<StatsSmartContractEdge>;
-  StatsSmartContractSearchInput: StatsSmartContractSearchInput;
-  StatsSmartContractSearchResult: ResolverTypeWrapper<StatsSmartContractSearchResult>;
-  StatsSmartContractSortBy: StatsSmartContractSortBy;
   StatsStandard: ResolverTypeWrapper<StatsStandard>;
   StatsStandardEdge: ResolverTypeWrapper<StatsStandardEdge>;
   StatsStandardSearchInput: StatsStandardSearchInput;
   StatsStandardSearchResult: ResolverTypeWrapper<StatsStandardSearchResult>;
   StatsStandardSortBy: StatsStandardSortBy;
+  StatsTeam: ResolverTypeWrapper<StatsTeam>;
+  StatsTeamEdge: ResolverTypeWrapper<StatsTeamEdge>;
+  StatsTeamSearchInput: StatsTeamSearchInput;
+  StatsTeamSearchResult: ResolverTypeWrapper<StatsTeamSearchResult>;
+  StatsTeamSortBy: StatsTeamSortBy;
   StatsUser: ResolverTypeWrapper<StatsUser>;
   StatsUserEdge: ResolverTypeWrapper<StatsUserEdge>;
   StatsUserSearchInput: StatsUserSearchInput;
@@ -10617,7 +10847,7 @@ export type ResolversTypes = {
   StatsUserSortBy: StatsUserSortBy;
   String: ResolverTypeWrapper<Scalars['String']>;
   SubscribableObject: SubscribableObject;
-  SubscribedObject: ResolversTypes['Api'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Meeting'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Project'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['Quiz'] | ResolversTypes['Report'] | ResolversTypes['Routine'] | ResolversTypes['Schedule'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
+  SubscribedObject: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Comment'] | ResolversTypes['Issue'] | ResolversTypes['Meeting'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['PullRequest'] | ResolversTypes['Question'] | ResolversTypes['Quiz'] | ResolversTypes['Report'] | ResolversTypes['Routine'] | ResolversTypes['Schedule'] | ResolversTypes['Standard'] | ResolversTypes['Team'];
   Success: ResolverTypeWrapper<Success>;
   SwitchCurrentAccountInput: SwitchCurrentAccountInput;
   Tag: ResolverTypeWrapper<Tag>;
@@ -10631,11 +10861,22 @@ export type ResolversTypes = {
   TagTranslationUpdateInput: TagTranslationUpdateInput;
   TagUpdateInput: TagUpdateInput;
   TagYou: ResolverTypeWrapper<TagYou>;
+  Team: ResolverTypeWrapper<Team>;
+  TeamCreateInput: TeamCreateInput;
+  TeamEdge: ResolverTypeWrapper<TeamEdge>;
+  TeamSearchInput: TeamSearchInput;
+  TeamSearchResult: ResolverTypeWrapper<TeamSearchResult>;
+  TeamSortBy: TeamSortBy;
+  TeamTranslation: ResolverTypeWrapper<TeamTranslation>;
+  TeamTranslationCreateInput: TeamTranslationCreateInput;
+  TeamTranslationUpdateInput: TeamTranslationUpdateInput;
+  TeamUpdateInput: TeamUpdateInput;
+  TeamYou: ResolverTypeWrapper<TeamYou>;
   TimeFrame: TimeFrame;
   Transfer: ResolverTypeWrapper<Omit<Transfer, 'fromOwner' | 'object' | 'toOwner'> & { fromOwner?: Maybe<ResolversTypes['Owner']>, object: ResolversTypes['TransferObject'], toOwner?: Maybe<ResolversTypes['Owner']> }>;
   TransferDenyInput: TransferDenyInput;
   TransferEdge: ResolverTypeWrapper<TransferEdge>;
-  TransferObject: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
+  TransferObject: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['Standard'];
   TransferObjectType: TransferObjectType;
   TransferRequestReceiveInput: TransferRequestReceiveInput;
   TransferRequestSendInput: TransferRequestSendInput;
@@ -10659,13 +10900,14 @@ export type ResolversTypes = {
   UserTranslationUpdateInput: UserTranslationUpdateInput;
   UserYou: ResolverTypeWrapper<UserYou>;
   ValidateSessionInput: ValidateSessionInput;
+  ValidateVerificationTextInput: ValidateVerificationTextInput;
   VersionYou: ResolverTypeWrapper<VersionYou>;
   View: ResolverTypeWrapper<Omit<View, 'to'> & { to: ResolversTypes['ViewTo'] }>;
   ViewEdge: ResolverTypeWrapper<ViewEdge>;
   ViewSearchInput: ViewSearchInput;
   ViewSearchResult: ResolverTypeWrapper<ViewSearchResult>;
   ViewSortBy: ViewSortBy;
-  ViewTo: ResolversTypes['Api'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Organization'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'] | ResolversTypes['User'];
+  ViewTo: ResolversTypes['Api'] | ResolversTypes['Code'] | ResolversTypes['Issue'] | ResolversTypes['Note'] | ResolversTypes['Post'] | ResolversTypes['Project'] | ResolversTypes['Question'] | ResolversTypes['Routine'] | ResolversTypes['Standard'] | ResolversTypes['Team'] | ResolversTypes['User'];
   VisibilityType: VisibilityType;
   Wallet: ResolverTypeWrapper<Wallet>;
   WalletComplete: ResolverTypeWrapper<WalletComplete>;
@@ -10699,6 +10941,8 @@ export type ResolversParentTypes = {
   ApiVersionTranslationUpdateInput: ApiVersionTranslationUpdateInput;
   ApiVersionUpdateInput: ApiVersionUpdateInput;
   ApiYou: ApiYou;
+  AutoFillInput: AutoFillInput;
+  AutoFillResult: AutoFillResult;
   Award: Award;
   AwardEdge: AwardEdge;
   AwardSearchInput: AwardSearchInput;
@@ -10714,11 +10958,12 @@ export type ResolversParentTypes = {
   BookmarkListUpdateInput: BookmarkListUpdateInput;
   BookmarkSearchInput: BookmarkSearchInput;
   BookmarkSearchResult: BookmarkSearchResult;
-  BookmarkTo: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['User'];
+  BookmarkTo: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Tag'] | ResolversParentTypes['Team'] | ResolversParentTypes['User'];
   BookmarkUpdateInput: BookmarkUpdateInput;
   Boolean: Scalars['Boolean'];
   BotCreateInput: BotCreateInput;
   BotUpdateInput: BotUpdateInput;
+  CancelTaskInput: CancelTaskInput;
   Chat: Chat;
   ChatCreateInput: ChatCreateInput;
   ChatEdge: ChatEdge;
@@ -10742,7 +10987,7 @@ export type ResolversParentTypes = {
   ChatMessageTranslationUpdateInput: ChatMessageTranslationUpdateInput;
   ChatMessageUpdateInput: ChatMessageUpdateInput;
   ChatMessageYou: ChatMessageYou;
-  ChatMessageedOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['Issue'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
+  ChatMessageedOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['CodeVersion'] | ResolversParentTypes['Issue'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['StandardVersion'];
   ChatParticipant: ChatParticipant;
   ChatParticipantEdge: ChatParticipantEdge;
   ChatParticipantSearchInput: ChatParticipantSearchInput;
@@ -10755,6 +11000,24 @@ export type ResolversParentTypes = {
   ChatTranslationUpdateInput: ChatTranslationUpdateInput;
   ChatUpdateInput: ChatUpdateInput;
   ChatYou: ChatYou;
+  CheckTaskStatusesInput: CheckTaskStatusesInput;
+  CheckTaskStatusesResult: CheckTaskStatusesResult;
+  Code: Omit<Code, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
+  CodeCreateInput: CodeCreateInput;
+  CodeEdge: CodeEdge;
+  CodeSearchInput: CodeSearchInput;
+  CodeSearchResult: CodeSearchResult;
+  CodeUpdateInput: CodeUpdateInput;
+  CodeVersion: CodeVersion;
+  CodeVersionCreateInput: CodeVersionCreateInput;
+  CodeVersionEdge: CodeVersionEdge;
+  CodeVersionSearchInput: CodeVersionSearchInput;
+  CodeVersionSearchResult: CodeVersionSearchResult;
+  CodeVersionTranslation: CodeVersionTranslation;
+  CodeVersionTranslationCreateInput: CodeVersionTranslationCreateInput;
+  CodeVersionTranslationUpdateInput: CodeVersionTranslationUpdateInput;
+  CodeVersionUpdateInput: CodeVersionUpdateInput;
+  CodeYou: CodeYou;
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
   CommentSearchInput: CommentSearchInput;
@@ -10765,7 +11028,7 @@ export type ResolversParentTypes = {
   CommentTranslationUpdateInput: CommentTranslationUpdateInput;
   CommentUpdateInput: CommentUpdateInput;
   CommentYou: CommentYou;
-  CommentedOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['Issue'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
+  CommentedOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['CodeVersion'] | ResolversParentTypes['Issue'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['StandardVersion'];
   CopyInput: CopyInput;
   CopyResult: CopyResult;
   Count: Count;
@@ -10790,6 +11053,7 @@ export type ResolversParentTypes = {
   FocusModeSearchInput: FocusModeSearchInput;
   FocusModeSearchResult: FocusModeSearchResult;
   FocusModeUpdateInput: FocusModeUpdateInput;
+  FocusModeYou: FocusModeYou;
   HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
@@ -10801,12 +11065,13 @@ export type ResolversParentTypes = {
   IssueEdge: IssueEdge;
   IssueSearchInput: IssueSearchInput;
   IssueSearchResult: IssueSearchResult;
-  IssueTo: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  IssueTo: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Team'];
   IssueTranslation: IssueTranslation;
   IssueTranslationCreateInput: IssueTranslationCreateInput;
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
   IssueYou: IssueYou;
+  JSONObject: Scalars['JSONObject'];
   Label: Omit<Label, 'owner'> & { owner: ResolversParentTypes['Owner'] };
   LabelCreateInput: LabelCreateInput;
   LabelEdge: LabelEdge;
@@ -10817,6 +11082,7 @@ export type ResolversParentTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: LabelYou;
+  LlmTaskStatusInfo: LlmTaskStatusInfo;
   LogOutInput: LogOutInput;
   Meeting: Meeting;
   MeetingCreateInput: MeetingCreateInput;
@@ -10918,17 +11184,7 @@ export type ResolversParentTypes = {
   NotificationSubscriptionSearchInput: NotificationSubscriptionSearchInput;
   NotificationSubscriptionSearchResult: NotificationSubscriptionSearchResult;
   NotificationSubscriptionUpdateInput: NotificationSubscriptionUpdateInput;
-  Organization: Organization;
-  OrganizationCreateInput: OrganizationCreateInput;
-  OrganizationEdge: OrganizationEdge;
-  OrganizationSearchInput: OrganizationSearchInput;
-  OrganizationSearchResult: OrganizationSearchResult;
-  OrganizationTranslation: OrganizationTranslation;
-  OrganizationTranslationCreateInput: OrganizationTranslationCreateInput;
-  OrganizationTranslationUpdateInput: OrganizationTranslationUpdateInput;
-  OrganizationUpdateInput: OrganizationUpdateInput;
-  OrganizationYou: OrganizationYou;
-  Owner: ResolversParentTypes['Organization'] | ResolversParentTypes['User'];
+  Owner: ResolversParentTypes['Team'] | ResolversParentTypes['User'];
   PageInfo: PageInfo;
   Payment: Payment;
   PaymentEdge: PaymentEdge;
@@ -10936,7 +11192,7 @@ export type ResolversParentTypes = {
   PaymentSearchResult: PaymentSearchResult;
   Phone: Phone;
   PhoneCreateInput: PhoneCreateInput;
-  Popular: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['User'];
+  Popular: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Team'] | ResolversParentTypes['User'];
   PopularEdge: Omit<PopularEdge, 'node'> & { node: ResolversParentTypes['Popular'] };
   PopularPageInfo: PopularPageInfo;
   PopularSearchInput: PopularSearchInput;
@@ -10956,16 +11212,16 @@ export type ResolversParentTypes = {
   Project: Omit<Project, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   ProjectCreateInput: ProjectCreateInput;
   ProjectEdge: ProjectEdge;
-  ProjectOrOrganization: ResolversParentTypes['Organization'] | ResolversParentTypes['Project'];
-  ProjectOrOrganizationEdge: Omit<ProjectOrOrganizationEdge, 'node'> & { node: ResolversParentTypes['ProjectOrOrganization'] };
-  ProjectOrOrganizationPageInfo: ProjectOrOrganizationPageInfo;
-  ProjectOrOrganizationSearchInput: ProjectOrOrganizationSearchInput;
-  ProjectOrOrganizationSearchResult: ProjectOrOrganizationSearchResult;
   ProjectOrRoutine: ResolversParentTypes['Project'] | ResolversParentTypes['Routine'];
   ProjectOrRoutineEdge: Omit<ProjectOrRoutineEdge, 'node'> & { node: ResolversParentTypes['ProjectOrRoutine'] };
   ProjectOrRoutinePageInfo: ProjectOrRoutinePageInfo;
   ProjectOrRoutineSearchInput: ProjectOrRoutineSearchInput;
   ProjectOrRoutineSearchResult: ProjectOrRoutineSearchResult;
+  ProjectOrTeam: ResolversParentTypes['Project'] | ResolversParentTypes['Team'];
+  ProjectOrTeamEdge: Omit<ProjectOrTeamEdge, 'node'> & { node: ResolversParentTypes['ProjectOrTeam'] };
+  ProjectOrTeamPageInfo: ProjectOrTeamPageInfo;
+  ProjectOrTeamSearchInput: ProjectOrTeamSearchInput;
+  ProjectOrTeamSearchResult: ProjectOrTeamSearchResult;
   ProjectSearchInput: ProjectSearchInput;
   ProjectSearchResult: ProjectSearchResult;
   ProjectUpdateInput: ProjectUpdateInput;
@@ -10994,10 +11250,10 @@ export type ResolversParentTypes = {
   PullRequest: Omit<PullRequest, 'from' | 'to'> & { from: ResolversParentTypes['PullRequestFrom'], to: ResolversParentTypes['PullRequestTo'] };
   PullRequestCreateInput: PullRequestCreateInput;
   PullRequestEdge: PullRequestEdge;
-  PullRequestFrom: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
+  PullRequestFrom: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['CodeVersion'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['StandardVersion'];
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: PullRequestSearchResult;
-  PullRequestTo: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  PullRequestTo: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'];
   PullRequestTranslation: PullRequestTranslation;
   PullRequestTranslationCreateInput: PullRequestTranslationCreateInput;
   PullRequestTranslationUpdateInput: PullRequestTranslationUpdateInput;
@@ -11020,7 +11276,7 @@ export type ResolversParentTypes = {
   QuestionAnswerUpdateInput: QuestionAnswerUpdateInput;
   QuestionCreateInput: QuestionCreateInput;
   QuestionEdge: QuestionEdge;
-  QuestionFor: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  QuestionFor: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Team'];
   QuestionSearchInput: QuestionSearchInput;
   QuestionSearchResult: QuestionSearchResult;
   QuestionTranslation: QuestionTranslation;
@@ -11068,8 +11324,9 @@ export type ResolversParentTypes = {
   ReactionSearchInput: ReactionSearchInput;
   ReactionSearchResult: ReactionSearchResult;
   ReactionSummary: ReactionSummary;
-  ReactionTo: ResolversParentTypes['Api'] | ResolversParentTypes['ChatMessage'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  ReactionTo: ResolversParentTypes['Api'] | ResolversParentTypes['ChatMessage'] | ResolversParentTypes['Code'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['QuestionAnswer'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'];
   ReadAssetsInput: ReadAssetsInput;
+  RegenerateResponseInput: RegenerateResponseInput;
   Reminder: Reminder;
   ReminderCreateInput: ReminderCreateInput;
   ReminderEdge: ReminderEdge;
@@ -11106,7 +11363,7 @@ export type ResolversParentTypes = {
   ResourceList: Omit<ResourceList, 'listFor'> & { listFor: ResolversParentTypes['ResourceListOn'] };
   ResourceListCreateInput: ResourceListCreateInput;
   ResourceListEdge: ResourceListEdge;
-  ResourceListOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['FocusMode'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
+  ResourceListOn: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['CodeVersion'] | ResolversParentTypes['FocusMode'] | ResolversParentTypes['Post'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['StandardVersion'] | ResolversParentTypes['Team'];
   ResourceListSearchInput: ResourceListSearchInput;
   ResourceListSearchResult: ResourceListSearchResult;
   ResourceListTranslation: ResourceListTranslation;
@@ -11217,22 +11474,6 @@ export type ResolversParentTypes = {
   Session: Session;
   SessionUser: SessionUser;
   SetActiveFocusModeInput: SetActiveFocusModeInput;
-  SmartContract: Omit<SmartContract, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
-  SmartContractCreateInput: SmartContractCreateInput;
-  SmartContractEdge: SmartContractEdge;
-  SmartContractSearchInput: SmartContractSearchInput;
-  SmartContractSearchResult: SmartContractSearchResult;
-  SmartContractUpdateInput: SmartContractUpdateInput;
-  SmartContractVersion: SmartContractVersion;
-  SmartContractVersionCreateInput: SmartContractVersionCreateInput;
-  SmartContractVersionEdge: SmartContractVersionEdge;
-  SmartContractVersionSearchInput: SmartContractVersionSearchInput;
-  SmartContractVersionSearchResult: SmartContractVersionSearchResult;
-  SmartContractVersionTranslation: SmartContractVersionTranslation;
-  SmartContractVersionTranslationCreateInput: SmartContractVersionTranslationCreateInput;
-  SmartContractVersionTranslationUpdateInput: SmartContractVersionTranslationUpdateInput;
-  SmartContractVersionUpdateInput: SmartContractVersionUpdateInput;
-  SmartContractYou: SmartContractYou;
   Standard: Omit<Standard, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   StandardCreateInput: StandardCreateInput;
   StandardEdge: StandardEdge;
@@ -11249,14 +11490,15 @@ export type ResolversParentTypes = {
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: StandardYou;
+  StartTaskInput: StartTaskInput;
   StatsApi: StatsApi;
   StatsApiEdge: StatsApiEdge;
   StatsApiSearchInput: StatsApiSearchInput;
   StatsApiSearchResult: StatsApiSearchResult;
-  StatsOrganization: StatsOrganization;
-  StatsOrganizationEdge: StatsOrganizationEdge;
-  StatsOrganizationSearchInput: StatsOrganizationSearchInput;
-  StatsOrganizationSearchResult: StatsOrganizationSearchResult;
+  StatsCode: StatsCode;
+  StatsCodeEdge: StatsCodeEdge;
+  StatsCodeSearchInput: StatsCodeSearchInput;
+  StatsCodeSearchResult: StatsCodeSearchResult;
   StatsProject: StatsProject;
   StatsProjectEdge: StatsProjectEdge;
   StatsProjectSearchInput: StatsProjectSearchInput;
@@ -11273,20 +11515,20 @@ export type ResolversParentTypes = {
   StatsSiteEdge: StatsSiteEdge;
   StatsSiteSearchInput: StatsSiteSearchInput;
   StatsSiteSearchResult: StatsSiteSearchResult;
-  StatsSmartContract: StatsSmartContract;
-  StatsSmartContractEdge: StatsSmartContractEdge;
-  StatsSmartContractSearchInput: StatsSmartContractSearchInput;
-  StatsSmartContractSearchResult: StatsSmartContractSearchResult;
   StatsStandard: StatsStandard;
   StatsStandardEdge: StatsStandardEdge;
   StatsStandardSearchInput: StatsStandardSearchInput;
   StatsStandardSearchResult: StatsStandardSearchResult;
+  StatsTeam: StatsTeam;
+  StatsTeamEdge: StatsTeamEdge;
+  StatsTeamSearchInput: StatsTeamSearchInput;
+  StatsTeamSearchResult: StatsTeamSearchResult;
   StatsUser: StatsUser;
   StatsUserEdge: StatsUserEdge;
   StatsUserSearchInput: StatsUserSearchInput;
   StatsUserSearchResult: StatsUserSearchResult;
   String: Scalars['String'];
-  SubscribedObject: ResolversParentTypes['Api'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Meeting'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Report'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Schedule'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  SubscribedObject: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Comment'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Meeting'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['PullRequest'] | ResolversParentTypes['Question'] | ResolversParentTypes['Quiz'] | ResolversParentTypes['Report'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Schedule'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Team'];
   Success: Success;
   SwitchCurrentAccountInput: SwitchCurrentAccountInput;
   Tag: Tag;
@@ -11299,11 +11541,21 @@ export type ResolversParentTypes = {
   TagTranslationUpdateInput: TagTranslationUpdateInput;
   TagUpdateInput: TagUpdateInput;
   TagYou: TagYou;
+  Team: Team;
+  TeamCreateInput: TeamCreateInput;
+  TeamEdge: TeamEdge;
+  TeamSearchInput: TeamSearchInput;
+  TeamSearchResult: TeamSearchResult;
+  TeamTranslation: TeamTranslation;
+  TeamTranslationCreateInput: TeamTranslationCreateInput;
+  TeamTranslationUpdateInput: TeamTranslationUpdateInput;
+  TeamUpdateInput: TeamUpdateInput;
+  TeamYou: TeamYou;
   TimeFrame: TimeFrame;
   Transfer: Omit<Transfer, 'fromOwner' | 'object' | 'toOwner'> & { fromOwner?: Maybe<ResolversParentTypes['Owner']>, object: ResolversParentTypes['TransferObject'], toOwner?: Maybe<ResolversParentTypes['Owner']> };
   TransferDenyInput: TransferDenyInput;
   TransferEdge: TransferEdge;
-  TransferObject: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
+  TransferObject: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'];
   TransferRequestReceiveInput: TransferRequestReceiveInput;
   TransferRequestSendInput: TransferRequestSendInput;
   TransferSearchInput: TransferSearchInput;
@@ -11323,12 +11575,13 @@ export type ResolversParentTypes = {
   UserTranslationUpdateInput: UserTranslationUpdateInput;
   UserYou: UserYou;
   ValidateSessionInput: ValidateSessionInput;
+  ValidateVerificationTextInput: ValidateVerificationTextInput;
   VersionYou: VersionYou;
   View: Omit<View, 'to'> & { to: ResolversParentTypes['ViewTo'] };
   ViewEdge: ViewEdge;
   ViewSearchInput: ViewSearchInput;
   ViewSearchResult: ViewSearchResult;
-  ViewTo: ResolversParentTypes['Api'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'] | ResolversParentTypes['User'];
+  ViewTo: ResolversParentTypes['Api'] | ResolversParentTypes['Code'] | ResolversParentTypes['Issue'] | ResolversParentTypes['Note'] | ResolversParentTypes['Post'] | ResolversParentTypes['Project'] | ResolversParentTypes['Question'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'] | ResolversParentTypes['Team'] | ResolversParentTypes['User'];
   Wallet: Wallet;
   WalletComplete: WalletComplete;
   WalletCompleteInput: WalletCompleteInput;
@@ -11418,6 +11671,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Api'], ParentType, ContextType>;
+  schemaText?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ApiVersionTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11458,6 +11712,11 @@ export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParen
   isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type AutoFillResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['AutoFillResult'] = ResolversParentTypes['AutoFillResult']> = {
+  data?: Resolver<ResolversTypes['JSONObject'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11530,7 +11789,7 @@ export type BookmarkSearchResultResolvers<ContextType = any, ParentType extends 
 };
 
 export type BookmarkToResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookmarkTo'] = ResolversParentTypes['BookmarkTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Comment' | 'Issue' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard' | 'Tag' | 'User', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Comment' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'Standard' | 'Tag' | 'Team' | 'User', ParentType, ContextType>;
 };
 
 export type ChatResolvers<ContextType = any, ParentType extends ResolversParentTypes['Chat'] = ResolversParentTypes['Chat']> = {
@@ -11542,10 +11801,10 @@ export type ChatResolvers<ContextType = any, ParentType extends ResolversParentT
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   messages?: Resolver<Array<ResolversTypes['ChatMessage']>, ParentType, ContextType>;
   openToAnyoneWithInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   participants?: Resolver<Array<ResolversTypes['ChatParticipant']>, ParentType, ContextType>;
   participantsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ChatTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -11651,7 +11910,7 @@ export type ChatMessageYouResolvers<ContextType = any, ParentType extends Resolv
 };
 
 export type ChatMessageedOnResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatMessageedOn'] = ResolversParentTypes['ChatMessageedOn']> = {
-  __resolveType: TypeResolveFn<'ApiVersion' | 'Issue' | 'NoteVersion' | 'Post' | 'ProjectVersion' | 'PullRequest' | 'Question' | 'QuestionAnswer' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'ApiVersion' | 'CodeVersion' | 'Issue' | 'NoteVersion' | 'Post' | 'ProjectVersion' | 'PullRequest' | 'Question' | 'QuestionAnswer' | 'RoutineVersion' | 'StandardVersion', ParentType, ContextType>;
 };
 
 export type ChatParticipantResolvers<ContextType = any, ParentType extends ResolversParentTypes['ChatParticipant'] = ResolversParentTypes['ChatParticipant']> = {
@@ -11694,6 +11953,125 @@ export type ChatYouResolvers<ContextType = any, ParentType extends ResolversPare
   canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CheckTaskStatusesResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CheckTaskStatusesResult'] = ResolversParentTypes['CheckTaskStatusesResult']> = {
+  statuses?: Resolver<Array<ResolversTypes['LlmTaskStatusInfo']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeResolvers<ContextType = any, ParentType extends ResolversParentTypes['Code'] = ResolversParentTypes['Code']> = {
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
+  createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  hasCompleteVersion?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
+  issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
+  owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
+  pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
+  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  stats?: Resolver<Array<ResolversTypes['StatsCode']>, ParentType, ContextType>;
+  tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
+  transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
+  transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  versions?: Resolver<Array<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
+  versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['CodeYou'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeEdge'] = ResolversParentTypes['CodeEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Code'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeSearchResult'] = ResolversParentTypes['CodeSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['CodeEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeVersion'] = ResolversParentTypes['CodeVersion']> = {
+  calledByRoutineVersionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codeLanguage?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  codeType?: Resolver<ResolversTypes['CodeType'], ParentType, ContextType>;
+  comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
+  commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
+  content?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  default?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
+  directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  forks?: Resolver<Array<ResolversTypes['Code']>, ParentType, ContextType>;
+  forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
+  reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
+  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
+  root?: Resolver<ResolversTypes['Code'], ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['CodeVersionTranslation']>, ParentType, ContextType>;
+  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['VersionYou'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeVersionEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeVersionEdge'] = ResolversParentTypes['CodeVersionEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['CodeVersion'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeVersionSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeVersionSearchResult'] = ResolversParentTypes['CodeVersionSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['CodeVersionEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeVersionTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeVersionTranslation'] = ResolversParentTypes['CodeVersionTranslation']> = {
+  description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  jsonVariable?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CodeYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['CodeYou'] = ResolversParentTypes['CodeYou']> = {
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11749,17 +12127,17 @@ export type CommentYouResolvers<ContextType = any, ParentType extends ResolversP
 };
 
 export type CommentedOnResolvers<ContextType = any, ParentType extends ResolversParentTypes['CommentedOn'] = ResolversParentTypes['CommentedOn']> = {
-  __resolveType: TypeResolveFn<'ApiVersion' | 'Issue' | 'NoteVersion' | 'Post' | 'ProjectVersion' | 'PullRequest' | 'Question' | 'QuestionAnswer' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'ApiVersion' | 'CodeVersion' | 'Issue' | 'NoteVersion' | 'Post' | 'ProjectVersion' | 'PullRequest' | 'Question' | 'QuestionAnswer' | 'RoutineVersion' | 'StandardVersion', ParentType, ContextType>;
 };
 
 export type CopyResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CopyResult'] = ResolversParentTypes['CopyResult']> = {
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
+  codeVersion?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
   noteVersion?: Resolver<Maybe<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
-  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11790,6 +12168,7 @@ export type FocusModeResolvers<ContextType = any, ParentType extends ResolversPa
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['FocusModeYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11810,6 +12189,13 @@ export type FocusModeFilterResolvers<ContextType = any, ParentType extends Resol
 export type FocusModeSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['FocusModeSearchResult'] = ResolversParentTypes['FocusModeSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['FocusModeEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type FocusModeYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['FocusModeYou'] = ResolversParentTypes['FocusModeYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11860,7 +12246,7 @@ export type IssueSearchResultResolvers<ContextType = any, ParentType extends Res
 };
 
 export type IssueToResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssueTo'] = ResolversParentTypes['IssueTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Organization' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Note' | 'Project' | 'Routine' | 'Standard' | 'Team', ParentType, ContextType>;
 };
 
 export type IssueTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssueTranslation'] = ResolversParentTypes['IssueTranslation']> = {
@@ -11884,9 +12270,15 @@ export type IssueYouResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export interface JsonObjectScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['JSONObject'], any> {
+  name: 'JSONObject';
+}
+
 export type LabelResolvers<ContextType = any, ParentType extends ResolversParentTypes['Label'] = ResolversParentTypes['Label']> = {
   apis?: Resolver<Maybe<Array<ResolversTypes['Api']>>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codes?: Resolver<Maybe<Array<ResolversTypes['Code']>>, ParentType, ContextType>;
+  codesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   color?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   focusModes?: Resolver<Maybe<Array<ResolversTypes['FocusMode']>>, ParentType, ContextType>;
@@ -11906,8 +12298,6 @@ export type LabelResolvers<ContextType = any, ParentType extends ResolversParent
   routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   schedules?: Resolver<Maybe<Array<ResolversTypes['Schedule']>>, ParentType, ContextType>;
   schedulesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContracts?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
-  smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standards?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['LabelTranslation']>, ParentType, ContextType>;
@@ -11942,6 +12332,12 @@ export type LabelYouResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type LlmTaskStatusInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['LlmTaskStatusInfo'] = ResolversParentTypes['LlmTaskStatusInfo']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['LlmTaskStatus']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type MeetingResolvers<ContextType = any, ParentType extends ResolversParentTypes['Meeting'] = ResolversParentTypes['Meeting']> = {
   attendees?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   attendeesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11952,10 +12348,10 @@ export type MeetingResolvers<ContextType = any, ParentType extends ResolversPare
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   openToAnyoneWithInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   restrictedToRoles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType>;
-  showOnOrganizationProfile?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  showOnTeamProfile?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  team?: Resolver<ResolversTypes['Team'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['MeetingTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12025,9 +12421,9 @@ export type MemberResolvers<ContextType = any, ParentType extends ResolversParen
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
+  team?: Resolver<ResolversTypes['Team'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['MemberYou'], ParentType, ContextType>;
@@ -12044,8 +12440,8 @@ export type MemberInviteResolvers<ContextType = any, ParentType extends Resolver
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MemberInviteStatus'], ParentType, ContextType>;
+  team?: Resolver<ResolversTypes['Team'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   willBeAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -12094,12 +12490,14 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   apiUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationApiUpdateArgs, 'input'>>;
   apiVersionCreate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionCreateArgs, 'input'>>;
   apiVersionUpdate?: Resolver<ResolversTypes['ApiVersion'], ParentType, ContextType, RequireFields<MutationApiVersionUpdateArgs, 'input'>>;
+  autoFill?: Resolver<ResolversTypes['AutoFillResult'], ParentType, ContextType, RequireFields<MutationAutoFillArgs, 'input'>>;
   bookmarkCreate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkCreateArgs, 'input'>>;
   bookmarkListCreate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListCreateArgs, 'input'>>;
   bookmarkListUpdate?: Resolver<ResolversTypes['BookmarkList'], ParentType, ContextType, RequireFields<MutationBookmarkListUpdateArgs, 'input'>>;
   bookmarkUpdate?: Resolver<ResolversTypes['Bookmark'], ParentType, ContextType, RequireFields<MutationBookmarkUpdateArgs, 'input'>>;
   botCreate?: Resolver<ResolversTypes['User'], ParentType, ContextType, RequireFields<MutationBotCreateArgs, 'input'>>;
   botUpdate?: Resolver<ResolversTypes['User'], ParentType, ContextType, RequireFields<MutationBotUpdateArgs, 'input'>>;
+  cancelTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationCancelTaskArgs, 'input'>>;
   chatCreate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatCreateArgs, 'input'>>;
   chatInviteAccept?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteAcceptArgs, 'input'>>;
   chatInviteCreate?: Resolver<ResolversTypes['ChatInvite'], ParentType, ContextType, RequireFields<MutationChatInviteCreateArgs, 'input'>>;
@@ -12111,6 +12509,11 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   chatMessageUpdate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageUpdateArgs, 'input'>>;
   chatParticipantUpdate?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType, RequireFields<MutationChatParticipantUpdateArgs, 'input'>>;
   chatUpdate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatUpdateArgs, 'input'>>;
+  checkTaskStatuses?: Resolver<ResolversTypes['CheckTaskStatusesResult'], ParentType, ContextType, RequireFields<MutationCheckTaskStatusesArgs, 'input'>>;
+  codeCreate?: Resolver<ResolversTypes['Code'], ParentType, ContextType, RequireFields<MutationCodeCreateArgs, 'input'>>;
+  codeUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationCodeUpdateArgs, 'input'>>;
+  codeVersionCreate?: Resolver<ResolversTypes['CodeVersion'], ParentType, ContextType, RequireFields<MutationCodeVersionCreateArgs, 'input'>>;
+  codeVersionUpdate?: Resolver<ResolversTypes['CodeVersion'], ParentType, ContextType, RequireFields<MutationCodeVersionUpdateArgs, 'input'>>;
   commentCreate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentCreateArgs, 'input'>>;
   commentUpdate?: Resolver<ResolversTypes['Comment'], ParentType, ContextType, RequireFields<MutationCommentUpdateArgs, 'input'>>;
   copy?: Resolver<ResolversTypes['CopyResult'], ParentType, ContextType, RequireFields<MutationCopyArgs, 'input'>>;
@@ -12159,8 +12562,6 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   notificationSettingsUpdate?: Resolver<ResolversTypes['NotificationSettings'], ParentType, ContextType, RequireFields<MutationNotificationSettingsUpdateArgs, 'input'>>;
   notificationSubscriptionCreate?: Resolver<ResolversTypes['NotificationSubscription'], ParentType, ContextType, RequireFields<MutationNotificationSubscriptionCreateArgs, 'input'>>;
   notificationSubscriptionUpdate?: Resolver<ResolversTypes['NotificationSubscription'], ParentType, ContextType, RequireFields<MutationNotificationSubscriptionUpdateArgs, 'input'>>;
-  organizationCreate?: Resolver<ResolversTypes['Organization'], ParentType, ContextType, RequireFields<MutationOrganizationCreateArgs, 'input'>>;
-  organizationUpdate?: Resolver<ResolversTypes['Organization'], ParentType, ContextType, RequireFields<MutationOrganizationUpdateArgs, 'input'>>;
   phoneCreate?: Resolver<ResolversTypes['Phone'], ParentType, ContextType, RequireFields<MutationPhoneCreateArgs, 'input'>>;
   postCreate?: Resolver<ResolversTypes['Post'], ParentType, ContextType, RequireFields<MutationPostCreateArgs, 'input'>>;
   postUpdate?: Resolver<ResolversTypes['Post'], ParentType, ContextType, RequireFields<MutationPostUpdateArgs, 'input'>>;
@@ -12169,6 +12570,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   projectCreate?: Resolver<ResolversTypes['Project'], ParentType, ContextType, RequireFields<MutationProjectCreateArgs, 'input'>>;
   projectUpdate?: Resolver<ResolversTypes['Project'], ParentType, ContextType, RequireFields<MutationProjectUpdateArgs, 'input'>>;
   projectVersionCreate?: Resolver<ResolversTypes['ProjectVersion'], ParentType, ContextType, RequireFields<MutationProjectVersionCreateArgs, 'input'>>;
+  projectVersionDirectoryCreate?: Resolver<ResolversTypes['ProjectVersionDirectory'], ParentType, ContextType, RequireFields<MutationProjectVersionDirectoryCreateArgs, 'input'>>;
+  projectVersionDirectoryUpdate?: Resolver<ResolversTypes['ProjectVersionDirectory'], ParentType, ContextType, RequireFields<MutationProjectVersionDirectoryUpdateArgs, 'input'>>;
   projectVersionUpdate?: Resolver<ResolversTypes['ProjectVersion'], ParentType, ContextType, RequireFields<MutationProjectVersionUpdateArgs, 'input'>>;
   pullRequestAccept?: Resolver<ResolversTypes['PullRequest'], ParentType, ContextType, RequireFields<MutationPullRequestAcceptArgs, 'input'>>;
   pullRequestCreate?: Resolver<ResolversTypes['PullRequest'], ParentType, ContextType, RequireFields<MutationPullRequestCreateArgs, 'input'>>;
@@ -12186,6 +12589,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   quizCreate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizCreateArgs, 'input'>>;
   quizUpdate?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType, RequireFields<MutationQuizUpdateArgs, 'input'>>;
   react?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationReactArgs, 'input'>>;
+  regenerateResponse?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationRegenerateResponseArgs, 'input'>>;
   reminderCreate?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType, RequireFields<MutationReminderCreateArgs, 'input'>>;
   reminderListCreate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListCreateArgs, 'input'>>;
   reminderListUpdate?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType, RequireFields<MutationReminderListUpdateArgs, 'input'>>;
@@ -12223,17 +12627,16 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   sendVerificationEmail?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationSendVerificationEmailArgs, 'input'>>;
   sendVerificationText?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationSendVerificationTextArgs, 'input'>>;
   setActiveFocusMode?: Resolver<ResolversTypes['ActiveFocusMode'], ParentType, ContextType, RequireFields<MutationSetActiveFocusModeArgs, 'input'>>;
-  smartContractCreate?: Resolver<ResolversTypes['SmartContract'], ParentType, ContextType, RequireFields<MutationSmartContractCreateArgs, 'input'>>;
-  smartContractUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationSmartContractUpdateArgs, 'input'>>;
-  smartContractVersionCreate?: Resolver<ResolversTypes['SmartContractVersion'], ParentType, ContextType, RequireFields<MutationSmartContractVersionCreateArgs, 'input'>>;
-  smartContractVersionUpdate?: Resolver<ResolversTypes['SmartContractVersion'], ParentType, ContextType, RequireFields<MutationSmartContractVersionUpdateArgs, 'input'>>;
   standardCreate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardCreateArgs, 'input'>>;
   standardUpdate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardUpdateArgs, 'input'>>;
   standardVersionCreate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionCreateArgs, 'input'>>;
   standardVersionUpdate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionUpdateArgs, 'input'>>;
+  startTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStartTaskArgs, 'input'>>;
   switchCurrentAccount?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationSwitchCurrentAccountArgs, 'input'>>;
   tagCreate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagCreateArgs, 'input'>>;
   tagUpdate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagUpdateArgs, 'input'>>;
+  teamCreate?: Resolver<ResolversTypes['Team'], ParentType, ContextType, RequireFields<MutationTeamCreateArgs, 'input'>>;
+  teamUpdate?: Resolver<ResolversTypes['Team'], ParentType, ContextType, RequireFields<MutationTeamUpdateArgs, 'input'>>;
   transferAccept?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferAcceptArgs, 'input'>>;
   transferCancel?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferCancelArgs, 'input'>>;
   transferDeny?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferDenyArgs, 'input'>>;
@@ -12242,6 +12645,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   transferUpdate?: Resolver<ResolversTypes['Transfer'], ParentType, ContextType, RequireFields<MutationTransferUpdateArgs, 'input'>>;
   userDeleteOne?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationUserDeleteOneArgs, 'input'>>;
   validateSession?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationValidateSessionArgs, 'input'>>;
+  validateVerificationText?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationValidateVerificationTextArgs, 'input'>>;
   walletComplete?: Resolver<ResolversTypes['WalletComplete'], ParentType, ContextType, RequireFields<MutationWalletCompleteArgs, 'input'>>;
   walletInit?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationWalletInitArgs, 'input'>>;
   walletUpdate?: Resolver<ResolversTypes['Wallet'], ParentType, ContextType, RequireFields<MutationWalletUpdateArgs, 'input'>>;
@@ -12530,102 +12934,8 @@ export type NotificationSubscriptionSearchResultResolvers<ContextType = any, Par
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type OrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['Organization'] = ResolversParentTypes['Organization']> = {
-  apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
-  apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  bannerImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
-  commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
-  forks?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
-  handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isOpenToNewMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
-  issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
-  labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  meetings?: Resolver<Array<ResolversTypes['Meeting']>, ParentType, ContextType>;
-  meetingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  members?: Resolver<Array<ResolversTypes['Member']>, ParentType, ContextType>;
-  membersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
-  notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  paymentHistory?: Resolver<Array<ResolversTypes['Payment']>, ParentType, ContextType>;
-  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  posts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
-  postsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
-  profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
-  projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
-  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
-  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
-  roles?: Resolver<Maybe<Array<ResolversTypes['Role']>>, ParentType, ContextType>;
-  rolesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
-  routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
-  smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
-  standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  stats?: Resolver<Array<ResolversTypes['StatsOrganization']>, ParentType, ContextType>;
-  tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
-  transfersIncoming?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
-  transfersOutgoing?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
-  translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  translations?: Resolver<Array<ResolversTypes['OrganizationTranslation']>, ParentType, ContextType>;
-  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  wallets?: Resolver<Array<ResolversTypes['Wallet']>, ParentType, ContextType>;
-  you?: Resolver<ResolversTypes['OrganizationYou'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type OrganizationEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationEdge'] = ResolversParentTypes['OrganizationEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type OrganizationSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationSearchResult'] = ResolversParentTypes['OrganizationSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['OrganizationEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type OrganizationTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationTranslation'] = ResolversParentTypes['OrganizationTranslation']> = {
-  bio?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type OrganizationYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationYou'] = ResolversParentTypes['OrganizationYou']> = {
-  canAddMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  yourMembership?: Resolver<Maybe<ResolversTypes['Member']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type OwnerResolvers<ContextType = any, ParentType extends ResolversParentTypes['Owner'] = ResolversParentTypes['Owner']> = {
-  __resolveType: TypeResolveFn<'Organization' | 'User', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Team' | 'User', ParentType, ContextType>;
 };
 
 export type PageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['PageInfo'] = ResolversParentTypes['PageInfo']> = {
@@ -12644,10 +12954,10 @@ export type PaymentResolvers<ContextType = any, ParentType extends ResolversPare
   currency?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   description?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   paymentMethod?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   paymentType?: Resolver<ResolversTypes['PaymentType'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['PaymentStatus'], ParentType, ContextType>;
+  team?: Resolver<ResolversTypes['Team'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12673,7 +12983,7 @@ export type PhoneResolvers<ContextType = any, ParentType extends ResolversParent
 };
 
 export type PopularResolvers<ContextType = any, ParentType extends ResolversParentTypes['Popular'] = ResolversParentTypes['Popular']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Organization' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard' | 'User', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Note' | 'Project' | 'Question' | 'Routine' | 'Standard' | 'Team' | 'User', ParentType, ContextType>;
 };
 
 export type PopularEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularEdge'] = ResolversParentTypes['PopularEdge']> = {
@@ -12684,13 +12994,13 @@ export type PopularEdgeResolvers<ContextType = any, ParentType extends Resolvers
 
 export type PopularPageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['PopularPageInfo'] = ResolversParentTypes['PopularPageInfo']> = {
   endCursorApi?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorCode?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endCursorNote?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  endCursorOrganization?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endCursorProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endCursorQuestion?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endCursorRoutine?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  endCursorSmartContract?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endCursorStandard?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorTeam?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endCursorUser?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12795,29 +13105,6 @@ export type ProjectEdgeResolvers<ContextType = any, ParentType extends Resolvers
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ProjectOrOrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrOrganization'] = ResolversParentTypes['ProjectOrOrganization']> = {
-  __resolveType: TypeResolveFn<'Organization' | 'Project', ParentType, ContextType>;
-};
-
-export type ProjectOrOrganizationEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrOrganizationEdge'] = ResolversParentTypes['ProjectOrOrganizationEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['ProjectOrOrganization'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ProjectOrOrganizationPageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrOrganizationPageInfo'] = ResolversParentTypes['ProjectOrOrganizationPageInfo']> = {
-  endCursorOrganization?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  endCursorProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type ProjectOrOrganizationSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrOrganizationSearchResult'] = ResolversParentTypes['ProjectOrOrganizationSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['ProjectOrOrganizationEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['ProjectOrOrganizationPageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type ProjectOrRoutineResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrRoutine'] = ResolversParentTypes['ProjectOrRoutine']> = {
   __resolveType: TypeResolveFn<'Project' | 'Routine', ParentType, ContextType>;
 };
@@ -12838,6 +13125,29 @@ export type ProjectOrRoutinePageInfoResolvers<ContextType = any, ParentType exte
 export type ProjectOrRoutineSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrRoutineSearchResult'] = ResolversParentTypes['ProjectOrRoutineSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ProjectOrRoutineEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['ProjectOrRoutinePageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectOrTeamResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrTeam'] = ResolversParentTypes['ProjectOrTeam']> = {
+  __resolveType: TypeResolveFn<'Project' | 'Team', ParentType, ContextType>;
+};
+
+export type ProjectOrTeamEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrTeamEdge'] = ResolversParentTypes['ProjectOrTeamEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['ProjectOrTeam'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectOrTeamPageInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrTeamPageInfo'] = ResolversParentTypes['ProjectOrTeamPageInfo']> = {
+  endCursorProject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endCursorTeam?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectOrTeamSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectOrTeamSearchResult'] = ResolversParentTypes['ProjectOrTeamSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['ProjectOrTeamEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['ProjectOrTeamPageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12884,25 +13194,25 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
 
 export type ProjectVersionContentsSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionContentsSearchResult'] = ResolversParentTypes['ProjectVersionContentsSearchResult']> = {
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
+  codeVersion?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
   directory?: Resolver<Maybe<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   noteVersion?: Resolver<Maybe<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
-  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type ProjectVersionDirectoryResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionDirectory'] = ResolversParentTypes['ProjectVersionDirectory']> = {
   childApiVersions?: Resolver<Array<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
+  childCodeVersions?: Resolver<Array<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
   childNoteVersions?: Resolver<Array<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
   childOrder?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  childOrganizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
   childProjectVersions?: Resolver<Array<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   childRoutineVersions?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
-  childSmartContractVersions?: Resolver<Array<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   childStandardVersions?: Resolver<Array<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
+  childTeams?: Resolver<Array<ResolversTypes['Team']>, ParentType, ContextType>;
   children?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -13004,7 +13314,7 @@ export type PullRequestEdgeResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type PullRequestFromResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestFrom'] = ResolversParentTypes['PullRequestFrom']> = {
-  __resolveType: TypeResolveFn<'ApiVersion' | 'NoteVersion' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'ApiVersion' | 'CodeVersion' | 'NoteVersion' | 'ProjectVersion' | 'RoutineVersion' | 'StandardVersion', ParentType, ContextType>;
 };
 
 export type PullRequestSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestSearchResult'] = ResolversParentTypes['PullRequestSearchResult']> = {
@@ -13014,7 +13324,7 @@ export type PullRequestSearchResultResolvers<ContextType = any, ParentType exten
 };
 
 export type PullRequestToResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTo'] = ResolversParentTypes['PullRequestTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Note' | 'Project' | 'Routine' | 'Standard', ParentType, ContextType>;
 };
 
 export type PullRequestTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTranslation'] = ResolversParentTypes['PullRequestTranslation']> = {
@@ -13060,6 +13370,10 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
   chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
   chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
+  code?: Resolver<Maybe<ResolversTypes['Code']>, ParentType, ContextType, RequireFields<QueryCodeArgs, 'input'>>;
+  codeVersion?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType, RequireFields<QueryCodeVersionArgs, 'input'>>;
+  codeVersions?: Resolver<ResolversTypes['CodeVersionSearchResult'], ParentType, ContextType, RequireFields<QueryCodeVersionsArgs, 'input'>>;
+  codes?: Resolver<ResolversTypes['CodeSearchResult'], ParentType, ContextType, RequireFields<QueryCodesArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'input'>>;
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
@@ -13086,8 +13400,6 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   notificationSubscription?: Resolver<Maybe<ResolversTypes['NotificationSubscription']>, ParentType, ContextType, RequireFields<QueryNotificationSubscriptionArgs, 'input'>>;
   notificationSubscriptions?: Resolver<ResolversTypes['NotificationSubscriptionSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationSubscriptionsArgs, 'input'>>;
   notifications?: Resolver<ResolversTypes['NotificationSearchResult'], ParentType, ContextType, RequireFields<QueryNotificationsArgs, 'input'>>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType, RequireFields<QueryOrganizationArgs, 'input'>>;
-  organizations?: Resolver<ResolversTypes['OrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryOrganizationsArgs, 'input'>>;
   payment?: Resolver<Maybe<ResolversTypes['Payment']>, ParentType, ContextType, RequireFields<QueryPaymentArgs, 'input'>>;
   payments?: Resolver<ResolversTypes['PaymentSearchResult'], ParentType, ContextType, RequireFields<QueryPaymentsArgs, 'input'>>;
   popular?: Resolver<ResolversTypes['PopularSearchResult'], ParentType, ContextType, RequireFields<QueryPopularArgs, 'input'>>;
@@ -13095,11 +13407,12 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   posts?: Resolver<ResolversTypes['PostSearchResult'], ParentType, ContextType, RequireFields<QueryPostsArgs, 'input'>>;
   profile?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   project?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType, RequireFields<QueryProjectArgs, 'input'>>;
-  projectOrOrganizations?: Resolver<ResolversTypes['ProjectOrOrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrOrganizationsArgs, 'input'>>;
   projectOrRoutines?: Resolver<ResolversTypes['ProjectOrRoutineSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrRoutinesArgs, 'input'>>;
+  projectOrTeams?: Resolver<ResolversTypes['ProjectOrTeamSearchResult'], ParentType, ContextType, RequireFields<QueryProjectOrTeamsArgs, 'input'>>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType, RequireFields<QueryProjectVersionArgs, 'input'>>;
   projectVersionContents?: Resolver<ResolversTypes['ProjectVersionContentsSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionContentsArgs, 'input'>>;
   projectVersionDirectories?: Resolver<ResolversTypes['ProjectVersionDirectorySearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionDirectoriesArgs, 'input'>>;
+  projectVersionDirectory?: Resolver<Maybe<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType, RequireFields<QueryProjectVersionDirectoryArgs, 'input'>>;
   projectVersions?: Resolver<ResolversTypes['ProjectVersionSearchResult'], ParentType, ContextType, RequireFields<QueryProjectVersionsArgs, 'input'>>;
   projects?: Resolver<ResolversTypes['ProjectSearchResult'], ParentType, ContextType, RequireFields<QueryProjectsArgs, 'input'>>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType, RequireFields<QueryPullRequestArgs, 'input'>>;
@@ -13148,25 +13461,23 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   scheduleRecurrence?: Resolver<Maybe<ResolversTypes['ScheduleRecurrence']>, ParentType, ContextType, RequireFields<QueryScheduleRecurrenceArgs, 'input'>>;
   scheduleRecurrences?: Resolver<ResolversTypes['ScheduleRecurrenceSearchResult'], ParentType, ContextType, RequireFields<QueryScheduleRecurrencesArgs, 'input'>>;
   schedules?: Resolver<ResolversTypes['ScheduleSearchResult'], ParentType, ContextType, RequireFields<QuerySchedulesArgs, 'input'>>;
-  smartContract?: Resolver<Maybe<ResolversTypes['SmartContract']>, ParentType, ContextType, RequireFields<QuerySmartContractArgs, 'input'>>;
-  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType, RequireFields<QuerySmartContractVersionArgs, 'input'>>;
-  smartContractVersions?: Resolver<ResolversTypes['SmartContractVersionSearchResult'], ParentType, ContextType, RequireFields<QuerySmartContractVersionsArgs, 'input'>>;
-  smartContracts?: Resolver<ResolversTypes['SmartContractSearchResult'], ParentType, ContextType, RequireFields<QuerySmartContractsArgs, 'input'>>;
   standard?: Resolver<Maybe<ResolversTypes['Standard']>, ParentType, ContextType, RequireFields<QueryStandardArgs, 'input'>>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType, RequireFields<QueryStandardVersionArgs, 'input'>>;
   standardVersions?: Resolver<ResolversTypes['StandardVersionSearchResult'], ParentType, ContextType, RequireFields<QueryStandardVersionsArgs, 'input'>>;
   standards?: Resolver<ResolversTypes['StandardSearchResult'], ParentType, ContextType, RequireFields<QueryStandardsArgs, 'input'>>;
   statsApi?: Resolver<ResolversTypes['StatsApiSearchResult'], ParentType, ContextType, RequireFields<QueryStatsApiArgs, 'input'>>;
-  statsOrganization?: Resolver<ResolversTypes['StatsOrganizationSearchResult'], ParentType, ContextType, RequireFields<QueryStatsOrganizationArgs, 'input'>>;
+  statsCode?: Resolver<ResolversTypes['StatsCodeSearchResult'], ParentType, ContextType, RequireFields<QueryStatsCodeArgs, 'input'>>;
   statsProject?: Resolver<ResolversTypes['StatsProjectSearchResult'], ParentType, ContextType, RequireFields<QueryStatsProjectArgs, 'input'>>;
   statsQuiz?: Resolver<ResolversTypes['StatsQuizSearchResult'], ParentType, ContextType, RequireFields<QueryStatsQuizArgs, 'input'>>;
   statsRoutine?: Resolver<ResolversTypes['StatsRoutineSearchResult'], ParentType, ContextType, RequireFields<QueryStatsRoutineArgs, 'input'>>;
   statsSite?: Resolver<ResolversTypes['StatsSiteSearchResult'], ParentType, ContextType, RequireFields<QueryStatsSiteArgs, 'input'>>;
-  statsSmartContract?: Resolver<ResolversTypes['StatsSmartContractSearchResult'], ParentType, ContextType, RequireFields<QueryStatsSmartContractArgs, 'input'>>;
   statsStandard?: Resolver<ResolversTypes['StatsStandardSearchResult'], ParentType, ContextType, RequireFields<QueryStatsStandardArgs, 'input'>>;
+  statsTeam?: Resolver<ResolversTypes['StatsTeamSearchResult'], ParentType, ContextType, RequireFields<QueryStatsTeamArgs, 'input'>>;
   statsUser?: Resolver<ResolversTypes['StatsUserSearchResult'], ParentType, ContextType, RequireFields<QueryStatsUserArgs, 'input'>>;
   tag?: Resolver<Maybe<ResolversTypes['Tag']>, ParentType, ContextType, RequireFields<QueryTagArgs, 'input'>>;
   tags?: Resolver<ResolversTypes['TagSearchResult'], ParentType, ContextType, RequireFields<QueryTagsArgs, 'input'>>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType, RequireFields<QueryTeamArgs, 'input'>>;
+  teams?: Resolver<ResolversTypes['TeamSearchResult'], ParentType, ContextType, RequireFields<QueryTeamsArgs, 'input'>>;
   transfer?: Resolver<Maybe<ResolversTypes['Transfer']>, ParentType, ContextType, RequireFields<QueryTransferArgs, 'input'>>;
   transfers?: Resolver<ResolversTypes['TransferSearchResult'], ParentType, ContextType, RequireFields<QueryTransfersArgs, 'input'>>;
   translate?: Resolver<ResolversTypes['Translate'], ParentType, ContextType, RequireFields<QueryTranslateArgs, 'input'>>;
@@ -13241,7 +13552,7 @@ export type QuestionEdgeResolvers<ContextType = any, ParentType extends Resolver
 };
 
 export type QuestionForResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionFor'] = ResolversParentTypes['QuestionFor']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Organization' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Note' | 'Project' | 'Routine' | 'Standard' | 'Team', ParentType, ContextType>;
 };
 
 export type QuestionSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuestionSearchResult'] = ResolversParentTypes['QuestionSearchResult']> = {
@@ -13454,7 +13765,7 @@ export type ReactionSummaryResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type ReactionToResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReactionTo'] = ResolversParentTypes['ReactionTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'ChatMessage' | 'Comment' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'ChatMessage' | 'Code' | 'Comment' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'QuestionAnswer' | 'Quiz' | 'Routine' | 'Standard', ParentType, ContextType>;
 };
 
 export type ReminderResolvers<ContextType = any, ParentType extends ResolversParentTypes['Reminder'] = ResolversParentTypes['Reminder']> = {
@@ -13513,6 +13824,7 @@ export type ReportResolvers<ContextType = any, ParentType extends ResolversParen
   reason?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   responses?: Resolver<Array<ResolversTypes['ReportResponse']>, ParentType, ContextType>;
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['ReportStatus'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ReportYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13625,7 +13937,7 @@ export type ResourceListEdgeResolvers<ContextType = any, ParentType extends Reso
 };
 
 export type ResourceListOnResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceListOn'] = ResolversParentTypes['ResourceListOn']> = {
-  __resolveType: TypeResolveFn<'ApiVersion' | 'FocusMode' | 'Organization' | 'Post' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'ApiVersion' | 'CodeVersion' | 'FocusMode' | 'Post' | 'ProjectVersion' | 'RoutineVersion' | 'StandardVersion' | 'Team', ParentType, ContextType>;
 };
 
 export type ResourceListSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ResourceListSearchResult'] = ResolversParentTypes['ResourceListSearchResult']> = {
@@ -13668,8 +13980,8 @@ export type RoleResolvers<ContextType = any, ParentType extends ResolversParentT
   members?: Resolver<Maybe<Array<ResolversTypes['Member']>>, ParentType, ContextType>;
   membersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  team?: Resolver<ResolversTypes['Team'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoleTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13746,12 +14058,13 @@ export type RoutineSearchResultResolvers<ContextType = any, ParentType extends R
 };
 
 export type RoutineVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersion'] = ResolversParentTypes['RoutineVersion']> = {
-  apiCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
+  codeVersion?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  configCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13776,9 +14089,8 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Routine'], ParentType, ContextType>;
+  routineType?: Resolver<ResolversTypes['RoutineType'], ParentType, ContextType>;
   simplicity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   suggestedNextByRoutineVersion?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   suggestedNextByRoutineVersionCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13886,13 +14198,13 @@ export type RunProjectResolvers<ContextType = any, ParentType extends ResolversP
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType>;
   startedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['RunStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['RunProjectStep']>, ParentType, ContextType>;
   stepsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunProjectYou'], ParentType, ContextType>;
@@ -13966,7 +14278,6 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   inputsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   runProject?: Resolver<Maybe<ResolversTypes['RunProject']>, ParentType, ContextType>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType>;
@@ -13974,6 +14285,7 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   status?: Resolver<ResolversTypes['RunStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['RunRoutineStep']>, ParentType, ContextType>;
   stepsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomatically?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -14122,7 +14434,8 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   activeFocusMode?: Resolver<Maybe<ResolversTypes['ActiveFocusMode']>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   bookmarkLists?: Resolver<Array<ResolversTypes['BookmarkList']>, ParentType, ContextType>;
-  credits?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  credits?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   focusModes?: Resolver<Array<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasPremium?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -14135,122 +14448,9 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContract'] = ResolversParentTypes['SmartContract']> = {
-  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
-  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
-  createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  hasCompleteVersion?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
-  issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
-  owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
-  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
-  pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
-  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  stats?: Resolver<Array<ResolversTypes['StatsSmartContract']>, ParentType, ContextType>;
-  tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
-  transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
-  transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  versions?: Resolver<Array<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
-  versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  you?: Resolver<ResolversTypes['SmartContractYou'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractEdge'] = ResolversParentTypes['SmartContractEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['SmartContract'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractSearchResult'] = ResolversParentTypes['SmartContractSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['SmartContractEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractVersion'] = ResolversParentTypes['SmartContractVersion']> = {
-  comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
-  commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
-  content?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  contractType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  default?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
-  directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  forks?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
-  forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
-  reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
-  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
-  root?: Resolver<ResolversTypes['SmartContract'], ParentType, ContextType>;
-  translations?: Resolver<Array<ResolversTypes['SmartContractVersionTranslation']>, ParentType, ContextType>;
-  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  you?: Resolver<ResolversTypes['VersionYou'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractVersionEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractVersionEdge'] = ResolversParentTypes['SmartContractVersionEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['SmartContractVersion'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractVersionSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractVersionSearchResult'] = ResolversParentTypes['SmartContractVersionSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['SmartContractVersionEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractVersionTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractVersionTranslation'] = ResolversParentTypes['SmartContractVersionTranslation']> = {
-  description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  jsonVariable?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SmartContractYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractYou'] = ResolversParentTypes['SmartContractYou']> = {
-  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReact?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  reaction?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14393,43 +14593,34 @@ export type StatsApiSearchResultResolvers<ContextType = any, ParentType extends 
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type StatsOrganizationResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsOrganization'] = ResolversParentTypes['StatsOrganization']> = {
-  apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+export type StatsCodeResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsCode'] = ResolversParentTypes['StatsCode']> = {
+  calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  members?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
-  projects?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  routines?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  runRoutineCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
-  runRoutineContextSwitchesAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
-  runRoutinesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  runRoutinesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContracts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  standards?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  routineVersions?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type StatsOrganizationEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsOrganizationEdge'] = ResolversParentTypes['StatsOrganizationEdge']> = {
+export type StatsCodeEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsCodeEdge'] = ResolversParentTypes['StatsCodeEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['StatsOrganization'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['StatsCode'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type StatsOrganizationSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsOrganizationSearchResult'] = ResolversParentTypes['StatsOrganizationSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['StatsOrganizationEdge']>, ParentType, ContextType>;
+export type StatsCodeSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsCodeSearchResult'] = ResolversParentTypes['StatsCodeSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['StatsCodeEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type StatsProjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsProject'] = ResolversParentTypes['StatsProject']> = {
   apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   directories?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  organizations?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
@@ -14439,8 +14630,8 @@ export type StatsProjectResolvers<ContextType = any, ParentType extends Resolver
   runContextSwitchesAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   runsCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   runsStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContracts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standards?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  teams?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14509,8 +14700,11 @@ export type StatsSiteResolvers<ContextType = any, ParentType extends ResolversPa
   activeUsers?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   apiCalls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   apisCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codeCalls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codeCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  codesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codesCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  organizationsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
@@ -14532,13 +14726,10 @@ export type StatsSiteResolvers<ContextType = any, ParentType extends ResolversPa
   runRoutineContextSwitchesAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   runRoutinesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   runRoutinesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractCalls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
-  smartContractsCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   standardsCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  teamsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   verifiedEmailsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   verifiedWalletsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -14552,28 +14743,6 @@ export type StatsSiteEdgeResolvers<ContextType = any, ParentType extends Resolve
 
 export type StatsSiteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsSiteSearchResult'] = ResolversParentTypes['StatsSiteSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['StatsSiteEdge']>, ParentType, ContextType>;
-  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type StatsSmartContractResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsSmartContract'] = ResolversParentTypes['StatsSmartContract']> = {
-  calls?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
-  routineVersions?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type StatsSmartContractEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsSmartContractEdge'] = ResolversParentTypes['StatsSmartContractEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['StatsSmartContract'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type StatsSmartContractSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsSmartContractSearchResult'] = ResolversParentTypes['StatsSmartContractSearchResult']> = {
-  edges?: Resolver<Array<ResolversTypes['StatsSmartContractEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -14600,10 +14769,43 @@ export type StatsStandardSearchResultResolvers<ContextType = any, ParentType ext
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type StatsTeamResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsTeam'] = ResolversParentTypes['StatsTeam']> = {
+  apis?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  members?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  notes?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
+  projects?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  routines?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  runRoutineCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  runRoutineContextSwitchesAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  runRoutinesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  runRoutinesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  standards?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type StatsTeamEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsTeamEdge'] = ResolversParentTypes['StatsTeamEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['StatsTeam'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type StatsTeamSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsTeamSearchResult'] = ResolversParentTypes['StatsTeamSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['StatsTeamEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type StatsUserResolvers<ContextType = any, ParentType extends ResolversParentTypes['StatsUser'] = ResolversParentTypes['StatsUser']> = {
   apisCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codeCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  codesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codesCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  organizationsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
@@ -14623,12 +14825,10 @@ export type StatsUserResolvers<ContextType = any, ParentType extends ResolversPa
   runRoutineContextSwitchesAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   runRoutinesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   runRoutinesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
-  smartContractsCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardCompletionTimeAverage?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   standardsCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  teamssCreated?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -14645,7 +14845,7 @@ export type StatsUserSearchResultResolvers<ContextType = any, ParentType extends
 };
 
 export type SubscribedObjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['SubscribedObject'] = ResolversParentTypes['SubscribedObject']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Comment' | 'Issue' | 'Meeting' | 'Note' | 'Organization' | 'Project' | 'PullRequest' | 'Question' | 'Quiz' | 'Report' | 'Routine' | 'Schedule' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Comment' | 'Issue' | 'Meeting' | 'Note' | 'Project' | 'PullRequest' | 'Question' | 'Quiz' | 'Report' | 'Routine' | 'Schedule' | 'Standard' | 'Team', ParentType, ContextType>;
 };
 
 export type SuccessResolvers<ContextType = any, ParentType extends ResolversParentTypes['Success'] = ResolversParentTypes['Success']> = {
@@ -14657,17 +14857,17 @@ export type TagResolvers<ContextType = any, ParentType extends ResolversParentTy
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codes?: Resolver<Array<ResolversTypes['Code']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
-  organizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
   posts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
   projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
-  smartContracts?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
   standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
   tag?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  teams?: Resolver<Array<ResolversTypes['Team']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['TagTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['TagYou'], ParentType, ContextType>;
@@ -14699,6 +14899,100 @@ export type TagYouResolvers<ContextType = any, ParentType extends ResolversParen
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type TeamResolvers<ContextType = any, ParentType extends ResolversParentTypes['Team'] = ResolversParentTypes['Team']> = {
+  apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
+  apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  bannerImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
+  bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codes?: Resolver<Array<ResolversTypes['Code']>, ParentType, ContextType>;
+  codesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
+  commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
+  forks?: Resolver<Array<ResolversTypes['Team']>, ParentType, ContextType>;
+  handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isOpenToNewMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
+  issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
+  labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  meetings?: Resolver<Array<ResolversTypes['Meeting']>, ParentType, ContextType>;
+  meetingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  members?: Resolver<Array<ResolversTypes['Member']>, ParentType, ContextType>;
+  membersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
+  notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
+  paymentHistory?: Resolver<Array<ResolversTypes['Payment']>, ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  posts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
+  postsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
+  profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  projects?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
+  projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
+  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
+  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
+  roles?: Resolver<Maybe<Array<ResolversTypes['Role']>>, ParentType, ContextType>;
+  rolesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  routines?: Resolver<Array<ResolversTypes['Routine']>, ParentType, ContextType>;
+  routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  standards?: Resolver<Array<ResolversTypes['Standard']>, ParentType, ContextType>;
+  standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  stats?: Resolver<Array<ResolversTypes['StatsTeam']>, ParentType, ContextType>;
+  tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
+  transfersIncoming?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
+  transfersOutgoing?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
+  translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['TeamTranslation']>, ParentType, ContextType>;
+  translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  wallets?: Resolver<Array<ResolversTypes['Wallet']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['TeamYou'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type TeamEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['TeamEdge'] = ResolversParentTypes['TeamEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Team'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type TeamSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['TeamSearchResult'] = ResolversParentTypes['TeamSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['TeamEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type TeamTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['TeamTranslation'] = ResolversParentTypes['TeamTranslation']> = {
+  bio?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type TeamYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['TeamYou'] = ResolversParentTypes['TeamYou']> = {
+  canAddMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canBookmark?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isBookmarked?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  yourMembership?: Resolver<Maybe<ResolversTypes['Member']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type TransferResolvers<ContextType = any, ParentType extends ResolversParentTypes['Transfer'] = ResolversParentTypes['Transfer']> = {
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   fromOwner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
@@ -14719,7 +15013,7 @@ export type TransferEdgeResolvers<ContextType = any, ParentType extends Resolver
 };
 
 export type TransferObjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['TransferObject'] = ResolversParentTypes['TransferObject']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Note' | 'Project' | 'Routine' | 'Standard', ParentType, ContextType>;
 };
 
 export type TransferSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['TransferSearchResult'] = ResolversParentTypes['TransferSearchResult']> = {
@@ -14755,6 +15049,9 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   bookmarkedBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   bookmarks?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   botSettings?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  codes?: Resolver<Maybe<Array<ResolversTypes['Code']>>, ParentType, ContextType>;
+  codesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  codesCreated?: Resolver<Maybe<Array<ResolversTypes['Code']>>, ParentType, ContextType>;
   comments?: Resolver<Maybe<Array<ResolversTypes['Comment']>>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   emails?: Resolver<Maybe<Array<ResolversTypes['Email']>>, ParentType, ContextType>;
@@ -14769,8 +15066,9 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   isPrivateApis?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateApisCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateBookmarks?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivateCodes?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivateCodesCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateMemberships?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isPrivateOrganizationsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateProjects?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateProjectsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivatePullRequests?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -14780,9 +15078,9 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   isPrivateRoles?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateRoutines?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateRoutinesCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isPrivateSmartContracts?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateStandards?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateStandardsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivateTeamsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateVotes?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issuesClosed?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   issuesCreated?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
@@ -14799,8 +15097,8 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   notificationSettings?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   notificationSubscriptions?: Resolver<Maybe<Array<ResolversTypes['NotificationSubscription']>>, ParentType, ContextType>;
   notifications?: Resolver<Maybe<Array<ResolversTypes['Notification']>>, ParentType, ContextType>;
-  organizationsCreate?: Resolver<Maybe<Array<ResolversTypes['Organization']>>, ParentType, ContextType>;
   paymentHistory?: Resolver<Maybe<Array<ResolversTypes['Payment']>>, ParentType, ContextType>;
+  phones?: Resolver<Maybe<Array<ResolversTypes['Phone']>>, ParentType, ContextType>;
   premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
   profileImage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projects?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;
@@ -14826,14 +15124,12 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   runProjects?: Resolver<Maybe<Array<ResolversTypes['RunProject']>>, ParentType, ContextType>;
   runRoutines?: Resolver<Maybe<Array<ResolversTypes['RunRoutine']>>, ParentType, ContextType>;
   sentReports?: Resolver<Maybe<Array<ResolversTypes['Report']>>, ParentType, ContextType>;
-  smartContracts?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
-  smartContractsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  smartContractsCreated?: Resolver<Maybe<Array<ResolversTypes['SmartContract']>>, ParentType, ContextType>;
   standards?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardsCreated?: Resolver<Maybe<Array<ResolversTypes['Standard']>>, ParentType, ContextType>;
   status?: Resolver<Maybe<ResolversTypes['AccountStatus']>, ParentType, ContextType>;
   tags?: Resolver<Maybe<Array<ResolversTypes['Tag']>>, ParentType, ContextType>;
+  teamsCreated?: Resolver<Maybe<Array<ResolversTypes['Team']>>, ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   transfersIncoming?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   transfersOutgoing?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
@@ -14909,15 +15205,15 @@ export type ViewSearchResultResolvers<ContextType = any, ParentType extends Reso
 };
 
 export type ViewToResolvers<ContextType = any, ParentType extends ResolversParentTypes['ViewTo'] = ResolversParentTypes['ViewTo']> = {
-  __resolveType: TypeResolveFn<'Api' | 'Issue' | 'Note' | 'Organization' | 'Post' | 'Project' | 'Question' | 'Routine' | 'SmartContract' | 'Standard' | 'User', ParentType, ContextType>;
+  __resolveType: TypeResolveFn<'Api' | 'Code' | 'Issue' | 'Note' | 'Post' | 'Project' | 'Question' | 'Routine' | 'Standard' | 'Team' | 'User', ParentType, ContextType>;
 };
 
 export type WalletResolvers<ContextType = any, ParentType extends ResolversParentTypes['Wallet'] = ResolversParentTypes['Wallet']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   publicAddress?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   stakingAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  team?: Resolver<Maybe<ResolversTypes['Team']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -14941,6 +15237,7 @@ export type Resolvers<ContextType = any> = {
   ApiVersionSearchResult?: ApiVersionSearchResultResolvers<ContextType>;
   ApiVersionTranslation?: ApiVersionTranslationResolvers<ContextType>;
   ApiYou?: ApiYouResolvers<ContextType>;
+  AutoFillResult?: AutoFillResultResolvers<ContextType>;
   Award?: AwardResolvers<ContextType>;
   AwardEdge?: AwardEdgeResolvers<ContextType>;
   AwardSearchResult?: AwardSearchResultResolvers<ContextType>;
@@ -14971,6 +15268,15 @@ export type Resolvers<ContextType = any> = {
   ChatSearchResult?: ChatSearchResultResolvers<ContextType>;
   ChatTranslation?: ChatTranslationResolvers<ContextType>;
   ChatYou?: ChatYouResolvers<ContextType>;
+  CheckTaskStatusesResult?: CheckTaskStatusesResultResolvers<ContextType>;
+  Code?: CodeResolvers<ContextType>;
+  CodeEdge?: CodeEdgeResolvers<ContextType>;
+  CodeSearchResult?: CodeSearchResultResolvers<ContextType>;
+  CodeVersion?: CodeVersionResolvers<ContextType>;
+  CodeVersionEdge?: CodeVersionEdgeResolvers<ContextType>;
+  CodeVersionSearchResult?: CodeVersionSearchResultResolvers<ContextType>;
+  CodeVersionTranslation?: CodeVersionTranslationResolvers<ContextType>;
+  CodeYou?: CodeYouResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
@@ -14985,6 +15291,7 @@ export type Resolvers<ContextType = any> = {
   FocusModeEdge?: FocusModeEdgeResolvers<ContextType>;
   FocusModeFilter?: FocusModeFilterResolvers<ContextType>;
   FocusModeSearchResult?: FocusModeSearchResultResolvers<ContextType>;
+  FocusModeYou?: FocusModeYouResolvers<ContextType>;
   HomeResult?: HomeResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;
@@ -14992,11 +15299,13 @@ export type Resolvers<ContextType = any> = {
   IssueTo?: IssueToResolvers<ContextType>;
   IssueTranslation?: IssueTranslationResolvers<ContextType>;
   IssueYou?: IssueYouResolvers<ContextType>;
+  JSONObject?: GraphQLScalarType;
   Label?: LabelResolvers<ContextType>;
   LabelEdge?: LabelEdgeResolvers<ContextType>;
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;
   LabelTranslation?: LabelTranslationResolvers<ContextType>;
   LabelYou?: LabelYouResolvers<ContextType>;
+  LlmTaskStatusInfo?: LlmTaskStatusInfoResolvers<ContextType>;
   Meeting?: MeetingResolvers<ContextType>;
   MeetingEdge?: MeetingEdgeResolvers<ContextType>;
   MeetingInvite?: MeetingInviteResolvers<ContextType>;
@@ -15044,11 +15353,6 @@ export type Resolvers<ContextType = any> = {
   NotificationSubscription?: NotificationSubscriptionResolvers<ContextType>;
   NotificationSubscriptionEdge?: NotificationSubscriptionEdgeResolvers<ContextType>;
   NotificationSubscriptionSearchResult?: NotificationSubscriptionSearchResultResolvers<ContextType>;
-  Organization?: OrganizationResolvers<ContextType>;
-  OrganizationEdge?: OrganizationEdgeResolvers<ContextType>;
-  OrganizationSearchResult?: OrganizationSearchResultResolvers<ContextType>;
-  OrganizationTranslation?: OrganizationTranslationResolvers<ContextType>;
-  OrganizationYou?: OrganizationYouResolvers<ContextType>;
   Owner?: OwnerResolvers<ContextType>;
   PageInfo?: PageInfoResolvers<ContextType>;
   Payment?: PaymentResolvers<ContextType>;
@@ -15066,14 +15370,14 @@ export type Resolvers<ContextType = any> = {
   Premium?: PremiumResolvers<ContextType>;
   Project?: ProjectResolvers<ContextType>;
   ProjectEdge?: ProjectEdgeResolvers<ContextType>;
-  ProjectOrOrganization?: ProjectOrOrganizationResolvers<ContextType>;
-  ProjectOrOrganizationEdge?: ProjectOrOrganizationEdgeResolvers<ContextType>;
-  ProjectOrOrganizationPageInfo?: ProjectOrOrganizationPageInfoResolvers<ContextType>;
-  ProjectOrOrganizationSearchResult?: ProjectOrOrganizationSearchResultResolvers<ContextType>;
   ProjectOrRoutine?: ProjectOrRoutineResolvers<ContextType>;
   ProjectOrRoutineEdge?: ProjectOrRoutineEdgeResolvers<ContextType>;
   ProjectOrRoutinePageInfo?: ProjectOrRoutinePageInfoResolvers<ContextType>;
   ProjectOrRoutineSearchResult?: ProjectOrRoutineSearchResultResolvers<ContextType>;
+  ProjectOrTeam?: ProjectOrTeamResolvers<ContextType>;
+  ProjectOrTeamEdge?: ProjectOrTeamEdgeResolvers<ContextType>;
+  ProjectOrTeamPageInfo?: ProjectOrTeamPageInfoResolvers<ContextType>;
+  ProjectOrTeamSearchResult?: ProjectOrTeamSearchResultResolvers<ContextType>;
   ProjectSearchResult?: ProjectSearchResultResolvers<ContextType>;
   ProjectVersion?: ProjectVersionResolvers<ContextType>;
   ProjectVersionContentsSearchResult?: ProjectVersionContentsSearchResultResolvers<ContextType>;
@@ -15199,14 +15503,6 @@ export type Resolvers<ContextType = any> = {
   ScheduleSearchResult?: ScheduleSearchResultResolvers<ContextType>;
   Session?: SessionResolvers<ContextType>;
   SessionUser?: SessionUserResolvers<ContextType>;
-  SmartContract?: SmartContractResolvers<ContextType>;
-  SmartContractEdge?: SmartContractEdgeResolvers<ContextType>;
-  SmartContractSearchResult?: SmartContractSearchResultResolvers<ContextType>;
-  SmartContractVersion?: SmartContractVersionResolvers<ContextType>;
-  SmartContractVersionEdge?: SmartContractVersionEdgeResolvers<ContextType>;
-  SmartContractVersionSearchResult?: SmartContractVersionSearchResultResolvers<ContextType>;
-  SmartContractVersionTranslation?: SmartContractVersionTranslationResolvers<ContextType>;
-  SmartContractYou?: SmartContractYouResolvers<ContextType>;
   Standard?: StandardResolvers<ContextType>;
   StandardEdge?: StandardEdgeResolvers<ContextType>;
   StandardSearchResult?: StandardSearchResultResolvers<ContextType>;
@@ -15218,9 +15514,9 @@ export type Resolvers<ContextType = any> = {
   StatsApi?: StatsApiResolvers<ContextType>;
   StatsApiEdge?: StatsApiEdgeResolvers<ContextType>;
   StatsApiSearchResult?: StatsApiSearchResultResolvers<ContextType>;
-  StatsOrganization?: StatsOrganizationResolvers<ContextType>;
-  StatsOrganizationEdge?: StatsOrganizationEdgeResolvers<ContextType>;
-  StatsOrganizationSearchResult?: StatsOrganizationSearchResultResolvers<ContextType>;
+  StatsCode?: StatsCodeResolvers<ContextType>;
+  StatsCodeEdge?: StatsCodeEdgeResolvers<ContextType>;
+  StatsCodeSearchResult?: StatsCodeSearchResultResolvers<ContextType>;
   StatsProject?: StatsProjectResolvers<ContextType>;
   StatsProjectEdge?: StatsProjectEdgeResolvers<ContextType>;
   StatsProjectSearchResult?: StatsProjectSearchResultResolvers<ContextType>;
@@ -15233,12 +15529,12 @@ export type Resolvers<ContextType = any> = {
   StatsSite?: StatsSiteResolvers<ContextType>;
   StatsSiteEdge?: StatsSiteEdgeResolvers<ContextType>;
   StatsSiteSearchResult?: StatsSiteSearchResultResolvers<ContextType>;
-  StatsSmartContract?: StatsSmartContractResolvers<ContextType>;
-  StatsSmartContractEdge?: StatsSmartContractEdgeResolvers<ContextType>;
-  StatsSmartContractSearchResult?: StatsSmartContractSearchResultResolvers<ContextType>;
   StatsStandard?: StatsStandardResolvers<ContextType>;
   StatsStandardEdge?: StatsStandardEdgeResolvers<ContextType>;
   StatsStandardSearchResult?: StatsStandardSearchResultResolvers<ContextType>;
+  StatsTeam?: StatsTeamResolvers<ContextType>;
+  StatsTeamEdge?: StatsTeamEdgeResolvers<ContextType>;
+  StatsTeamSearchResult?: StatsTeamSearchResultResolvers<ContextType>;
   StatsUser?: StatsUserResolvers<ContextType>;
   StatsUserEdge?: StatsUserEdgeResolvers<ContextType>;
   StatsUserSearchResult?: StatsUserSearchResultResolvers<ContextType>;
@@ -15249,6 +15545,11 @@ export type Resolvers<ContextType = any> = {
   TagSearchResult?: TagSearchResultResolvers<ContextType>;
   TagTranslation?: TagTranslationResolvers<ContextType>;
   TagYou?: TagYouResolvers<ContextType>;
+  Team?: TeamResolvers<ContextType>;
+  TeamEdge?: TeamEdgeResolvers<ContextType>;
+  TeamSearchResult?: TeamSearchResultResolvers<ContextType>;
+  TeamTranslation?: TeamTranslationResolvers<ContextType>;
+  TeamYou?: TeamYouResolvers<ContextType>;
   Transfer?: TransferResolvers<ContextType>;
   TransferEdge?: TransferEdgeResolvers<ContextType>;
   TransferObject?: TransferObjectResolvers<ContextType>;

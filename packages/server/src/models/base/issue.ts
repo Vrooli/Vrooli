@@ -2,29 +2,32 @@ import { IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/share
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
+import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { IssueFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { BookmarkModelLogic, IssueModelInfo, IssueModelLogic, ReactionModelLogic } from "./types";
 
+type IssuePre = PreShapeEmbeddableTranslatableResult;
+
 const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Note: "note",
-    Organization: "organization",
     Project: "project",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
+    Team: "team",
 };
 
 const __typename = "Issue" as const;
 export const IssueModel: IssueModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.issue,
+    dbTable: "issue",
+    dbTranslationTable: "issue_translation",
     display: () => ({
         label: {
-            select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+            select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
         },
         embed: {
@@ -41,21 +44,27 @@ export const IssueModel: IssueModelLogic = ({
     format: IssueFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update }) => {
+            pre: async ({ Create, Update }): Promise<IssuePre> => {
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
-                [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", relation: "labels", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as IssuePre;
+                return {
+                    id: data.id,
+                    referencedVersion: data.referencedVersionIdConnect ? { connect: { id: data.referencedVersionIdConnect } } : undefined,
+                    [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as IssuePre;
+                return {
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", data, ...rest }),
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         yup: issueValidation,
     },
@@ -65,31 +74,31 @@ export const IssueModel: IssueModelLogic = ({
         searchFields: {
             apiId: true,
             closedById: true,
+            codeId: true,
             createdById: true,
             createdTimeFrame: true,
             minScore: true,
             minBookmarks: true,
             minViews: true,
             noteId: true,
-            organizationId: true,
             projectId: true,
             referencedVersionId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
             status: true,
+            teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({ OR: ["transDescriptionWrapped", "transNameWrapped"] }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },
@@ -99,12 +108,12 @@ export const IssueModel: IssueModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<IssueModelInfo["PrismaSelect"]>([
             ["api", "Api"],
-            ["organization", "Organization"],
+            ["code", "Code"],
             ["note", "Note"],
             ["project", "Project"],
             ["routine", "Routine"],
-            ["smartContract", "SmartContract"],
             ["standard", "Standard"],
+            ["team", "Team"],
         ], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
@@ -115,13 +124,13 @@ export const IssueModel: IssueModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             api: "Api",
+            code: "Code",
             createdBy: "User",
-            organization: "Organization",
             note: "Note",
             project: "Project",
             routine: "Routine",
-            smartContract: "SmartContract",
             standard: "Standard",
+            team: "Team",
         }),
         visibility: {
             private: {},

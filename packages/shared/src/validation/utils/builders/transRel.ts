@@ -17,7 +17,7 @@ import { yupObj } from "./yupObj";
 export const transRel = (partialYupModel: ({
     create: (params: YupMutateParams) => { [key: string]: yup.StringSchema };
     update: (params: YupMutateParams) => { [key: string]: yup.StringSchema };
-})): YupModel => ({
+})): YupModel<["create", "update"]> => ({
     create: (data) => yupObj({
         id: req(id),
         language: req(language),

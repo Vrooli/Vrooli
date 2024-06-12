@@ -7,29 +7,36 @@ import { useTranslation } from "react-i18next";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { IsPrivateButtonProps } from "../types";
 
-export function IsPrivateButton({
+export const IsPrivateButton = ({
     isEditing,
     objectType,
-}: IsPrivateButtonProps) {
+}: IsPrivateButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [field, , helpers] = useField("isPrivate");
+    const [versionField, , versionHelpers] = useField("isPrivate");
+    const [, , rootHelpers] = useField("root.isPrivate");
+    const [rootVersionsCountField] = useField("root.versionsCount");
 
-    const isAvailable = useMemo(() => ["Api", "Note", "Organization", "Project", "Routine", "RunProject", "RunRoutine", "SmartContract", "Standard", "User"].includes(objectType), [objectType]);
+    const isAvailable = useMemo(() => ["Api", "Code", "Note", "Project", "Routine", "RunProject", "RunRoutine", "Standard", "Team", "User"].includes(objectType), [objectType]);
 
     const { Icon, tooltip } = useMemo(() => {
-        const isPrivate = field?.value;
+        const isPrivate = versionField?.value;
         return {
             Icon: isPrivate ? InvisibleIcon : VisibleIcon,
             tooltip: t(`${!isPrivate ? "Private" : "Public"}TogglePress${isEditing ? "Editable" : ""}`),
         };
-    }, [field?.value, isEditing, t]);
+    }, [versionField?.value, isEditing, t]);
 
-    const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
+    const handleClick = useCallback(() => {
         if (!isEditing || !isAvailable) return;
-        helpers.setValue(!field?.value);
-    }, [isEditing, isAvailable, helpers, field?.value]);
+        const updatedValue = !versionField?.value;
+        versionHelpers.setValue(updatedValue);
+        // If there is only one version, set root.isPrivate to the same value
+        if (!Number.isNaN(rootVersionsCountField.value) && rootVersionsCountField.value === 1) {
+            rootHelpers.setValue(updatedValue);
+        }
+    }, [isEditing, isAvailable, rootHelpers, rootVersionsCountField?.value, versionHelpers, versionField?.value]);
 
     // If not available, return null
     if (!isAvailable) return null;
@@ -40,7 +47,7 @@ export function IsPrivateButton({
             alignItems="center"
             justifyContent="center"
         >
-            <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>{t(field?.value ? "Private" : "Public")}</TextShrink>
+            <TextShrink id="privacy" sx={{ ...commonLabelProps() }}>{t(versionField?.value ? "Private" : "Public")}</TextShrink>
             <Tooltip title={tooltip}>
                 <IconButton
                     onClick={handleClick}
@@ -51,4 +58,4 @@ export function IsPrivateButton({
             </Tooltip>
         </Stack>
     );
-}
+};

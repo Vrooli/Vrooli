@@ -75,6 +75,45 @@ export const setDotNotationValue = <T extends Record<string, any>>(
 };
 
 /**
+ * Splits an array of dot notation strings into top-level fields and their corresponding remainders.
+ * 
+ * @param input An array of strings in dot notation.
+ * @param removeEmpty Whether to remove empty strings from the output.
+ * @returns A tuple where the first element is an array of top-level fields and the second element is an array of the remaining string parts.
+ * 
+ * Example:
+ *   const input = ["first.second.third", "another.example.string"];
+ *   const [fields, remainders] = splitDotNotation(input);
+ *   // fields: ["first", "another"]
+ *   // remainders: ["second.third", "example.string"]
+ */
+export const splitDotNotation = (input: string[], removeEmpty = false): [string[], string[]] => {
+    const topLevelFields: string[] = [];
+    const remainders: string[] = [];
+
+    input.forEach(dotNotation => {
+        if (typeof dotNotation === "string") {
+            const [firstPart, ...rest] = dotNotation.split(".");
+            topLevelFields.push(firstPart ?? "");
+            remainders.push(rest.join("."));
+        } else {
+            // Handle null or undefined
+            topLevelFields.push("");
+            remainders.push("");
+        }
+    });
+
+    if (removeEmpty) {
+        return [
+            topLevelFields.filter(field => field !== ""),
+            remainders.filter(remainder => remainder !== ""),
+        ];
+    }
+
+    return [topLevelFields, remainders];
+};
+
+/**
  * Checks if the value is an object.
  * @param value The value to check.
  * @returns True if the value is an object, false otherwise.
@@ -82,7 +121,6 @@ export const setDotNotationValue = <T extends Record<string, any>>(
 export function isObject(value: unknown): value is object {
     return value !== null && (typeof value === "object" || typeof value === "function");
 }
-
 
 /**
  * Checks if an obect: 
@@ -122,3 +160,27 @@ export const deepClone = <T>(obj: T): T => {
     }
 };
 
+/**
+ * Deeply merges two objects, ensuring all properties in the reference object are present in the target object.
+ * 
+ * @param target - The target object to be merged.
+ * @param reference - The default object providing fallback values.
+ * @returns A new object with properties from both target and reference.
+ */
+export const mergeDeep = <T>(target: T, reference: T): T => {
+    if (target === null || typeof target !== "object" || Array.isArray(target)) {
+        return target !== undefined && target !== null ? target : reference;
+    }
+
+    const result: any = { ...reference };
+
+    for (const key in target) {
+        if (typeof target[key] === "object" && target[key] !== null && !Array.isArray(target[key])) {
+            result[key] = mergeDeep(target[key] as object, reference[key] || {});
+        } else {
+            result[key] = target[key];
+        }
+    }
+
+    return result;
+};

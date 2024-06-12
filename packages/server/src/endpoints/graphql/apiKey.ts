@@ -3,10 +3,10 @@ import { ApiKeyEndpoints, EndpointsApiKey } from "../logic/apiKey";
 
 export const typeDef = gql`
     input ApiKeyCreateInput {
-        creditsUsedBeforeLimit: Int!
-        organizationConnect: ID
-        stopAtLimit: Boolean!
         absoluteMax: Int!
+        creditsUsedBeforeLimit: Int!
+        stopAtLimit: Boolean!
+        teamConnect: ID
     }
     input ApiKeyUpdateInput {
         id: ID!

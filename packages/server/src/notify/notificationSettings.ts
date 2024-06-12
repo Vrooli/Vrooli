@@ -1,44 +1,27 @@
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { logger } from "../events/logger";
-import { PrismaType } from "../types";
+import { prismaInstance } from "../db/instance";
+import { parseJsonOrDefault } from "../utils/objectTools";
 import { NotificationCategory } from "./notify";
 
 type NotificationRecipients = {
     pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, "user">>]: true } }>[],
-    emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, "user" | "organization">>]: true } }>[],
+    emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, "user" | "team">>]: true } }>[],
     phoneNumbers: any,
 }
 
-const defaultSettings: NotificationSettings = { __typename: "NotificationSettings" as const, enabled: false };
-
-/**
- * Parses a user's notification settings from the a stringified JSON object
- * @param settingsJson JSON string of the user's notification settings
- * @returns Parsed notification settings
- */
-export const parseNotificationSettings = (settingsJson: string | null): NotificationSettings => {
-    try {
-        const settings = settingsJson ? JSON.parse(settingsJson) : defaultSettings;
-        return settings;
-    } catch (error) {
-        logger.error("Failed to parse notification settings", { trace: "0304" });
-        // If there is an error parsing the JSON, return the default settings
-        return { __typename: "NotificationSettings" as const, enabled: false };
-    }
-};
+export const defaultNotificationSettings: NotificationSettings = { __typename: "NotificationSettings" as const, enabled: false };
 
 /**
  * Finds the current notification settings for a list of users
- * @param prisma Prisma client
  * @param userIds IDs of the users
  * @returns Notification settings for each user, in the same order as the IDs
  */
-export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, userIds: string[]): Promise<Array<{ settings: NotificationSettings } & NotificationRecipients>> => {
+export const getNotificationSettingsAndRecipients = async (userIds: string[]): Promise<Array<{ settings: NotificationSettings } & NotificationRecipients>> => {
     // Initialize results array
     const results: Array<{ settings: NotificationSettings } & NotificationRecipients> = [];
     // Get the current notification settings for each user
-    const usersData = await prisma.user.findMany({
+    const usersData = await prismaInstance.user.findMany({
         where: { id: { in: userIds } },
         select: {
             id: true,
@@ -48,18 +31,18 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
         },
     });
     // If no results, return default settings
-    if (!usersData) return Array(userIds.length).fill({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
+    if (!usersData) return Array(userIds.length).fill({ settings: defaultNotificationSettings, pushDevices: [], emails: [], phoneNumbers: [] });
     // For each user, parse the notification settings and add to the results array
     for (let i = 0; i < userIds.length; i++) {
         // Find queried user data
         const user = usersData.find(u => u.id === userIds[i]);
         // If no user data, return default settings
         if (!user) {
-            results.push({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
+            results.push({ settings: defaultNotificationSettings, pushDevices: [], emails: [], phoneNumbers: [] });
             continue;
         }
         // Parse the notification settings
-        const settings = parseNotificationSettings(user.notificationSettings);
+        const settings = parseJsonOrDefault<NotificationSettings>(user.notificationSettings, defaultNotificationSettings);
         // Add to results array
         results.push({
             settings,
@@ -74,16 +57,14 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
 /**
  * Updates the notification settings of one user
  * @param settings The new notification settings, or partial notification settings
- * @param prisma The prisma client
  * @param userId The id of the user
  * @returns The updated notification settings
  */
 export const updateNotificationSettings = async (
     settings: NotificationSettingsUpdateInput,
-    prisma: PrismaType,
     userId: string): Promise<NotificationSettings> => {
     // Get the current notification settings
-    const settingsAndData = await getNotificationSettingsAndRecipients(prisma, [userId]);
+    const settingsAndData = await getNotificationSettingsAndRecipients([userId]);
     const currentSettings = settingsAndData[0].settings;
     // Merge the new settings with the current settings, making sure to handle nested objects.
     // For example, { category: { 'Transfer': { enabled: true } } } merged with 
@@ -97,30 +78,28 @@ export const updateNotificationSettings = async (
         }
     }
     // Update the user's notification settings
-    const updated = await prisma.user.update({
+    const updated = await prismaInstance.user.update({
         where: { id: userId },
         data: { notificationSettings: JSON.stringify(newSettings) },
         select: { notificationSettings: true },
     });
-    return parseNotificationSettings(updated.notificationSettings);
+    return parseJsonOrDefault<NotificationSettings>(updated.notificationSettings, defaultNotificationSettings);
 };
 
 /**
  * Finds out which devices, emails, and numbers to send a notification to. Also 
  * finds out maximum number of notifications that can be sent in a day.
  * @param category The category of the notification
- * @param prisma The prisma client
  * @param userIds The ids of the users
  */
 export const findRecipientsAndLimit = async (
     category: NotificationCategory,
-    prisma: PrismaType,
     userIds: string[],
 ): Promise<Array<NotificationRecipients & { dailyLimit?: number }>> => {
     // Initialize the return object
     const result: Array<NotificationRecipients & { dailyLimit?: number }> = [];
     // Get the current notification settings and recipients
-    const allData = await getNotificationSettingsAndRecipients(prisma, userIds);
+    const allData = await getNotificationSettingsAndRecipients(userIds);
     // For each user, find the recipients and daily limit
     for (let i = 0; i < userIds.length; i++) {
         // Initialize the return object for this user

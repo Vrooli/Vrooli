@@ -1,4 +1,4 @@
-import { CommonKey, endpointGetStatsSite, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { DAYS_1_MS, endpointGetStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
@@ -12,6 +12,7 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
+import { TabParam } from "utils/search/objectToSearch";
 import { StatsSiteViewProps } from "../types";
 
 /**
@@ -35,11 +36,11 @@ enum StatsTabOption {
 
 /** Maps tab options to time frame intervals (in milliseconds) */
 const tabPeriods: { [key in StatsTabOption]: number } = {
-    Daily: 24 * 60 * 60 * 1000, // Past 24 hours
-    Weekly: 7 * 24 * 60 * 60 * 1000, // Past 7 days
-    Monthly: 30 * 24 * 60 * 60 * 1000, // Past 30 days
-    Yearly: 365 * 24 * 60 * 60 * 1000, // Past 365 days
-    AllTime: Number.MAX_SAFE_INTEGER, // All time
+    Daily: DAYS_1_MS,
+    Weekly: WEEKS_1_MS,
+    Monthly: MONTHS_1_MS,
+    Yearly: YEARS_1_MS,
+    AllTime: Number.MAX_SAFE_INTEGER,
 };
 
 /** Maps tab options to PeriodType */
@@ -51,25 +52,32 @@ const tabPeriodTypes: { [key in StatsTabOption]: StatPeriodType | `${StatPeriodT
     AllTime: "Yearly",
 } as const;
 
-export const statsSiteTabParams = [
+type StatsSiteTabsInfo = {
+    IsSearchable: false;
+    Key: StatsTabOption;
+    Payload: undefined;
+    WhereParams: undefined;
+};
+
+export const statsSiteTabParams: TabParam<StatsSiteTabsInfo>[] = [
     {
-        titleKey: "Daily" as CommonKey,
-        tabType: StatsTabOption.Daily,
+        key: "Daily",
+        titleKey: "Daily",
     }, {
-        titleKey: "Weekly" as CommonKey,
-        tabType: StatsTabOption.Weekly,
+        key: "Weekly",
+        titleKey: "Weekly",
     },
     {
-        titleKey: "Monthly" as CommonKey,
-        tabType: StatsTabOption.Monthly,
+        key: "Monthly",
+        titleKey: "Monthly",
     },
     {
-        titleKey: "Yearly" as CommonKey,
-        tabType: StatsTabOption.Yearly,
+        key: "Yearly",
+        titleKey: "Yearly",
     },
     {
-        titleKey: "AllTime" as CommonKey,
-        tabType: StatsTabOption.AllTime,
+        key: "AllTime",
+        titleKey: "AllTime",
     },
 ];
 
@@ -105,11 +113,11 @@ export const StatsSiteView = ({
         handleDateRangeClose();
     }, [period.after, period.before]);
 
-    const { currTab, setCurrTab, tabs } = useTabs<StatsTabOption, false>({ id: "stats-site-tabs", tabParams: statsSiteTabParams, display });
-    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<StatsTabOption, false>) => {
+    const { currTab, setCurrTab, tabs } = useTabs({ id: "stats-site-tabs", tabParams: statsSiteTabParams, display });
+    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<StatsSiteTabsInfo>) => {
         setCurrTab(tab);
         // Reset date range based on tab selection.
-        const period = tabPeriods[tab.tabType];
+        const period = tabPeriods[tab.key];
         const newAfter = new Date(Math.max(Date.now() - period, MIN_DATE.getTime()));
         const newBefore = new Date(Math.min(Date.now(), newAfter.getTime() + period));
         setPeriod({ after: newAfter, before: newBefore });
@@ -119,7 +127,7 @@ export const StatsSiteView = ({
     const [getStats, { data: statsData, loading }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
         ...endpointGetStatsSite,
         inputs: {
-            periodType: tabPeriodTypes[currTab.tabType] as StatPeriodType,
+            periodType: tabPeriodTypes[currTab.key] as StatPeriodType,
             periodTimeFrame: {
                 after: period.after.toISOString(),
                 before: period.before.toISOString(),
@@ -225,7 +233,7 @@ export const StatsSiteView = ({
                 onClose={handleDateRangeClose}
                 onSubmit={handleDateRangeSubmit}
                 range={period}
-                strictIntervalRange={tabPeriods[currTab.tabType]}
+                strictIntervalRange={tabPeriods[currTab.key]}
             />
             {/* Date range diplay */}
             <Typography

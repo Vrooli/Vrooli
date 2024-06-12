@@ -10,6 +10,7 @@ export type TagShape = Pick<Tag, "id" | "tag"> & {
     __typename: "Tag";
     anonymous?: boolean | null;
     translations?: TagTranslationShape[] | null;
+    you?: Tag["you"] | null;
 }
 
 export const shapeTagTranslation: ShapeModel<TagTranslationShape, TagTranslationCreateInput, TagTranslationUpdateInput> = {

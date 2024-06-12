@@ -4,34 +4,35 @@ import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { PrismaDelegate } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
-import { PrismaType } from "../../types";
 import { defaultPermissions } from "../../utils";
 import { BookmarkFormat } from "../formats";
 import { BookmarkListModelInfo, BookmarkListModelLogic, BookmarkModelLogic } from "./types";
 
 const forMapper: { [key in BookmarkFor]: keyof Prisma.bookmarkUpsertArgs["create"] } = {
     Api: "api",
+    Code: "code",
     Comment: "comment",
     Issue: "issue",
     Note: "note",
-    Organization: "organization",
     Post: "post",
     Project: "project",
     Question: "question",
     QuestionAnswer: "questionAnswer",
     Quiz: "quiz",
     Routine: "routine",
-    SmartContract: "smartContract",
     Standard: "standard",
     Tag: "tag",
+    Team: "team",
     User: "user",
 };
 
 const __typename = "Bookmark" as const;
 export const BookmarkModel: BookmarkModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.bookmark,
+    dbTable: "bookmark",
     display: () => ({
         label: {
             select: () => ({
@@ -53,23 +54,55 @@ export const BookmarkModel: BookmarkModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 id: data.id,
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Update"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Update"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
         },
         trigger: {
-            beforeDeleted: async ({ beforeDeletedData, deletingIds, prisma }) => {
+            beforeDeleted: async ({ beforeDeletedData, deletingIds }) => {
                 // Grab bookmarked object id and type
-                const deleting = await prisma.bookmark.findMany({
+                const deleting = await prismaInstance.bookmark.findMany({
                     where: { id: { in: deletingIds } },
-                    select: { apiId: true, commentId: true, issueId: true, noteId: true, organizationId: true, postId: true, projectId: true, questionId: true, questionAnswerId: true, quizId: true, routineId: true, smartContractId: true, standardId: true, tagId: true, userId: true },
+                    select: {
+                        apiId: true,
+                        codeId: true,
+                        commentId: true,
+                        issueId: true,
+                        noteId: true,
+                        postId: true,
+                        projectId: true,
+                        questionId: true,
+                        questionAnswerId: true,
+                        quizId: true,
+                        routineId: true,
+                        standardId: true,
+                        tagId: true,
+                        teamId: true,
+                        userId: true,
+                    },
                 });
                 // Find type and id of bookmarked object
                 const bookmarkedPairs: [BookmarkFor, string][] = deleting.map(c => {
-                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
+                    const [objectRel, objectId] = findFirstRel(c, [
+                        "apiId",
+                        "codeId",
+                        "commentId",
+                        "issueId",
+                        "noteId",
+                        "postId",
+                        "projectId",
+                        "questionId",
+                        "questionAnswerId",
+                        "quizId",
+                        "routineId",
+                        "standardId",
+                        "tagId",
+                        "teamId",
+                        "userId",
+                    ]);
                     if (!objectRel || !objectId) return [null, null];
                     // Object type is objectRel with "Id" removed and first letter capitalized
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
@@ -85,26 +118,42 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 if (beforeDeletedData[__typename]) beforeDeletedData[__typename] = { ...beforeDeletedData[__typename], ...grouped };
                 else beforeDeletedData[__typename] = grouped;
             },
-            afterMutations: async ({ beforeDeletedData, createInputs, prisma, userData }) => {
+            afterMutations: async ({ beforeDeletedData, createInputs, userData }) => {
                 for (const c of createInputs) {
                     // Find type and id of bookmarked object
-                    const [objectRel, objectId] = findFirstRel(c, ["apiId", "commentId", "issueId", "noteId", "organizationId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "smartContractId", "standardId", "tagId", "userId"]);
+                    const [objectRel, objectId] = findFirstRel(c, [
+                        "apiId",
+                        "codeId",
+                        "commentId",
+                        "issueId",
+                        "noteId",
+                        "postId",
+                        "projectId",
+                        "questionId",
+                        "questionAnswerId",
+                        "quizId",
+                        "routineId",
+                        "standardId",
+                        "tagId",
+                        "teamId",
+                        "userId",
+                    ]);
                     if (!objectRel || !objectId) return;
                     // Object type is objectRel with "Id" removed and first letter capitalized
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -2)) as BookmarkFor;
                     // Update "bookmarks" count for bookmarked object
-                    const delegate = ModelMap.get(objectType, true, "bookmark onCreated").delegate;
-                    await delegate(prisma).update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
+                    const delegate = (prismaInstance[ModelMap.get(objectType, true, "bookmark onCreated").dbTable] as PrismaDelegate);
+                    await delegate.update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
                     // Trigger bookmarkCreated event
-                    Trigger(prisma, userData.languages).objectBookmark(true, objectType, objectId, userData.id);
+                    Trigger(userData.languages).objectBookmark(true, objectType, objectId, userData.id);
                 }
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
-                    const delegate = ModelMap.get(objectType as GqlModelType, true, "bookmark onDeleted").delegate;
-                    await (delegate(prisma) as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
+                    const delegate = (prismaInstance[ModelMap.get(objectType as GqlModelType, true, "bookmark onDeleted").dbTable] as PrismaDelegate);
+                    await (delegate as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event
                     for (const objectId of (objectIds as string[])) {
-                        Trigger(prisma, userData.languages).objectBookmark(false, objectType as BookmarkFor, objectId, userData.id);
+                        Trigger(userData.languages).objectBookmark(false, objectType as BookmarkFor, objectId, userData.id);
                     }
                 }
             },
@@ -113,7 +162,6 @@ export const BookmarkModel: BookmarkModelLogic = ({
     },
     query: {
         async getIsBookmarkeds(
-            prisma: PrismaType,
             userId: string | null | undefined,
             ids: string[],
             bookmarkFor: keyof typeof BookmarkFor,
@@ -125,7 +173,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
             // Filter out nulls and undefineds from ids
             const idsFiltered = onlyValidIds(ids);
             const fieldName = `${lowercaseFirstLetter(bookmarkFor)}Id`;
-            const isBookmarkredArray = await prisma.bookmark.findMany({ where: { list: { user: { id: userId } }, [fieldName]: { in: idsFiltered } } });
+            const isBookmarkredArray = await prismaInstance.bookmark.findMany({ where: { list: { user: { id: userId } }, [fieldName]: { in: idsFiltered } } });
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // check if this id is in isBookmarkredArray
@@ -141,6 +189,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
         sortBy: BookmarkSortBy,
         searchFields: {
             apiId: true,
+            codeId: true,
             commentId: true,
             excludeLinkedToTag: true,
             issueId: true,
@@ -148,16 +197,15 @@ export const BookmarkModel: BookmarkModelLogic = ({
             limitTo: true,
             listId: true,
             noteId: true,
-            organizationId: true,
             postId: true,
             projectId: true,
             questionId: true,
             questionAnswerId: true,
             quizId: true,
             routineId: true,
-            smartContractId: true,
             standardId: true,
             tagId: true,
+            teamId: true,
             userId: true,
         },
         searchStringQuery: () => ({
@@ -171,19 +219,19 @@ export const BookmarkModel: BookmarkModelLogic = ({
             // so we can ensure that the mutation trigger can increment the bookmark count
             dbFields: [
                 "apiId",
+                "codeId",
                 "commentId",
                 "issueId",
                 "noteId",
-                "organizationId",
                 "postId",
                 "projectId",
                 "questionId",
                 "questionAnswerId",
                 "quizId",
                 "routineId",
-                "smartContractId",
                 "standardId",
                 "tagId",
+                "teamId",
                 "userId",
             ],
             graphqlFields: [],

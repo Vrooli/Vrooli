@@ -1,19 +1,23 @@
-import { calculateOccurrences, Chat, ChatCreateInput, ChatInviteStatus, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode, socket } from "api";
-import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
+import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
+import { useDimensions } from "hooks/useDimensions";
 import { useHistoryState } from "hooks/useHistoryState";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useMessageActions } from "hooks/useMessageActions";
 import { useMessageTree } from "hooks/useMessageTree";
+import { useSocketChat } from "hooks/useSocketChat";
 import { PageTab } from "hooks/useTabs";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -22,17 +26,15 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { CalendarEvent } from "types";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { BranchMap, getCookieMatchingChat, getCookieMessageTree, setCookieMatchingChat, setCookieMessageTree } from "utils/cookies";
+import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
-import { chatInitialValues, transformChatValues, VALYXA_INFO, withoutOtherMessages } from "views/objects/chat";
+import { chatInitialValues, transformChatValues, VALYXA_INFO, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 
 const CHAT_DEFAULTS = {
@@ -47,6 +49,13 @@ const CHAT_DEFAULTS = {
     }],
 } as unknown as Chat;
 
+type DashboardTabsInfo = {
+    IsSearchable: false;
+    Key: string; // "All" of focus mode's ID
+    Payload: FocusMode | undefined;
+    WhereParams: undefined;
+}
+
 /** View displayed for Home page when logged in */
 export const DashboardView = ({
     display,
@@ -59,9 +68,11 @@ export const DashboardView = ({
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
-    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
     const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
 
     const {
@@ -78,6 +89,11 @@ export const DashboardView = ({
 
     const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
     const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS));
+    useEffect(() => {
+        if (loadedChat?.participants) {
+            setParticipants(loadedChat.participants);
+        }
+    }, [loadedChat?.participants]);
     // When a chat is loaded, store chat ID by participant and task
     useEffect(() => {
         if (!loadedChat?.id) return;
@@ -91,10 +107,10 @@ export const DashboardView = ({
         const chatToUse = resetChat ? chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS) : chat;
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages(chatToUse, session), withoutOtherMessages(chatToUse, session), true),
+            inputs: transformChatValues(withModifiableMessages(chatToUse, session), withYourMessages(chatToUse, session), true),
             onSuccess: (data) => {
-                console.log("created new chat!", data);
-                setChat(data);
+                setChat({ ...data, messages: [] });
+                setUsersTyping([]);
                 const userId = getCurrentUser(session).id;
                 if (userId) setCookieMatchingChat(data.id, [userId, VALYXA_ID]);
             },
@@ -113,13 +129,11 @@ export const DashboardView = ({
         const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
         const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
-            console.log("fetching chattttt", existingChatId);
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getChat,
                 inputs: { id: existingChatId },
                 onSuccess: (data) => {
-                    console.log("fetched chattttt", data);
-                    setChat(data);
+                    setChat({ ...data, messages: [] });
                 },
                 onError: (response) => {
                     if (hasErrorCode(response, "NotFound")) {
@@ -137,38 +151,59 @@ export const DashboardView = ({
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<FocusMode, false>[]>(() => allFocusModes.map((mode, index) => ({
-        index,
-        label: mode.name,
-        tabType: mode,
-    })), [allFocusModes]);
+    const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => ([
+        ...allFocusModes.map((mode, index) => ({
+            color: palette.primary.contrastText,
+            data: mode,
+            index,
+            key: mode.id,
+            label: mode.name,
+            searchPlaceholder: "",
+        })),
+        {
+            color: palette.primary.contrastText,
+            data: undefined,
+            Icon: AddIcon,
+            index: allFocusModes.length,
+            key: "Add",
+            label: "Add",
+            searchPlaceholder: "",
+        },
+    ]), [allFocusModes, palette.primary.contrastText]);
     const currTab = useMemo(() => {
-        const match = tabs.find(tab => tab.tabType.id === activeFocusMode?.mode?.id);
+        if (typeof activeFocusMode === "string") return "Add";
+        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.mode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, activeFocusMode]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<FocusMode, false>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<DashboardTabsInfo>) => {
         e.preventDefault();
+        // If "Add", go to the add focus mode page
+        if (tab.key === "Add" || !tab.data) {
+            setLocation(LINKS.SettingsFocusModes);
+            return;
+        }
+        // Otherwise, publish the focus mode
         PubSub.get().publish("focusMode", {
             __typename: "ActiveFocusMode" as const,
-            mode: tab.tabType,
+            mode: tab.data,
             stopCondition: FocusModeStopCondition.NextBegins,
         });
-    }, []);
+    }, [setLocation]);
     useEffect(() => {
         refetch({ activeFocusModeId: activeFocusMode?.mode?.id });
     }, [activeFocusMode, refetch]);
 
     // Converts resources to a resource list
-    const [resourceList, setResourceList] = useState<ResourceList>({
+    const [resourceList, setResourceList] = useState<ResourceListType>({
         __typename: "ResourceList",
         created_at: 0,
         updated_at: 0,
         id: DUMMY_ID,
         resources: [],
         translations: [],
-    } as unknown as ResourceList);
+    } as unknown as ResourceListType);
     useEffect(() => {
         if (data?.resources) {
             setResourceList(r => ({ ...r, resources: data.resources }));
@@ -179,11 +214,12 @@ export const DashboardView = ({
         if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
             setResourceList({
                 ...activeFocusMode.mode.resourceList,
-                __typename: "ResourceList",
+                __typename: "ResourceList" as const,
                 listFor: {
-                    __typename: "FocusMode",
-                    id: activeFocusMode.mode.id,
-                } as ResourceList["listFor"],
+                    ...activeFocusMode.mode,
+                    __typename: "FocusMode" as const,
+                    resourceList: undefined, // Avoid circular reference
+                },
             });
         }
     }, [activeFocusMode]);
@@ -220,29 +256,43 @@ export const DashboardView = ({
             setSchedules(data.schedules);
         }
     }, [data]);
-    const upcomingEvents = useMemo(() => {
-        // Initialize result
-        const result: CalendarEvent[] = [];
-        // Loop through schedules
-        schedules.forEach((schedule) => {
-            // Get occurrences in the upcoming 30 days
-            const occurrences = calculateOccurrences(schedule, new Date(), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-            // Create events
-            const events: CalendarEvent[] = occurrences.map(occurrence => ({
-                __typename: "CalendarEvent",
-                id: uuid(),
-                title: getDisplay(schedule, languages).title,
-                start: occurrence.start,
-                end: occurrence.end,
-                allDay: false,
-                schedule,
-            }));
-            // Add events to result
-            result.push(...events);
-        });
-        // Sort events by start date, and return the first 10
-        result.sort((a, b) => a.start.getTime() - b.start.getTime());
-        return result.slice(0, 10);
+    const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchUpcomingEvents = async () => {
+            const result: CalendarEvent[] = [];
+            for (const schedule of schedules) {
+                const occurrences = await calculateOccurrences(
+                    schedule,
+                    new Date(),
+                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                );
+                const events: CalendarEvent[] = occurrences.map(occurrence => ({
+                    __typename: "CalendarEvent",
+                    id: uuid(),
+                    title: getDisplay(schedule, languages).title,
+                    start: occurrence.start,
+                    end: occurrence.end,
+                    allDay: false,
+                    schedule,
+                }));
+                if (!isCancelled) {
+                    result.push(...events);
+                }
+            }
+            if (!isCancelled) {
+                // Sort events by start date, and set the first 10
+                result.sort((a, b) => a.start.getTime() - b.start.getTime());
+                setUpcomingEvents(result.slice(0, 10));
+            }
+        };
+
+        fetchUpcomingEvents();
+
+        return () => {
+            isCancelled = true; // Cleanup function to avoid setting state on unmounted component
+        };
     }, [languages, schedules]);
     const onEventAction = useCallback((action: keyof ObjectListActions<CalendarEvent>, ...data: unknown[]) => {
         switch (action) {
@@ -274,147 +324,76 @@ export const DashboardView = ({
     const [showChat, setShowChat] = useState(false);
     const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
 
-    const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);
-    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(chat.id)?.branches ?? {});
+    const messageTree = useMessageTree(chat.id);
+    const { dimensions, ref: dimRef } = useDimensions();
 
     const [inputFocused, setInputFocused] = useState(false);
+    const onBlur = useCallback(() => { setInputFocused(false); }, []);
     const onFocus = useCallback(() => {
         setInputFocused(true);
         setShowChat(true);
     }, []);
 
-    // We query messages separate from the chat, since we must traverse the message tree
-    const [getTreeData, { data: searchTreeData }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
-
-    // When chatId changes, clear the message tree and branches, and fetch new data
-    useEffect(() => {
-        if (chat.id === DUMMY_ID) return;
-        clearMessages();
-        setBranches({});
-        getTreeData({ chatId: chat.id });
-    }, [chat.id, clearMessages, getTreeData]);
-    useEffect(() => {
-        if (!searchTreeData || searchTreeData.messages.length === 0) return;
-        console.log("got search tree messages!!", searchTreeData.messages);
-        addMessages(searchTreeData.messages);
-    }, [addMessages, searchTreeData]);
-
-    useEffect(() => {
-        // Update the cookie with current branches
-        setCookieMessageTree(chat.id, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
-    }, [branches, chat.id]);
-
-    const onSubmit = useCallback((updatedChat: ChatShape) => {
-        fetchLazyWrapper<ChatUpdateInput, Chat>({
-            fetch,
-            inputs: transformChatValues(withoutOtherMessages(updatedChat, session), withoutOtherMessages(chat, session), false),
-            onSuccess: (data) => {
-                console.log("update success!", data);
-                setChat(data);
-                setMessage("");
-            },
-            spinnerDelay: null,
-        });
-    }, [chat, fetch, setChat, session, setMessage]);
-
-    // Handle websocket connection/disconnection
-    useEffect(() => {
-        // Only connect to the websocket if the chat exists
-        if (!chat?.id || chat.id === DUMMY_ID) return;
-        socket.emit("joinRoom", chat.id, (response) => {
-            if (response.error) {
-                console.error("Failed to join chat room", response?.error);
-            } else {
-                console.info("Joined chat room");
-            }
-        });
-        // Leave the chat room when the component is unmounted
-        return () => {
-            socket.emit("leaveRoom", chat.id, (response) => {
-                if (response.error) {
-                    console.error("Failed to leave chat room", response?.error);
-                } else {
-                    console.info("Left chat room");
-                }
+    const onSubmit = useCallback((updatedChat?: ChatShape) => {
+        return new Promise<Chat>((resolve, reject) => {
+            // Clear typed message
+            let oldMessage: string | undefined;
+            setMessage((m) => {
+                oldMessage = m;
+                return "";
             });
-        };
-    }, [chat.id]);
-    // Handle websocket events
-    useEffect(() => {
-        // When a message is received, add it to the chat
-        socket.on("message", (message: ChatMessage) => {
-            console.log("got websocket message!!!", message);
-            addMessages([message]);
+            fetchLazyWrapper<ChatUpdateInput, Chat>({
+                fetch,
+                inputs: transformChatValues(withModifiableMessages(updatedChat ?? chat, session), withYourMessages(chat, session), false),
+                onSuccess: (data) => {
+                    setChat({ ...data, messages: [] });
+                    resolve(data);
+                },
+                onError: (data) => {
+                    // Put typed message back if there was a problem
+                    setMessage(oldMessage ?? "");
+                    PubSub.get().publish("snack", {
+                        message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
+                        severity: "Error",
+                        data,
+                    });
+                    reject(data);
+                },
+                spinnerDelay: null,
+            });
         });
-        // When a message is updated, update it in the chat
-        socket.on("editMessage", (message: ChatMessage) => {
-            editMessage(message);
-        });
-        // When a message is deleted, remove it from the chat
-        socket.on("deleteMessage", (id: string) => {
-            removeMessages([id]);
-        });
-        // Show the status of users typing
-        socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
-            // Add every user that's typing
-            const newTyping = [...usersTyping];
-            for (const id of starting ?? []) {
-                // Never add yourself
-                if (id === getCurrentUser(session).id) continue;
-                if (newTyping.some(p => p.user.id === id)) continue;
-                const participant = chat.participants?.find(p => p.user.id === id);
-                if (!participant) continue;
-                newTyping.push(participant);
-            }
-            // Remove every user that stopped typing
-            for (const id of stopping ?? []) {
-                const index = newTyping.findIndex(p => p.user.id === id);
-                if (index === -1) continue;
-                newTyping.splice(index, 1);
-            }
-            setUsersTyping(newTyping);
-        });
-        return () => {
-            // Remove chat-specific event handlers
-            socket.off("message");
-            socket.off("typing");
-        };
-    }, [chat.participants, setChat, message, session, usersTyping, addMessages, editMessage, removeMessages]);
+    }, [chat, fetch, session, setMessage]);
 
-    const addMessage = useCallback((text: string) => {
-        const newMessage: ChatMessageShape = {
-            __typename: "ChatMessage" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            isUnsent: true,
-            chat: {
-                __typename: "Chat" as const,
-                id: chat.id,
-            },
-            reactionSummaries: [],
-            translations: [{
-                __typename: "ChatMessageTranslation" as const,
-                id: DUMMY_ID,
-                language: languages[0],
-                text,
-            }],
-            user: {
-                __typename: "User" as const,
-                id: getCurrentUser(session).id ?? "",
-                isBot: false,
-                name: getCurrentUser(session).name ?? undefined,
-            },
-        };
-        onSubmit({ ...chat, messages: [...(chat.messages ?? []), newMessage] });
-    }, [chat, languages, onSubmit, session]);
+    const { messageStream } = useSocketChat({
+        addMessages: messageTree.addMessages,
+        chat,
+        editMessage: messageTree.editMessage,
+        messageTasks: messageTree.messageTasks,
+        participants,
+        removeMessages: messageTree.removeMessages,
+        setParticipants,
+        setUsersTyping,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
+        usersTyping,
+    });
+
+    const messageActions = useMessageActions({
+        chat,
+        handleChatUpdate: onSubmit,
+        language: languages[0],
+        tasks: messageTree.messageTasks,
+        tree: messageTree.tree,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
+    });
+
+    const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
 
     return (
         <Box sx={{
             display: "flex",
             flexDirection: "column",
             maxHeight: "100vh",
-            height: "100vh",
+            height: "calc(100vh - env(safe-area-inset-bottom))",
             overflow: "hidden",
         }}>
             {/* Main content */}
@@ -435,10 +414,10 @@ export const DashboardView = ({
                     <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
                 </IconButton>}
                 below={<>
-                    {showTabs && <PageTabs
+                    {showTabs && currTab && <PageTabs
                         ariaLabel="home-tabs"
                         id="home-tabs"
-                        currTab={currTab!}
+                        currTab={currTab as PageTab<DashboardTabsInfo>}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
@@ -447,14 +426,16 @@ export const DashboardView = ({
                     {showChat && <Box
                         display="flex"
                         flexDirection="row"
-                        justifyContent="center"
+                        justifyContent="space-around"
                         alignItems="center"
+                        maxWidth="min(100vw, 1000px)"
+                        margin="auto"
                     >
                         <Button
                             color="primary"
                             onClick={() => { setShowChat(false); }}
                             variant="contained"
-                            sx={{ margin: 2, borderRadius: 8 }}
+                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<ChevronLeftIcon />}
                         >
                             {t("Dashboard")}
@@ -463,7 +444,7 @@ export const DashboardView = ({
                             color="primary"
                             onClick={() => { createChat(true); }}
                             variant="contained"
-                            sx={{ margin: 2, borderRadius: 8 }}
+                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<AddIcon />}
                         >
                             {t("NewChat")}
@@ -472,6 +453,7 @@ export const DashboardView = ({
                 </>}
             />
             <Box sx={{
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 flexGrow: 1,
@@ -481,26 +463,36 @@ export const DashboardView = ({
                 overflowY: "auto",
                 width: "min(700px, 100%)",
             }}>
+                {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!showChat && <>
-                    {/* Resources */}
                     <Box p={1}>
-                        <ResourceListHorizontal
+                        <ResourceList
                             id="main-resource-list"
                             list={resourceList}
                             canUpdate={true}
                             handleUpdate={setResourceList}
+                            horizontal
                             loading={isFeedLoading}
                             mutate={true}
-                            parent={{ __typename: "FocusMode", id: activeFocusMode?.mode?.id ?? "" }}
+                            parent={activeFocusMode?.mode ?
+                                {
+                                    ...activeFocusMode.mode,
+                                    __typename: "FocusMode" as const,
+                                    resourceList: undefined,
+                                } as FocusMode : // Avoid circular reference
+                                { __typename: "FocusMode", id: DUMMY_ID }
+                            }
                             title={t("Resource", { count: 2 })}
                             sxs={{ list: { justifyContent: "flex-start" } }}
                         />
                     </Box>
                     {/* Events */}
-                    {upcomingEvents.length > 0 && <ListTitleContainer
+                    <ListTitleContainer
                         Icon={MonthIcon}
                         id="main-event-list"
                         isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
+                        emptyText="No upcoming events"
+                        loading={isFeedLoading}
                         title={t("Schedule", { count: 1 })}
                         options={[{
                             Icon: OpenInNewIcon,
@@ -515,12 +507,14 @@ export const DashboardView = ({
                             loading={isFeedLoading}
                             onAction={onEventAction}
                         />
-                    </ListTitleContainer>}
+                    </ListTitleContainer>
                     {/* Reminders */}
-                    {reminders.length > 0 && <ListTitleContainer
+                    <ListTitleContainer
                         Icon={ReminderIcon}
                         id="main-reminder-list"
                         isEmpty={reminders.length === 0 && !isFeedLoading}
+                        emptyText="No reminders"
+                        loading={isFeedLoading}
                         title={t("Reminder", { count: 2 })}
                         options={[{
                             Icon: OpenInNewIcon,
@@ -539,17 +533,24 @@ export const DashboardView = ({
                             loading={isFeedLoading}
                             onAction={onReminderAction}
                         />
-                    </ListTitleContainer>}
+                    </ListTitleContainer>
                 </>}
                 {showChat && <ChatBubbleTree
-                    branches={branches}
-                    editMessage={editMessage}
-                    handleReply={() => { }}
-                    handleRetry={() => { }}
-                    removeMessages={removeMessages}
-                    setBranches={setBranches}
-                    tree={tree}
+                    branches={messageTree.branches}
+                    dimensions={dimensions}
+                    dimRef={dimRef}
+                    editMessage={messageActions.putMessage}
+                    handleReply={messageTree.replyToMessage}
+                    handleRetry={messageActions.regenerateResponse}
+                    handleTaskClick={messageActions.respondToTask}
+                    isBotOnlyChat={isBotOnlyChat}
+                    messageStream={messageStream}
+                    messageTasks={messageTree.messageTasks}
+                    removeMessages={messageTree.removeMessages}
+                    setBranches={messageTree.setBranches}
+                    tree={messageTree.tree}
                 />}
+                {showChat && <ScrollToBottomButton containerRef={dimRef} />}
             </Box>
             <TypingIndicator participants={usersTyping} />
             <RichInputBase
@@ -557,11 +558,11 @@ export const DashboardView = ({
                     disabled: isChatLoading || isCreateLoading || isUpdateLoading,
                     Icon: SendIcon,
                     onClick: () => {
-                        if (message.trim() === "") return;
-                        addMessage(message);
+                        const trimmed = message.trim();
+                        if (trimmed.length === 0) return;
+                        messageActions.postMessage(trimmed);
                     },
                 }]}
-                disableAssistant={true}
                 fullWidth
                 getTaggableItems={async (message) => {
                     // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
@@ -571,8 +572,14 @@ export const DashboardView = ({
                 maxRows={inputFocused ? 10 : 2}
                 minRows={1}
                 name="search"
+                onBlur={onBlur}
                 onChange={setMessage}
                 onFocus={onFocus}
+                onSubmit={(m) => {
+                    const trimmed = m.trim();
+                    if (trimmed.length === 0) return;
+                    messageActions.postMessage(trimmed);
+                }}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 sxs={{
                     root: {
@@ -581,11 +588,11 @@ export const DashboardView = ({
                         maxHeight: "min(75vh, 500px)",
                         width: "min(700px, 100%)",
                         margin: "auto",
-                        marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
+                        marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
                     },
                     topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                     bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                    textArea: {
+                    inputRoot: {
                         border: "none",
                         background: palette.background.paper,
                     },

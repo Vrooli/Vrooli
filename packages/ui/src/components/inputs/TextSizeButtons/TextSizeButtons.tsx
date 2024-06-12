@@ -2,7 +2,7 @@ import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
 import { useThrottle } from "hooks/useThrottle";
 import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons";
 import { useState } from "react";
-import { getCookieFontSize } from "utils/cookies";
+import { getCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 
 const smallestFontSize = 10;
@@ -24,7 +24,7 @@ const ThumbComponent = (props: React.HTMLAttributes<unknown>) => {
 export const TextSizeButtons = () => {
     const { palette } = useTheme();
 
-    const [size, setSize] = useState<number>(getCookieFontSize(14));
+    const [size, setSize] = useState<number>(getCookie("FontSize"));
 
     const handleSliderChange = (newValue: number) => {
         if (newValue >= smallestFontSize && newValue <= largestFontSize) {

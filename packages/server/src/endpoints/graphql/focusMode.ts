@@ -56,6 +56,13 @@ export const typeDef = gql`
         reminderList: ReminderList
         resourceList: ResourceList
         schedule: Schedule
+        you: FocusModeYou!
+    }
+
+    type FocusModeYou {
+        canDelete: Boolean!
+        canRead: Boolean!
+        canUpdate: Boolean!
     }
 
     input SetActiveFocusModeInput {

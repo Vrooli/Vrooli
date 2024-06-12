@@ -8,48 +8,49 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { RunRoutineFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { OrganizationModelLogic, RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
+import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
 export const RunRoutineModel: RunRoutineModelLogic = ({
     __typename,
     danger: {
         /**
-         * Anonymizes all public runs associated with a user or organization
+         * Anonymizes all public runs associated with a user or team
          */
-        async anonymize(prisma: PrismaType, owner: { __typename: "User" | "Organization", id: string }): Promise<void> {
-            await prisma.run_routine.updateMany({
+        async anonymize(owner: { __typename: "Team" | "User", id: string }): Promise<void> {
+            await prismaInstance.run_routine.updateMany({
                 where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
-                    organizationId: owner.__typename === "Organization" ? owner.id : undefined,
                     isPrivate: false,
                 },
                 data: {
+                    teamId: null,
                     userId: null,
-                    organizationId: null,
                 },
             });
         },
         /**
-         * Deletes all runs associated with a user or organization
+         * Deletes all runs associated with a user or team
          */
-        async deleteAll(prisma: PrismaType, owner: { __typename: "User" | "Organization", id: string }): Promise<Count> {
-            return prisma.run_routine.deleteMany({
+        async deleteAll(owner: { __typename: "Team" | "User", id: string }): Promise<Count> {
+            return prismaInstance.run_routine.deleteMany({
                 where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
-                    organizationId: owner.__typename === "Organization" ? owner.id : undefined,
                 },
             }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
         },
     },
-    delegate: (prisma) => prisma.run_routine,
+    dbTable: "run_routine",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -74,15 +75,15 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
-                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
-                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
-                    ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
-                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
+                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
+                    user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
+                    routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runRoutines", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
+                    runProject: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "runRoutines", data, ...rest }),
+                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runRoutines", data, ...rest }),
+                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -92,20 +93,21 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     isPrivate: noNull(data.isPrivate),
                     status: noNull(data.status),
                     timeElapsed: noNull(data.timeElapsed),
-                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
-                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
-                    ...(await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest })),
+                    // TODO should have way of checking old status, so we don't reset startedAt/completedAt
+                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runRoutines", data, ...rest }),
+                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
+                    inputs: await shapeHelper({ relation: "inputs", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineInput", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
         },
         trigger: {
-            afterMutations: ({ createInputs, createdIds, updatedIds, updateInputs, prisma, userData }) => {
+            afterMutations: ({ createInputs, createdIds, updatedIds, updateInputs, userData }) => {
                 // Handle run start trigger for every run with status InProgress
                 for (const { id, status } of createInputs) {
                     if (status === RunStatus.InProgress) {
-                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
+                        Trigger(userData.languages).runRoutineStart(id, userData.id, false);
                     }
                 }
                 for (let i = 0; i < updatedIds.length; i++) {
@@ -114,17 +116,17 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
                     if (status === RunStatus.InProgress && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineStart(id, userData.id, false);
+                        Trigger(userData.languages).runRoutineStart(id, userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
                     if (status === RunStatus.Completed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineComplete(id, userData.id, false);
+                        Trigger(userData.languages).runRoutineComplete(id, userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
                     if (status === RunStatus.Failed && Object.prototype.hasOwnProperty.call(updateInputs[i], "status")) {
-                        Trigger(prisma, userData.languages).runRoutineFail(id, userData.id, false);
+                        Trigger(userData.languages).runRoutineFail(id, userData.id, false);
                     }
                 }
             },
@@ -138,14 +140,14 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
          * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
          * will just be looking at the routine instead of using it.
          */
-        async complete(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
+        async complete(userData: SessionUserToken, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
             const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
             let run: run_routine | null;
             // Check if run is being created or updated
             if (input.exists) {
                 // Find in database
-                run = await prisma.run_routine.findFirst({
+                run = await prismaInstance.run_routine.findFirst({
                     where: {
                         AND: [
                             { userId: userData.id },
@@ -156,7 +158,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 if (!run) throw new CustomError("0180", "NotFound", userData.languages);
                 const { timeElapsed, contextSwitches, completedComplexity } = run;
                 // Update object
-                run = await prisma.run_routine.update({
+                run = await prismaInstance.run_routine.update({
                     where: { id: input.id },
                     data: {
                         completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
@@ -188,7 +190,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 });
             } else {
                 // Create new run
-                run = await prisma.run_routine.create({
+                run = await prismaInstance.run_routine.create({
                     data: {
                         completedComplexity: input.completedComplexity ?? 0,
                         startedAt: new Date(),
@@ -221,21 +223,21 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             // Convert to GraphQL
             let converted: any = modelToGql(run, partial);
             // Add supplemental fields
-            converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
+            converted = (await addSupplementalFields(userData, [converted], partial))[0];
             // Handle trigger
-            if (input.wasSuccessful) await Trigger(prisma, userData.languages).runRoutineComplete(input.id, userData.id, false);
-            else await Trigger(prisma, userData.languages).runRoutineFail(input.id, userData.id, false);
+            if (input.wasSuccessful) await Trigger(userData.languages).runRoutineComplete(input.id, userData.id, false);
+            else await Trigger(userData.languages).runRoutineFail(input.id, userData.id, false);
             // Return converted object
             return converted as RunRoutine;
         },
         /**
          * Cancels a run
          */
-        async cancel(prisma: PrismaType, userData: SessionUserToken, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
+        async cancel(userData: SessionUserToken, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
             // Convert info to partial
             const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
             // Find in database
-            const object = await prisma.run_routine.findFirst({
+            const object = await prismaInstance.run_routine.findFirst({
                 where: {
                     AND: [
                         { userId: userData.id },
@@ -245,7 +247,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             });
             if (!object) throw new CustomError("0182", "NotFound", userData.languages);
             // Update object
-            const updated = await prisma.run_routine.update({
+            const updated = await prismaInstance.run_routine.update({
                 where: { id: input.id },
                 data: {
                     status: RunStatus.Cancelled,
@@ -255,7 +257,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             // Convert to GraphQL
             let converted: any = modelToGql(updated, partial);
             // Add supplemental fields
-            converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
+            converted = (await addSupplementalFields(userData, [converted], partial))[0];
             // Return converted object
             return converted as RunRoutine;
         },
@@ -285,10 +287,10 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             // Add fields needed for notifications when a run is started/completed
             dbFields: ["name"],
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },
@@ -300,28 +302,33 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            organization: "Organization",
             routineVersion: "RoutineVersion",
+            team: "Team",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
-            ["organization", "Organization"],
-            ["user", "User"],
-        ], data, ...rest),
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            (
+                (data.user === null && data.team === null) ||
+                oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
+                    ["team", "Team"],
+                    ["user", "User"],
+                ], data, ...rest)
+            ),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

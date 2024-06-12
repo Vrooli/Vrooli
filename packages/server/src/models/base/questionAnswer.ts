@@ -8,10 +8,11 @@ import { QuestionAnswerModelLogic } from "./types";
 const __typename = "QuestionAnswer" as const;
 export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.question_answer,
+    dbTable: "question_answer",
+    dbTranslationTable: "question_answer_translation",
     display: () => ({
         label: {
-            select: () => ({ id: true, callLink: true, translations: { select: { language: true, text: true } } }),
+            select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
         },
     }),
@@ -21,11 +22,11 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 createdBy: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "question", relTypes: ["Connect"], isOneToOne: true, objectType: "Question", parentRelationshipName: "answers", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                question: await shapeHelper({ relation: "question", relTypes: ["Connect"], isOneToOne: true, objectType: "Question", parentRelationshipName: "answers", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: questionAnswerValidation,

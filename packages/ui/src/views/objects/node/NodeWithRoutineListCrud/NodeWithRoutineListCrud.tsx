@@ -15,7 +15,7 @@ import { DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer } from "styles";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { shapeNode } from "utils/shape/models/node";
@@ -53,8 +53,7 @@ const NodeWithRoutineListForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: nodeTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: nodeTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const [isOrderedField] = useField<boolean>("routineList.isOrdered");
@@ -170,14 +169,13 @@ export const NodeWithRoutineListCrud = ({
     ...props
 }: NodeWithRoutineListCrudProps) => {
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<NodeWithRoutineListShape, NodeWithRoutineListShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NodeWithRoutineListShape, NodeWithRoutineListShape>({
         ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
         isCreate: false,
         objectType: "Node",
         overrideObject: overrideObject as NodeWithRoutineListShape,
         transform: (existing) => nodeWithRoutineListInitialValues(existing as NodeWithRoutineListShape),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -189,7 +187,7 @@ export const NodeWithRoutineListCrud = ({
             {(formik) =>
                 <>
                     <NodeWithRoutineListForm
-                        disabled={!(canUpdate || isEditing)}
+                        disabled={!(permissions.canUpdate || isEditing)}
                         existing={existing}
                         handleUpdate={setExisting}
                         isEditing={isEditing}

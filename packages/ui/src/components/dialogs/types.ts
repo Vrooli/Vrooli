@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, CommonKey, FocusMode, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, Organization, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, SmartContractVersion, StandardVersion, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, StandardVersion, Team, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
@@ -7,7 +7,6 @@ import { ReactNode } from "react";
 import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
-import { ListObject } from "utils/display/listTools";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { ViewDisplayType } from "views/types";
@@ -48,28 +47,28 @@ export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
 }
 
 export type SelectOrCreateObjectType = "ApiVersion" |
+    "CodeVersion" |
     "FocusMode" |
     "Meeting" |
     "NoteVersion" |
-    "Organization" |
     "ProjectVersion" |
     "Question" |
     "RoutineVersion" |
     "RunProject" |
     "RunRoutine" |
-    "SmartContractVersion" |
     "StandardVersion" |
+    "Team" |
     "User";
 export type SelectOrCreateObject = ApiVersion |
+    CodeVersion |
     FocusMode |
     Meeting |
     NoteVersion |
-    Organization |
     ProjectVersion |
     Question |
     RoutineVersion |
-    SmartContractVersion |
     StandardVersion |
+    Team |
     User;
 /**
  * Determines what type of data is returned when an object is selected. 
@@ -261,7 +260,11 @@ export interface LargeDialogProps {
     isOpen: boolean;
     onClose: (_event: unknown, reason: "backdropClick" | "escapeKeyDown") => unknown;
     titleId?: string;
-    sxs?: { paper?: SxType; }
+    sxs?: {
+        paper?: SxType;
+        root?: SxType;
+    };
+    zIndexOffset?: number;
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {

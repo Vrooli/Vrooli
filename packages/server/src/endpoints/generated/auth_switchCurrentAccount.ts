@@ -1333,27 +1333,104 @@ export const auth_switchCurrentAccount = {
                                             "start": 3247,
                                             "end": 3258
                                           }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "you",
+                                            "loc": {
+                                              "start": 3283,
+                                              "end": 3286
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canDelete",
+                                                  "loc": {
+                                                    "start": 3317,
+                                                    "end": 3326
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3317,
+                                                  "end": 3326
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canRead",
+                                                  "loc": {
+                                                    "start": 3355,
+                                                    "end": 3362
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3355,
+                                                  "end": 3362
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canUpdate",
+                                                  "loc": {
+                                                    "start": 3391,
+                                                    "end": 3400
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3391,
+                                                  "end": 3400
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 3287,
+                                              "end": 3426
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 3283,
+                                            "end": 3426
+                                          }
                                         }
                                       ],
                                       "loc": {
                                         "start": 1056,
-                                        "end": 3280
+                                        "end": 3448
                                       }
                                     },
                                     "loc": {
                                       "start": 1046,
-                                      "end": 3280
+                                      "end": 3448
                                     }
                                   }
                                 ],
                                 "loc": {
                                   "start": 494,
-                                  "end": 3298
+                                  "end": 3466
                                 }
                               },
                               "loc": {
                                 "start": 486,
-                                "end": 3298
+                                "end": 3466
                               }
                             },
                             {
@@ -1362,8 +1439,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 3315,
-                                  "end": 3321
+                                  "start": 3483,
+                                  "end": 3489
                                 }
                               },
                               "arguments": [],
@@ -1377,15 +1454,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3344,
-                                        "end": 3346
+                                        "start": 3512,
+                                        "end": 3514
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3344,
-                                      "end": 3346
+                                      "start": 3512,
+                                      "end": 3514
                                     }
                                   },
                                   {
@@ -1394,15 +1471,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 3367,
-                                        "end": 3372
+                                        "start": 3535,
+                                        "end": 3540
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3367,
-                                      "end": 3372
+                                      "start": 3535,
+                                      "end": 3540
                                     }
                                   },
                                   {
@@ -1411,26 +1488,26 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 3393,
-                                        "end": 3398
+                                        "start": 3561,
+                                        "end": 3566
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3393,
-                                      "end": 3398
+                                      "start": 3561,
+                                      "end": 3566
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3322,
-                                  "end": 3416
+                                  "start": 3490,
+                                  "end": 3584
                                 }
                               },
                               "loc": {
-                                "start": 3315,
-                                "end": 3416
+                                "start": 3483,
+                                "end": 3584
                               }
                             },
                             {
@@ -1439,8 +1516,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 3433,
-                                  "end": 3445
+                                  "start": 3601,
+                                  "end": 3613
                                 }
                               },
                               "arguments": [],
@@ -1454,15 +1531,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3468,
-                                        "end": 3470
+                                        "start": 3636,
+                                        "end": 3638
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3468,
-                                      "end": 3470
+                                      "start": 3636,
+                                      "end": 3638
                                     }
                                   },
                                   {
@@ -1471,15 +1548,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3491,
-                                        "end": 3501
+                                        "start": 3659,
+                                        "end": 3669
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3491,
-                                      "end": 3501
+                                      "start": 3659,
+                                      "end": 3669
                                     }
                                   },
                                   {
@@ -1488,15 +1565,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 3522,
-                                        "end": 3532
+                                        "start": 3690,
+                                        "end": 3700
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3522,
-                                      "end": 3532
+                                      "start": 3690,
+                                      "end": 3700
                                     }
                                   },
                                   {
@@ -1505,8 +1582,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 3553,
-                                        "end": 3562
+                                        "start": 3721,
+                                        "end": 3730
                                       }
                                     },
                                     "arguments": [],
@@ -1520,15 +1597,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3589,
-                                              "end": 3591
+                                              "start": 3757,
+                                              "end": 3759
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3589,
-                                            "end": 3591
+                                            "start": 3757,
+                                            "end": 3759
                                           }
                                         },
                                         {
@@ -1537,15 +1614,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 3616,
-                                              "end": 3626
+                                              "start": 3784,
+                                              "end": 3794
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3616,
-                                            "end": 3626
+                                            "start": 3784,
+                                            "end": 3794
                                           }
                                         },
                                         {
@@ -1554,15 +1631,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 3651,
-                                              "end": 3661
+                                              "start": 3819,
+                                              "end": 3829
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3651,
-                                            "end": 3661
+                                            "start": 3819,
+                                            "end": 3829
                                           }
                                         },
                                         {
@@ -1571,15 +1648,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3686,
-                                              "end": 3690
+                                              "start": 3854,
+                                              "end": 3858
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3686,
-                                            "end": 3690
+                                            "start": 3854,
+                                            "end": 3858
                                           }
                                         },
                                         {
@@ -1588,15 +1665,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3715,
-                                              "end": 3726
+                                              "start": 3883,
+                                              "end": 3894
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3715,
-                                            "end": 3726
+                                            "start": 3883,
+                                            "end": 3894
                                           }
                                         },
                                         {
@@ -1605,15 +1682,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 3751,
-                                              "end": 3758
+                                              "start": 3919,
+                                              "end": 3926
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3751,
-                                            "end": 3758
+                                            "start": 3919,
+                                            "end": 3926
                                           }
                                         },
                                         {
@@ -1622,15 +1699,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3783,
-                                              "end": 3788
+                                              "start": 3951,
+                                              "end": 3956
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3783,
-                                            "end": 3788
+                                            "start": 3951,
+                                            "end": 3956
                                           }
                                         },
                                         {
@@ -1639,15 +1716,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 3813,
-                                              "end": 3823
+                                              "start": 3981,
+                                              "end": 3991
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3813,
-                                            "end": 3823
+                                            "start": 3981,
+                                            "end": 3991
                                           }
                                         },
                                         {
@@ -1656,8 +1733,8 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 3848,
-                                              "end": 3861
+                                              "start": 4016,
+                                              "end": 4029
                                             }
                                           },
                                           "arguments": [],
@@ -1671,15 +1748,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 3892,
-                                                    "end": 3894
+                                                    "start": 4060,
+                                                    "end": 4062
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3892,
-                                                  "end": 3894
+                                                  "start": 4060,
+                                                  "end": 4062
                                                 }
                                               },
                                               {
@@ -1688,15 +1765,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 3923,
-                                                    "end": 3933
+                                                    "start": 4091,
+                                                    "end": 4101
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3923,
-                                                  "end": 3933
+                                                  "start": 4091,
+                                                  "end": 4101
                                                 }
                                               },
                                               {
@@ -1705,15 +1782,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 3962,
-                                                    "end": 3972
+                                                    "start": 4130,
+                                                    "end": 4140
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3962,
-                                                  "end": 3972
+                                                  "start": 4130,
+                                                  "end": 4140
                                                 }
                                               },
                                               {
@@ -1722,15 +1799,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 4001,
-                                                    "end": 4005
+                                                    "start": 4169,
+                                                    "end": 4173
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4001,
-                                                  "end": 4005
+                                                  "start": 4169,
+                                                  "end": 4173
                                                 }
                                               },
                                               {
@@ -1739,15 +1816,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4034,
-                                                    "end": 4045
+                                                    "start": 4202,
+                                                    "end": 4213
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4034,
-                                                  "end": 4045
+                                                  "start": 4202,
+                                                  "end": 4213
                                                 }
                                               },
                                               {
@@ -1756,15 +1833,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 4074,
-                                                    "end": 4081
+                                                    "start": 4242,
+                                                    "end": 4249
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4074,
-                                                  "end": 4081
+                                                  "start": 4242,
+                                                  "end": 4249
                                                 }
                                               },
                                               {
@@ -1773,15 +1850,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 4110,
-                                                    "end": 4115
+                                                    "start": 4278,
+                                                    "end": 4283
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4110,
-                                                  "end": 4115
+                                                  "start": 4278,
+                                                  "end": 4283
                                                 }
                                               },
                                               {
@@ -1790,48 +1867,48 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 4144,
-                                                    "end": 4154
+                                                    "start": 4312,
+                                                    "end": 4322
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4144,
-                                                  "end": 4154
+                                                  "start": 4312,
+                                                  "end": 4322
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 3862,
-                                              "end": 4180
+                                              "start": 4030,
+                                              "end": 4348
                                             }
                                           },
                                           "loc": {
-                                            "start": 3848,
-                                            "end": 4180
+                                            "start": 4016,
+                                            "end": 4348
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3563,
-                                        "end": 4202
+                                        "start": 3731,
+                                        "end": 4370
                                       }
                                     },
                                     "loc": {
-                                      "start": 3553,
-                                      "end": 4202
+                                      "start": 3721,
+                                      "end": 4370
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3446,
-                                  "end": 4220
+                                  "start": 3614,
+                                  "end": 4388
                                 }
                               },
                               "loc": {
-                                "start": 3433,
-                                "end": 4220
+                                "start": 3601,
+                                "end": 4388
                               }
                             },
                             {
@@ -1840,8 +1917,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 4237,
-                                  "end": 4249
+                                  "start": 4405,
+                                  "end": 4417
                                 }
                               },
                               "arguments": [],
@@ -1855,15 +1932,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4272,
-                                        "end": 4274
+                                        "start": 4440,
+                                        "end": 4442
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4272,
-                                      "end": 4274
+                                      "start": 4440,
+                                      "end": 4442
                                     }
                                   },
                                   {
@@ -1872,15 +1949,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 4295,
-                                        "end": 4305
+                                        "start": 4463,
+                                        "end": 4473
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4295,
-                                      "end": 4305
+                                      "start": 4463,
+                                      "end": 4473
                                     }
                                   },
                                   {
@@ -1889,8 +1966,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 4326,
-                                        "end": 4338
+                                        "start": 4494,
+                                        "end": 4506
                                       }
                                     },
                                     "arguments": [],
@@ -1904,15 +1981,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4365,
-                                              "end": 4367
+                                              "start": 4533,
+                                              "end": 4535
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4365,
-                                            "end": 4367
+                                            "start": 4533,
+                                            "end": 4535
                                           }
                                         },
                                         {
@@ -1921,15 +1998,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 4392,
-                                              "end": 4400
+                                              "start": 4560,
+                                              "end": 4568
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4392,
-                                            "end": 4400
+                                            "start": 4560,
+                                            "end": 4568
                                           }
                                         },
                                         {
@@ -1938,15 +2015,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4425,
-                                              "end": 4436
+                                              "start": 4593,
+                                              "end": 4604
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4425,
-                                            "end": 4436
+                                            "start": 4593,
+                                            "end": 4604
                                           }
                                         },
                                         {
@@ -1955,26 +2032,26 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 4461,
-                                              "end": 4465
+                                              "start": 4629,
+                                              "end": 4633
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4461,
-                                            "end": 4465
+                                            "start": 4629,
+                                            "end": 4633
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4339,
-                                        "end": 4487
+                                        "start": 4507,
+                                        "end": 4655
                                       }
                                     },
                                     "loc": {
-                                      "start": 4326,
-                                      "end": 4487
+                                      "start": 4494,
+                                      "end": 4655
                                     }
                                   },
                                   {
@@ -1983,8 +2060,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 4508,
-                                        "end": 4517
+                                        "start": 4676,
+                                        "end": 4685
                                       }
                                     },
                                     "arguments": [],
@@ -1998,15 +2075,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4544,
-                                              "end": 4546
+                                              "start": 4712,
+                                              "end": 4714
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4544,
-                                            "end": 4546
+                                            "start": 4712,
+                                            "end": 4714
                                           }
                                         },
                                         {
@@ -2015,15 +2092,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 4571,
-                                              "end": 4576
+                                              "start": 4739,
+                                              "end": 4744
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4571,
-                                            "end": 4576
+                                            "start": 4739,
+                                            "end": 4744
                                           }
                                         },
                                         {
@@ -2032,15 +2109,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 4601,
-                                              "end": 4605
+                                              "start": 4769,
+                                              "end": 4773
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4601,
-                                            "end": 4605
+                                            "start": 4769,
+                                            "end": 4773
                                           }
                                         },
                                         {
@@ -2049,15 +2126,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 4630,
-                                              "end": 4637
+                                              "start": 4798,
+                                              "end": 4805
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4630,
-                                            "end": 4637
+                                            "start": 4798,
+                                            "end": 4805
                                           }
                                         },
                                         {
@@ -2066,8 +2143,8 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 4662,
-                                              "end": 4674
+                                              "start": 4830,
+                                              "end": 4842
                                             }
                                           },
                                           "arguments": [],
@@ -2081,15 +2158,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 4705,
-                                                    "end": 4707
+                                                    "start": 4873,
+                                                    "end": 4875
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4705,
-                                                  "end": 4707
+                                                  "start": 4873,
+                                                  "end": 4875
                                                 }
                                               },
                                               {
@@ -2098,15 +2175,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 4736,
-                                                    "end": 4744
+                                                    "start": 4904,
+                                                    "end": 4912
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4736,
-                                                  "end": 4744
+                                                  "start": 4904,
+                                                  "end": 4912
                                                 }
                                               },
                                               {
@@ -2115,15 +2192,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4773,
-                                                    "end": 4784
+                                                    "start": 4941,
+                                                    "end": 4952
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4773,
-                                                  "end": 4784
+                                                  "start": 4941,
+                                                  "end": 4952
                                                 }
                                               },
                                               {
@@ -2132,48 +2209,48 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 4813,
-                                                    "end": 4817
+                                                    "start": 4981,
+                                                    "end": 4985
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4813,
-                                                  "end": 4817
+                                                  "start": 4981,
+                                                  "end": 4985
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 4675,
-                                              "end": 4843
+                                              "start": 4843,
+                                              "end": 5011
                                             }
                                           },
                                           "loc": {
-                                            "start": 4662,
-                                            "end": 4843
+                                            "start": 4830,
+                                            "end": 5011
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4518,
-                                        "end": 4865
+                                        "start": 4686,
+                                        "end": 5033
                                       }
                                     },
                                     "loc": {
-                                      "start": 4508,
-                                      "end": 4865
+                                      "start": 4676,
+                                      "end": 5033
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4250,
-                                  "end": 4883
+                                  "start": 4418,
+                                  "end": 5051
                                 }
                               },
                               "loc": {
-                                "start": 4237,
-                                "end": 4883
+                                "start": 4405,
+                                "end": 5051
                               }
                             },
                             {
@@ -2182,8 +2259,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 4900,
-                                  "end": 4908
+                                  "start": 5068,
+                                  "end": 5076
                                 }
                               },
                               "arguments": [],
@@ -2197,25 +2274,25 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 4934,
-                                        "end": 4949
+                                        "start": 5102,
+                                        "end": 5117
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 4931,
-                                      "end": 4949
+                                      "start": 5099,
+                                      "end": 5117
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4909,
-                                  "end": 4967
+                                  "start": 5077,
+                                  "end": 5135
                                 }
                               },
                               "loc": {
-                                "start": 4900,
-                                "end": 4967
+                                "start": 5068,
+                                "end": 5135
                               }
                             },
                             {
@@ -2224,15 +2301,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4984,
-                                  "end": 4986
+                                  "start": 5152,
+                                  "end": 5154
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4984,
-                                "end": 4986
+                                "start": 5152,
+                                "end": 5154
                               }
                             },
                             {
@@ -2241,15 +2318,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 5003,
-                                  "end": 5007
+                                  "start": 5171,
+                                  "end": 5175
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5003,
-                                "end": 5007
+                                "start": 5171,
+                                "end": 5175
                               }
                             },
                             {
@@ -2258,26 +2335,103 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 5024,
-                                  "end": 5035
+                                  "start": 5192,
+                                  "end": 5203
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5024,
-                                "end": 5035
+                                "start": 5192,
+                                "end": 5203
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "you",
+                                "loc": {
+                                  "start": 5220,
+                                  "end": 5223
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canDelete",
+                                      "loc": {
+                                        "start": 5246,
+                                        "end": 5255
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5246,
+                                      "end": 5255
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canRead",
+                                      "loc": {
+                                        "start": 5276,
+                                        "end": 5283
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5276,
+                                      "end": 5283
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canUpdate",
+                                      "loc": {
+                                        "start": 5304,
+                                        "end": 5313
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5304,
+                                      "end": 5313
+                                    }
+                                  }
+                                ],
+                                "loc": {
+                                  "start": 5224,
+                                  "end": 5331
+                                }
+                              },
+                              "loc": {
+                                "start": 5220,
+                                "end": 5331
                               }
                             }
                           ],
                           "loc": {
                             "start": 468,
-                            "end": 5049
+                            "end": 5345
                           }
                         },
                         "loc": {
                           "start": 463,
-                          "end": 5049
+                          "end": 5345
                         }
                       },
                       {
@@ -2286,15 +2440,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "stopCondition",
                           "loc": {
-                            "start": 5062,
-                            "end": 5075
+                            "start": 5358,
+                            "end": 5371
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5062,
-                          "end": 5075
+                          "start": 5358,
+                          "end": 5371
                         }
                       },
                       {
@@ -2303,26 +2457,26 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "stopTime",
                           "loc": {
-                            "start": 5088,
-                            "end": 5096
+                            "start": 5384,
+                            "end": 5392
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5088,
-                          "end": 5096
+                          "start": 5384,
+                          "end": 5392
                         }
                       }
                     ],
                     "loc": {
                       "start": 449,
-                      "end": 5106
+                      "end": 5402
                     }
                   },
                   "loc": {
                     "start": 433,
-                    "end": 5106
+                    "end": 5402
                   }
                 },
                 {
@@ -2331,15 +2485,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 5115,
-                      "end": 5124
+                      "start": 5411,
+                      "end": 5420
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5115,
-                    "end": 5124
+                    "start": 5411,
+                    "end": 5420
                   }
                 },
                 {
@@ -2348,8 +2502,8 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "bookmarkLists",
                     "loc": {
-                      "start": 5133,
-                      "end": 5146
+                      "start": 5429,
+                      "end": 5442
                     }
                   },
                   "arguments": [],
@@ -2363,15 +2517,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 5161,
-                            "end": 5163
+                            "start": 5457,
+                            "end": 5459
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5161,
-                          "end": 5163
+                          "start": 5457,
+                          "end": 5459
                         }
                       },
                       {
@@ -2380,15 +2534,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 5176,
-                            "end": 5186
+                            "start": 5472,
+                            "end": 5482
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5176,
-                          "end": 5186
+                          "start": 5472,
+                          "end": 5482
                         }
                       },
                       {
@@ -2397,15 +2551,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 5199,
-                            "end": 5209
+                            "start": 5495,
+                            "end": 5505
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5199,
-                          "end": 5209
+                          "start": 5495,
+                          "end": 5505
                         }
                       },
                       {
@@ -2414,15 +2568,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 5222,
-                            "end": 5227
+                            "start": 5518,
+                            "end": 5523
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5222,
-                          "end": 5227
+                          "start": 5518,
+                          "end": 5523
                         }
                       },
                       {
@@ -2431,26 +2585,43 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "bookmarksCount",
                           "loc": {
-                            "start": 5240,
-                            "end": 5254
+                            "start": 5536,
+                            "end": 5550
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5240,
-                          "end": 5254
+                          "start": 5536,
+                          "end": 5550
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5147,
-                      "end": 5264
+                      "start": 5443,
+                      "end": 5560
                     }
                   },
                   "loc": {
-                    "start": 5133,
-                    "end": 5264
+                    "start": 5429,
+                    "end": 5560
+                  }
+                },
+                {
+                  "kind": "Field",
+                  "name": {
+                    "kind": "Name",
+                    "value": "codesCount",
+                    "loc": {
+                      "start": 5569,
+                      "end": 5579
+                    }
+                  },
+                  "arguments": [],
+                  "directives": [],
+                  "loc": {
+                    "start": 5569,
+                    "end": 5579
                   }
                 },
                 {
@@ -2459,8 +2630,8 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "focusModes",
                     "loc": {
-                      "start": 5273,
-                      "end": 5283
+                      "start": 5588,
+                      "end": 5598
                     }
                   },
                   "arguments": [],
@@ -2474,8 +2645,8 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 5298,
-                            "end": 5305
+                            "start": 5613,
+                            "end": 5620
                           }
                         },
                         "arguments": [],
@@ -2489,15 +2660,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 5324,
-                                  "end": 5326
+                                  "start": 5639,
+                                  "end": 5641
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5324,
-                                "end": 5326
+                                "start": 5639,
+                                "end": 5641
                               }
                             },
                             {
@@ -2506,15 +2677,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 5343,
-                                  "end": 5353
+                                  "start": 5658,
+                                  "end": 5668
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5343,
-                                "end": 5353
+                                "start": 5658,
+                                "end": 5668
                               }
                             },
                             {
@@ -2523,8 +2694,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 5370,
-                                  "end": 5373
+                                  "start": 5685,
+                                  "end": 5688
                                 }
                               },
                               "arguments": [],
@@ -2538,15 +2709,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5396,
-                                        "end": 5398
+                                        "start": 5711,
+                                        "end": 5713
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5396,
-                                      "end": 5398
+                                      "start": 5711,
+                                      "end": 5713
                                     }
                                   },
                                   {
@@ -2555,15 +2726,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 5419,
-                                        "end": 5429
+                                        "start": 5734,
+                                        "end": 5744
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5419,
-                                      "end": 5429
+                                      "start": 5734,
+                                      "end": 5744
                                     }
                                   },
                                   {
@@ -2572,15 +2743,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 5450,
-                                        "end": 5453
+                                        "start": 5765,
+                                        "end": 5768
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5450,
-                                      "end": 5453
+                                      "start": 5765,
+                                      "end": 5768
                                     }
                                   },
                                   {
@@ -2589,15 +2760,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 5474,
-                                        "end": 5483
+                                        "start": 5789,
+                                        "end": 5798
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5474,
-                                      "end": 5483
+                                      "start": 5789,
+                                      "end": 5798
                                     }
                                   },
                                   {
@@ -2606,8 +2777,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 5504,
-                                        "end": 5516
+                                        "start": 5819,
+                                        "end": 5831
                                       }
                                     },
                                     "arguments": [],
@@ -2621,15 +2792,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5543,
-                                              "end": 5545
+                                              "start": 5858,
+                                              "end": 5860
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5543,
-                                            "end": 5545
+                                            "start": 5858,
+                                            "end": 5860
                                           }
                                         },
                                         {
@@ -2638,15 +2809,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 5570,
-                                              "end": 5578
+                                              "start": 5885,
+                                              "end": 5893
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5570,
-                                            "end": 5578
+                                            "start": 5885,
+                                            "end": 5893
                                           }
                                         },
                                         {
@@ -2655,26 +2826,26 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5603,
-                                              "end": 5614
+                                              "start": 5918,
+                                              "end": 5929
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5603,
-                                            "end": 5614
+                                            "start": 5918,
+                                            "end": 5929
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5517,
-                                        "end": 5636
+                                        "start": 5832,
+                                        "end": 5951
                                       }
                                     },
                                     "loc": {
-                                      "start": 5504,
-                                      "end": 5636
+                                      "start": 5819,
+                                      "end": 5951
                                     }
                                   },
                                   {
@@ -2683,8 +2854,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 5657,
-                                        "end": 5660
+                                        "start": 5972,
+                                        "end": 5975
                                       }
                                     },
                                     "arguments": [],
@@ -2698,15 +2869,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 5687,
-                                              "end": 5692
+                                              "start": 6002,
+                                              "end": 6007
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5687,
-                                            "end": 5692
+                                            "start": 6002,
+                                            "end": 6007
                                           }
                                         },
                                         {
@@ -2715,37 +2886,37 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 5717,
-                                              "end": 5729
+                                              "start": 6032,
+                                              "end": 6044
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5717,
-                                            "end": 5729
+                                            "start": 6032,
+                                            "end": 6044
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5661,
-                                        "end": 5751
+                                        "start": 5976,
+                                        "end": 6066
                                       }
                                     },
                                     "loc": {
-                                      "start": 5657,
-                                      "end": 5751
+                                      "start": 5972,
+                                      "end": 6066
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5374,
-                                  "end": 5769
+                                  "start": 5689,
+                                  "end": 6084
                                 }
                               },
                               "loc": {
-                                "start": 5370,
-                                "end": 5769
+                                "start": 5685,
+                                "end": 6084
                               }
                             },
                             {
@@ -2754,8 +2925,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 5786,
-                                  "end": 5795
+                                  "start": 6101,
+                                  "end": 6110
                                 }
                               },
                               "arguments": [],
@@ -2769,8 +2940,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 5818,
-                                        "end": 5824
+                                        "start": 6133,
+                                        "end": 6139
                                       }
                                     },
                                     "arguments": [],
@@ -2784,15 +2955,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5851,
-                                              "end": 5853
+                                              "start": 6166,
+                                              "end": 6168
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5851,
-                                            "end": 5853
+                                            "start": 6166,
+                                            "end": 6168
                                           }
                                         },
                                         {
@@ -2801,15 +2972,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 5878,
-                                              "end": 5883
+                                              "start": 6193,
+                                              "end": 6198
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5878,
-                                            "end": 5883
+                                            "start": 6193,
+                                            "end": 6198
                                           }
                                         },
                                         {
@@ -2818,26 +2989,26 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 5908,
-                                              "end": 5913
+                                              "start": 6223,
+                                              "end": 6228
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5908,
-                                            "end": 5913
+                                            "start": 6223,
+                                            "end": 6228
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5825,
-                                        "end": 5935
+                                        "start": 6140,
+                                        "end": 6250
                                       }
                                     },
                                     "loc": {
-                                      "start": 5818,
-                                      "end": 5935
+                                      "start": 6133,
+                                      "end": 6250
                                     }
                                   },
                                   {
@@ -2846,8 +3017,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "reminderList",
                                       "loc": {
-                                        "start": 5956,
-                                        "end": 5968
+                                        "start": 6271,
+                                        "end": 6283
                                       }
                                     },
                                     "arguments": [],
@@ -2861,15 +3032,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5995,
-                                              "end": 5997
+                                              "start": 6310,
+                                              "end": 6312
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5995,
-                                            "end": 5997
+                                            "start": 6310,
+                                            "end": 6312
                                           }
                                         },
                                         {
@@ -2878,15 +3049,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6022,
-                                              "end": 6032
+                                              "start": 6337,
+                                              "end": 6347
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6022,
-                                            "end": 6032
+                                            "start": 6337,
+                                            "end": 6347
                                           }
                                         },
                                         {
@@ -2895,15 +3066,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 6057,
-                                              "end": 6067
+                                              "start": 6372,
+                                              "end": 6382
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6057,
-                                            "end": 6067
+                                            "start": 6372,
+                                            "end": 6382
                                           }
                                         },
                                         {
@@ -2912,8 +3083,8 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "reminders",
                                             "loc": {
-                                              "start": 6092,
-                                              "end": 6101
+                                              "start": 6407,
+                                              "end": 6416
                                             }
                                           },
                                           "arguments": [],
@@ -2927,15 +3098,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6132,
-                                                    "end": 6134
+                                                    "start": 6447,
+                                                    "end": 6449
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6132,
-                                                  "end": 6134
+                                                  "start": 6447,
+                                                  "end": 6449
                                                 }
                                               },
                                               {
@@ -2944,15 +3115,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 6163,
-                                                    "end": 6173
+                                                    "start": 6478,
+                                                    "end": 6488
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6163,
-                                                  "end": 6173
+                                                  "start": 6478,
+                                                  "end": 6488
                                                 }
                                               },
                                               {
@@ -2961,15 +3132,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 6202,
-                                                    "end": 6212
+                                                    "start": 6517,
+                                                    "end": 6527
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6202,
-                                                  "end": 6212
+                                                  "start": 6517,
+                                                  "end": 6527
                                                 }
                                               },
                                               {
@@ -2978,15 +3149,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6241,
-                                                    "end": 6245
+                                                    "start": 6556,
+                                                    "end": 6560
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6241,
-                                                  "end": 6245
+                                                  "start": 6556,
+                                                  "end": 6560
                                                 }
                                               },
                                               {
@@ -2995,15 +3166,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6274,
-                                                    "end": 6285
+                                                    "start": 6589,
+                                                    "end": 6600
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6274,
-                                                  "end": 6285
+                                                  "start": 6589,
+                                                  "end": 6600
                                                 }
                                               },
                                               {
@@ -3012,15 +3183,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 6314,
-                                                    "end": 6321
+                                                    "start": 6629,
+                                                    "end": 6636
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6314,
-                                                  "end": 6321
+                                                  "start": 6629,
+                                                  "end": 6636
                                                 }
                                               },
                                               {
@@ -3029,15 +3200,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 6350,
-                                                    "end": 6355
+                                                    "start": 6665,
+                                                    "end": 6670
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6350,
-                                                  "end": 6355
+                                                  "start": 6665,
+                                                  "end": 6670
                                                 }
                                               },
                                               {
@@ -3046,15 +3217,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 6384,
-                                                    "end": 6394
+                                                    "start": 6699,
+                                                    "end": 6709
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6384,
-                                                  "end": 6394
+                                                  "start": 6699,
+                                                  "end": 6709
                                                 }
                                               },
                                               {
@@ -3063,8 +3234,8 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "reminderItems",
                                                   "loc": {
-                                                    "start": 6423,
-                                                    "end": 6436
+                                                    "start": 6738,
+                                                    "end": 6751
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3078,15 +3249,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 6471,
-                                                          "end": 6473
+                                                          "start": 6786,
+                                                          "end": 6788
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6471,
-                                                        "end": 6473
+                                                        "start": 6786,
+                                                        "end": 6788
                                                       }
                                                     },
                                                     {
@@ -3095,15 +3266,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "created_at",
                                                         "loc": {
-                                                          "start": 6506,
-                                                          "end": 6516
+                                                          "start": 6821,
+                                                          "end": 6831
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6506,
-                                                        "end": 6516
+                                                        "start": 6821,
+                                                        "end": 6831
                                                       }
                                                     },
                                                     {
@@ -3112,15 +3283,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "updated_at",
                                                         "loc": {
-                                                          "start": 6549,
-                                                          "end": 6559
+                                                          "start": 6864,
+                                                          "end": 6874
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6549,
-                                                        "end": 6559
+                                                        "start": 6864,
+                                                        "end": 6874
                                                       }
                                                     },
                                                     {
@@ -3129,15 +3300,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 6592,
-                                                          "end": 6596
+                                                          "start": 6907,
+                                                          "end": 6911
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6592,
-                                                        "end": 6596
+                                                        "start": 6907,
+                                                        "end": 6911
                                                       }
                                                     },
                                                     {
@@ -3146,15 +3317,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 6629,
-                                                          "end": 6640
+                                                          "start": 6944,
+                                                          "end": 6955
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6629,
-                                                        "end": 6640
+                                                        "start": 6944,
+                                                        "end": 6955
                                                       }
                                                     },
                                                     {
@@ -3163,15 +3334,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "dueDate",
                                                         "loc": {
-                                                          "start": 6673,
-                                                          "end": 6680
+                                                          "start": 6988,
+                                                          "end": 6995
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6673,
-                                                        "end": 6680
+                                                        "start": 6988,
+                                                        "end": 6995
                                                       }
                                                     },
                                                     {
@@ -3180,15 +3351,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "index",
                                                         "loc": {
-                                                          "start": 6713,
-                                                          "end": 6718
+                                                          "start": 7028,
+                                                          "end": 7033
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6713,
-                                                        "end": 6718
+                                                        "start": 7028,
+                                                        "end": 7033
                                                       }
                                                     },
                                                     {
@@ -3197,48 +3368,48 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "isComplete",
                                                         "loc": {
-                                                          "start": 6751,
-                                                          "end": 6761
+                                                          "start": 7066,
+                                                          "end": 7076
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6751,
-                                                        "end": 6761
+                                                        "start": 7066,
+                                                        "end": 7076
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 6437,
-                                                    "end": 6791
+                                                    "start": 6752,
+                                                    "end": 7106
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 6423,
-                                                  "end": 6791
+                                                  "start": 6738,
+                                                  "end": 7106
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6102,
-                                              "end": 6817
+                                              "start": 6417,
+                                              "end": 7132
                                             }
                                           },
                                           "loc": {
-                                            "start": 6092,
-                                            "end": 6817
+                                            "start": 6407,
+                                            "end": 7132
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5969,
-                                        "end": 6839
+                                        "start": 6284,
+                                        "end": 7154
                                       }
                                     },
                                     "loc": {
-                                      "start": 5956,
-                                      "end": 6839
+                                      "start": 6271,
+                                      "end": 7154
                                     }
                                   },
                                   {
@@ -3247,8 +3418,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "resourceList",
                                       "loc": {
-                                        "start": 6860,
-                                        "end": 6872
+                                        "start": 7175,
+                                        "end": 7187
                                       }
                                     },
                                     "arguments": [],
@@ -3262,15 +3433,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6899,
-                                              "end": 6901
+                                              "start": 7214,
+                                              "end": 7216
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6899,
-                                            "end": 6901
+                                            "start": 7214,
+                                            "end": 7216
                                           }
                                         },
                                         {
@@ -3279,15 +3450,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6926,
-                                              "end": 6936
+                                              "start": 7241,
+                                              "end": 7251
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6926,
-                                            "end": 6936
+                                            "start": 7241,
+                                            "end": 7251
                                           }
                                         },
                                         {
@@ -3296,8 +3467,8 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 6961,
-                                              "end": 6973
+                                              "start": 7276,
+                                              "end": 7288
                                             }
                                           },
                                           "arguments": [],
@@ -3311,15 +3482,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7004,
-                                                    "end": 7006
+                                                    "start": 7319,
+                                                    "end": 7321
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7004,
-                                                  "end": 7006
+                                                  "start": 7319,
+                                                  "end": 7321
                                                 }
                                               },
                                               {
@@ -3328,15 +3499,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 7035,
-                                                    "end": 7043
+                                                    "start": 7350,
+                                                    "end": 7358
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7035,
-                                                  "end": 7043
+                                                  "start": 7350,
+                                                  "end": 7358
                                                 }
                                               },
                                               {
@@ -3345,15 +3516,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 7072,
-                                                    "end": 7083
+                                                    "start": 7387,
+                                                    "end": 7398
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7072,
-                                                  "end": 7083
+                                                  "start": 7387,
+                                                  "end": 7398
                                                 }
                                               },
                                               {
@@ -3362,26 +3533,26 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 7112,
-                                                    "end": 7116
+                                                    "start": 7427,
+                                                    "end": 7431
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7112,
-                                                  "end": 7116
+                                                  "start": 7427,
+                                                  "end": 7431
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6974,
-                                              "end": 7142
+                                              "start": 7289,
+                                              "end": 7457
                                             }
                                           },
                                           "loc": {
-                                            "start": 6961,
-                                            "end": 7142
+                                            "start": 7276,
+                                            "end": 7457
                                           }
                                         },
                                         {
@@ -3390,8 +3561,8 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "resources",
                                             "loc": {
-                                              "start": 7167,
-                                              "end": 7176
+                                              "start": 7482,
+                                              "end": 7491
                                             }
                                           },
                                           "arguments": [],
@@ -3405,15 +3576,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7207,
-                                                    "end": 7209
+                                                    "start": 7522,
+                                                    "end": 7524
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7207,
-                                                  "end": 7209
+                                                  "start": 7522,
+                                                  "end": 7524
                                                 }
                                               },
                                               {
@@ -3422,15 +3593,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 7238,
-                                                    "end": 7243
+                                                    "start": 7553,
+                                                    "end": 7558
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7238,
-                                                  "end": 7243
+                                                  "start": 7553,
+                                                  "end": 7558
                                                 }
                                               },
                                               {
@@ -3439,15 +3610,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "link",
                                                   "loc": {
-                                                    "start": 7272,
-                                                    "end": 7276
+                                                    "start": 7587,
+                                                    "end": 7591
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7272,
-                                                  "end": 7276
+                                                  "start": 7587,
+                                                  "end": 7591
                                                 }
                                               },
                                               {
@@ -3456,15 +3627,15 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "usedFor",
                                                   "loc": {
-                                                    "start": 7305,
-                                                    "end": 7312
+                                                    "start": 7620,
+                                                    "end": 7627
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7305,
-                                                  "end": 7312
+                                                  "start": 7620,
+                                                  "end": 7627
                                                 }
                                               },
                                               {
@@ -3473,8 +3644,8 @@ export const auth_switchCurrentAccount = {
                                                   "kind": "Name",
                                                   "value": "translations",
                                                   "loc": {
-                                                    "start": 7341,
-                                                    "end": 7353
+                                                    "start": 7656,
+                                                    "end": 7668
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3488,15 +3659,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 7388,
-                                                          "end": 7390
+                                                          "start": 7703,
+                                                          "end": 7705
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7388,
-                                                        "end": 7390
+                                                        "start": 7703,
+                                                        "end": 7705
                                                       }
                                                     },
                                                     {
@@ -3505,15 +3676,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "language",
                                                         "loc": {
-                                                          "start": 7423,
-                                                          "end": 7431
+                                                          "start": 7738,
+                                                          "end": 7746
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7423,
-                                                        "end": 7431
+                                                        "start": 7738,
+                                                        "end": 7746
                                                       }
                                                     },
                                                     {
@@ -3522,15 +3693,15 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 7464,
-                                                          "end": 7475
+                                                          "start": 7779,
+                                                          "end": 7790
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7464,
-                                                        "end": 7475
+                                                        "start": 7779,
+                                                        "end": 7790
                                                       }
                                                     },
                                                     {
@@ -3539,48 +3710,48 @@ export const auth_switchCurrentAccount = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 7508,
-                                                          "end": 7512
+                                                          "start": 7823,
+                                                          "end": 7827
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7508,
-                                                        "end": 7512
+                                                        "start": 7823,
+                                                        "end": 7827
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 7354,
-                                                    "end": 7542
+                                                    "start": 7669,
+                                                    "end": 7857
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 7341,
-                                                  "end": 7542
+                                                  "start": 7656,
+                                                  "end": 7857
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 7177,
-                                              "end": 7568
+                                              "start": 7492,
+                                              "end": 7883
                                             }
                                           },
                                           "loc": {
-                                            "start": 7167,
-                                            "end": 7568
+                                            "start": 7482,
+                                            "end": 7883
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6873,
-                                        "end": 7590
+                                        "start": 7188,
+                                        "end": 7905
                                       }
                                     },
                                     "loc": {
-                                      "start": 6860,
-                                      "end": 7590
+                                      "start": 7175,
+                                      "end": 7905
                                     }
                                   },
                                   {
@@ -3589,8 +3760,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 7611,
-                                        "end": 7619
+                                        "start": 7926,
+                                        "end": 7934
                                       }
                                     },
                                     "arguments": [],
@@ -3604,25 +3775,25 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 7649,
-                                              "end": 7664
+                                              "start": 7964,
+                                              "end": 7979
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 7646,
-                                            "end": 7664
+                                            "start": 7961,
+                                            "end": 7979
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7620,
-                                        "end": 7686
+                                        "start": 7935,
+                                        "end": 8001
                                       }
                                     },
                                     "loc": {
-                                      "start": 7611,
-                                      "end": 7686
+                                      "start": 7926,
+                                      "end": 8001
                                     }
                                   },
                                   {
@@ -3631,15 +3802,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7707,
-                                        "end": 7709
+                                        "start": 8022,
+                                        "end": 8024
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7707,
-                                      "end": 7709
+                                      "start": 8022,
+                                      "end": 8024
                                     }
                                   },
                                   {
@@ -3648,15 +3819,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7730,
-                                        "end": 7734
+                                        "start": 8045,
+                                        "end": 8049
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7730,
-                                      "end": 7734
+                                      "start": 8045,
+                                      "end": 8049
                                     }
                                   },
                                   {
@@ -3665,37 +3836,114 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7755,
-                                        "end": 7766
+                                        "start": 8070,
+                                        "end": 8081
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7755,
-                                      "end": 7766
+                                      "start": 8070,
+                                      "end": 8081
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "you",
+                                      "loc": {
+                                        "start": 8102,
+                                        "end": 8105
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canDelete",
+                                            "loc": {
+                                              "start": 8132,
+                                              "end": 8141
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8132,
+                                            "end": 8141
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canRead",
+                                            "loc": {
+                                              "start": 8166,
+                                              "end": 8173
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8166,
+                                            "end": 8173
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canUpdate",
+                                            "loc": {
+                                              "start": 8198,
+                                              "end": 8207
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8198,
+                                            "end": 8207
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 8106,
+                                        "end": 8229
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 8102,
+                                      "end": 8229
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5796,
-                                  "end": 7784
+                                  "start": 6111,
+                                  "end": 8247
                                 }
                               },
                               "loc": {
-                                "start": 5786,
-                                "end": 7784
+                                "start": 6101,
+                                "end": 8247
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5306,
-                            "end": 7798
+                            "start": 5621,
+                            "end": 8261
                           }
                         },
                         "loc": {
-                          "start": 5298,
-                          "end": 7798
+                          "start": 5613,
+                          "end": 8261
                         }
                       },
                       {
@@ -3704,8 +3952,8 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 7811,
-                            "end": 7817
+                            "start": 8274,
+                            "end": 8280
                           }
                         },
                         "arguments": [],
@@ -3719,15 +3967,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7836,
-                                  "end": 7838
+                                  "start": 8299,
+                                  "end": 8301
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7836,
-                                "end": 7838
+                                "start": 8299,
+                                "end": 8301
                               }
                             },
                             {
@@ -3736,15 +3984,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 7855,
-                                  "end": 7860
+                                  "start": 8318,
+                                  "end": 8323
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7855,
-                                "end": 7860
+                                "start": 8318,
+                                "end": 8323
                               }
                             },
                             {
@@ -3753,26 +4001,26 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 7877,
-                                  "end": 7882
+                                  "start": 8340,
+                                  "end": 8345
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7877,
-                                "end": 7882
+                                "start": 8340,
+                                "end": 8345
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7818,
-                            "end": 7896
+                            "start": 8281,
+                            "end": 8359
                           }
                         },
                         "loc": {
-                          "start": 7811,
-                          "end": 7896
+                          "start": 8274,
+                          "end": 8359
                         }
                       },
                       {
@@ -3781,8 +4029,8 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 7909,
-                            "end": 7921
+                            "start": 8372,
+                            "end": 8384
                           }
                         },
                         "arguments": [],
@@ -3796,15 +4044,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7940,
-                                  "end": 7942
+                                  "start": 8403,
+                                  "end": 8405
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7940,
-                                "end": 7942
+                                "start": 8403,
+                                "end": 8405
                               }
                             },
                             {
@@ -3813,15 +4061,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 7959,
-                                  "end": 7969
+                                  "start": 8422,
+                                  "end": 8432
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7959,
-                                "end": 7969
+                                "start": 8422,
+                                "end": 8432
                               }
                             },
                             {
@@ -3830,15 +4078,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 7986,
-                                  "end": 7996
+                                  "start": 8449,
+                                  "end": 8459
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7986,
-                                "end": 7996
+                                "start": 8449,
+                                "end": 8459
                               }
                             },
                             {
@@ -3847,8 +4095,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 8013,
-                                  "end": 8022
+                                  "start": 8476,
+                                  "end": 8485
                                 }
                               },
                               "arguments": [],
@@ -3862,15 +4110,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8045,
-                                        "end": 8047
+                                        "start": 8508,
+                                        "end": 8510
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8045,
-                                      "end": 8047
+                                      "start": 8508,
+                                      "end": 8510
                                     }
                                   },
                                   {
@@ -3879,15 +4127,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 8068,
-                                        "end": 8078
+                                        "start": 8531,
+                                        "end": 8541
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8068,
-                                      "end": 8078
+                                      "start": 8531,
+                                      "end": 8541
                                     }
                                   },
                                   {
@@ -3896,15 +4144,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 8099,
-                                        "end": 8109
+                                        "start": 8562,
+                                        "end": 8572
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8099,
-                                      "end": 8109
+                                      "start": 8562,
+                                      "end": 8572
                                     }
                                   },
                                   {
@@ -3913,15 +4161,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8130,
-                                        "end": 8134
+                                        "start": 8593,
+                                        "end": 8597
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8130,
-                                      "end": 8134
+                                      "start": 8593,
+                                      "end": 8597
                                     }
                                   },
                                   {
@@ -3930,15 +4178,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8155,
-                                        "end": 8166
+                                        "start": 8618,
+                                        "end": 8629
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8155,
-                                      "end": 8166
+                                      "start": 8618,
+                                      "end": 8629
                                     }
                                   },
                                   {
@@ -3947,15 +4195,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 8187,
-                                        "end": 8194
+                                        "start": 8650,
+                                        "end": 8657
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8187,
-                                      "end": 8194
+                                      "start": 8650,
+                                      "end": 8657
                                     }
                                   },
                                   {
@@ -3964,15 +4212,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8215,
-                                        "end": 8220
+                                        "start": 8678,
+                                        "end": 8683
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8215,
-                                      "end": 8220
+                                      "start": 8678,
+                                      "end": 8683
                                     }
                                   },
                                   {
@@ -3981,15 +4229,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 8241,
-                                        "end": 8251
+                                        "start": 8704,
+                                        "end": 8714
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8241,
-                                      "end": 8251
+                                      "start": 8704,
+                                      "end": 8714
                                     }
                                   },
                                   {
@@ -3998,8 +4246,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 8272,
-                                        "end": 8285
+                                        "start": 8735,
+                                        "end": 8748
                                       }
                                     },
                                     "arguments": [],
@@ -4013,15 +4261,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 8312,
-                                              "end": 8314
+                                              "start": 8775,
+                                              "end": 8777
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8312,
-                                            "end": 8314
+                                            "start": 8775,
+                                            "end": 8777
                                           }
                                         },
                                         {
@@ -4030,15 +4278,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 8339,
-                                              "end": 8349
+                                              "start": 8802,
+                                              "end": 8812
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8339,
-                                            "end": 8349
+                                            "start": 8802,
+                                            "end": 8812
                                           }
                                         },
                                         {
@@ -4047,15 +4295,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 8374,
-                                              "end": 8384
+                                              "start": 8837,
+                                              "end": 8847
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8374,
-                                            "end": 8384
+                                            "start": 8837,
+                                            "end": 8847
                                           }
                                         },
                                         {
@@ -4064,15 +4312,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 8409,
-                                              "end": 8413
+                                              "start": 8872,
+                                              "end": 8876
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8409,
-                                            "end": 8413
+                                            "start": 8872,
+                                            "end": 8876
                                           }
                                         },
                                         {
@@ -4081,15 +4329,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 8438,
-                                              "end": 8449
+                                              "start": 8901,
+                                              "end": 8912
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8438,
-                                            "end": 8449
+                                            "start": 8901,
+                                            "end": 8912
                                           }
                                         },
                                         {
@@ -4098,15 +4346,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 8474,
-                                              "end": 8481
+                                              "start": 8937,
+                                              "end": 8944
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8474,
-                                            "end": 8481
+                                            "start": 8937,
+                                            "end": 8944
                                           }
                                         },
                                         {
@@ -4115,15 +4363,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 8506,
-                                              "end": 8511
+                                              "start": 8969,
+                                              "end": 8974
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8506,
-                                            "end": 8511
+                                            "start": 8969,
+                                            "end": 8974
                                           }
                                         },
                                         {
@@ -4132,48 +4380,48 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 8536,
-                                              "end": 8546
+                                              "start": 8999,
+                                              "end": 9009
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8536,
-                                            "end": 8546
+                                            "start": 8999,
+                                            "end": 9009
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8286,
-                                        "end": 8568
+                                        "start": 8749,
+                                        "end": 9031
                                       }
                                     },
                                     "loc": {
-                                      "start": 8272,
-                                      "end": 8568
+                                      "start": 8735,
+                                      "end": 9031
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8023,
-                                  "end": 8586
+                                  "start": 8486,
+                                  "end": 9049
                                 }
                               },
                               "loc": {
-                                "start": 8013,
-                                "end": 8586
+                                "start": 8476,
+                                "end": 9049
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7922,
-                            "end": 8600
+                            "start": 8385,
+                            "end": 9063
                           }
                         },
                         "loc": {
-                          "start": 7909,
-                          "end": 8600
+                          "start": 8372,
+                          "end": 9063
                         }
                       },
                       {
@@ -4182,8 +4430,8 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 8613,
-                            "end": 8625
+                            "start": 9076,
+                            "end": 9088
                           }
                         },
                         "arguments": [],
@@ -4197,15 +4445,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 8644,
-                                  "end": 8646
+                                  "start": 9107,
+                                  "end": 9109
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8644,
-                                "end": 8646
+                                "start": 9107,
+                                "end": 9109
                               }
                             },
                             {
@@ -4214,15 +4462,15 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 8663,
-                                  "end": 8673
+                                  "start": 9126,
+                                  "end": 9136
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8663,
-                                "end": 8673
+                                "start": 9126,
+                                "end": 9136
                               }
                             },
                             {
@@ -4231,8 +4479,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 8690,
-                                  "end": 8702
+                                  "start": 9153,
+                                  "end": 9165
                                 }
                               },
                               "arguments": [],
@@ -4246,15 +4494,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8725,
-                                        "end": 8727
+                                        "start": 9188,
+                                        "end": 9190
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8725,
-                                      "end": 8727
+                                      "start": 9188,
+                                      "end": 9190
                                     }
                                   },
                                   {
@@ -4263,15 +4511,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 8748,
-                                        "end": 8756
+                                        "start": 9211,
+                                        "end": 9219
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8748,
-                                      "end": 8756
+                                      "start": 9211,
+                                      "end": 9219
                                     }
                                   },
                                   {
@@ -4280,15 +4528,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8777,
-                                        "end": 8788
+                                        "start": 9240,
+                                        "end": 9251
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8777,
-                                      "end": 8788
+                                      "start": 9240,
+                                      "end": 9251
                                     }
                                   },
                                   {
@@ -4297,26 +4545,26 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8809,
-                                        "end": 8813
+                                        "start": 9272,
+                                        "end": 9276
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8809,
-                                      "end": 8813
+                                      "start": 9272,
+                                      "end": 9276
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8703,
-                                  "end": 8831
+                                  "start": 9166,
+                                  "end": 9294
                                 }
                               },
                               "loc": {
-                                "start": 8690,
-                                "end": 8831
+                                "start": 9153,
+                                "end": 9294
                               }
                             },
                             {
@@ -4325,8 +4573,8 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 8848,
-                                  "end": 8857
+                                  "start": 9311,
+                                  "end": 9320
                                 }
                               },
                               "arguments": [],
@@ -4340,15 +4588,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8880,
-                                        "end": 8882
+                                        "start": 9343,
+                                        "end": 9345
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8880,
-                                      "end": 8882
+                                      "start": 9343,
+                                      "end": 9345
                                     }
                                   },
                                   {
@@ -4357,15 +4605,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8903,
-                                        "end": 8908
+                                        "start": 9366,
+                                        "end": 9371
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8903,
-                                      "end": 8908
+                                      "start": 9366,
+                                      "end": 9371
                                     }
                                   },
                                   {
@@ -4374,15 +4622,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 8929,
-                                        "end": 8933
+                                        "start": 9392,
+                                        "end": 9396
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8929,
-                                      "end": 8933
+                                      "start": 9392,
+                                      "end": 9396
                                     }
                                   },
                                   {
@@ -4391,15 +4639,15 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 8954,
-                                        "end": 8961
+                                        "start": 9417,
+                                        "end": 9424
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8954,
-                                      "end": 8961
+                                      "start": 9417,
+                                      "end": 9424
                                     }
                                   },
                                   {
@@ -4408,8 +4656,8 @@ export const auth_switchCurrentAccount = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 8982,
-                                        "end": 8994
+                                        "start": 9445,
+                                        "end": 9457
                                       }
                                     },
                                     "arguments": [],
@@ -4423,15 +4671,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 9021,
-                                              "end": 9023
+                                              "start": 9484,
+                                              "end": 9486
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9021,
-                                            "end": 9023
+                                            "start": 9484,
+                                            "end": 9486
                                           }
                                         },
                                         {
@@ -4440,15 +4688,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 9048,
-                                              "end": 9056
+                                              "start": 9511,
+                                              "end": 9519
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9048,
-                                            "end": 9056
+                                            "start": 9511,
+                                            "end": 9519
                                           }
                                         },
                                         {
@@ -4457,15 +4705,15 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 9081,
-                                              "end": 9092
+                                              "start": 9544,
+                                              "end": 9555
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9081,
-                                            "end": 9092
+                                            "start": 9544,
+                                            "end": 9555
                                           }
                                         },
                                         {
@@ -4474,48 +4722,48 @@ export const auth_switchCurrentAccount = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 9117,
-                                              "end": 9121
+                                              "start": 9580,
+                                              "end": 9584
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9117,
-                                            "end": 9121
+                                            "start": 9580,
+                                            "end": 9584
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8995,
-                                        "end": 9143
+                                        "start": 9458,
+                                        "end": 9606
                                       }
                                     },
                                     "loc": {
-                                      "start": 8982,
-                                      "end": 9143
+                                      "start": 9445,
+                                      "end": 9606
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8858,
-                                  "end": 9161
+                                  "start": 9321,
+                                  "end": 9624
                                 }
                               },
                               "loc": {
-                                "start": 8848,
-                                "end": 9161
+                                "start": 9311,
+                                "end": 9624
                               }
                             }
                           ],
                           "loc": {
-                            "start": 8626,
-                            "end": 9175
+                            "start": 9089,
+                            "end": 9638
                           }
                         },
                         "loc": {
-                          "start": 8613,
-                          "end": 9175
+                          "start": 9076,
+                          "end": 9638
                         }
                       },
                       {
@@ -4524,8 +4772,8 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 9188,
-                            "end": 9196
+                            "start": 9651,
+                            "end": 9659
                           }
                         },
                         "arguments": [],
@@ -4539,25 +4787,25 @@ export const auth_switchCurrentAccount = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 9218,
-                                  "end": 9233
+                                  "start": 9681,
+                                  "end": 9696
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 9215,
-                                "end": 9233
+                                "start": 9678,
+                                "end": 9696
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9197,
-                            "end": 9247
+                            "start": 9660,
+                            "end": 9710
                           }
                         },
                         "loc": {
-                          "start": 9188,
-                          "end": 9247
+                          "start": 9651,
+                          "end": 9710
                         }
                       },
                       {
@@ -4566,15 +4814,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 9260,
-                            "end": 9262
+                            "start": 9723,
+                            "end": 9725
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9260,
-                          "end": 9262
+                          "start": 9723,
+                          "end": 9725
                         }
                       },
                       {
@@ -4583,15 +4831,15 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 9275,
-                            "end": 9279
+                            "start": 9738,
+                            "end": 9742
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9275,
-                          "end": 9279
+                          "start": 9738,
+                          "end": 9742
                         }
                       },
                       {
@@ -4600,26 +4848,103 @@ export const auth_switchCurrentAccount = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 9292,
-                            "end": 9303
+                            "start": 9755,
+                            "end": 9766
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9292,
-                          "end": 9303
+                          "start": 9755,
+                          "end": 9766
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "you",
+                          "loc": {
+                            "start": 9779,
+                            "end": 9782
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canDelete",
+                                "loc": {
+                                  "start": 9801,
+                                  "end": 9810
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9801,
+                                "end": 9810
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canRead",
+                                "loc": {
+                                  "start": 9827,
+                                  "end": 9834
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9827,
+                                "end": 9834
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canUpdate",
+                                "loc": {
+                                  "start": 9851,
+                                  "end": 9860
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9851,
+                                "end": 9860
+                              }
+                            }
+                          ],
+                          "loc": {
+                            "start": 9783,
+                            "end": 9874
+                          }
+                        },
+                        "loc": {
+                          "start": 9779,
+                          "end": 9874
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5284,
-                      "end": 9313
+                      "start": 5599,
+                      "end": 9884
                     }
                   },
                   "loc": {
-                    "start": 5273,
-                    "end": 9313
+                    "start": 5588,
+                    "end": 9884
                   }
                 },
                 {
@@ -4628,15 +4953,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 9322,
-                      "end": 9328
+                      "start": 9893,
+                      "end": 9899
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9322,
-                    "end": 9328
+                    "start": 9893,
+                    "end": 9899
                   }
                 },
                 {
@@ -4645,15 +4970,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 9337,
-                      "end": 9347
+                      "start": 9908,
+                      "end": 9918
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9337,
-                    "end": 9347
+                    "start": 9908,
+                    "end": 9918
                   }
                 },
                 {
@@ -4662,15 +4987,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 9356,
-                      "end": 9358
+                      "start": 9927,
+                      "end": 9929
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9356,
-                    "end": 9358
+                    "start": 9927,
+                    "end": 9929
                   }
                 },
                 {
@@ -4679,15 +5004,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 9367,
-                      "end": 9376
+                      "start": 9938,
+                      "end": 9947
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9367,
-                    "end": 9376
+                    "start": 9938,
+                    "end": 9947
                   }
                 },
                 {
@@ -4696,15 +5021,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 9385,
-                      "end": 9401
+                      "start": 9956,
+                      "end": 9972
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9385,
-                    "end": 9401
+                    "start": 9956,
+                    "end": 9972
                   }
                 },
                 {
@@ -4713,15 +5038,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 9410,
-                      "end": 9414
+                      "start": 9981,
+                      "end": 9985
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9410,
-                    "end": 9414
+                    "start": 9981,
+                    "end": 9985
                   }
                 },
                 {
@@ -4730,15 +5055,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 9423,
-                      "end": 9433
+                      "start": 9994,
+                      "end": 10004
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9423,
-                    "end": 9433
+                    "start": 9994,
+                    "end": 10004
                   }
                 },
                 {
@@ -4747,15 +5072,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 9442,
-                      "end": 9455
+                      "start": 10013,
+                      "end": 10026
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9442,
-                    "end": 9455
+                    "start": 10013,
+                    "end": 10026
                   }
                 },
                 {
@@ -4764,15 +5089,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 9464,
-                      "end": 9483
+                      "start": 10035,
+                      "end": 10054
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9464,
-                    "end": 9483
+                    "start": 10035,
+                    "end": 10054
                   }
                 },
                 {
@@ -4781,32 +5106,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 9492,
-                      "end": 9505
+                      "start": 10063,
+                      "end": 10076
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9492,
-                    "end": 9505
-                  }
-                },
-                {
-                  "kind": "Field",
-                  "name": {
-                    "kind": "Name",
-                    "value": "smartContractsCount",
-                    "loc": {
-                      "start": 9514,
-                      "end": 9533
-                    }
-                  },
-                  "arguments": [],
-                  "directives": [],
-                  "loc": {
-                    "start": 9514,
-                    "end": 9533
+                    "start": 10063,
+                    "end": 10076
                   }
                 },
                 {
@@ -4815,15 +5123,15 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 9542,
-                      "end": 9556
+                      "start": 10085,
+                      "end": 10099
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9542,
-                    "end": 9556
+                    "start": 10085,
+                    "end": 10099
                   }
                 },
                 {
@@ -4832,37 +5140,37 @@ export const auth_switchCurrentAccount = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 9565,
-                      "end": 9570
+                      "start": 10108,
+                      "end": 10113
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9565,
-                    "end": 9570
+                    "start": 10108,
+                    "end": 10113
                   }
                 }
               ],
               "loc": {
                 "start": 423,
-                "end": 9576
+                "end": 10119
               }
             },
             "loc": {
               "start": 417,
-              "end": 9576
+              "end": 10119
             }
           }
         ],
         "loc": {
           "start": 383,
-          "end": 9580
+          "end": 10123
         }
       },
       "loc": {
         "start": 347,
-        "end": 9580
+        "end": 10123
       }
     },
     {
@@ -6988,27 +7296,104 @@ export const auth_switchCurrentAccount = {
                                                 "start": 3247,
                                                 "end": 3258
                                               }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "you",
+                                                "loc": {
+                                                  "start": 3283,
+                                                  "end": 3286
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canDelete",
+                                                      "loc": {
+                                                        "start": 3317,
+                                                        "end": 3326
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3317,
+                                                      "end": 3326
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canRead",
+                                                      "loc": {
+                                                        "start": 3355,
+                                                        "end": 3362
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3355,
+                                                      "end": 3362
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canUpdate",
+                                                      "loc": {
+                                                        "start": 3391,
+                                                        "end": 3400
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3391,
+                                                      "end": 3400
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 3287,
+                                                  "end": 3426
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 3283,
+                                                "end": 3426
+                                              }
                                             }
                                           ],
                                           "loc": {
                                             "start": 1056,
-                                            "end": 3280
+                                            "end": 3448
                                           }
                                         },
                                         "loc": {
                                           "start": 1046,
-                                          "end": 3280
+                                          "end": 3448
                                         }
                                       }
                                     ],
                                     "loc": {
                                       "start": 494,
-                                      "end": 3298
+                                      "end": 3466
                                     }
                                   },
                                   "loc": {
                                     "start": 486,
-                                    "end": 3298
+                                    "end": 3466
                                   }
                                 },
                                 {
@@ -7017,8 +7402,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "labels",
                                     "loc": {
-                                      "start": 3315,
-                                      "end": 3321
+                                      "start": 3483,
+                                      "end": 3489
                                     }
                                   },
                                   "arguments": [],
@@ -7032,15 +7417,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3344,
-                                            "end": 3346
+                                            "start": 3512,
+                                            "end": 3514
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3344,
-                                          "end": 3346
+                                          "start": 3512,
+                                          "end": 3514
                                         }
                                       },
                                       {
@@ -7049,15 +7434,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "color",
                                           "loc": {
-                                            "start": 3367,
-                                            "end": 3372
+                                            "start": 3535,
+                                            "end": 3540
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3367,
-                                          "end": 3372
+                                          "start": 3535,
+                                          "end": 3540
                                         }
                                       },
                                       {
@@ -7066,26 +7451,26 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "label",
                                           "loc": {
-                                            "start": 3393,
-                                            "end": 3398
+                                            "start": 3561,
+                                            "end": 3566
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3393,
-                                          "end": 3398
+                                          "start": 3561,
+                                          "end": 3566
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3322,
-                                      "end": 3416
+                                      "start": 3490,
+                                      "end": 3584
                                     }
                                   },
                                   "loc": {
-                                    "start": 3315,
-                                    "end": 3416
+                                    "start": 3483,
+                                    "end": 3584
                                   }
                                 },
                                 {
@@ -7094,8 +7479,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "reminderList",
                                     "loc": {
-                                      "start": 3433,
-                                      "end": 3445
+                                      "start": 3601,
+                                      "end": 3613
                                     }
                                   },
                                   "arguments": [],
@@ -7109,15 +7494,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3468,
-                                            "end": 3470
+                                            "start": 3636,
+                                            "end": 3638
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3468,
-                                          "end": 3470
+                                          "start": 3636,
+                                          "end": 3638
                                         }
                                       },
                                       {
@@ -7126,15 +7511,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 3491,
-                                            "end": 3501
+                                            "start": 3659,
+                                            "end": 3669
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3491,
-                                          "end": 3501
+                                          "start": 3659,
+                                          "end": 3669
                                         }
                                       },
                                       {
@@ -7143,15 +7528,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 3522,
-                                            "end": 3532
+                                            "start": 3690,
+                                            "end": 3700
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3522,
-                                          "end": 3532
+                                          "start": 3690,
+                                          "end": 3700
                                         }
                                       },
                                       {
@@ -7160,8 +7545,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "reminders",
                                           "loc": {
-                                            "start": 3553,
-                                            "end": 3562
+                                            "start": 3721,
+                                            "end": 3730
                                           }
                                         },
                                         "arguments": [],
@@ -7175,15 +7560,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 3589,
-                                                  "end": 3591
+                                                  "start": 3757,
+                                                  "end": 3759
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3589,
-                                                "end": 3591
+                                                "start": 3757,
+                                                "end": 3759
                                               }
                                             },
                                             {
@@ -7192,15 +7577,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 3616,
-                                                  "end": 3626
+                                                  "start": 3784,
+                                                  "end": 3794
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3616,
-                                                "end": 3626
+                                                "start": 3784,
+                                                "end": 3794
                                               }
                                             },
                                             {
@@ -7209,15 +7594,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 3651,
-                                                  "end": 3661
+                                                  "start": 3819,
+                                                  "end": 3829
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3651,
-                                                "end": 3661
+                                                "start": 3819,
+                                                "end": 3829
                                               }
                                             },
                                             {
@@ -7226,15 +7611,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 3686,
-                                                  "end": 3690
+                                                  "start": 3854,
+                                                  "end": 3858
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3686,
-                                                "end": 3690
+                                                "start": 3854,
+                                                "end": 3858
                                               }
                                             },
                                             {
@@ -7243,15 +7628,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 3715,
-                                                  "end": 3726
+                                                  "start": 3883,
+                                                  "end": 3894
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3715,
-                                                "end": 3726
+                                                "start": 3883,
+                                                "end": 3894
                                               }
                                             },
                                             {
@@ -7260,15 +7645,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 3751,
-                                                  "end": 3758
+                                                  "start": 3919,
+                                                  "end": 3926
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3751,
-                                                "end": 3758
+                                                "start": 3919,
+                                                "end": 3926
                                               }
                                             },
                                             {
@@ -7277,15 +7662,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 3783,
-                                                  "end": 3788
+                                                  "start": 3951,
+                                                  "end": 3956
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3783,
-                                                "end": 3788
+                                                "start": 3951,
+                                                "end": 3956
                                               }
                                             },
                                             {
@@ -7294,15 +7679,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 3813,
-                                                  "end": 3823
+                                                  "start": 3981,
+                                                  "end": 3991
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3813,
-                                                "end": 3823
+                                                "start": 3981,
+                                                "end": 3991
                                               }
                                             },
                                             {
@@ -7311,8 +7696,8 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "reminderItems",
                                                 "loc": {
-                                                  "start": 3848,
-                                                  "end": 3861
+                                                  "start": 4016,
+                                                  "end": 4029
                                                 }
                                               },
                                               "arguments": [],
@@ -7326,15 +7711,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 3892,
-                                                        "end": 3894
+                                                        "start": 4060,
+                                                        "end": 4062
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3892,
-                                                      "end": 3894
+                                                      "start": 4060,
+                                                      "end": 4062
                                                     }
                                                   },
                                                   {
@@ -7343,15 +7728,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 3923,
-                                                        "end": 3933
+                                                        "start": 4091,
+                                                        "end": 4101
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3923,
-                                                      "end": 3933
+                                                      "start": 4091,
+                                                      "end": 4101
                                                     }
                                                   },
                                                   {
@@ -7360,15 +7745,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 3962,
-                                                        "end": 3972
+                                                        "start": 4130,
+                                                        "end": 4140
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3962,
-                                                      "end": 3972
+                                                      "start": 4130,
+                                                      "end": 4140
                                                     }
                                                   },
                                                   {
@@ -7377,15 +7762,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 4001,
-                                                        "end": 4005
+                                                        "start": 4169,
+                                                        "end": 4173
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4001,
-                                                      "end": 4005
+                                                      "start": 4169,
+                                                      "end": 4173
                                                     }
                                                   },
                                                   {
@@ -7394,15 +7779,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4034,
-                                                        "end": 4045
+                                                        "start": 4202,
+                                                        "end": 4213
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4034,
-                                                      "end": 4045
+                                                      "start": 4202,
+                                                      "end": 4213
                                                     }
                                                   },
                                                   {
@@ -7411,15 +7796,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 4074,
-                                                        "end": 4081
+                                                        "start": 4242,
+                                                        "end": 4249
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4074,
-                                                      "end": 4081
+                                                      "start": 4242,
+                                                      "end": 4249
                                                     }
                                                   },
                                                   {
@@ -7428,15 +7813,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 4110,
-                                                        "end": 4115
+                                                        "start": 4278,
+                                                        "end": 4283
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4110,
-                                                      "end": 4115
+                                                      "start": 4278,
+                                                      "end": 4283
                                                     }
                                                   },
                                                   {
@@ -7445,48 +7830,48 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 4144,
-                                                        "end": 4154
+                                                        "start": 4312,
+                                                        "end": 4322
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4144,
-                                                      "end": 4154
+                                                      "start": 4312,
+                                                      "end": 4322
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 3862,
-                                                  "end": 4180
+                                                  "start": 4030,
+                                                  "end": 4348
                                                 }
                                               },
                                               "loc": {
-                                                "start": 3848,
-                                                "end": 4180
+                                                "start": 4016,
+                                                "end": 4348
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3563,
-                                            "end": 4202
+                                            "start": 3731,
+                                            "end": 4370
                                           }
                                         },
                                         "loc": {
-                                          "start": 3553,
-                                          "end": 4202
+                                          "start": 3721,
+                                          "end": 4370
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3446,
-                                      "end": 4220
+                                      "start": 3614,
+                                      "end": 4388
                                     }
                                   },
                                   "loc": {
-                                    "start": 3433,
-                                    "end": 4220
+                                    "start": 3601,
+                                    "end": 4388
                                   }
                                 },
                                 {
@@ -7495,8 +7880,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "resourceList",
                                     "loc": {
-                                      "start": 4237,
-                                      "end": 4249
+                                      "start": 4405,
+                                      "end": 4417
                                     }
                                   },
                                   "arguments": [],
@@ -7510,15 +7895,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 4272,
-                                            "end": 4274
+                                            "start": 4440,
+                                            "end": 4442
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4272,
-                                          "end": 4274
+                                          "start": 4440,
+                                          "end": 4442
                                         }
                                       },
                                       {
@@ -7527,15 +7912,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 4295,
-                                            "end": 4305
+                                            "start": 4463,
+                                            "end": 4473
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4295,
-                                          "end": 4305
+                                          "start": 4463,
+                                          "end": 4473
                                         }
                                       },
                                       {
@@ -7544,8 +7929,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 4326,
-                                            "end": 4338
+                                            "start": 4494,
+                                            "end": 4506
                                           }
                                         },
                                         "arguments": [],
@@ -7559,15 +7944,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4365,
-                                                  "end": 4367
+                                                  "start": 4533,
+                                                  "end": 4535
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4365,
-                                                "end": 4367
+                                                "start": 4533,
+                                                "end": 4535
                                               }
                                             },
                                             {
@@ -7576,15 +7961,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 4392,
-                                                  "end": 4400
+                                                  "start": 4560,
+                                                  "end": 4568
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4392,
-                                                "end": 4400
+                                                "start": 4560,
+                                                "end": 4568
                                               }
                                             },
                                             {
@@ -7593,15 +7978,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 4425,
-                                                  "end": 4436
+                                                  "start": 4593,
+                                                  "end": 4604
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4425,
-                                                "end": 4436
+                                                "start": 4593,
+                                                "end": 4604
                                               }
                                             },
                                             {
@@ -7610,26 +7995,26 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 4461,
-                                                  "end": 4465
+                                                  "start": 4629,
+                                                  "end": 4633
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4461,
-                                                "end": 4465
+                                                "start": 4629,
+                                                "end": 4633
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4339,
-                                            "end": 4487
+                                            "start": 4507,
+                                            "end": 4655
                                           }
                                         },
                                         "loc": {
-                                          "start": 4326,
-                                          "end": 4487
+                                          "start": 4494,
+                                          "end": 4655
                                         }
                                       },
                                       {
@@ -7638,8 +8023,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "resources",
                                           "loc": {
-                                            "start": 4508,
-                                            "end": 4517
+                                            "start": 4676,
+                                            "end": 4685
                                           }
                                         },
                                         "arguments": [],
@@ -7653,15 +8038,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4544,
-                                                  "end": 4546
+                                                  "start": 4712,
+                                                  "end": 4714
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4544,
-                                                "end": 4546
+                                                "start": 4712,
+                                                "end": 4714
                                               }
                                             },
                                             {
@@ -7670,15 +8055,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 4571,
-                                                  "end": 4576
+                                                  "start": 4739,
+                                                  "end": 4744
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4571,
-                                                "end": 4576
+                                                "start": 4739,
+                                                "end": 4744
                                               }
                                             },
                                             {
@@ -7687,15 +8072,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "link",
                                                 "loc": {
-                                                  "start": 4601,
-                                                  "end": 4605
+                                                  "start": 4769,
+                                                  "end": 4773
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4601,
-                                                "end": 4605
+                                                "start": 4769,
+                                                "end": 4773
                                               }
                                             },
                                             {
@@ -7704,15 +8089,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "usedFor",
                                                 "loc": {
-                                                  "start": 4630,
-                                                  "end": 4637
+                                                  "start": 4798,
+                                                  "end": 4805
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4630,
-                                                "end": 4637
+                                                "start": 4798,
+                                                "end": 4805
                                               }
                                             },
                                             {
@@ -7721,8 +8106,8 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 4662,
-                                                  "end": 4674
+                                                  "start": 4830,
+                                                  "end": 4842
                                                 }
                                               },
                                               "arguments": [],
@@ -7736,15 +8121,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 4705,
-                                                        "end": 4707
+                                                        "start": 4873,
+                                                        "end": 4875
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4705,
-                                                      "end": 4707
+                                                      "start": 4873,
+                                                      "end": 4875
                                                     }
                                                   },
                                                   {
@@ -7753,15 +8138,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 4736,
-                                                        "end": 4744
+                                                        "start": 4904,
+                                                        "end": 4912
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4736,
-                                                      "end": 4744
+                                                      "start": 4904,
+                                                      "end": 4912
                                                     }
                                                   },
                                                   {
@@ -7770,15 +8155,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4773,
-                                                        "end": 4784
+                                                        "start": 4941,
+                                                        "end": 4952
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4773,
-                                                      "end": 4784
+                                                      "start": 4941,
+                                                      "end": 4952
                                                     }
                                                   },
                                                   {
@@ -7787,48 +8172,48 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 4813,
-                                                        "end": 4817
+                                                        "start": 4981,
+                                                        "end": 4985
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4813,
-                                                      "end": 4817
+                                                      "start": 4981,
+                                                      "end": 4985
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 4675,
-                                                  "end": 4843
+                                                  "start": 4843,
+                                                  "end": 5011
                                                 }
                                               },
                                               "loc": {
-                                                "start": 4662,
-                                                "end": 4843
+                                                "start": 4830,
+                                                "end": 5011
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4518,
-                                            "end": 4865
+                                            "start": 4686,
+                                            "end": 5033
                                           }
                                         },
                                         "loc": {
-                                          "start": 4508,
-                                          "end": 4865
+                                          "start": 4676,
+                                          "end": 5033
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4250,
-                                      "end": 4883
+                                      "start": 4418,
+                                      "end": 5051
                                     }
                                   },
                                   "loc": {
-                                    "start": 4237,
-                                    "end": 4883
+                                    "start": 4405,
+                                    "end": 5051
                                   }
                                 },
                                 {
@@ -7837,8 +8222,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "schedule",
                                     "loc": {
-                                      "start": 4900,
-                                      "end": 4908
+                                      "start": 5068,
+                                      "end": 5076
                                     }
                                   },
                                   "arguments": [],
@@ -7852,25 +8237,25 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "Schedule_common",
                                           "loc": {
-                                            "start": 4934,
-                                            "end": 4949
+                                            "start": 5102,
+                                            "end": 5117
                                           }
                                         },
                                         "directives": [],
                                         "loc": {
-                                          "start": 4931,
-                                          "end": 4949
+                                          "start": 5099,
+                                          "end": 5117
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4909,
-                                      "end": 4967
+                                      "start": 5077,
+                                      "end": 5135
                                     }
                                   },
                                   "loc": {
-                                    "start": 4900,
-                                    "end": 4967
+                                    "start": 5068,
+                                    "end": 5135
                                   }
                                 },
                                 {
@@ -7879,15 +8264,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 4984,
-                                      "end": 4986
+                                      "start": 5152,
+                                      "end": 5154
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4984,
-                                    "end": 4986
+                                    "start": 5152,
+                                    "end": 5154
                                   }
                                 },
                                 {
@@ -7896,15 +8281,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "name",
                                     "loc": {
-                                      "start": 5003,
-                                      "end": 5007
+                                      "start": 5171,
+                                      "end": 5175
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5003,
-                                    "end": 5007
+                                    "start": 5171,
+                                    "end": 5175
                                   }
                                 },
                                 {
@@ -7913,26 +8298,103 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "description",
                                     "loc": {
-                                      "start": 5024,
-                                      "end": 5035
+                                      "start": 5192,
+                                      "end": 5203
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5024,
-                                    "end": 5035
+                                    "start": 5192,
+                                    "end": 5203
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "you",
+                                    "loc": {
+                                      "start": 5220,
+                                      "end": 5223
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "selectionSet": {
+                                    "kind": "SelectionSet",
+                                    "selections": [
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canDelete",
+                                          "loc": {
+                                            "start": 5246,
+                                            "end": 5255
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5246,
+                                          "end": 5255
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canRead",
+                                          "loc": {
+                                            "start": 5276,
+                                            "end": 5283
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5276,
+                                          "end": 5283
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canUpdate",
+                                          "loc": {
+                                            "start": 5304,
+                                            "end": 5313
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5304,
+                                          "end": 5313
+                                        }
+                                      }
+                                    ],
+                                    "loc": {
+                                      "start": 5224,
+                                      "end": 5331
+                                    }
+                                  },
+                                  "loc": {
+                                    "start": 5220,
+                                    "end": 5331
                                   }
                                 }
                               ],
                               "loc": {
                                 "start": 468,
-                                "end": 5049
+                                "end": 5345
                               }
                             },
                             "loc": {
                               "start": 463,
-                              "end": 5049
+                              "end": 5345
                             }
                           },
                           {
@@ -7941,15 +8403,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "stopCondition",
                               "loc": {
-                                "start": 5062,
-                                "end": 5075
+                                "start": 5358,
+                                "end": 5371
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5062,
-                              "end": 5075
+                              "start": 5358,
+                              "end": 5371
                             }
                           },
                           {
@@ -7958,26 +8420,26 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "stopTime",
                               "loc": {
-                                "start": 5088,
-                                "end": 5096
+                                "start": 5384,
+                                "end": 5392
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5088,
-                              "end": 5096
+                              "start": 5384,
+                              "end": 5392
                             }
                           }
                         ],
                         "loc": {
                           "start": 449,
-                          "end": 5106
+                          "end": 5402
                         }
                       },
                       "loc": {
                         "start": 433,
-                        "end": 5106
+                        "end": 5402
                       }
                     },
                     {
@@ -7986,15 +8448,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "apisCount",
                         "loc": {
-                          "start": 5115,
-                          "end": 5124
+                          "start": 5411,
+                          "end": 5420
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5115,
-                        "end": 5124
+                        "start": 5411,
+                        "end": 5420
                       }
                     },
                     {
@@ -8003,8 +8465,8 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "bookmarkLists",
                         "loc": {
-                          "start": 5133,
-                          "end": 5146
+                          "start": 5429,
+                          "end": 5442
                         }
                       },
                       "arguments": [],
@@ -8018,15 +8480,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 5161,
-                                "end": 5163
+                                "start": 5457,
+                                "end": 5459
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5161,
-                              "end": 5163
+                              "start": 5457,
+                              "end": 5459
                             }
                           },
                           {
@@ -8035,15 +8497,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "created_at",
                               "loc": {
-                                "start": 5176,
-                                "end": 5186
+                                "start": 5472,
+                                "end": 5482
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5176,
-                              "end": 5186
+                              "start": 5472,
+                              "end": 5482
                             }
                           },
                           {
@@ -8052,15 +8514,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "updated_at",
                               "loc": {
-                                "start": 5199,
-                                "end": 5209
+                                "start": 5495,
+                                "end": 5505
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5199,
-                              "end": 5209
+                              "start": 5495,
+                              "end": 5505
                             }
                           },
                           {
@@ -8069,15 +8531,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "label",
                               "loc": {
-                                "start": 5222,
-                                "end": 5227
+                                "start": 5518,
+                                "end": 5523
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5222,
-                              "end": 5227
+                              "start": 5518,
+                              "end": 5523
                             }
                           },
                           {
@@ -8086,26 +8548,43 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "bookmarksCount",
                               "loc": {
-                                "start": 5240,
-                                "end": 5254
+                                "start": 5536,
+                                "end": 5550
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5240,
-                              "end": 5254
+                              "start": 5536,
+                              "end": 5550
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5147,
-                          "end": 5264
+                          "start": 5443,
+                          "end": 5560
                         }
                       },
                       "loc": {
-                        "start": 5133,
-                        "end": 5264
+                        "start": 5429,
+                        "end": 5560
+                      }
+                    },
+                    {
+                      "kind": "Field",
+                      "name": {
+                        "kind": "Name",
+                        "value": "codesCount",
+                        "loc": {
+                          "start": 5569,
+                          "end": 5579
+                        }
+                      },
+                      "arguments": [],
+                      "directives": [],
+                      "loc": {
+                        "start": 5569,
+                        "end": 5579
                       }
                     },
                     {
@@ -8114,8 +8593,8 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "focusModes",
                         "loc": {
-                          "start": 5273,
-                          "end": 5283
+                          "start": 5588,
+                          "end": 5598
                         }
                       },
                       "arguments": [],
@@ -8129,8 +8608,8 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "filters",
                               "loc": {
-                                "start": 5298,
-                                "end": 5305
+                                "start": 5613,
+                                "end": 5620
                               }
                             },
                             "arguments": [],
@@ -8144,15 +8623,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 5324,
-                                      "end": 5326
+                                      "start": 5639,
+                                      "end": 5641
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5324,
-                                    "end": 5326
+                                    "start": 5639,
+                                    "end": 5641
                                   }
                                 },
                                 {
@@ -8161,15 +8640,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "filterType",
                                     "loc": {
-                                      "start": 5343,
-                                      "end": 5353
+                                      "start": 5658,
+                                      "end": 5668
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5343,
-                                    "end": 5353
+                                    "start": 5658,
+                                    "end": 5668
                                   }
                                 },
                                 {
@@ -8178,8 +8657,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "tag",
                                     "loc": {
-                                      "start": 5370,
-                                      "end": 5373
+                                      "start": 5685,
+                                      "end": 5688
                                     }
                                   },
                                   "arguments": [],
@@ -8193,15 +8672,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5396,
-                                            "end": 5398
+                                            "start": 5711,
+                                            "end": 5713
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5396,
-                                          "end": 5398
+                                          "start": 5711,
+                                          "end": 5713
                                         }
                                       },
                                       {
@@ -8210,15 +8689,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 5419,
-                                            "end": 5429
+                                            "start": 5734,
+                                            "end": 5744
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5419,
-                                          "end": 5429
+                                          "start": 5734,
+                                          "end": 5744
                                         }
                                       },
                                       {
@@ -8227,15 +8706,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "tag",
                                           "loc": {
-                                            "start": 5450,
-                                            "end": 5453
+                                            "start": 5765,
+                                            "end": 5768
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5450,
-                                          "end": 5453
+                                          "start": 5765,
+                                          "end": 5768
                                         }
                                       },
                                       {
@@ -8244,15 +8723,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "bookmarks",
                                           "loc": {
-                                            "start": 5474,
-                                            "end": 5483
+                                            "start": 5789,
+                                            "end": 5798
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5474,
-                                          "end": 5483
+                                          "start": 5789,
+                                          "end": 5798
                                         }
                                       },
                                       {
@@ -8261,8 +8740,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 5504,
-                                            "end": 5516
+                                            "start": 5819,
+                                            "end": 5831
                                           }
                                         },
                                         "arguments": [],
@@ -8276,15 +8755,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5543,
-                                                  "end": 5545
+                                                  "start": 5858,
+                                                  "end": 5860
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5543,
-                                                "end": 5545
+                                                "start": 5858,
+                                                "end": 5860
                                               }
                                             },
                                             {
@@ -8293,15 +8772,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 5570,
-                                                  "end": 5578
+                                                  "start": 5885,
+                                                  "end": 5893
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5570,
-                                                "end": 5578
+                                                "start": 5885,
+                                                "end": 5893
                                               }
                                             },
                                             {
@@ -8310,26 +8789,26 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 5603,
-                                                  "end": 5614
+                                                  "start": 5918,
+                                                  "end": 5929
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5603,
-                                                "end": 5614
+                                                "start": 5918,
+                                                "end": 5929
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5517,
-                                            "end": 5636
+                                            "start": 5832,
+                                            "end": 5951
                                           }
                                         },
                                         "loc": {
-                                          "start": 5504,
-                                          "end": 5636
+                                          "start": 5819,
+                                          "end": 5951
                                         }
                                       },
                                       {
@@ -8338,8 +8817,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 5657,
-                                            "end": 5660
+                                            "start": 5972,
+                                            "end": 5975
                                           }
                                         },
                                         "arguments": [],
@@ -8353,15 +8832,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "isOwn",
                                                 "loc": {
-                                                  "start": 5687,
-                                                  "end": 5692
+                                                  "start": 6002,
+                                                  "end": 6007
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5687,
-                                                "end": 5692
+                                                "start": 6002,
+                                                "end": 6007
                                               }
                                             },
                                             {
@@ -8370,37 +8849,37 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "isBookmarked",
                                                 "loc": {
-                                                  "start": 5717,
-                                                  "end": 5729
+                                                  "start": 6032,
+                                                  "end": 6044
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5717,
-                                                "end": 5729
+                                                "start": 6032,
+                                                "end": 6044
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5661,
-                                            "end": 5751
+                                            "start": 5976,
+                                            "end": 6066
                                           }
                                         },
                                         "loc": {
-                                          "start": 5657,
-                                          "end": 5751
+                                          "start": 5972,
+                                          "end": 6066
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5374,
-                                      "end": 5769
+                                      "start": 5689,
+                                      "end": 6084
                                     }
                                   },
                                   "loc": {
-                                    "start": 5370,
-                                    "end": 5769
+                                    "start": 5685,
+                                    "end": 6084
                                   }
                                 },
                                 {
@@ -8409,8 +8888,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "focusMode",
                                     "loc": {
-                                      "start": 5786,
-                                      "end": 5795
+                                      "start": 6101,
+                                      "end": 6110
                                     }
                                   },
                                   "arguments": [],
@@ -8424,8 +8903,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "labels",
                                           "loc": {
-                                            "start": 5818,
-                                            "end": 5824
+                                            "start": 6133,
+                                            "end": 6139
                                           }
                                         },
                                         "arguments": [],
@@ -8439,15 +8918,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5851,
-                                                  "end": 5853
+                                                  "start": 6166,
+                                                  "end": 6168
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5851,
-                                                "end": 5853
+                                                "start": 6166,
+                                                "end": 6168
                                               }
                                             },
                                             {
@@ -8456,15 +8935,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "color",
                                                 "loc": {
-                                                  "start": 5878,
-                                                  "end": 5883
+                                                  "start": 6193,
+                                                  "end": 6198
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5878,
-                                                "end": 5883
+                                                "start": 6193,
+                                                "end": 6198
                                               }
                                             },
                                             {
@@ -8473,26 +8952,26 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "label",
                                                 "loc": {
-                                                  "start": 5908,
-                                                  "end": 5913
+                                                  "start": 6223,
+                                                  "end": 6228
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5908,
-                                                "end": 5913
+                                                "start": 6223,
+                                                "end": 6228
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5825,
-                                            "end": 5935
+                                            "start": 6140,
+                                            "end": 6250
                                           }
                                         },
                                         "loc": {
-                                          "start": 5818,
-                                          "end": 5935
+                                          "start": 6133,
+                                          "end": 6250
                                         }
                                       },
                                       {
@@ -8501,8 +8980,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "reminderList",
                                           "loc": {
-                                            "start": 5956,
-                                            "end": 5968
+                                            "start": 6271,
+                                            "end": 6283
                                           }
                                         },
                                         "arguments": [],
@@ -8516,15 +8995,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5995,
-                                                  "end": 5997
+                                                  "start": 6310,
+                                                  "end": 6312
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5995,
-                                                "end": 5997
+                                                "start": 6310,
+                                                "end": 6312
                                               }
                                             },
                                             {
@@ -8533,15 +9012,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6022,
-                                                  "end": 6032
+                                                  "start": 6337,
+                                                  "end": 6347
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6022,
-                                                "end": 6032
+                                                "start": 6337,
+                                                "end": 6347
                                               }
                                             },
                                             {
@@ -8550,15 +9029,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 6057,
-                                                  "end": 6067
+                                                  "start": 6372,
+                                                  "end": 6382
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6057,
-                                                "end": 6067
+                                                "start": 6372,
+                                                "end": 6382
                                               }
                                             },
                                             {
@@ -8567,8 +9046,8 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "reminders",
                                                 "loc": {
-                                                  "start": 6092,
-                                                  "end": 6101
+                                                  "start": 6407,
+                                                  "end": 6416
                                                 }
                                               },
                                               "arguments": [],
@@ -8582,15 +9061,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6132,
-                                                        "end": 6134
+                                                        "start": 6447,
+                                                        "end": 6449
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6132,
-                                                      "end": 6134
+                                                      "start": 6447,
+                                                      "end": 6449
                                                     }
                                                   },
                                                   {
@@ -8599,15 +9078,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 6163,
-                                                        "end": 6173
+                                                        "start": 6478,
+                                                        "end": 6488
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6163,
-                                                      "end": 6173
+                                                      "start": 6478,
+                                                      "end": 6488
                                                     }
                                                   },
                                                   {
@@ -8616,15 +9095,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 6202,
-                                                        "end": 6212
+                                                        "start": 6517,
+                                                        "end": 6527
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6202,
-                                                      "end": 6212
+                                                      "start": 6517,
+                                                      "end": 6527
                                                     }
                                                   },
                                                   {
@@ -8633,15 +9112,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 6241,
-                                                        "end": 6245
+                                                        "start": 6556,
+                                                        "end": 6560
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6241,
-                                                      "end": 6245
+                                                      "start": 6556,
+                                                      "end": 6560
                                                     }
                                                   },
                                                   {
@@ -8650,15 +9129,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 6274,
-                                                        "end": 6285
+                                                        "start": 6589,
+                                                        "end": 6600
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6274,
-                                                      "end": 6285
+                                                      "start": 6589,
+                                                      "end": 6600
                                                     }
                                                   },
                                                   {
@@ -8667,15 +9146,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 6314,
-                                                        "end": 6321
+                                                        "start": 6629,
+                                                        "end": 6636
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6314,
-                                                      "end": 6321
+                                                      "start": 6629,
+                                                      "end": 6636
                                                     }
                                                   },
                                                   {
@@ -8684,15 +9163,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 6350,
-                                                        "end": 6355
+                                                        "start": 6665,
+                                                        "end": 6670
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6350,
-                                                      "end": 6355
+                                                      "start": 6665,
+                                                      "end": 6670
                                                     }
                                                   },
                                                   {
@@ -8701,15 +9180,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 6384,
-                                                        "end": 6394
+                                                        "start": 6699,
+                                                        "end": 6709
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6384,
-                                                      "end": 6394
+                                                      "start": 6699,
+                                                      "end": 6709
                                                     }
                                                   },
                                                   {
@@ -8718,8 +9197,8 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "reminderItems",
                                                       "loc": {
-                                                        "start": 6423,
-                                                        "end": 6436
+                                                        "start": 6738,
+                                                        "end": 6751
                                                       }
                                                     },
                                                     "arguments": [],
@@ -8733,15 +9212,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 6471,
-                                                              "end": 6473
+                                                              "start": 6786,
+                                                              "end": 6788
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6471,
-                                                            "end": 6473
+                                                            "start": 6786,
+                                                            "end": 6788
                                                           }
                                                         },
                                                         {
@@ -8750,15 +9229,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "created_at",
                                                             "loc": {
-                                                              "start": 6506,
-                                                              "end": 6516
+                                                              "start": 6821,
+                                                              "end": 6831
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6506,
-                                                            "end": 6516
+                                                            "start": 6821,
+                                                            "end": 6831
                                                           }
                                                         },
                                                         {
@@ -8767,15 +9246,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "updated_at",
                                                             "loc": {
-                                                              "start": 6549,
-                                                              "end": 6559
+                                                              "start": 6864,
+                                                              "end": 6874
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6549,
-                                                            "end": 6559
+                                                            "start": 6864,
+                                                            "end": 6874
                                                           }
                                                         },
                                                         {
@@ -8784,15 +9263,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 6592,
-                                                              "end": 6596
+                                                              "start": 6907,
+                                                              "end": 6911
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6592,
-                                                            "end": 6596
+                                                            "start": 6907,
+                                                            "end": 6911
                                                           }
                                                         },
                                                         {
@@ -8801,15 +9280,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 6629,
-                                                              "end": 6640
+                                                              "start": 6944,
+                                                              "end": 6955
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6629,
-                                                            "end": 6640
+                                                            "start": 6944,
+                                                            "end": 6955
                                                           }
                                                         },
                                                         {
@@ -8818,15 +9297,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "dueDate",
                                                             "loc": {
-                                                              "start": 6673,
-                                                              "end": 6680
+                                                              "start": 6988,
+                                                              "end": 6995
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6673,
-                                                            "end": 6680
+                                                            "start": 6988,
+                                                            "end": 6995
                                                           }
                                                         },
                                                         {
@@ -8835,15 +9314,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "index",
                                                             "loc": {
-                                                              "start": 6713,
-                                                              "end": 6718
+                                                              "start": 7028,
+                                                              "end": 7033
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6713,
-                                                            "end": 6718
+                                                            "start": 7028,
+                                                            "end": 7033
                                                           }
                                                         },
                                                         {
@@ -8852,48 +9331,48 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "isComplete",
                                                             "loc": {
-                                                              "start": 6751,
-                                                              "end": 6761
+                                                              "start": 7066,
+                                                              "end": 7076
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6751,
-                                                            "end": 6761
+                                                            "start": 7066,
+                                                            "end": 7076
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 6437,
-                                                        "end": 6791
+                                                        "start": 6752,
+                                                        "end": 7106
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 6423,
-                                                      "end": 6791
+                                                      "start": 6738,
+                                                      "end": 7106
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6102,
-                                                  "end": 6817
+                                                  "start": 6417,
+                                                  "end": 7132
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6092,
-                                                "end": 6817
+                                                "start": 6407,
+                                                "end": 7132
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5969,
-                                            "end": 6839
+                                            "start": 6284,
+                                            "end": 7154
                                           }
                                         },
                                         "loc": {
-                                          "start": 5956,
-                                          "end": 6839
+                                          "start": 6271,
+                                          "end": 7154
                                         }
                                       },
                                       {
@@ -8902,8 +9381,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "resourceList",
                                           "loc": {
-                                            "start": 6860,
-                                            "end": 6872
+                                            "start": 7175,
+                                            "end": 7187
                                           }
                                         },
                                         "arguments": [],
@@ -8917,15 +9396,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 6899,
-                                                  "end": 6901
+                                                  "start": 7214,
+                                                  "end": 7216
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6899,
-                                                "end": 6901
+                                                "start": 7214,
+                                                "end": 7216
                                               }
                                             },
                                             {
@@ -8934,15 +9413,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6926,
-                                                  "end": 6936
+                                                  "start": 7241,
+                                                  "end": 7251
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6926,
-                                                "end": 6936
+                                                "start": 7241,
+                                                "end": 7251
                                               }
                                             },
                                             {
@@ -8951,8 +9430,8 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 6961,
-                                                  "end": 6973
+                                                  "start": 7276,
+                                                  "end": 7288
                                                 }
                                               },
                                               "arguments": [],
@@ -8966,15 +9445,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7004,
-                                                        "end": 7006
+                                                        "start": 7319,
+                                                        "end": 7321
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7004,
-                                                      "end": 7006
+                                                      "start": 7319,
+                                                      "end": 7321
                                                     }
                                                   },
                                                   {
@@ -8983,15 +9462,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 7035,
-                                                        "end": 7043
+                                                        "start": 7350,
+                                                        "end": 7358
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7035,
-                                                      "end": 7043
+                                                      "start": 7350,
+                                                      "end": 7358
                                                     }
                                                   },
                                                   {
@@ -9000,15 +9479,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 7072,
-                                                        "end": 7083
+                                                        "start": 7387,
+                                                        "end": 7398
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7072,
-                                                      "end": 7083
+                                                      "start": 7387,
+                                                      "end": 7398
                                                     }
                                                   },
                                                   {
@@ -9017,26 +9496,26 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 7112,
-                                                        "end": 7116
+                                                        "start": 7427,
+                                                        "end": 7431
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7112,
-                                                      "end": 7116
+                                                      "start": 7427,
+                                                      "end": 7431
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6974,
-                                                  "end": 7142
+                                                  "start": 7289,
+                                                  "end": 7457
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6961,
-                                                "end": 7142
+                                                "start": 7276,
+                                                "end": 7457
                                               }
                                             },
                                             {
@@ -9045,8 +9524,8 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "resources",
                                                 "loc": {
-                                                  "start": 7167,
-                                                  "end": 7176
+                                                  "start": 7482,
+                                                  "end": 7491
                                                 }
                                               },
                                               "arguments": [],
@@ -9060,15 +9539,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7207,
-                                                        "end": 7209
+                                                        "start": 7522,
+                                                        "end": 7524
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7207,
-                                                      "end": 7209
+                                                      "start": 7522,
+                                                      "end": 7524
                                                     }
                                                   },
                                                   {
@@ -9077,15 +9556,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 7238,
-                                                        "end": 7243
+                                                        "start": 7553,
+                                                        "end": 7558
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7238,
-                                                      "end": 7243
+                                                      "start": 7553,
+                                                      "end": 7558
                                                     }
                                                   },
                                                   {
@@ -9094,15 +9573,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "link",
                                                       "loc": {
-                                                        "start": 7272,
-                                                        "end": 7276
+                                                        "start": 7587,
+                                                        "end": 7591
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7272,
-                                                      "end": 7276
+                                                      "start": 7587,
+                                                      "end": 7591
                                                     }
                                                   },
                                                   {
@@ -9111,15 +9590,15 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "usedFor",
                                                       "loc": {
-                                                        "start": 7305,
-                                                        "end": 7312
+                                                        "start": 7620,
+                                                        "end": 7627
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7305,
-                                                      "end": 7312
+                                                      "start": 7620,
+                                                      "end": 7627
                                                     }
                                                   },
                                                   {
@@ -9128,8 +9607,8 @@ export const auth_switchCurrentAccount = {
                                                       "kind": "Name",
                                                       "value": "translations",
                                                       "loc": {
-                                                        "start": 7341,
-                                                        "end": 7353
+                                                        "start": 7656,
+                                                        "end": 7668
                                                       }
                                                     },
                                                     "arguments": [],
@@ -9143,15 +9622,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 7388,
-                                                              "end": 7390
+                                                              "start": 7703,
+                                                              "end": 7705
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7388,
-                                                            "end": 7390
+                                                            "start": 7703,
+                                                            "end": 7705
                                                           }
                                                         },
                                                         {
@@ -9160,15 +9639,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "language",
                                                             "loc": {
-                                                              "start": 7423,
-                                                              "end": 7431
+                                                              "start": 7738,
+                                                              "end": 7746
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7423,
-                                                            "end": 7431
+                                                            "start": 7738,
+                                                            "end": 7746
                                                           }
                                                         },
                                                         {
@@ -9177,15 +9656,15 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 7464,
-                                                              "end": 7475
+                                                              "start": 7779,
+                                                              "end": 7790
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7464,
-                                                            "end": 7475
+                                                            "start": 7779,
+                                                            "end": 7790
                                                           }
                                                         },
                                                         {
@@ -9194,48 +9673,48 @@ export const auth_switchCurrentAccount = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 7508,
-                                                              "end": 7512
+                                                              "start": 7823,
+                                                              "end": 7827
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7508,
-                                                            "end": 7512
+                                                            "start": 7823,
+                                                            "end": 7827
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 7354,
-                                                        "end": 7542
+                                                        "start": 7669,
+                                                        "end": 7857
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 7341,
-                                                      "end": 7542
+                                                      "start": 7656,
+                                                      "end": 7857
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 7177,
-                                                  "end": 7568
+                                                  "start": 7492,
+                                                  "end": 7883
                                                 }
                                               },
                                               "loc": {
-                                                "start": 7167,
-                                                "end": 7568
+                                                "start": 7482,
+                                                "end": 7883
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 6873,
-                                            "end": 7590
+                                            "start": 7188,
+                                            "end": 7905
                                           }
                                         },
                                         "loc": {
-                                          "start": 6860,
-                                          "end": 7590
+                                          "start": 7175,
+                                          "end": 7905
                                         }
                                       },
                                       {
@@ -9244,8 +9723,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "schedule",
                                           "loc": {
-                                            "start": 7611,
-                                            "end": 7619
+                                            "start": 7926,
+                                            "end": 7934
                                           }
                                         },
                                         "arguments": [],
@@ -9259,25 +9738,25 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "Schedule_common",
                                                 "loc": {
-                                                  "start": 7649,
-                                                  "end": 7664
+                                                  "start": 7964,
+                                                  "end": 7979
                                                 }
                                               },
                                               "directives": [],
                                               "loc": {
-                                                "start": 7646,
-                                                "end": 7664
+                                                "start": 7961,
+                                                "end": 7979
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 7620,
-                                            "end": 7686
+                                            "start": 7935,
+                                            "end": 8001
                                           }
                                         },
                                         "loc": {
-                                          "start": 7611,
-                                          "end": 7686
+                                          "start": 7926,
+                                          "end": 8001
                                         }
                                       },
                                       {
@@ -9286,15 +9765,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 7707,
-                                            "end": 7709
+                                            "start": 8022,
+                                            "end": 8024
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7707,
-                                          "end": 7709
+                                          "start": 8022,
+                                          "end": 8024
                                         }
                                       },
                                       {
@@ -9303,15 +9782,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 7730,
-                                            "end": 7734
+                                            "start": 8045,
+                                            "end": 8049
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7730,
-                                          "end": 7734
+                                          "start": 8045,
+                                          "end": 8049
                                         }
                                       },
                                       {
@@ -9320,37 +9799,114 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 7755,
-                                            "end": 7766
+                                            "start": 8070,
+                                            "end": 8081
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7755,
-                                          "end": 7766
+                                          "start": 8070,
+                                          "end": 8081
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "you",
+                                          "loc": {
+                                            "start": 8102,
+                                            "end": 8105
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "selectionSet": {
+                                          "kind": "SelectionSet",
+                                          "selections": [
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canDelete",
+                                                "loc": {
+                                                  "start": 8132,
+                                                  "end": 8141
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8132,
+                                                "end": 8141
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canRead",
+                                                "loc": {
+                                                  "start": 8166,
+                                                  "end": 8173
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8166,
+                                                "end": 8173
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canUpdate",
+                                                "loc": {
+                                                  "start": 8198,
+                                                  "end": 8207
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8198,
+                                                "end": 8207
+                                              }
+                                            }
+                                          ],
+                                          "loc": {
+                                            "start": 8106,
+                                            "end": 8229
+                                          }
+                                        },
+                                        "loc": {
+                                          "start": 8102,
+                                          "end": 8229
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5796,
-                                      "end": 7784
+                                      "start": 6111,
+                                      "end": 8247
                                     }
                                   },
                                   "loc": {
-                                    "start": 5786,
-                                    "end": 7784
+                                    "start": 6101,
+                                    "end": 8247
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5306,
-                                "end": 7798
+                                "start": 5621,
+                                "end": 8261
                               }
                             },
                             "loc": {
-                              "start": 5298,
-                              "end": 7798
+                              "start": 5613,
+                              "end": 8261
                             }
                           },
                           {
@@ -9359,8 +9915,8 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "labels",
                               "loc": {
-                                "start": 7811,
-                                "end": 7817
+                                "start": 8274,
+                                "end": 8280
                               }
                             },
                             "arguments": [],
@@ -9374,15 +9930,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7836,
-                                      "end": 7838
+                                      "start": 8299,
+                                      "end": 8301
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7836,
-                                    "end": 7838
+                                    "start": 8299,
+                                    "end": 8301
                                   }
                                 },
                                 {
@@ -9391,15 +9947,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "color",
                                     "loc": {
-                                      "start": 7855,
-                                      "end": 7860
+                                      "start": 8318,
+                                      "end": 8323
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7855,
-                                    "end": 7860
+                                    "start": 8318,
+                                    "end": 8323
                                   }
                                 },
                                 {
@@ -9408,26 +9964,26 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "label",
                                     "loc": {
-                                      "start": 7877,
-                                      "end": 7882
+                                      "start": 8340,
+                                      "end": 8345
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7877,
-                                    "end": 7882
+                                    "start": 8340,
+                                    "end": 8345
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7818,
-                                "end": 7896
+                                "start": 8281,
+                                "end": 8359
                               }
                             },
                             "loc": {
-                              "start": 7811,
-                              "end": 7896
+                              "start": 8274,
+                              "end": 8359
                             }
                           },
                           {
@@ -9436,8 +9992,8 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "reminderList",
                               "loc": {
-                                "start": 7909,
-                                "end": 7921
+                                "start": 8372,
+                                "end": 8384
                               }
                             },
                             "arguments": [],
@@ -9451,15 +10007,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7940,
-                                      "end": 7942
+                                      "start": 8403,
+                                      "end": 8405
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7940,
-                                    "end": 7942
+                                    "start": 8403,
+                                    "end": 8405
                                   }
                                 },
                                 {
@@ -9468,15 +10024,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 7959,
-                                      "end": 7969
+                                      "start": 8422,
+                                      "end": 8432
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7959,
-                                    "end": 7969
+                                    "start": 8422,
+                                    "end": 8432
                                   }
                                 },
                                 {
@@ -9485,15 +10041,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "updated_at",
                                     "loc": {
-                                      "start": 7986,
-                                      "end": 7996
+                                      "start": 8449,
+                                      "end": 8459
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7986,
-                                    "end": 7996
+                                    "start": 8449,
+                                    "end": 8459
                                   }
                                 },
                                 {
@@ -9502,8 +10058,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "reminders",
                                     "loc": {
-                                      "start": 8013,
-                                      "end": 8022
+                                      "start": 8476,
+                                      "end": 8485
                                     }
                                   },
                                   "arguments": [],
@@ -9517,15 +10073,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8045,
-                                            "end": 8047
+                                            "start": 8508,
+                                            "end": 8510
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8045,
-                                          "end": 8047
+                                          "start": 8508,
+                                          "end": 8510
                                         }
                                       },
                                       {
@@ -9534,15 +10090,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 8068,
-                                            "end": 8078
+                                            "start": 8531,
+                                            "end": 8541
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8068,
-                                          "end": 8078
+                                          "start": 8531,
+                                          "end": 8541
                                         }
                                       },
                                       {
@@ -9551,15 +10107,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 8099,
-                                            "end": 8109
+                                            "start": 8562,
+                                            "end": 8572
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8099,
-                                          "end": 8109
+                                          "start": 8562,
+                                          "end": 8572
                                         }
                                       },
                                       {
@@ -9568,15 +10124,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8130,
-                                            "end": 8134
+                                            "start": 8593,
+                                            "end": 8597
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8130,
-                                          "end": 8134
+                                          "start": 8593,
+                                          "end": 8597
                                         }
                                       },
                                       {
@@ -9585,15 +10141,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8155,
-                                            "end": 8166
+                                            "start": 8618,
+                                            "end": 8629
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8155,
-                                          "end": 8166
+                                          "start": 8618,
+                                          "end": 8629
                                         }
                                       },
                                       {
@@ -9602,15 +10158,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "dueDate",
                                           "loc": {
-                                            "start": 8187,
-                                            "end": 8194
+                                            "start": 8650,
+                                            "end": 8657
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8187,
-                                          "end": 8194
+                                          "start": 8650,
+                                          "end": 8657
                                         }
                                       },
                                       {
@@ -9619,15 +10175,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8215,
-                                            "end": 8220
+                                            "start": 8678,
+                                            "end": 8683
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8215,
-                                          "end": 8220
+                                          "start": 8678,
+                                          "end": 8683
                                         }
                                       },
                                       {
@@ -9636,15 +10192,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "isComplete",
                                           "loc": {
-                                            "start": 8241,
-                                            "end": 8251
+                                            "start": 8704,
+                                            "end": 8714
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8241,
-                                          "end": 8251
+                                          "start": 8704,
+                                          "end": 8714
                                         }
                                       },
                                       {
@@ -9653,8 +10209,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "reminderItems",
                                           "loc": {
-                                            "start": 8272,
-                                            "end": 8285
+                                            "start": 8735,
+                                            "end": 8748
                                           }
                                         },
                                         "arguments": [],
@@ -9668,15 +10224,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 8312,
-                                                  "end": 8314
+                                                  "start": 8775,
+                                                  "end": 8777
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8312,
-                                                "end": 8314
+                                                "start": 8775,
+                                                "end": 8777
                                               }
                                             },
                                             {
@@ -9685,15 +10241,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 8339,
-                                                  "end": 8349
+                                                  "start": 8802,
+                                                  "end": 8812
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8339,
-                                                "end": 8349
+                                                "start": 8802,
+                                                "end": 8812
                                               }
                                             },
                                             {
@@ -9702,15 +10258,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 8374,
-                                                  "end": 8384
+                                                  "start": 8837,
+                                                  "end": 8847
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8374,
-                                                "end": 8384
+                                                "start": 8837,
+                                                "end": 8847
                                               }
                                             },
                                             {
@@ -9719,15 +10275,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 8409,
-                                                  "end": 8413
+                                                  "start": 8872,
+                                                  "end": 8876
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8409,
-                                                "end": 8413
+                                                "start": 8872,
+                                                "end": 8876
                                               }
                                             },
                                             {
@@ -9736,15 +10292,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 8438,
-                                                  "end": 8449
+                                                  "start": 8901,
+                                                  "end": 8912
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8438,
-                                                "end": 8449
+                                                "start": 8901,
+                                                "end": 8912
                                               }
                                             },
                                             {
@@ -9753,15 +10309,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 8474,
-                                                  "end": 8481
+                                                  "start": 8937,
+                                                  "end": 8944
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8474,
-                                                "end": 8481
+                                                "start": 8937,
+                                                "end": 8944
                                               }
                                             },
                                             {
@@ -9770,15 +10326,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 8506,
-                                                  "end": 8511
+                                                  "start": 8969,
+                                                  "end": 8974
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8506,
-                                                "end": 8511
+                                                "start": 8969,
+                                                "end": 8974
                                               }
                                             },
                                             {
@@ -9787,48 +10343,48 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 8536,
-                                                  "end": 8546
+                                                  "start": 8999,
+                                                  "end": 9009
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8536,
-                                                "end": 8546
+                                                "start": 8999,
+                                                "end": 9009
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8286,
-                                            "end": 8568
+                                            "start": 8749,
+                                            "end": 9031
                                           }
                                         },
                                         "loc": {
-                                          "start": 8272,
-                                          "end": 8568
+                                          "start": 8735,
+                                          "end": 9031
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8023,
-                                      "end": 8586
+                                      "start": 8486,
+                                      "end": 9049
                                     }
                                   },
                                   "loc": {
-                                    "start": 8013,
-                                    "end": 8586
+                                    "start": 8476,
+                                    "end": 9049
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7922,
-                                "end": 8600
+                                "start": 8385,
+                                "end": 9063
                               }
                             },
                             "loc": {
-                              "start": 7909,
-                              "end": 8600
+                              "start": 8372,
+                              "end": 9063
                             }
                           },
                           {
@@ -9837,8 +10393,8 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "resourceList",
                               "loc": {
-                                "start": 8613,
-                                "end": 8625
+                                "start": 9076,
+                                "end": 9088
                               }
                             },
                             "arguments": [],
@@ -9852,15 +10408,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 8644,
-                                      "end": 8646
+                                      "start": 9107,
+                                      "end": 9109
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8644,
-                                    "end": 8646
+                                    "start": 9107,
+                                    "end": 9109
                                   }
                                 },
                                 {
@@ -9869,15 +10425,15 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 8663,
-                                      "end": 8673
+                                      "start": 9126,
+                                      "end": 9136
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8663,
-                                    "end": 8673
+                                    "start": 9126,
+                                    "end": 9136
                                   }
                                 },
                                 {
@@ -9886,8 +10442,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "translations",
                                     "loc": {
-                                      "start": 8690,
-                                      "end": 8702
+                                      "start": 9153,
+                                      "end": 9165
                                     }
                                   },
                                   "arguments": [],
@@ -9901,15 +10457,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8725,
-                                            "end": 8727
+                                            "start": 9188,
+                                            "end": 9190
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8725,
-                                          "end": 8727
+                                          "start": 9188,
+                                          "end": 9190
                                         }
                                       },
                                       {
@@ -9918,15 +10474,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "language",
                                           "loc": {
-                                            "start": 8748,
-                                            "end": 8756
+                                            "start": 9211,
+                                            "end": 9219
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8748,
-                                          "end": 8756
+                                          "start": 9211,
+                                          "end": 9219
                                         }
                                       },
                                       {
@@ -9935,15 +10491,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8777,
-                                            "end": 8788
+                                            "start": 9240,
+                                            "end": 9251
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8777,
-                                          "end": 8788
+                                          "start": 9240,
+                                          "end": 9251
                                         }
                                       },
                                       {
@@ -9952,26 +10508,26 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8809,
-                                            "end": 8813
+                                            "start": 9272,
+                                            "end": 9276
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8809,
-                                          "end": 8813
+                                          "start": 9272,
+                                          "end": 9276
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8703,
-                                      "end": 8831
+                                      "start": 9166,
+                                      "end": 9294
                                     }
                                   },
                                   "loc": {
-                                    "start": 8690,
-                                    "end": 8831
+                                    "start": 9153,
+                                    "end": 9294
                                   }
                                 },
                                 {
@@ -9980,8 +10536,8 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "resources",
                                     "loc": {
-                                      "start": 8848,
-                                      "end": 8857
+                                      "start": 9311,
+                                      "end": 9320
                                     }
                                   },
                                   "arguments": [],
@@ -9995,15 +10551,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8880,
-                                            "end": 8882
+                                            "start": 9343,
+                                            "end": 9345
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8880,
-                                          "end": 8882
+                                          "start": 9343,
+                                          "end": 9345
                                         }
                                       },
                                       {
@@ -10012,15 +10568,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8903,
-                                            "end": 8908
+                                            "start": 9366,
+                                            "end": 9371
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8903,
-                                          "end": 8908
+                                          "start": 9366,
+                                          "end": 9371
                                         }
                                       },
                                       {
@@ -10029,15 +10585,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "link",
                                           "loc": {
-                                            "start": 8929,
-                                            "end": 8933
+                                            "start": 9392,
+                                            "end": 9396
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8929,
-                                          "end": 8933
+                                          "start": 9392,
+                                          "end": 9396
                                         }
                                       },
                                       {
@@ -10046,15 +10602,15 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "usedFor",
                                           "loc": {
-                                            "start": 8954,
-                                            "end": 8961
+                                            "start": 9417,
+                                            "end": 9424
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8954,
-                                          "end": 8961
+                                          "start": 9417,
+                                          "end": 9424
                                         }
                                       },
                                       {
@@ -10063,8 +10619,8 @@ export const auth_switchCurrentAccount = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 8982,
-                                            "end": 8994
+                                            "start": 9445,
+                                            "end": 9457
                                           }
                                         },
                                         "arguments": [],
@@ -10078,15 +10634,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 9021,
-                                                  "end": 9023
+                                                  "start": 9484,
+                                                  "end": 9486
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9021,
-                                                "end": 9023
+                                                "start": 9484,
+                                                "end": 9486
                                               }
                                             },
                                             {
@@ -10095,15 +10651,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 9048,
-                                                  "end": 9056
+                                                  "start": 9511,
+                                                  "end": 9519
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9048,
-                                                "end": 9056
+                                                "start": 9511,
+                                                "end": 9519
                                               }
                                             },
                                             {
@@ -10112,15 +10668,15 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 9081,
-                                                  "end": 9092
+                                                  "start": 9544,
+                                                  "end": 9555
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9081,
-                                                "end": 9092
+                                                "start": 9544,
+                                                "end": 9555
                                               }
                                             },
                                             {
@@ -10129,48 +10685,48 @@ export const auth_switchCurrentAccount = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 9117,
-                                                  "end": 9121
+                                                  "start": 9580,
+                                                  "end": 9584
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9117,
-                                                "end": 9121
+                                                "start": 9580,
+                                                "end": 9584
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8995,
-                                            "end": 9143
+                                            "start": 9458,
+                                            "end": 9606
                                           }
                                         },
                                         "loc": {
-                                          "start": 8982,
-                                          "end": 9143
+                                          "start": 9445,
+                                          "end": 9606
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8858,
-                                      "end": 9161
+                                      "start": 9321,
+                                      "end": 9624
                                     }
                                   },
                                   "loc": {
-                                    "start": 8848,
-                                    "end": 9161
+                                    "start": 9311,
+                                    "end": 9624
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 8626,
-                                "end": 9175
+                                "start": 9089,
+                                "end": 9638
                               }
                             },
                             "loc": {
-                              "start": 8613,
-                              "end": 9175
+                              "start": 9076,
+                              "end": 9638
                             }
                           },
                           {
@@ -10179,8 +10735,8 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "schedule",
                               "loc": {
-                                "start": 9188,
-                                "end": 9196
+                                "start": 9651,
+                                "end": 9659
                               }
                             },
                             "arguments": [],
@@ -10194,25 +10750,25 @@ export const auth_switchCurrentAccount = {
                                     "kind": "Name",
                                     "value": "Schedule_common",
                                     "loc": {
-                                      "start": 9218,
-                                      "end": 9233
+                                      "start": 9681,
+                                      "end": 9696
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 9215,
-                                    "end": 9233
+                                    "start": 9678,
+                                    "end": 9696
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9197,
-                                "end": 9247
+                                "start": 9660,
+                                "end": 9710
                               }
                             },
                             "loc": {
-                              "start": 9188,
-                              "end": 9247
+                              "start": 9651,
+                              "end": 9710
                             }
                           },
                           {
@@ -10221,15 +10777,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 9260,
-                                "end": 9262
+                                "start": 9723,
+                                "end": 9725
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9260,
-                              "end": 9262
+                              "start": 9723,
+                              "end": 9725
                             }
                           },
                           {
@@ -10238,15 +10794,15 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "name",
                               "loc": {
-                                "start": 9275,
-                                "end": 9279
+                                "start": 9738,
+                                "end": 9742
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9275,
-                              "end": 9279
+                              "start": 9738,
+                              "end": 9742
                             }
                           },
                           {
@@ -10255,26 +10811,103 @@ export const auth_switchCurrentAccount = {
                               "kind": "Name",
                               "value": "description",
                               "loc": {
-                                "start": 9292,
-                                "end": 9303
+                                "start": 9755,
+                                "end": 9766
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9292,
-                              "end": 9303
+                              "start": 9755,
+                              "end": 9766
+                            }
+                          },
+                          {
+                            "kind": "Field",
+                            "name": {
+                              "kind": "Name",
+                              "value": "you",
+                              "loc": {
+                                "start": 9779,
+                                "end": 9782
+                              }
+                            },
+                            "arguments": [],
+                            "directives": [],
+                            "selectionSet": {
+                              "kind": "SelectionSet",
+                              "selections": [
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canDelete",
+                                    "loc": {
+                                      "start": 9801,
+                                      "end": 9810
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9801,
+                                    "end": 9810
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canRead",
+                                    "loc": {
+                                      "start": 9827,
+                                      "end": 9834
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9827,
+                                    "end": 9834
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canUpdate",
+                                    "loc": {
+                                      "start": 9851,
+                                      "end": 9860
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9851,
+                                    "end": 9860
+                                  }
+                                }
+                              ],
+                              "loc": {
+                                "start": 9783,
+                                "end": 9874
+                              }
+                            },
+                            "loc": {
+                              "start": 9779,
+                              "end": 9874
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5284,
-                          "end": 9313
+                          "start": 5599,
+                          "end": 9884
                         }
                       },
                       "loc": {
-                        "start": 5273,
-                        "end": 9313
+                        "start": 5588,
+                        "end": 9884
                       }
                     },
                     {
@@ -10283,15 +10916,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 9322,
-                          "end": 9328
+                          "start": 9893,
+                          "end": 9899
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9322,
-                        "end": 9328
+                        "start": 9893,
+                        "end": 9899
                       }
                     },
                     {
@@ -10300,15 +10933,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 9337,
-                          "end": 9347
+                          "start": 9908,
+                          "end": 9918
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9337,
-                        "end": 9347
+                        "start": 9908,
+                        "end": 9918
                       }
                     },
                     {
@@ -10317,15 +10950,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 9356,
-                          "end": 9358
+                          "start": 9927,
+                          "end": 9929
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9356,
-                        "end": 9358
+                        "start": 9927,
+                        "end": 9929
                       }
                     },
                     {
@@ -10334,15 +10967,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 9367,
-                          "end": 9376
+                          "start": 9938,
+                          "end": 9947
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9367,
-                        "end": 9376
+                        "start": 9938,
+                        "end": 9947
                       }
                     },
                     {
@@ -10351,15 +10984,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 9385,
-                          "end": 9401
+                          "start": 9956,
+                          "end": 9972
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9385,
-                        "end": 9401
+                        "start": 9956,
+                        "end": 9972
                       }
                     },
                     {
@@ -10368,15 +11001,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 9410,
-                          "end": 9414
+                          "start": 9981,
+                          "end": 9985
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9410,
-                        "end": 9414
+                        "start": 9981,
+                        "end": 9985
                       }
                     },
                     {
@@ -10385,15 +11018,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 9423,
-                          "end": 9433
+                          "start": 9994,
+                          "end": 10004
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9423,
-                        "end": 9433
+                        "start": 9994,
+                        "end": 10004
                       }
                     },
                     {
@@ -10402,15 +11035,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 9442,
-                          "end": 9455
+                          "start": 10013,
+                          "end": 10026
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9442,
-                        "end": 9455
+                        "start": 10013,
+                        "end": 10026
                       }
                     },
                     {
@@ -10419,15 +11052,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 9464,
-                          "end": 9483
+                          "start": 10035,
+                          "end": 10054
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9464,
-                        "end": 9483
+                        "start": 10035,
+                        "end": 10054
                       }
                     },
                     {
@@ -10436,32 +11069,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 9492,
-                          "end": 9505
+                          "start": 10063,
+                          "end": 10076
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9492,
-                        "end": 9505
-                      }
-                    },
-                    {
-                      "kind": "Field",
-                      "name": {
-                        "kind": "Name",
-                        "value": "smartContractsCount",
-                        "loc": {
-                          "start": 9514,
-                          "end": 9533
-                        }
-                      },
-                      "arguments": [],
-                      "directives": [],
-                      "loc": {
-                        "start": 9514,
-                        "end": 9533
+                        "start": 10063,
+                        "end": 10076
                       }
                     },
                     {
@@ -10470,15 +11086,15 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 9542,
-                          "end": 9556
+                          "start": 10085,
+                          "end": 10099
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9542,
-                        "end": 9556
+                        "start": 10085,
+                        "end": 10099
                       }
                     },
                     {
@@ -10487,48 +11103,48 @@ export const auth_switchCurrentAccount = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 9565,
-                          "end": 9570
+                          "start": 10108,
+                          "end": 10113
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9565,
-                        "end": 9570
+                        "start": 10108,
+                        "end": 10113
                       }
                     }
                   ],
                   "loc": {
                     "start": 423,
-                    "end": 9576
+                    "end": 10119
                   }
                 },
                 "loc": {
                   "start": 417,
-                  "end": 9576
+                  "end": 10119
                 }
               }
             ],
             "loc": {
               "start": 383,
-              "end": 9580
+              "end": 10123
             }
           },
           "loc": {
             "start": 347,
-            "end": 9580
+            "end": 10123
           }
         }
       ],
       "loc": {
         "start": 343,
-        "end": 9582
+        "end": 10125
       }
     },
     "loc": {
       "start": 277,
-      "end": 9582
+      "end": 10125
     }
   },
   "variableValues": {},

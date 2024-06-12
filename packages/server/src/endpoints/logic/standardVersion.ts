@@ -19,23 +19,23 @@ export type EndpointsStandardVersion = {
 const objectType = "StandardVersion";
 export const StandardVersionEndpoints: EndpointsStandardVersion = {
     Query: {
-        standardVersion: async (_, { input }, { prisma, req }, info) => {
+        standardVersion: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        standardVersions: async (_, { input }, { prisma, req }, info) => {
+        standardVersions: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        standardVersionCreate: async (_, { input }, { prisma, req }, info) => {
+        standardVersionCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        standardVersionUpdate: async (_, { input }, { prisma, req }, info) => {
+        standardVersionUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

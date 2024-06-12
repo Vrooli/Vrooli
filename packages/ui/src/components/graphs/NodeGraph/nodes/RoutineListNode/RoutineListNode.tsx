@@ -66,7 +66,7 @@ export const RoutineListNode = ({
     const fastUpdateRef = useRef<boolean>(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        const fastSub = PubSub.get().subscribe("fastUpdate", ({ on, duration }) => {
+        const unsubscribe = PubSub.get().subscribe("fastUpdate", ({ on, duration }) => {
             if (!on) {
                 fastUpdateRef.current = false;
                 if (fastUpdateTimeout.current) clearTimeout(fastUpdateTimeout.current);
@@ -77,10 +77,8 @@ export const RoutineListNode = ({
                 }, duration);
             }
         });
-        return () => { PubSub.get().unsubscribe(fastSub); };
+        return unsubscribe;
     }, []);
-
-
 
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);

@@ -15,9 +15,7 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getYou } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -31,9 +29,9 @@ export const meetingInitialValues = (
     __typename: "Meeting" as const,
     id: DUMMY_ID,
     openToAnyoneWithInvite: false,
-    showOnOrganizationProfile: true,
-    organization: {
-        __typename: "Organization" as const,
+    showOnTeamProfile: true,
+    team: {
+        __typename: "Team" as const,
         id: DUMMY_ID,
     },
     restrictedToRoles: [],
@@ -91,7 +89,7 @@ const MeetingForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Meeting>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Meeting>({
         display,
         isCreate,
         objectId: values.id,
@@ -108,7 +106,7 @@ const MeetingForm = ({
         endpointCreate: endpointPostMeeting,
         endpointUpdate: endpointPutMeeting,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Meeting" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Meeting" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -137,7 +135,7 @@ const MeetingForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.Meeting}
+                defaultTab="Meeting"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -250,14 +248,13 @@ export const MeetingUpsert = ({
 }: MeetingUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
         ...endpointGetMeeting,
         isCreate,
         objectType: "Meeting",
         overrideObject,
         transform: (data) => meetingInitialValues(session, data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -267,7 +264,7 @@ export const MeetingUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformMeetingValues, meetingValidation)}
         >
             {(formik) => <MeetingForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

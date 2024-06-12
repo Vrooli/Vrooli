@@ -106,7 +106,7 @@ export const SettingsFocusModesView = ({
         if (!canAdd) {
             // If you don't have premium, open premium page
             if (!hasPremium) {
-                setLocation(LINKS.Premium);
+                setLocation(LINKS.Pro);
                 PubSub.get().publish("snack", { message: "Upgrade to increase limit", severity: "Info" });
             }
             // Otherwise, show error message

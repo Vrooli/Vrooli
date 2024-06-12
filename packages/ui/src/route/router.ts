@@ -1,6 +1,6 @@
+import { parseSearchParams } from "@local/shared";
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
-import { parseSearchParams } from "./searchParams";
 import locationHook, { HookNavigationOptions, Pathname, UseLocationHook, UseLocationResult } from "./useLocation";
 
 export type ExtractRouteOptionalParam<PathType extends Pathname> =

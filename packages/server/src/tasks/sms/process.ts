@@ -1,41 +1,54 @@
 import { Job } from "bull";
+import { Twilio } from "twilio";
 import { logger } from "../../events/logger";
 import { SmsProcessPayload } from "./queue";
 
-let texting_client: any = null;
+let texting_client: Twilio | null = null;
+let phoneNumber: string | null = null;
 
 /**
  * Function to setup twilio client. This is needed because 
  * the auth token is loaded from the secrets location, so it's 
  * not available at startup.
  */
-export const setupTextingClient = () => {
+export const setupTextingClient = async () => {
     if (texting_client === null) {
         try {
-            texting_client = require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+            const client = await import("twilio");
+            texting_client = client.default(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         } catch (error) {
             logger.warning("TWILIO client could not be initialized. Sending SMS will not work", { trace: "0013", error });
         }
     }
+    if (phoneNumber === null) {
+        if (process.env.TWILIO_PHONE_NUMBER) {
+            phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+        } else {
+            logger.warning("TWILIO phone number not set. Sending SMS will not work", { trace: "0015" });
+        }
+    }
 };
 
-export async function smsProcess(job: Job<SmsProcessPayload>) {
+export const smsProcess = async (job: Job<SmsProcessPayload>) => {
     try {
-        setupTextingClient();
-        if (texting_client === null) {
+        await setupTextingClient();
+        if (texting_client === null || phoneNumber === null) {
             logger.error("Cannot send SMS. Texting client not initialized", { trace: "0014" });
             return false;
         }
-        job.data.to.forEach((t: any) => {
-            texting_client.messages.create({
+        const messagePromises = job.data.to.map(t => {
+            return texting_client!.messages.create({
                 to: t,
-                from: process.env.PHONE_NUMBER,
+                from: phoneNumber!,
                 body: job.data.body,
-            }).then((message: any) => console.log(message));
+            });
         });
+        const results = await Promise.all(messagePromises);
+        results.forEach(result => console.log(result));
         return true;
     } catch (err) {
         logger.error("Error sending sms", { trace: "0082" });
     }
     return false;
-}
+};
+

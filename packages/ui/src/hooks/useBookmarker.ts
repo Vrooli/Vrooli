@@ -2,7 +2,7 @@ import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, Bookma
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { shapeBookmark } from "utils/shape/models/bookmark";
@@ -10,9 +10,9 @@ import { useLazyFetch } from "./useLazyFetch";
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}`
-    onActionComplete: (action: ObjectActionComplete.Bookmark | ObjectActionComplete.BookmarkUndo, data: Bookmark | Success) => unknown;
-}
+    objectType: `${GqlModelType}` | undefined;
+    onActionComplete: <T extends "Bookmark" | "BookmarkUndo">(action: T, data: ActionCompletePayloads[T]) => unknown;
+};
 
 /**
  * Hook for simplifying the use of adding and removing bookmarks on an object
@@ -31,14 +31,14 @@ export const useBookmarker = ({
     // we usually only know that an object has a bookmark - not the bookmarks themselves
     const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
 
-    const hasBookmarkingSupport = objectType in BookmarkFor;
+    const hasBookmarkingSupport = objectType && objectType in BookmarkFor;
 
     // Handle dialog for updating a bookmark's lists
     const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState<boolean>(false);
     const closeBookmarkDialog = useCallback(() => { setIsBookmarkDialogOpen(false); }, []);
 
     const handleAdd = useCallback(() => {
-        if (!objectId) {
+        if (!objectType || !objectId) {
             PubSub.get().publish("snack", { messageKey: "NotFound", severity: "Error" });
             return;
         }
@@ -53,21 +53,6 @@ export const useBookmarker = ({
                 bookmarkListId = bookmarkLists[0].id;
             }
         }
-        console.log("adding bookmark", bookmarkListId, shapeBookmark.create({
-            __typename: "Bookmark",
-            id: uuid(),
-            to: {
-                __typename: BookmarkFor[objectType],
-                id: objectId,
-            },
-            list: {
-                __typename: "BookmarkList",
-                id: bookmarkListId ?? uuid(),
-                // Setting label marks this as a create, 
-                // which should only be done if there is no bookmarkListId
-                label: bookmarkListId ? undefined : "Favorites",
-            },
-        }));
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
@@ -91,7 +76,7 @@ export const useBookmarker = ({
 
     const isRemoveProcessingRef = useRef<boolean>(false);
     const handleRemove = useCallback(async () => {
-        if (isRemoveProcessingRef.current || !objectId) return;
+        if (isRemoveProcessingRef.current || !objectType || !objectId) return;
         isRemoveProcessingRef.current = true;
 
         // Fetch bookmarks for the given objectId and objectType.

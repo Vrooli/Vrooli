@@ -1,24 +1,21 @@
-import { Notify, PrismaType, ScheduleSubscriptionContext, batch, batchCollect, findFirstRel, logger, parseSubscriptionContext, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
+import { Notify, ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
 import { GqlModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 /**
  * For a list of scheduled events, finds subscribers and schedules notifications for them
- * @param prisma The Prisma client
  * @param scheduleId The ID of the schedule to find subscribers for
  * @param occurrences Windows of time that the schedule will occur. Subscribers will receive 
  * one or more push notifications before each occurrence, depending on their notification preferences.
  */
 const scheduleNotifications = async (
-    prisma: PrismaType,
     scheduleId: string,
     occurrences: { start: Date, end: Date }[],
 ) => {
     await withRedis({
         process: async (redisClient) => {
-            await batchCollect<Prisma.notification_subscriptionFindManyArgs>({
+            await batch<Prisma.notification_subscriptionFindManyArgs>({
                 objectType: "NotificationSubscription",
-                prisma,
                 processBatch: async (batch) => {
                     // If no subscriptions, continue
                     if (batch.length === 0) return;
@@ -33,7 +30,7 @@ const scheduleNotifications = async (
                     // Find notification preferences for each subscriber
                     const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                     for (const subscription of batch) {
-                        const context = parseSubscriptionContext(subscription.context) as ScheduleSubscriptionContext | null;
+                        const context = parseJsonOrDefault<ScheduleSubscriptionContext>(subscription.context, {} as ScheduleSubscriptionContext);
                         if (!context) continue;
                         for (const reminder of context.reminders) {
                             if (!subscriberPrefs[subscription.subscriber.id]) {
@@ -72,7 +69,7 @@ const scheduleNotifications = async (
                         // Filter out subscribers who have already been notified
                         const filteredSubscriberDelaysList = subscriberDelaysList.filter((_, index) => !redisGetResults[index]);
                         // Send push notifications to each subscriber
-                        await Notify(prisma, ["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
+                        await Notify(["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
 
                         // Set Redis keys for the subscribers who just received the notification, with an expiration time of 25 hours
                         await Promise.all(filteredSubscriberDelaysList.map((subscriber) => {
@@ -111,50 +108,53 @@ const scheduleNotifications = async (
  * Caches upcoming scheduled events in the database.
  */
 export const scheduleNotify = async () => {
-    // Define window for start and end dates. 
-    // Should be looking for all events that occur within the next 25 hours. 
-    // This script runs every 24 hours, so we add an hour buffer in case the script runs late.
-    const now = new Date();
-    const startDate = now;
-    const endDate = new Date(now.setHours(now.getHours() + 25));
-    await batch<Prisma.scheduleFindManyArgs>({
-        objectType: "Schedule",
-        processBatch: async (batch, prisma) => {
-            Promise.all(batch.map(async (schedule) => {
-                // Find all occurrences of the schedule within the next 25 hours
-                const occurrences = calculateOccurrences(schedule, startDate, endDate);
-                // For each occurrence, schedule notifications for subscribers of the schedule
-                await scheduleNotifications(prisma, schedule.id, occurrences);
-            }));
-        },
-        select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            timezone: true,
-            exceptions: {
-                where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
-                select: {
-                    id: true,
-                    originalStartTime: true,
-                    newStartTime: true,
-                    newEndTime: true,
+    try {
+        // Define window for start and end dates. 
+        // Should be looking for all events that occur within the next 25 hours. 
+        // This script runs every 24 hours, so we add an hour buffer in case the script runs late.
+        const now = new Date();
+        const startDate = now;
+        const endDate = new Date(now.setHours(now.getHours() + 25));
+        await batch<Prisma.scheduleFindManyArgs>({
+            objectType: "Schedule",
+            processBatch: async (batch) => {
+                Promise.all(batch.map(async (schedule) => {
+                    // Find all occurrences of the schedule within the next 25 hours
+                    const occurrences = await calculateOccurrences(schedule, startDate, endDate);
+                    // For each occurrence, schedule notifications for subscribers of the schedule
+                    await scheduleNotifications(schedule.id, occurrences);
+                }));
+            },
+            select: {
+                id: true,
+                startTime: true,
+                endTime: true,
+                timezone: true,
+                exceptions: {
+                    where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
+                    select: {
+                        id: true,
+                        originalStartTime: true,
+                        newStartTime: true,
+                        newEndTime: true,
+                    },
+                },
+                recurrences: {
+                    where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
+                    select: {
+                        id: true,
+                        recurrenceType: true,
+                        interval: true,
+                        dayOfWeek: true,
+                        dayOfMonth: true,
+                        month: true,
+                        endDate: true,
+                    },
                 },
             },
-            recurrences: {
-                where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
-                select: {
-                    id: true,
-                    recurrenceType: true,
-                    interval: true,
-                    dayOfWeek: true,
-                    dayOfMonth: true,
-                    month: true,
-                    endDate: true,
-                },
-            },
-        },
-        trace: "0428",
-        where: schedulesWhereInTimeframe(startDate, endDate),
-    });
+            where: schedulesWhereInTimeframe(startDate, endDate),
+        });
+    } catch (error) {
+        logger.error("scheduleNotify caught error", { error, trace: "0428" });
+    }
 };

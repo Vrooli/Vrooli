@@ -21,23 +21,23 @@ export type EndpointsComment = {
 const objectType = "Comment";
 export const CommentEndpoints: EndpointsComment = {
     Query: {
-        comment: async (_, { input }, { prisma, req }, info) => {
+        comment: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        comments: async (_, { input }, { prisma, req }, info) => {
+        comments: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return CommentModel.query.searchNested(prisma, req, input, info);
+            return CommentModel.query.searchNested(req, input, info);
         },
     },
     Mutation: {
-        commentCreate: async (_, { input }, { prisma, req }, info) => {
+        commentCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        commentUpdate: async (_, { input }, { prisma, req }, info) => {
+        commentUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

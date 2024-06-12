@@ -1,6 +1,6 @@
 import { GqlModelType, LINKS, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
-import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, OrganizationIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StandardIcon, StatsIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
+import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SocialVideoIcon, StandardIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
 import { SvgComponent } from "types";
 import { getCookiePartialData } from "utils/cookies";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -8,7 +8,7 @@ import { extractImageUrl } from "./imageTools";
 import { getDisplay, placeholderColor } from "./listTools";
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
-    [ResourceUsedFor.Community]: OrganizationIcon,
+    [ResourceUsedFor.Community]: TeamIcon,
     [ResourceUsedFor.Context]: InfoIcon,
     [ResourceUsedFor.Developer]: TerminalIcon,
     [ResourceUsedFor.Donation]: DonateIcon,
@@ -44,14 +44,14 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.BookmarkList]: BookmarkFilledIcon,
     [LINKS.Calendar]: MonthIcon,
     [LINKS.Chat]: CommentIcon,
+    [LINKS.Code]: TerminalIcon,
     [LINKS.Comment]: CommentIcon,
     [LINKS.Create]: CreateIcon,
     [LINKS.History]: HistoryIcon,
     [LINKS.Inbox]: NotificationsAllIcon,
     [LINKS.MyStuff]: GridIcon,
     [LINKS.Note]: NoteIcon,
-    [LINKS.Organization]: OrganizationIcon,
-    [LINKS.Premium]: PremiumIcon,
+    [LINKS.Pro]: PremiumIcon,
     [LINKS.Profile]: UserIcon,
     [LINKS.Project]: ProjectIcon,
     [LINKS.Question]: HelpIcon,
@@ -60,9 +60,9 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.Routine]: RoutineIcon,
     [LINKS.Search]: SearchIcon,
     [LINKS.Settings]: SettingsIcon,
-    [LINKS.SmartContract]: SmartContractIcon,
     [LINKS.Standard]: StandardIcon,
     [LINKS.Stats]: StatsIcon,
+    [LINKS.Team]: TeamIcon,
 };
 
 const getRoute = (pathname: string): LINKS | undefined => {
@@ -114,7 +114,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
     }
     const hostName = hostParts[0].toLowerCase();
     // ResourceUsedFor.Context is a special case, as we can replace it with a Vrooli route's icon
-    if (usedFor === ResourceUsedFor.Context && hostName === (import.meta.env.PROD ? "vrooli.com" : "localhost")) {
+    if (usedFor === ResourceUsedFor.Context && hostName === (process.env.PROD ? "vrooli.com" : "localhost")) {
         // Get route info
         const route = getRoute(url.pathname);
         const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
@@ -137,7 +137,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
                 {cachedItem.isBot ?
                     <BotIcon width="75%" height="75%" fill={palette?.background?.textPrimary ?? "white"} /> :
                     routeKey === "User" ? <UserIcon width="75%" height="75%" fill={palette?.background.textPrimary ?? "white"} /> :
-                        <OrganizationIcon width="75%" height="75%" fill={palette?.background?.textPrimary ?? "white"} />}
+                        <TeamIcon width="75%" height="75%" fill={palette?.background?.textPrimary ?? "white"} />}
             </Avatar>);
         }
         // If cached item is a bot, return bot icon

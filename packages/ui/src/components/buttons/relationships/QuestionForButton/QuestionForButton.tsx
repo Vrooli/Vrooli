@@ -4,7 +4,7 @@ import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObject
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemQuestionForObject } from "components/lists/types";
 import { useField } from "formik";
-import { AddIcon, ApiIcon, NoteIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
+import { AddIcon, ApiIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -20,18 +20,18 @@ import { QuestionForButtonProps } from "../types";
  */
 const questionForTypeIcons: Record<QuestionForType, SvgComponent> = {
     Api: ApiIcon,
+    Code: TerminalIcon,
     Note: NoteIcon,
-    Organization: OrganizationIcon,
     Project: ProjectIcon,
     Routine: RoutineIcon,
-    SmartContract: SmartContractIcon,
     Standard: StandardIcon,
+    Team: TeamIcon,
 };
 
-export function QuestionForButton({
+export const QuestionForButton = ({
     isEditing,
     objectType,
-}: QuestionForButtonProps) {
+}: QuestionForButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();

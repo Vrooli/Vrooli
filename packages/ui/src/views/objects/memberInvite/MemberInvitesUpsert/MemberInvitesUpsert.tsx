@@ -3,7 +3,7 @@ import { Box, Checkbox, FormControlLabel, Typography, useTheme } from "@mui/mate
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Field, Formik } from "formik";
@@ -40,7 +40,7 @@ const transformMemberInviteValues = (values: MemberInviteShape[], existing: Memb
 
 const validateMemberInviteValues = async (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) => {
     const transformedValues = transformMemberInviteValues(values, existing, isCreate);
-    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
+    const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
 
     // Filter and combine the result into one object with only error results
@@ -190,7 +190,7 @@ const MemberInvitesForm = ({
                             },
                             topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            textArea: {
+                            inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
                             },

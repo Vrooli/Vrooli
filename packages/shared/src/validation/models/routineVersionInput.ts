@@ -1,7 +1,7 @@
 import { bool, description, id, index, instructions, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { standardVersionValidation } from "./standardVersion";
 
-export const routineVersionInputTranslationValidation: YupModel = transRel({
+export const routineVersionInputTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         helpText: opt(instructions),
@@ -12,7 +12,7 @@ export const routineVersionInputTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const routineVersionInputValidation: YupModel = {
+export const routineVersionInputValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         index: opt(index),

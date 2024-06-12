@@ -8,7 +8,6 @@ export async function copyHelper({
     info,
     input,
     objectType,
-    prisma,
     req,
 }: CopyHelperProps): Promise<any> {
     return;
@@ -17,7 +16,7 @@ export async function copyHelper({
     // // find the IDs which need to be authenticated. Other functions use getAuthenticatedIds, 
     // // but that function only looks at data being passed in, not data in the database.
     // const validator = getValidator(objectType, req.session.languages, 'copyHelper');
-    // const prismaDelegate = getDelegator(objectType, prisma, req.session.languages, 'copyHelper');
+    // const prismaDelegate = getDelegator(objectType, req.session.languages, 'copyHelper');
     // const duplicator = getDuplicator(objectType, req.session.languages, 'copyHelper');
     // // Query for data required to validate ownership
     // asdfasdf
@@ -25,22 +24,21 @@ export async function copyHelper({
     // // must be owned either by the user making the request, or by the forked object's owner
     // fdasfsafd
     // // Query for all authentication data
-    // const authDataById = await getAuthenticatedData({ [model.__typename]: [input.id] }, prisma, userData.id);
+    // const authDataById = await getAuthenticatedData({ [model.__typename]: [input.id] }, userData.id);
     // // Check permissions
     // await permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
     // // Additional check for paywall
     // //TODO
     // // Check max objects
-    // await maxObjectsCheck(authDataById, { ['Create']: [input.id] }, prisma, userData);
-    // const { object } = await model.mutate(prisma).duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
+    // await maxObjectsCheck(authDataById, { ['Create']: [input.id] }, userData);
+    // const { object } = await model.mutate().duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
     // // Handle trigger
-    // await Trigger(prisma, req.session.languages).objectCopy(input.objectType, input.id, userData.id);
+    // await Trigger(req.session.languages).objectCopy(input.objectType, input.id, userData.id);
     // // Query for object
     // const fullObject = await readOneHelper({
     //     info,
     //     input: { id: object.id },
     //     model,
-    //     prisma,
     //     req,
     // })
     // return fullObject;

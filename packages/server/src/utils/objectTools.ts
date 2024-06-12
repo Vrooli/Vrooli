@@ -1,4 +1,5 @@
 import { CustomError } from "../events/error";
+import { logger } from "../events/logger";
 
 /**
  * Recursively sorts keys of an object alphabetically. 
@@ -6,8 +7,8 @@ import { CustomError } from "../events/error";
  * @parm obj The object to sort
  * @returns The sorted object
  */
-export const sortObjectKeys = (obj: any): any => {
-    if (typeof obj !== "object" || obj === null || Object.prototype.toString.call(obj) !== "[object Date]") {
+export const sortObjectKeys = (obj: unknown): any => {
+    if (typeof obj !== "object" || obj === null || obj instanceof Date || Array.isArray(obj)) {
         return obj;
     }
     const sorted: { [x: string]: any } = {};
@@ -29,5 +30,20 @@ export const sortify = (stringified: string, languages: string[]): string => {
         return JSON.stringify(sortObjectKeys(obj));
     } catch (error) {
         throw new CustomError("0210", "InvalidArgs", languages);
+    }
+};
+
+/**
+ * Parses a JSON string and returns the result or a default value if parsing fails.
+ * @param jsonStr The JSON string to parse
+ * @param defaultValue The default value to return if parsing fails
+ * @returns The parsed object or the default value
+ */
+export const parseJsonOrDefault = <T>(jsonStr: string | null, defaultValue: T): T => {
+    try {
+        return jsonStr ? JSON.parse(jsonStr) : defaultValue;
+    } catch (error) {
+        logger.error("Failed to parse JSON", { trace: "0431" });
+        return defaultValue;
     }
 };

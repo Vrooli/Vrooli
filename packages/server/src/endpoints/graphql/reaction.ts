@@ -13,6 +13,7 @@ export const typeDef = gql`
     enum ReactionFor {
         Api
         ChatMessage
+        Code
         Comment
         Issue
         Note
@@ -22,11 +23,10 @@ export const typeDef = gql`
         QuestionAnswer
         Quiz
         Routine
-        SmartContract
         Standard
     }   
 
-    union ReactionTo = Api | ChatMessage | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard
+    union ReactionTo = Api | Code | ChatMessage | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | Standard
 
     input ReactInput {
         emoji: String # Null to delete

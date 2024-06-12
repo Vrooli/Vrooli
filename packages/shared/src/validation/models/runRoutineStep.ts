@@ -4,7 +4,7 @@ import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, Yup
 
 const runRoutineStepStatus = enumToYup(RunRoutineStepStatus);
 
-export const runRoutineStepValidation: YupModel = {
+export const runRoutineStepValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),

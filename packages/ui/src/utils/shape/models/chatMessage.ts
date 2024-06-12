@@ -7,13 +7,14 @@ export type ChatMessageTranslationShape = Pick<ChatMessageTranslation, "id" | "l
     __typename?: "ChatMessageTranslation";
 }
 
-export type ChatMessageShape = Pick<ChatMessage, "id"> & {
+export type ChatMessageStatus = "unsent" | "editing" | "sending" | "sent" | "failed";
+export type ChatMessageShape = Pick<ChatMessage, "id" | "versionIndex"> & {
     __typename: "ChatMessage";
     created_at: string; // Only used by the UI
     updated_at: string; // Only used by the UI
     chat?: CanConnect<ChatShape> | null;
-    isUnsent?: boolean; // Only used by the UI
-    versionOfId?: string;
+    /** If not provided, we'll assume it's sent */
+    status?: ChatMessageStatus;
     parent?: CanConnect<ChatMessageParent> | null;
     reactionSummaries: ReactionSummary[]; // Only used by the UI
     translations: ChatMessageTranslationShape[];
@@ -28,7 +29,7 @@ export const shapeChatMessageTranslation: ShapeModel<ChatMessageTranslationShape
 
 export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInput, ChatMessageUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "versionOfId"),
+        ...createPrims(d, "id", "versionIndex"),
         ...createRel(d, "chat", ["Connect"], "one"),
         ...createRel(d, "translations", ["Create"], "many", shapeChatMessageTranslation),
         ...createRel(d, "user", ["Connect"], "one"),

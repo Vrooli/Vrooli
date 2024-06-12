@@ -1,6 +1,6 @@
 import { getDotNotationValue, GqlModelType, setDotNotationValue } from "@local/shared";
 import { ModelMap } from "../models/base";
-import { PrismaType, RecursivePartial, SessionUserToken } from "../types";
+import { RecursivePartial, SessionUserToken } from "../types";
 import { PartialGraphQLInfo } from "./types";
 
 /**
@@ -32,12 +32,11 @@ function getKeyPaths(obj: object, parentKey?: string): string[] {
 /**
  * Adds supplemental fields data to the given objects
  */
-export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, prisma, userData }: {
+export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, userData }: {
     languages: string[],
     objects: ({ id: string } & { [x: string]: any })[],
     objectType: `${GqlModelType}`,
     partial: PartialGraphQLInfo,
-    prisma: PrismaType,
     userData: SessionUserToken | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
@@ -47,7 +46,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
     // Get supplemental data by field
-    const supplementalData = await supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
+    const supplementalData = await supplementer.toGraphQL({ ids, languages, objects, partial, userData });
     // Convert supplemental data shape into dot notation
     const supplementalDotFields = getKeyPaths(supplementalData);
     // Loop through objects

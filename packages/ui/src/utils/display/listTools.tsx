@@ -1,57 +1,9 @@
-import { Api, ApiVersion, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DeleteType, DotNotation, exists, GqlModelType, isOfType, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, SmartContract, SmartContractVersion, Standard, StandardVersion, User, View } from "@local/shared";
+import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, isOfType } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
-import { AutocompleteOption } from "types";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
 import { getTranslation, getUserLanguages } from "./translationTools";
-
-/** Any object that can be displayed using ObjectListItemBase. 
- * Typically objects from the API (e.g. users, routines), but can also be events (which 
- * are calculated from schedules).
- * 
- * NOTE: This type supports partially-loaded objects, as would be the case when waiting 
- * for full data to load. This means the only known property is the __typename.
- * 
- * NOTE 2: Ideally this would be a Partial union, but a union on so many types causes a 
- * heap out of memory error  */
-export type ListObject = {
-    __typename: `${GqlModelType}` | "CalendarEvent";
-    id?: string;
-    completedAt?: number | null;
-    startedAt?: number | null;
-    name?: string | null;
-    projectVersion?: ListObject | null;
-    root?: ListObject | null;
-    routineVersion?: ListObject | null;
-    to?: ListObject | null;
-    translations?: {
-        id: string;
-        language: string;
-        name?: string | null;
-    }[] | null;
-    user?: ListObject | null;
-    versions?: ListObject[] | null;
-    you?: Partial<YouInflated> | null;
-};
-
-/**
- * All possible permissions/user-statuses any object can have
- */
-export type YouInflated = {
-    canComment: boolean;
-    canCopy: boolean;
-    canDelete: boolean;
-    canRead: boolean;
-    canReport: boolean;
-    canShare: boolean;
-    canBookmark: boolean;
-    canUpdate: boolean;
-    canReact: boolean;
-    isBookmarked: boolean;
-    isViewed: boolean;
-    reaction: string | null; // Your reaction to object, or thumbs up/down if vote instead of reaction
-}
 
 /**
  * Most possible counts (including score) any object can have
@@ -122,6 +74,11 @@ export const getYou = (
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
     if (!object) return objectPermissions;
+    // Shortcut: If ID is DUMMY_ID, then it's a new object and you only delete it
+    if (object.id === DUMMY_ID) return {
+        ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),
+        canDelete: true,
+    } as YouInflated;
     // Helper function to get permissions
     const getPermission = (key: keyof YouInflated): boolean => {
         // Check if the field is in the object
@@ -153,6 +110,8 @@ export const getYou = (
         canDelete: getPermission("canDelete"),
         canUpdate: getPermission("canUpdate"),
     };
+    if (isOfType(object, "Resource")) return getYou((object as Partial<Resource>).list);
+    if (isOfType(object, "ResourceList")) return getYou((object as Partial<ResourceList>).listFor);
     // Loop through all permission fields
     for (const key in objectPermissions) {
         objectPermissions[key] = getPermission(key as keyof YouInflated);
@@ -297,6 +256,17 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
     return { title: title ?? "", subtitle: subtitle ?? "" };
 };
 
+export type DisplayAdornment = {
+    Adornment: JSX.Element,
+    key: string,
+};
+
+type GetDisplayResult = {
+    title: string,
+    subtitle: string,
+    adornments: DisplayAdornment[],
+};
+
 /**
  * Gets the name and subtitle of a list object
  * @param object A list object
@@ -307,8 +277,8 @@ export const getDisplay = (
     object: ListObject | null | undefined,
     languages?: readonly string[],
     palette?: Palette,
-): { title: string, subtitle: string, adornments: JSX.Element[] } => {
-    const adornments: JSX.Element[] = [];
+): GetDisplayResult => {
+    const adornments: GetDisplayResult["adornments"] = [];
     if (!object) return { title: "", subtitle: "", adornments };
     // If a bookmark, reaction, or view, use the "to" object
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getDisplay((object as Partial<Bookmark | Reaction | View>).to as ListObject);
@@ -371,26 +341,31 @@ export const getDisplay = (
     }
     // If a User, and `isBot` is true, add BotIcon to adornments
     if (isOfType(object, "User") && (object as Partial<User>).isBot) {
-        adornments.push(
-            <BotIcon
-                key="bot"
+        adornments.push({
+            Adornment: <BotIcon
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
                 width="100%"
                 height="100%"
                 style={{ padding: "1px" }}
             />,
-        );
+            key: "bot",
+        });
         // If the bot is depicting a real person, add a chip indicating that
         if ((object as Partial<User>).isBotDepictingPerson) {
-            adornments.push(<Chip key="parody" label="Parody" sx={{ backgroundColor: palette?.mode === "light" ? "#521f81" : "#a979d5", color: "white", display: "inline" }} />);
+            adornments.push({
+                Adornment: <Chip key="parody" label="Parody" sx={{ backgroundColor: palette?.mode === "light" ? "#521f81" : "#a979d5", color: "white", display: "inline" }} />,
+                key: "parody",
+            });
         }
     }
     // If a Routine and there are nodes and edges, add icon indicating that it's a multi-step routine
-    if (isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount) {
-        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
-    }
-    if (isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount)) {
-        adornments.push(<Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />);
+    const isMultiStepRoutineVersion = isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount;
+    const isMultiStepRoutine = isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount);
+    if (isMultiStepRoutineVersion || isMultiStepRoutine) {
+        adornments.push({
+            Adornment: <Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />,
+            key: "multi-step",
+        });
     }
     // Return result
     return { title, subtitle, adornments };
@@ -418,7 +393,7 @@ export const getBookmarkFor = (
     if (isOfType(object, "NodeRoutineListItem")) return getBookmarkFor((object as Partial<NodeRoutineListItem>).routineVersion);
     // If the object contains a root object, use that
     if (Object.prototype.hasOwnProperty.call(object, "root"))
-        return getBookmarkFor((object as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion>).root);
+        return getBookmarkFor((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
     // Use current object
     return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
 };
@@ -450,11 +425,11 @@ export function listToAutocomplete(
         user: isOfType(o, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ?
             (o as Partial<Member | MemberInvite | ChatParticipant | ChatInvite>).user :
             undefined,
-        versions: isOfType(o, "Api", "Note", "Project", "Routine", "SmartContract", "Standard") ?
-            (o as Partial<Api | Note | Project | Routine | SmartContract | Standard>).versions :
+        versions: isOfType(o, "Api", "Note", "Project", "Routine", "Code", "Standard") ?
+            (o as Partial<Api | Note | Project | Routine | Code | Standard>).versions :
             undefined,
-        root: isOfType(o, "ApiVersion", "NoteVersion", "ProjectVersion", "RoutineVersion", "SmartContractVersion", "StandardVersion") ?
-            (o as Partial<ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion>).root :
+        root: isOfType(o, "ApiVersion", "CodeVersion", "NoteVersion", "ProjectVersion", "RoutineVersion", "StandardVersion") ?
+            (o as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root :
             undefined,
     })) as AutocompleteOption[];
 }

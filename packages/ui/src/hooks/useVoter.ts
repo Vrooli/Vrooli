@@ -1,14 +1,14 @@
 import { endpointPostReact, getReactionScore, GqlModelType, ReactInput, ReactionFor, Success } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
 
 type UseVoterProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}`
-    onActionComplete: (action: ObjectActionComplete.VoteDown | ObjectActionComplete.VoteUp, data: Success) => unknown;
+    objectType: `${GqlModelType}` | undefined;
+    onActionComplete: <T extends "VoteDown" | "VoteUp">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
 /**
@@ -21,11 +21,11 @@ export const useVoter = ({
 }: UseVoterProps) => {
     const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
-    const hasVotingSupport = objectType in ReactionFor;
+    const hasVotingSupport = objectType && objectType in ReactionFor;
 
     const handleVote = useCallback((emoji: string | null) => {
         // Validate objectId and objectType
-        if (!objectId) {
+        if (!objectType || !objectId) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }

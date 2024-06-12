@@ -2,7 +2,7 @@ import { DUMMY_ID, uuid } from "@local/shared";
 import { ShapeModel } from "types";
 
 type OwnerPrefix = "" | "ownedBy";
-type OwnerType = "User" | "Organization";
+type OwnerType = "User" | "Team";
 
 type RelationshipType = "Connect" | "Create";
 
@@ -38,8 +38,8 @@ export const createOwner = <
 ): { [K in `${Prefix}${OType}Connect`]?: string } => {
     // Find owner data in item
     const ownerData = item.owner;
-    // If owner data is undefined, or type is not a User or Organization return empty object
-    if (ownerData === null || ownerData === undefined || (ownerData.__typename !== "User" && ownerData.__typename !== "Organization")) return {};
+    // If owner data is undefined, or type is not a User or Team return empty object
+    if (ownerData === null || ownerData === undefined || (ownerData.__typename !== "User" && ownerData.__typename !== "Team")) return {};
     // Create field name (with first letter lowercase)
     let fieldName = `${prefix}${ownerData.__typename}Connect`;
     fieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
@@ -61,7 +61,7 @@ export const createVersion = <
     shape: ShapeModel<any, VersionCreateInput, null>,
 ): ({ versionsCreate?: VersionCreateInput[] }) => {
     // Return empty object if no version data
-    if (!root.versions) return {};
+    if (!Array.isArray(root.versions) || root.versions.length === 0) return {};
     // Shape and return version data, injecting the root ID
     return {
         versionsCreate: root.versions.map((version) => shape.create({
@@ -71,10 +71,12 @@ export const createVersion = <
     };
 };
 
+type CreatePrimsResult<T, K extends keyof T> = { [F in K]: Exclude<T[F], null | undefined> };
+
 /**
  * Helper function for setting a list of primitive fields of a create 
- * shape. Essentially, adds every field that's defined, and converts nulls to 
- * undefined
+ * shape. Essentially, adds every field that's defined (i.e. not undefined), 
+ * and performs any pre-shaping functions.
  * 
  * NOTE 1: Due to TypeScript limitations, return type assumes that every field 
  * will be defined, even if it's undefined.
@@ -86,30 +88,41 @@ export const createVersion = <
 export const createPrims = <T, K extends keyof T>(
     object: T,
     ...fields: (K | [K, (val: any) => any])[]
-): { [F in K]: Exclude<T[F], null | undefined> } => {
+): CreatePrimsResult<T, K> => {
+    if (typeof object !== 'object' || object === null) {
+        console.error('Invalid input: object must be a non-null object');
+        return {} as CreatePrimsResult<T, K>;
+    }
+
+    let hasId = false;
     // Create prims
     const prims = fields.reduce((acc, field) => {
         const key = Array.isArray(field) ? field[0] : field;
+        if (key === "id") hasId = true;
         const value = Array.isArray(field) ? field[1](object[key]) : object[key];
-        return { ...acc, [key]: value !== null ? value : undefined };
-    }, {}) as any;
+        if (value !== undefined) return { ...acc, [key]: value };
+        return acc;
+    }, {}) as CreatePrimsResult<T, K>;
+
+    // If no updates, return empty object
+    if (Object.keys(prims).length === 0) return {} as CreatePrimsResult<T, K>;
 
     // If "id" is defined in fields, make sure it's not DUMMY_ID
-    if (!fields.some(field => Array.isArray(field) ? field[0] === "id" : field === "id")) return prims;
-
-    return { ...prims, id: prims.id === DUMMY_ID ? uuid() : prims.id };
+    if (!hasId) return prims;
+    return { ...prims, id: (prims as { id: string }).id === DUMMY_ID ? uuid() : (prims as { id: string }).id } as CreatePrimsResult<T, K>;
 };
 
 /**
  * Checks if an object should be connected or created.
  * @param data The object to check
- * @returns True if the object does not contain any data other than IDs and __typename 
+ * @returns True if the object does not contain any data other than IDs and __typename, 
  * OR if it contains `__connect: true`
  */
 export const shouldConnect = (data: object) => {
+    if (typeof data !== 'object' || data === null || (data as Record<string, unknown>).id === DUMMY_ID) return false;
     if (data["__connect"] === true) return true;
-    const validKeys = Object.keys(data).filter(key => data[key] !== undefined);
-    return validKeys.every(k => ["id", "__typename"].includes(k));
+    const validKeys = Object.keys(data).filter(key => typeof data[key] !== undefined);
+    return validKeys.every(k => ["id", "__typename"].includes(k) && typeof data[k] === "string");
 };
 
 /**

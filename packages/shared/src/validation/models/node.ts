@@ -1,5 +1,5 @@
-import { NodeType } from "@local/shared";
 import * as yup from "yup";
+import { NodeType } from "../../api/generated";
 import { description, enumToYup, id, minNumErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { nodeEndValidation } from "./nodeEnd";
 import { nodeLoopValidation } from "./nodeLoop";
@@ -9,7 +9,7 @@ const columnIndex = yup.number().integer().min(0, minNumErr).nullable();
 const rowIndex = yup.number().integer().min(0, minNumErr).nullable();
 const nodeType = enumToYup(NodeType);
 
-export const nodeTranslationValidation: YupModel = transRel({
+export const nodeTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -20,7 +20,7 @@ export const nodeTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const nodeValidation: YupModel = {
+export const nodeValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         columnIndex: opt(columnIndex),
@@ -32,7 +32,7 @@ export const nodeValidation: YupModel = {
         ["routineList", ["Create"], "one", "opt", nodeRoutineListValidation],
         ["routineVersion", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", nodeTranslationValidation],
-    ], [["endCreate", "routineListCreate"]], d),
+    ], [["endCreate", "routineListCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         columnIndex: opt(columnIndex),

@@ -1,13 +1,13 @@
-import { SmartContractVersion } from "@local/shared";
+import { CodeVersion } from "@local/shared";
 import { FormProps } from "forms/types";
-import { SmartContractVersionShape } from "utils/shape/models/smartContractVersion";
+import { CodeVersionShape } from "utils/shape/models/codeVersion";
 import { ObjectViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 
 type SmartContractUpsertPropsPage = CrudPropsPage;
-type SmartContractUpsertPropsDialog = CrudPropsDialog<SmartContractVersion>;
+type SmartContractUpsertPropsDialog = CrudPropsDialog<CodeVersion>;
 export type SmartContractUpsertProps = SmartContractUpsertPropsPage | SmartContractUpsertPropsDialog;
-export type SmartContractFormProps = FormProps<SmartContractVersion, SmartContractVersionShape> & {
+export type SmartContractFormProps = FormProps<CodeVersion, CodeVersionShape> & {
     versions: string[];
 }
-export type SmartContractViewProps = ObjectViewProps<SmartContractVersion>
+export type SmartContractViewProps = ObjectViewProps<CodeVersion>

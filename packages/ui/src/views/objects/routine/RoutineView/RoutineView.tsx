@@ -1,5 +1,5 @@
-import { CommentFor, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput, setDotNotationValue, Tag } from "@local/shared";
-import { Box, Button, IconButton, Stack, useTheme } from "@mui/material";
+import { CommentFor, ResourceList as ResourceListType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, parseSearchParams, setDotNotationValue } from "@local/shared";
+import { Box, Button, Divider, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -10,8 +10,8 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListHorizontal } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
+import { ResourceList } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
@@ -26,7 +26,7 @@ import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon, RoutineIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { parseSearchParams, setSearchParams, useLocation } from "route";
+import { setSearchParams, useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
@@ -38,7 +38,7 @@ import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
-import { BuildView } from "views/BuildView/BuildView";
+import { BuildView } from "views/objects/routine/BuildView/BuildView";
 import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
 import { RoutineViewProps } from "../types";
 
@@ -179,18 +179,6 @@ export const RoutineView = ({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
-    const comments = useMemo(() => (
-        <Box sx={containerProps(palette)}>
-            <CommentContainer
-                forceAddCommentOpen={isAddCommentOpen}
-                language={language}
-                objectId={existing?.id ?? ""}
-                objectType={CommentFor.RoutineVersion}
-                onAddCommentClose={closeAddCommentDialog}
-            />
-        </Box>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
-
     return (
         <>
             <TopBar
@@ -237,8 +225,9 @@ export const RoutineView = ({
                         objectType={"Routine"}
                     />
                     {/* Resources */}
-                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
-                        list={resourceList as unknown as ResourceList}
+                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
+                        horizontal
+                        list={resourceList as unknown as ResourceListType}
                         canUpdate={false}
                         // eslint-disable-next-line @typescript-eslint/no-empty-function
                         handleUpdate={() => { }}
@@ -323,7 +312,7 @@ export const RoutineView = ({
                             />
                             <VersionDisplay
                                 currentVersion={existing}
-                                prefix={" - "}
+                                prefix={" - v"}
                                 versions={existing?.root?.versions}
                             />
                         </Stack>
@@ -339,8 +328,14 @@ export const RoutineView = ({
                             object={existing}
                         />
                     </Box>
-                    {/* Comments */}
-                    {comments}
+                    <Divider />
+                    <CommentContainer
+                        forceAddCommentOpen={isAddCommentOpen}
+                        language={language}
+                        objectId={existing?.id ?? ""}
+                        objectType={CommentFor.RoutineVersion}
+                        onAddCommentClose={closeAddCommentDialog}
+                    />
                 </Stack>}
             </Formik>
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}

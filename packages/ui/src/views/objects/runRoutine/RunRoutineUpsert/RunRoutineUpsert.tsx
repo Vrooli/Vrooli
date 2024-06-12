@@ -15,9 +15,8 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { RunRoutineShape, shapeRunRoutine } from "utils/shape/models/runRoutine";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -81,7 +80,7 @@ const RunRoutineForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunRoutine>({
+    const { handleCancel, handleCompleted } = useUpsertActions<RunRoutine>({
         display,
         isCreate,
         objectId: values.id,
@@ -98,7 +97,7 @@ const RunRoutineForm = ({
         endpointCreate: endpointPostRunRoutine,
         endpointUpdate: endpointPutRunRoutine,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RunRoutine" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunRoutine" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -127,7 +126,7 @@ const RunRoutineForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.RunRoutine}
+                defaultTab="RunRoutine"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -240,14 +239,13 @@ export const RunRoutineUpsert = ({
 }: RunRoutineUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
         ...endpointGetRunRoutine,
         isCreate,
         objectType: "RunRoutine",
         overrideObject,
         transform: (existing) => runRoutineInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -257,7 +255,7 @@ export const RunRoutineUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformRunRoutineValues, runRoutineValidation)}
         >
             {(formik) => <RunRoutineForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

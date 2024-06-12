@@ -2,7 +2,7 @@ import { GqlModelType } from "@local/shared";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PermissionsMap } from "../models/types";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 
 /**
  * Helper function to remove the first layer of dot values form an array of

@@ -5,6 +5,7 @@ import { DeleteOneOrManyEndpoints, EndpointsDeleteOneOrMany } from "../logic/del
 export const typeDef = gql`
     enum DeleteType {
         Api
+        ApiKey
         ApiVersion
         Bookmark
         BookmarkList
@@ -12,6 +13,8 @@ export const typeDef = gql`
         ChatInvite
         ChatMessage
         ChatParticipant
+        Code
+        CodeVersion
         Comment
         Email
         FocusMode
@@ -24,7 +27,7 @@ export const typeDef = gql`
         Note
         NoteVersion
         Notification
-        Organization
+        Phone
         Post
         Project
         ProjectVersion
@@ -37,15 +40,15 @@ export const typeDef = gql`
         ReminderList
         Report
         Resource
+        Role
         Routine
         RoutineVersion
         RunProject
         RunRoutine
         Schedule
-        SmartContract
-        SmartContractVersion
         Standard
         StandardVersion
+        Team
         Transfer
         User # Should only delete bots this way, not your account. Doing so won't allow you to select what happens to your data.
         Wallet
@@ -57,8 +60,7 @@ export const typeDef = gql`
     }
 
     input DeleteManyInput {
-        ids: [ID!]!
-        objectType: DeleteType!
+        objects: [DeleteOneInput!]!
     }
 
     extend type Mutation {

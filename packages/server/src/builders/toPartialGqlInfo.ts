@@ -1,8 +1,13 @@
 import { GqlModelType, resolveGQLInfo } from "@local/shared";
 import { CustomError } from "../events/error";
 import { GqlRelMap, ModelLogicType } from "../models/types";
+import { LRUCache } from "../utils/lruCache";
 import { injectTypenames } from "./injectTypenames";
 import { GraphQLInfo, PartialGraphQLInfo } from "./types";
+
+// Cache results of each `info` conversion, so we only have to 
+// do it once. This improves performance a bit
+const cache = new LRUCache<string, PartialGraphQLInfo>(1000, 250_000);
 
 /**
  * Converts shapes 1 and 2 in a GraphQL to Prisma conversion to shape 2
@@ -29,11 +34,17 @@ export const toPartialGqlInfo = <
             throw new CustomError("0345", "InternalError", languages);
         return undefined as any;
     }
+    // Check if cached
+    const cacheKey = JSON.stringify(info);
+    const cachedResult = cache.get(cacheKey);
+    if (cachedResult !== undefined) {
+        return cachedResult;
+    }
     // Find select fields in info object
     let select;
     const isGraphQLResolveInfo = Object.prototype.hasOwnProperty.call(info, "fieldNodes") && Object.prototype.hasOwnProperty.call(info, "returnType");
     if (isGraphQLResolveInfo) {
-        select = resolveGQLInfo(JSON.parse(JSON.stringify(info)));
+        select = resolveGQLInfo(JSON.parse(cacheKey));
     } else {
         select = info;
     }
@@ -49,5 +60,7 @@ export const toPartialGqlInfo = <
     select = injectTypenames(select, gqlRelMap);
     if (!select)
         throw new CustomError("0346", "InternalError", languages);
+    // Cache result
+    cache.set(cacheKey, select);
     return select;
 };

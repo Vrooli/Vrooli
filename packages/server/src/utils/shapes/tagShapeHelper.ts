@@ -1,49 +1,44 @@
 import { uuidValidate } from "@local/shared";
-import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
 // Types of objects which have tags
-type TaggedObjectType = "Api" | "Note" | "Organization" | "Post" | "Project" | "Question" | "Routine" | "SmartContract" | "Standard";
+type TaggedObjectType = "Api" | "Code" | "Note" | "Post" | "Project" | "Question" | "Routine" | "Standard" | "Team";
 
 /**
  * Maps type of a tag's parent with the unique field
  */
 const parentMapper: { [key in TaggedObjectType]: string } = {
     "Api": "api_tags_taggedid_tagTag_unique",
+    "Code": "code_tags_taggedid_tagTag_unique",
     "Note": "note_tags_taggedid_tagTag_unique",
-    "Organization": "organization_tags_taggedid_tagTag_unique",
     "Post": "post_tags_taggedid_tagTag_unique",
     "Project": "project_tags_taggedid_tagTag_unique",
     "Question": "question_tags_taggedid_tagTag_unique",
     "Routine": "routine_tags_taggedid_tagTag_unique",
-    "SmartContract": "smart_contract_tags_taggedid_tagTag_unique",
     "Standard": "standard_tags_taggedid_tagTag_unique",
+    "Team": "team_tags_taggedid_tagTag_unique",
 };
 
 type TagShapeHelperProps<
-    Input extends ShapeHelperInput<false, Types[number], FieldName>,
     Types extends readonly RelationshipType[],
-    FieldName extends string,
 > = {
     parentType: TaggedObjectType;
-    relation: FieldName;
-} & Omit<ShapeHelperProps<Input, false, Types, FieldName, "tag", false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "primaryKey" | "relation" | "softDelete">;
+    relation?: string;
+} & Omit<ShapeHelperProps<false, Types, false>, "isOneToOne" | "joinData" | "objectType" | "parentRelationshipName" | "relation" | "softDelete">;
 
 /**
 * Add, update, or remove tag data for an object.
 */
 export const tagShapeHelper = async <
     Types extends readonly RelationshipType[],
-    Input extends ShapeHelperInput<false, Types[number], FieldName>,
-    FieldName extends string,
 >({
     data,
     parentType,
-    prisma,
-    relation,
+    relation = "tags",
     ...rest
-}: TagShapeHelperProps<Input, Types, FieldName>):
-    Promise<ShapeHelperOutput<false, Types[number], any, "tag">> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
+}: TagShapeHelperProps<Types>):
+    Promise<ShapeHelperOutput<false, "tag">> => {
     // Make sure that all tag relations are objects instead of strings
     const keys = ["Create", "Connect", "Delete", "Disconnect", "Update"].map(op => `${relation}${op}` as string);
     const tagsToObject = (tags: (string | object)[]) => {
@@ -62,12 +57,10 @@ export const tagShapeHelper = async <
             uniqueFieldName: parentMapper[parentType],
             childIdFieldName: "tagTag",
             parentIdFieldName: "taggedId",
-            parentId: (data as any).id ?? null,
+            parentId: data.id ?? null,
         },
         objectType: "Tag",
         parentRelationshipName: "",
-        primaryKey: "tag",
-        prisma,
         relation,
         ...rest,
     });

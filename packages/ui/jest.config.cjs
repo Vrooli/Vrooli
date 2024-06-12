@@ -1,3 +1,5 @@
+// Looking to change the config because the shared package imports aren't working? 
+// Instead, try building the shared package and then running the tests again.
 module.exports = {
     roots: ["<rootDir>/src"],
     collectCoverageFrom: [
@@ -5,10 +7,10 @@ module.exports = {
         "!src/**/*.d.ts",
         "!src/mocks/**",
     ],
-    coveragePathIgnorePatterns: ["/node_modules/", "/dist/"],
+    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     setupFilesAfterEnv: ["./config/jest/setupTests.ts"],
     testEnvironment: "jsdom",
-    testPathIgnorePatterns: ["/node_modules/"],
+    testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     modulePaths: ["<rootDir>/src"],
     transform: {
         "^.+\\.(ts|js|tsx|jsx)$": "<rootDir>/config/jest/swcTransform.cjs",
@@ -17,7 +19,7 @@ module.exports = {
             "<rootDir>/config/jest/fileTransform.cjs",
     },
     transformIgnorePatterns: [
-        "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+        // "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$",
         "^.+\\.module\\.(css|sass|scss)$",
     ],
     moduleNameMapper: {

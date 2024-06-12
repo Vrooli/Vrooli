@@ -1,5 +1,5 @@
 import { exists } from "@local/shared";
-import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
+import { DeepPartialBooleanWithFragments, GqlPartial, SelectionType } from "../types";
 import { fragmentsNeeded } from "./fragmentsNeeded";
 import { fragmentsToString } from "./fragmentsToString";
 import { partialToStringHelper } from "./partialToStringHelper";
@@ -9,7 +9,7 @@ type PartialToStringProps<
     EndpointType extends "query" | "mutation",
     EndpointName extends string,
     Partial extends GqlPartial<any>,
-    Selection extends "common" | "full" | "list" | "nav",
+    Selection extends SelectionType,
 > = {
     endpointType: EndpointType,
     endpointName: EndpointName,
@@ -30,7 +30,7 @@ type PartialToStringProps<
  * @returns A properly-indented string that can be used in a GraphQL query/mutation. 
  * The string is structured from top to bottom in the shape:
  * - Fragment definitions, with duplicate fragments omitted
- * - The query/mutation itself (e.g. 'query organization($input: FindByIdOrHandleInput!) {\norganization(input: $input) {\n')
+ * - The query/mutation itself (e.g. 'query team($input: FindByIdOrHandleInput!) {\team(input: $input) {\n')
  * - The fields of the query/mutation, with fragments referenced by name and unions formatted correctly
  * - The closing parentheses and brackets
  */
@@ -38,7 +38,7 @@ export const partialToString = async <
     EndpointType extends "query" | "mutation",
     EndpointName extends string,
     Partial extends GqlPartial<any>,
-    Selection extends "common" | "full" | "list" | "nav",
+    Selection extends SelectionType,
 >({
     endpointType,
     endpointName,

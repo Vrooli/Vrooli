@@ -1,4 +1,4 @@
-import { batch } from "@local/server";
+import { batch, logger, prismaInstance } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 /**
@@ -11,37 +11,41 @@ export const logApiStats = async (
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => await batch<Prisma.api_versionFindManyArgs>({
-    objectType: "ApiVersion",
-    processBatch: async (batch, prisma) => {
-        await prisma.stats_api.createMany({
-            data: batch.map(apiVersion => ({
-                apiId: apiVersion.root.id,
-                periodStart,
-                periodEnd,
-                periodType,
-                calls: 0, //TODO no way to track calls yet
-                routineVersions: apiVersion._count.calledByRoutineVersions,
-            })),
+) => {
+    try {
+        await batch<Prisma.api_versionFindManyArgs>({
+            objectType: "ApiVersion",
+            processBatch: async (batch) => {
+                await prismaInstance.stats_api.createMany({
+                    data: batch.map(apiVersion => ({
+                        apiId: apiVersion.root.id,
+                        periodStart,
+                        periodEnd,
+                        periodType,
+                        calls: 0, //TODO no way to track calls yet
+                        routineVersions: apiVersion._count.calledByRoutineVersions,
+                    })),
+                });
+            },
+            select: {
+                id: true,
+                root: {
+                    select: { id: true },
+                },
+                _count: {
+                    select: { calledByRoutineVersions: true },
+                },
+            },
+            where: {
+                calledByRoutineVersions: {
+                    some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
+                },
+                isDeleted: false,
+                isLatest: true,
+                root: { isDeleted: false },
+            },
         });
-    },
-    select: {
-        id: true,
-        root: {
-            select: { id: true },
-        },
-        _count: {
-            select: { calledByRoutineVersions: true },
-        },
-    },
-    trace: "0418",
-    traceObject: { periodType, periodStart, periodEnd },
-    where: {
-        calledByRoutineVersions: {
-            some: {}, // This is empty on purpose - we don't care about the routine version, just that at least one exists
-        },
-        isDeleted: false,
-        isLatest: true,
-        root: { isDeleted: false },
-    },
-});
+    } catch (error) {
+        logger.error("logApiStats caught error", { error, trace: "0418", periodType, periodStart, periodEnd });
+    }
+};

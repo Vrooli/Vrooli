@@ -1,12 +1,12 @@
-import { ResourceListFor, StandardVersion, Tag } from "@local/shared";
+import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
+import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
-import { CSSProperties } from "react";
+import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
-import { ListObject } from "utils/display/listTools";
 import { TagShape } from "utils/shape/models/tag";
-import { StandardLanguage } from "./CodeInputBase/CodeInputBase";
+import { CodeLanguage } from "./CodeInput/CodeInput";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -21,6 +21,14 @@ export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
 };
 
 export interface CodeInputBaseProps {
+    /**
+     * The current language of the code input
+     */
+    codeLanguage: CodeLanguage;
+    /**
+     * The code itself
+     */
+    content: string;
     defaultValue?: string;
     disabled?: boolean;
     /**
@@ -60,7 +68,12 @@ export interface CodeInputBaseProps {
      * }
      */
     format?: string;
-    limitTo?: StandardLanguage[];
+    handleCodeLanguageChange: (language: CodeLanguage) => unknown;
+    handleContentChange: (content: string) => unknown;
+    /**
+     * Limit the languages that can be selected in the language dropdown.
+     */
+    limitTo?: CodeLanguage[];
     name: string;
     /**
      * Dictionary which describes variables (e.g. <name>, <age>) in
@@ -81,7 +94,7 @@ export interface CodeInputBaseProps {
     variables?: { [x: string]: JSONVariable };
 }
 
-export type CodeInputProps = Omit<CodeInputBaseProps, "defaultValue" | "format" | "variables">
+export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables">
 
 export interface DateInputProps {
     isOptional?: boolean;
@@ -101,7 +114,7 @@ export interface DropzoneProps {
     uploadText?: string;
 }
 
-export interface LanguageInputProps {
+export type LanguageInputProps = {
     disabled?: boolean;
     /**
      * Currently-selected language, if using this component to add/edit an object
@@ -116,6 +129,7 @@ export interface LanguageInputProps {
      * All languages that currently have translations for the object being edited.
      */
     languages: string[];
+    sx?: SxType
 }
 
 export interface LinkInputProps {
@@ -126,7 +140,7 @@ export interface LinkInputProps {
     tabIndex?: number;
 }
 
-export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
+export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     actionButtons?: Array<{
         disabled?: boolean;
         Icon: SvgComponent;
@@ -147,9 +161,11 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
     maxRows?: number;
     minRows?: number;
     name: string;
-    onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
-    onFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => unknown;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
+    onFocus?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (newText: string) => unknown;
+    /** Allows "Enter" or "Shift+Enter" to submit */
+    onSubmit?: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;
     value: string;
@@ -157,50 +173,56 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange"> & {
         topBar?: SxType;
         bottomBar?: SxType;
         root?: SxType;
-        textArea?: Record<string, unknown>;
+        inputRoot?: SxType;
+        textArea?: CSSProperties;
     };
 }
 
 export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 
 export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
+    enterWillSubmit?: boolean;
     id: string;
-    openAssistantDialog: (selectedText: string) => unknown;
+    openAssistantDialog: (selected: string, fullText: string) => unknown;
     onActiveStatesChange: (activeStates: RichInputActiveStates) => unknown;
     redo: () => unknown;
     setHandleAction: (handleAction: (action: RichInputAction, data?: unknown) => unknown) => unknown;
     toggleMarkdown: () => unknown;
     undo: () => unknown;
-    sx?: CSSProperties;
+    sxs?: {
+        inputRoot?: SxType;
+        textArea?: CSSProperties;
+    };
 }
 
 export type RichInputMarkdownProps = RichInputChildProps;
 export type RichInputLexicalProps = RichInputChildProps;
 
-export type RichInputAction =
-    "Assistant" |
-    "Bold" |
-    "Code" |
-    "Header1" |
-    "Header2" |
-    "Header3" |
-    "Header4" |
-    "Header5" |
-    "Header6" |
-    "Italic" |
-    "Link" |
-    "ListBullet" |
-    "ListCheckbox" |
-    "ListNumber" |
-    "Mode" |
-    "Quote" |
-    "Redo" |
-    "SetValue" |
-    "Spoiler" |
-    "Strikethrough" |
-    "Table" |
-    "Underline" |
-    "Undo";
+export enum RichInputAction {
+    Assistant = "Assistant",
+    Bold = "Bold",
+    Code = "Code",
+    Header1 = "Header1",
+    Header2 = "Header2",
+    Header3 = "Header3",
+    Header4 = "Header4",
+    Header5 = "Header5",
+    Header6 = "Header6",
+    Italic = "Italic",
+    Link = "Link",
+    ListBullet = "ListBullet",
+    ListCheckbox = "ListCheckbox",
+    ListNumber = "ListNumber",
+    Mode = "Mode",
+    Quote = "Quote",
+    Redo = "Redo",
+    SetValue = "SetValue",
+    Spoiler = "Spoiler",
+    Strikethrough = "Strikethrough",
+    Table = "Table",
+    Underline = "Underline",
+    Undo = "Undo",
+}
 export type RichInputActiveStates = { [x in Exclude<RichInputAction, "Assistant" | "Mode" | "Redo" | "Undo" | "SetValue">]: boolean };
 
 export type PasswordTextInputProps = TextInputProps & {
@@ -209,6 +231,24 @@ export type PasswordTextInputProps = TextInputProps & {
     fullWidth?: boolean;
     label?: string;
     name: string;
+}
+
+export type PhoneNumberInputProps = TextInputProps & {
+    autoComplete?: string;
+    autoFocus?: boolean;
+    fullWidth?: boolean;
+    label?: string;
+    name: string;
+    onChange?: (value: string) => unknown;
+}
+
+export type PhoneNumberInputBaseProps = Omit<PhoneNumberInputProps, "onChange"> & {
+    error?: boolean;
+    helperText?: string | boolean | null | undefined;
+    onBlur?: (event: React.FocusEvent<any>) => unknown;
+    onChange: (value: string) => unknown;
+    setError: (error: string | undefined) => unknown;
+    value: string;
 }
 
 export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
@@ -222,7 +262,7 @@ export interface ProfilePictureInputProps {
     onBannerImageChange: (file: File | null) => unknown;
     onProfileImageChange: (file: File | null) => unknown;
     profile?: {
-        __typename: "Organization" | "User";
+        __typename: "Team" | "User";
         isBot?: boolean;
         bannerImage?: string | File | null;
         profileImage?: string | File | null;
@@ -231,11 +271,13 @@ export interface ProfilePictureInputProps {
     } | null | undefined;
 }
 
-export interface IntegerInputProps extends BoxProps {
+export interface IntegerInputBaseProps extends Omit<BoxProps, "onChange"> {
     allowDecimal?: boolean;
     autoFocus?: boolean;
     disabled?: boolean;
+    error?: boolean;
     fullWidth?: boolean;
+    helperText?: string | boolean | null | undefined;
     key?: string;
     initial?: number;
     label?: string;
@@ -243,12 +285,19 @@ export interface IntegerInputProps extends BoxProps {
     min?: number;
     name: string;
     offset?: number;
+    onChange: (newValue: number) => unknown;
     step?: number;
     tooltip?: string;
+    value: number;
+    /** If provided, displays this text instead of 0 */
+    zeroText?: string;
 }
 
-export interface ResourceListHorizontalInputProps {
+export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
+
+export type ResourceListInputProps = Pick<ResourceListProps, "sxs"> & {
     disabled?: boolean;
+    horizontal: boolean;
     isCreate: boolean;
     isLoading?: boolean;
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
@@ -277,41 +326,57 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     tabIndex?: number;
 }
 
-export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange"> {
+export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange" | "sx"> {
     color?: string;
     error?: boolean;
     helperText?: string | boolean | null | undefined;
     onBlur?: (event: React.FocusEvent<any>) => unknown;
     onChange: (value: T) => unknown;
     value: T | null;
+    sxs?: {
+        fieldset?: SxType;
+        root?: SxType;
+    };
 }
 
-export type StandardVersionSelectSwitchProps = {
-    /** Indicates if the standard is allowed to be updated */
-    canUpdateStandardVersion: boolean;
+export type ObjectVersionSelectPayloads = {
+    ApiVersion: ApiVersion,
+    CodeVersion: CodeVersion,
+    NoteVersion: NoteVersion,
+    ProjectVersion: ProjectVersion,
+    RoutineVersion: RoutineVersion,
+    StandardVersion: StandardVersion,
+}
+export type ObjectVersionSelectSwitchProps<T extends keyof ObjectVersionSelectPayloads> = {
+    canUpdate: boolean;
+    disabled?: boolean;
+    label: string;
     selected: {
-        translations: StandardVersion["translations"];
+        translations: ObjectVersionSelectPayloads[T]["translations"];
     } | null;
-    onChange: (value: StandardVersion | null) => unknown;
-    disabled?: boolean;
+    objectType: T;
+    onChange: (value: ObjectVersionSelectPayloads[T] | null) => unknown;
+    tooltip: string;
 }
 
-export interface TagSelectorProps {
-    disabled?: boolean;
-    name: string;
-    placeholder?: string;
-}
-
-export interface TagSelectorBaseProps {
+export type TagSelectorBaseProps = {
     disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
     isOptional?: boolean;
     placeholder?: string;
     tags: (TagShape | Tag)[];
+    sx?: SxType;
 }
 
-export type TextInputProps = TextFieldProps & {
+export type TagSelectorProps = Pick<TagSelectorBaseProps, "disabled" | "placeholder" | "sx"> & {
+    name: string;
+}
+
+export type TextInputProps = Omit<TextFieldProps, "ref"> & {
+    enterWillSubmit?: boolean;
+    onSubmit?: () => unknown;
     isOptional?: boolean;
+    ref?: RefObject<HTMLElement>;
 }
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
@@ -348,11 +413,13 @@ export interface TranslatedRichInputProps {
         topBar?: SxType;
         bottomBar?: SxType;
         root?: SxType;
-        textArea?: Record<string, unknown>;
+        inputRoot?: SxType;
+        textArea?: CSSProperties;
     };
 }
 
 export interface TranslatedTextInputProps {
+    autoFocus?: boolean;
     fullWidth?: boolean;
     isOptional?: boolean;
     label?: string;

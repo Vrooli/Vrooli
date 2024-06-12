@@ -1,4 +1,4 @@
-import { ParseSearchParamsResult, stringifySearchParams } from "./searchParams";
+import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
 import { SetLocation } from "./types";
 
 /**

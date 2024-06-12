@@ -149,6 +149,7 @@ const NavListComponent = ({ isLeftHanded }) => {
 export const Navbar = forwardRef(({
     below,
     help,
+    keepVisible,
     options,
     shouldHideTitle = false,
     startComponent,
@@ -188,7 +189,7 @@ export const Navbar = forwardRef(({
                     display: "none",
                 },
             }}>
-            <HideOnScroll forceVisible={!isMobile}>
+            <HideOnScroll forceVisible={keepVisible || !isMobile}>
                 <AppBar
                     onClick={scrollToTop}
                     ref={dimRef}

@@ -7,8 +7,8 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "walletComplete",
         "loc": {
-          "start": 8419,
-          "end": 8433
+          "start": 8882,
+          "end": 8896
         }
       },
       "arguments": [
@@ -18,8 +18,8 @@ export const auth_walletComplete = {
             "kind": "Name",
             "value": "input",
             "loc": {
-              "start": 8434,
-              "end": 8439
+              "start": 8897,
+              "end": 8902
             }
           },
           "value": {
@@ -28,18 +28,18 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "input",
               "loc": {
-                "start": 8442,
-                "end": 8447
+                "start": 8905,
+                "end": 8910
               }
             },
             "loc": {
-              "start": 8441,
-              "end": 8447
+              "start": 8904,
+              "end": 8910
             }
           },
           "loc": {
-            "start": 8434,
-            "end": 8447
+            "start": 8897,
+            "end": 8910
           }
         }
       ],
@@ -53,15 +53,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "firstLogIn",
               "loc": {
-                "start": 8455,
-                "end": 8465
+                "start": 8918,
+                "end": 8928
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8455,
-              "end": 8465
+              "start": 8918,
+              "end": 8928
             }
           },
           {
@@ -70,8 +70,8 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "session",
               "loc": {
-                "start": 8470,
-                "end": 8477
+                "start": 8933,
+                "end": 8940
               }
             },
             "arguments": [],
@@ -85,25 +85,25 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "Session_full",
                     "loc": {
-                      "start": 8491,
-                      "end": 8503
+                      "start": 8954,
+                      "end": 8966
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 8488,
-                    "end": 8503
+                    "start": 8951,
+                    "end": 8966
                   }
                 }
               ],
               "loc": {
-                "start": 8478,
-                "end": 8509
+                "start": 8941,
+                "end": 8972
               }
             },
             "loc": {
-              "start": 8470,
-              "end": 8509
+              "start": 8933,
+              "end": 8972
             }
           },
           {
@@ -112,8 +112,8 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "wallet",
               "loc": {
-                "start": 8514,
-                "end": 8520
+                "start": 8977,
+                "end": 8983
               }
             },
             "arguments": [],
@@ -127,36 +127,36 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "Wallet_common",
                     "loc": {
-                      "start": 8534,
-                      "end": 8547
+                      "start": 8997,
+                      "end": 9010
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 8531,
-                    "end": 8547
+                    "start": 8994,
+                    "end": 9010
                   }
                 }
               ],
               "loc": {
-                "start": 8521,
-                "end": 8553
+                "start": 8984,
+                "end": 9016
               }
             },
             "loc": {
-              "start": 8514,
-              "end": 8553
+              "start": 8977,
+              "end": 9016
             }
           }
         ],
         "loc": {
-          "start": 8449,
-          "end": 8557
+          "start": 8912,
+          "end": 9020
         }
       },
       "loc": {
-        "start": 8419,
-        "end": 8557
+        "start": 8882,
+        "end": 9020
       }
     },
     {
@@ -1786,27 +1786,104 @@ export const auth_walletComplete = {
                                       "start": 2845,
                                       "end": 2856
                                     }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "you",
+                                      "loc": {
+                                        "start": 2877,
+                                        "end": 2880
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canDelete",
+                                            "loc": {
+                                              "start": 2907,
+                                              "end": 2916
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 2907,
+                                            "end": 2916
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canRead",
+                                            "loc": {
+                                              "start": 2941,
+                                              "end": 2948
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 2941,
+                                            "end": 2948
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canUpdate",
+                                            "loc": {
+                                              "start": 2973,
+                                              "end": 2982
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 2973,
+                                            "end": 2982
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 2881,
+                                        "end": 3004
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 2877,
+                                      "end": 3004
+                                    }
                                   }
                                 ],
                                 "loc": {
                                   "start": 886,
-                                  "end": 2874
+                                  "end": 3022
                                 }
                               },
                               "loc": {
                                 "start": 876,
-                                "end": 2874
+                                "end": 3022
                               }
                             }
                           ],
                           "loc": {
                             "start": 396,
-                            "end": 2888
+                            "end": 3036
                           }
                         },
                         "loc": {
                           "start": 388,
-                          "end": 2888
+                          "end": 3036
                         }
                       },
                       {
@@ -1815,8 +1892,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 2901,
-                            "end": 2907
+                            "start": 3049,
+                            "end": 3055
                           }
                         },
                         "arguments": [],
@@ -1830,15 +1907,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 2926,
-                                  "end": 2928
+                                  "start": 3074,
+                                  "end": 3076
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 2926,
-                                "end": 2928
+                                "start": 3074,
+                                "end": 3076
                               }
                             },
                             {
@@ -1847,15 +1924,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 2945,
-                                  "end": 2950
+                                  "start": 3093,
+                                  "end": 3098
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 2945,
-                                "end": 2950
+                                "start": 3093,
+                                "end": 3098
                               }
                             },
                             {
@@ -1864,26 +1941,26 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 2967,
-                                  "end": 2972
+                                  "start": 3115,
+                                  "end": 3120
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 2967,
-                                "end": 2972
+                                "start": 3115,
+                                "end": 3120
                               }
                             }
                           ],
                           "loc": {
-                            "start": 2908,
-                            "end": 2986
+                            "start": 3056,
+                            "end": 3134
                           }
                         },
                         "loc": {
-                          "start": 2901,
-                          "end": 2986
+                          "start": 3049,
+                          "end": 3134
                         }
                       },
                       {
@@ -1892,8 +1969,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 2999,
-                            "end": 3011
+                            "start": 3147,
+                            "end": 3159
                           }
                         },
                         "arguments": [],
@@ -1907,15 +1984,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 3030,
-                                  "end": 3032
+                                  "start": 3178,
+                                  "end": 3180
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3030,
-                                "end": 3032
+                                "start": 3178,
+                                "end": 3180
                               }
                             },
                             {
@@ -1924,15 +2001,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 3049,
-                                  "end": 3059
+                                  "start": 3197,
+                                  "end": 3207
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3049,
-                                "end": 3059
+                                "start": 3197,
+                                "end": 3207
                               }
                             },
                             {
@@ -1941,15 +2018,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 3076,
-                                  "end": 3086
+                                  "start": 3224,
+                                  "end": 3234
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3076,
-                                "end": 3086
+                                "start": 3224,
+                                "end": 3234
                               }
                             },
                             {
@@ -1958,8 +2035,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 3103,
-                                  "end": 3112
+                                  "start": 3251,
+                                  "end": 3260
                                 }
                               },
                               "arguments": [],
@@ -1973,15 +2050,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3135,
-                                        "end": 3137
+                                        "start": 3283,
+                                        "end": 3285
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3135,
-                                      "end": 3137
+                                      "start": 3283,
+                                      "end": 3285
                                     }
                                   },
                                   {
@@ -1990,15 +2067,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3158,
-                                        "end": 3168
+                                        "start": 3306,
+                                        "end": 3316
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3158,
-                                      "end": 3168
+                                      "start": 3306,
+                                      "end": 3316
                                     }
                                   },
                                   {
@@ -2007,15 +2084,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 3189,
-                                        "end": 3199
+                                        "start": 3337,
+                                        "end": 3347
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3189,
-                                      "end": 3199
+                                      "start": 3337,
+                                      "end": 3347
                                     }
                                   },
                                   {
@@ -2024,15 +2101,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 3220,
-                                        "end": 3224
+                                        "start": 3368,
+                                        "end": 3372
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3220,
-                                      "end": 3224
+                                      "start": 3368,
+                                      "end": 3372
                                     }
                                   },
                                   {
@@ -2041,15 +2118,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 3245,
-                                        "end": 3256
+                                        "start": 3393,
+                                        "end": 3404
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3245,
-                                      "end": 3256
+                                      "start": 3393,
+                                      "end": 3404
                                     }
                                   },
                                   {
@@ -2058,15 +2135,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 3277,
-                                        "end": 3284
+                                        "start": 3425,
+                                        "end": 3432
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3277,
-                                      "end": 3284
+                                      "start": 3425,
+                                      "end": 3432
                                     }
                                   },
                                   {
@@ -2075,15 +2152,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 3305,
-                                        "end": 3310
+                                        "start": 3453,
+                                        "end": 3458
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3305,
-                                      "end": 3310
+                                      "start": 3453,
+                                      "end": 3458
                                     }
                                   },
                                   {
@@ -2092,15 +2169,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 3331,
-                                        "end": 3341
+                                        "start": 3479,
+                                        "end": 3489
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3331,
-                                      "end": 3341
+                                      "start": 3479,
+                                      "end": 3489
                                     }
                                   },
                                   {
@@ -2109,8 +2186,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 3362,
-                                        "end": 3375
+                                        "start": 3510,
+                                        "end": 3523
                                       }
                                     },
                                     "arguments": [],
@@ -2124,15 +2201,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3402,
-                                              "end": 3404
+                                              "start": 3550,
+                                              "end": 3552
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3402,
-                                            "end": 3404
+                                            "start": 3550,
+                                            "end": 3552
                                           }
                                         },
                                         {
@@ -2141,15 +2218,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 3429,
-                                              "end": 3439
+                                              "start": 3577,
+                                              "end": 3587
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3429,
-                                            "end": 3439
+                                            "start": 3577,
+                                            "end": 3587
                                           }
                                         },
                                         {
@@ -2158,15 +2235,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 3464,
-                                              "end": 3474
+                                              "start": 3612,
+                                              "end": 3622
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3464,
-                                            "end": 3474
+                                            "start": 3612,
+                                            "end": 3622
                                           }
                                         },
                                         {
@@ -2175,15 +2252,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3499,
-                                              "end": 3503
+                                              "start": 3647,
+                                              "end": 3651
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3499,
-                                            "end": 3503
+                                            "start": 3647,
+                                            "end": 3651
                                           }
                                         },
                                         {
@@ -2192,15 +2269,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3528,
-                                              "end": 3539
+                                              "start": 3676,
+                                              "end": 3687
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3528,
-                                            "end": 3539
+                                            "start": 3676,
+                                            "end": 3687
                                           }
                                         },
                                         {
@@ -2209,15 +2286,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 3564,
-                                              "end": 3571
+                                              "start": 3712,
+                                              "end": 3719
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3564,
-                                            "end": 3571
+                                            "start": 3712,
+                                            "end": 3719
                                           }
                                         },
                                         {
@@ -2226,15 +2303,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3596,
-                                              "end": 3601
+                                              "start": 3744,
+                                              "end": 3749
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3596,
-                                            "end": 3601
+                                            "start": 3744,
+                                            "end": 3749
                                           }
                                         },
                                         {
@@ -2243,48 +2320,48 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 3626,
-                                              "end": 3636
+                                              "start": 3774,
+                                              "end": 3784
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3626,
-                                            "end": 3636
+                                            "start": 3774,
+                                            "end": 3784
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3376,
-                                        "end": 3658
+                                        "start": 3524,
+                                        "end": 3806
                                       }
                                     },
                                     "loc": {
-                                      "start": 3362,
-                                      "end": 3658
+                                      "start": 3510,
+                                      "end": 3806
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3113,
-                                  "end": 3676
+                                  "start": 3261,
+                                  "end": 3824
                                 }
                               },
                               "loc": {
-                                "start": 3103,
-                                "end": 3676
+                                "start": 3251,
+                                "end": 3824
                               }
                             }
                           ],
                           "loc": {
-                            "start": 3012,
-                            "end": 3690
+                            "start": 3160,
+                            "end": 3838
                           }
                         },
                         "loc": {
-                          "start": 2999,
-                          "end": 3690
+                          "start": 3147,
+                          "end": 3838
                         }
                       },
                       {
@@ -2293,8 +2370,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 3703,
-                            "end": 3715
+                            "start": 3851,
+                            "end": 3863
                           }
                         },
                         "arguments": [],
@@ -2308,15 +2385,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 3734,
-                                  "end": 3736
+                                  "start": 3882,
+                                  "end": 3884
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3734,
-                                "end": 3736
+                                "start": 3882,
+                                "end": 3884
                               }
                             },
                             {
@@ -2325,15 +2402,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 3753,
-                                  "end": 3763
+                                  "start": 3901,
+                                  "end": 3911
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 3753,
-                                "end": 3763
+                                "start": 3901,
+                                "end": 3911
                               }
                             },
                             {
@@ -2342,8 +2419,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 3780,
-                                  "end": 3792
+                                  "start": 3928,
+                                  "end": 3940
                                 }
                               },
                               "arguments": [],
@@ -2357,15 +2434,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3815,
-                                        "end": 3817
+                                        "start": 3963,
+                                        "end": 3965
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3815,
-                                      "end": 3817
+                                      "start": 3963,
+                                      "end": 3965
                                     }
                                   },
                                   {
@@ -2374,15 +2451,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 3838,
-                                        "end": 3846
+                                        "start": 3986,
+                                        "end": 3994
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3838,
-                                      "end": 3846
+                                      "start": 3986,
+                                      "end": 3994
                                     }
                                   },
                                   {
@@ -2391,15 +2468,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 3867,
-                                        "end": 3878
+                                        "start": 4015,
+                                        "end": 4026
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3867,
-                                      "end": 3878
+                                      "start": 4015,
+                                      "end": 4026
                                     }
                                   },
                                   {
@@ -2408,26 +2485,26 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 3899,
-                                        "end": 3903
+                                        "start": 4047,
+                                        "end": 4051
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3899,
-                                      "end": 3903
+                                      "start": 4047,
+                                      "end": 4051
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3793,
-                                  "end": 3921
+                                  "start": 3941,
+                                  "end": 4069
                                 }
                               },
                               "loc": {
-                                "start": 3780,
-                                "end": 3921
+                                "start": 3928,
+                                "end": 4069
                               }
                             },
                             {
@@ -2436,8 +2513,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 3938,
-                                  "end": 3947
+                                  "start": 4086,
+                                  "end": 4095
                                 }
                               },
                               "arguments": [],
@@ -2451,15 +2528,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3970,
-                                        "end": 3972
+                                        "start": 4118,
+                                        "end": 4120
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3970,
-                                      "end": 3972
+                                      "start": 4118,
+                                      "end": 4120
                                     }
                                   },
                                   {
@@ -2468,15 +2545,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 3993,
-                                        "end": 3998
+                                        "start": 4141,
+                                        "end": 4146
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3993,
-                                      "end": 3998
+                                      "start": 4141,
+                                      "end": 4146
                                     }
                                   },
                                   {
@@ -2485,15 +2562,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 4019,
-                                        "end": 4023
+                                        "start": 4167,
+                                        "end": 4171
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4019,
-                                      "end": 4023
+                                      "start": 4167,
+                                      "end": 4171
                                     }
                                   },
                                   {
@@ -2502,15 +2579,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 4044,
-                                        "end": 4051
+                                        "start": 4192,
+                                        "end": 4199
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4044,
-                                      "end": 4051
+                                      "start": 4192,
+                                      "end": 4199
                                     }
                                   },
                                   {
@@ -2519,8 +2596,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 4072,
-                                        "end": 4084
+                                        "start": 4220,
+                                        "end": 4232
                                       }
                                     },
                                     "arguments": [],
@@ -2534,15 +2611,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4111,
-                                              "end": 4113
+                                              "start": 4259,
+                                              "end": 4261
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4111,
-                                            "end": 4113
+                                            "start": 4259,
+                                            "end": 4261
                                           }
                                         },
                                         {
@@ -2551,15 +2628,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 4138,
-                                              "end": 4146
+                                              "start": 4286,
+                                              "end": 4294
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4138,
-                                            "end": 4146
+                                            "start": 4286,
+                                            "end": 4294
                                           }
                                         },
                                         {
@@ -2568,15 +2645,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4171,
-                                              "end": 4182
+                                              "start": 4319,
+                                              "end": 4330
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4171,
-                                            "end": 4182
+                                            "start": 4319,
+                                            "end": 4330
                                           }
                                         },
                                         {
@@ -2585,48 +2662,48 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 4207,
-                                              "end": 4211
+                                              "start": 4355,
+                                              "end": 4359
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4207,
-                                            "end": 4211
+                                            "start": 4355,
+                                            "end": 4359
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4085,
-                                        "end": 4233
+                                        "start": 4233,
+                                        "end": 4381
                                       }
                                     },
                                     "loc": {
-                                      "start": 4072,
-                                      "end": 4233
+                                      "start": 4220,
+                                      "end": 4381
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3948,
-                                  "end": 4251
+                                  "start": 4096,
+                                  "end": 4399
                                 }
                               },
                               "loc": {
-                                "start": 3938,
-                                "end": 4251
+                                "start": 4086,
+                                "end": 4399
                               }
                             }
                           ],
                           "loc": {
-                            "start": 3716,
-                            "end": 4265
+                            "start": 3864,
+                            "end": 4413
                           }
                         },
                         "loc": {
-                          "start": 3703,
-                          "end": 4265
+                          "start": 3851,
+                          "end": 4413
                         }
                       },
                       {
@@ -2635,8 +2712,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 4278,
-                            "end": 4286
+                            "start": 4426,
+                            "end": 4434
                           }
                         },
                         "arguments": [],
@@ -2650,25 +2727,25 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 4308,
-                                  "end": 4323
+                                  "start": 4456,
+                                  "end": 4471
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 4305,
-                                "end": 4323
+                                "start": 4453,
+                                "end": 4471
                               }
                             }
                           ],
                           "loc": {
-                            "start": 4287,
-                            "end": 4337
+                            "start": 4435,
+                            "end": 4485
                           }
                         },
                         "loc": {
-                          "start": 4278,
-                          "end": 4337
+                          "start": 4426,
+                          "end": 4485
                         }
                       },
                       {
@@ -2677,15 +2754,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 4350,
-                            "end": 4352
+                            "start": 4498,
+                            "end": 4500
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4350,
-                          "end": 4352
+                          "start": 4498,
+                          "end": 4500
                         }
                       },
                       {
@@ -2694,15 +2771,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 4365,
-                            "end": 4369
+                            "start": 4513,
+                            "end": 4517
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4365,
-                          "end": 4369
+                          "start": 4513,
+                          "end": 4517
                         }
                       },
                       {
@@ -2711,26 +2788,103 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 4382,
-                            "end": 4393
+                            "start": 4530,
+                            "end": 4541
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4382,
-                          "end": 4393
+                          "start": 4530,
+                          "end": 4541
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "you",
+                          "loc": {
+                            "start": 4554,
+                            "end": 4557
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canDelete",
+                                "loc": {
+                                  "start": 4576,
+                                  "end": 4585
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 4576,
+                                "end": 4585
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canRead",
+                                "loc": {
+                                  "start": 4602,
+                                  "end": 4609
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 4602,
+                                "end": 4609
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canUpdate",
+                                "loc": {
+                                  "start": 4626,
+                                  "end": 4635
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 4626,
+                                "end": 4635
+                              }
+                            }
+                          ],
+                          "loc": {
+                            "start": 4558,
+                            "end": 4649
+                          }
+                        },
+                        "loc": {
+                          "start": 4554,
+                          "end": 4649
                         }
                       }
                     ],
                     "loc": {
                       "start": 374,
-                      "end": 4403
+                      "end": 4659
                     }
                   },
                   "loc": {
                     "start": 369,
-                    "end": 4403
+                    "end": 4659
                   }
                 },
                 {
@@ -2739,15 +2893,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "stopCondition",
                     "loc": {
-                      "start": 4412,
-                      "end": 4425
+                      "start": 4668,
+                      "end": 4681
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4412,
-                    "end": 4425
+                    "start": 4668,
+                    "end": 4681
                   }
                 },
                 {
@@ -2756,26 +2910,26 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "stopTime",
                     "loc": {
-                      "start": 4434,
-                      "end": 4442
+                      "start": 4690,
+                      "end": 4698
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4434,
-                    "end": 4442
+                    "start": 4690,
+                    "end": 4698
                   }
                 }
               ],
               "loc": {
                 "start": 359,
-                "end": 4448
+                "end": 4704
               }
             },
             "loc": {
               "start": 343,
-              "end": 4448
+              "end": 4704
             }
           },
           {
@@ -2784,15 +2938,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "apisCount",
               "loc": {
-                "start": 4453,
-                "end": 4462
+                "start": 4709,
+                "end": 4718
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 4453,
-              "end": 4462
+              "start": 4709,
+              "end": 4718
             }
           },
           {
@@ -2801,8 +2955,8 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "bookmarkLists",
               "loc": {
-                "start": 4467,
-                "end": 4480
+                "start": 4723,
+                "end": 4736
               }
             },
             "arguments": [],
@@ -2816,15 +2970,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 4491,
-                      "end": 4493
+                      "start": 4747,
+                      "end": 4749
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4491,
-                    "end": 4493
+                    "start": 4747,
+                    "end": 4749
                   }
                 },
                 {
@@ -2833,15 +2987,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "created_at",
                     "loc": {
-                      "start": 4502,
-                      "end": 4512
+                      "start": 4758,
+                      "end": 4768
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4502,
-                    "end": 4512
+                    "start": 4758,
+                    "end": 4768
                   }
                 },
                 {
@@ -2850,15 +3004,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "updated_at",
                     "loc": {
-                      "start": 4521,
-                      "end": 4531
+                      "start": 4777,
+                      "end": 4787
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4521,
-                    "end": 4531
+                    "start": 4777,
+                    "end": 4787
                   }
                 },
                 {
@@ -2867,15 +3021,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "label",
                     "loc": {
-                      "start": 4540,
-                      "end": 4545
+                      "start": 4796,
+                      "end": 4801
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4540,
-                    "end": 4545
+                    "start": 4796,
+                    "end": 4801
                   }
                 },
                 {
@@ -2884,26 +3038,43 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "bookmarksCount",
                     "loc": {
-                      "start": 4554,
-                      "end": 4568
+                      "start": 4810,
+                      "end": 4824
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4554,
-                    "end": 4568
+                    "start": 4810,
+                    "end": 4824
                   }
                 }
               ],
               "loc": {
-                "start": 4481,
-                "end": 4574
+                "start": 4737,
+                "end": 4830
               }
             },
             "loc": {
-              "start": 4467,
-              "end": 4574
+              "start": 4723,
+              "end": 4830
+            }
+          },
+          {
+            "kind": "Field",
+            "name": {
+              "kind": "Name",
+              "value": "codesCount",
+              "loc": {
+                "start": 4835,
+                "end": 4845
+              }
+            },
+            "arguments": [],
+            "directives": [],
+            "loc": {
+              "start": 4835,
+              "end": 4845
             }
           },
           {
@@ -2912,8 +3083,8 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "focusModes",
               "loc": {
-                "start": 4579,
-                "end": 4589
+                "start": 4850,
+                "end": 4860
               }
             },
             "arguments": [],
@@ -2927,8 +3098,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "filters",
                     "loc": {
-                      "start": 4600,
-                      "end": 4607
+                      "start": 4871,
+                      "end": 4878
                     }
                   },
                   "arguments": [],
@@ -2942,15 +3113,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 4622,
-                            "end": 4624
+                            "start": 4893,
+                            "end": 4895
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4622,
-                          "end": 4624
+                          "start": 4893,
+                          "end": 4895
                         }
                       },
                       {
@@ -2959,15 +3130,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "filterType",
                           "loc": {
-                            "start": 4637,
-                            "end": 4647
+                            "start": 4908,
+                            "end": 4918
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4637,
-                          "end": 4647
+                          "start": 4908,
+                          "end": 4918
                         }
                       },
                       {
@@ -2976,8 +3147,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "tag",
                           "loc": {
-                            "start": 4660,
-                            "end": 4663
+                            "start": 4931,
+                            "end": 4934
                           }
                         },
                         "arguments": [],
@@ -2991,15 +3162,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4682,
-                                  "end": 4684
+                                  "start": 4953,
+                                  "end": 4955
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4682,
-                                "end": 4684
+                                "start": 4953,
+                                "end": 4955
                               }
                             },
                             {
@@ -3008,15 +3179,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 4701,
-                                  "end": 4711
+                                  "start": 4972,
+                                  "end": 4982
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4701,
-                                "end": 4711
+                                "start": 4972,
+                                "end": 4982
                               }
                             },
                             {
@@ -3025,15 +3196,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 4728,
-                                  "end": 4731
+                                  "start": 4999,
+                                  "end": 5002
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4728,
-                                "end": 4731
+                                "start": 4999,
+                                "end": 5002
                               }
                             },
                             {
@@ -3042,15 +3213,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "bookmarks",
                                 "loc": {
-                                  "start": 4748,
-                                  "end": 4757
+                                  "start": 5019,
+                                  "end": 5028
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4748,
-                                "end": 4757
+                                "start": 5019,
+                                "end": 5028
                               }
                             },
                             {
@@ -3059,8 +3230,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 4774,
-                                  "end": 4786
+                                  "start": 5045,
+                                  "end": 5057
                                 }
                               },
                               "arguments": [],
@@ -3074,15 +3245,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4809,
-                                        "end": 4811
+                                        "start": 5080,
+                                        "end": 5082
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4809,
-                                      "end": 4811
+                                      "start": 5080,
+                                      "end": 5082
                                     }
                                   },
                                   {
@@ -3091,15 +3262,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 4832,
-                                        "end": 4840
+                                        "start": 5103,
+                                        "end": 5111
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4832,
-                                      "end": 4840
+                                      "start": 5103,
+                                      "end": 5111
                                     }
                                   },
                                   {
@@ -3108,26 +3279,26 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 4861,
-                                        "end": 4872
+                                        "start": 5132,
+                                        "end": 5143
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4861,
-                                      "end": 4872
+                                      "start": 5132,
+                                      "end": 5143
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4787,
-                                  "end": 4890
+                                  "start": 5058,
+                                  "end": 5161
                                 }
                               },
                               "loc": {
-                                "start": 4774,
-                                "end": 4890
+                                "start": 5045,
+                                "end": 5161
                               }
                             },
                             {
@@ -3136,8 +3307,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "you",
                                 "loc": {
-                                  "start": 4907,
-                                  "end": 4910
+                                  "start": 5178,
+                                  "end": 5181
                                 }
                               },
                               "arguments": [],
@@ -3151,15 +3322,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "isOwn",
                                       "loc": {
-                                        "start": 4933,
-                                        "end": 4938
+                                        "start": 5204,
+                                        "end": 5209
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4933,
-                                      "end": 4938
+                                      "start": 5204,
+                                      "end": 5209
                                     }
                                   },
                                   {
@@ -3168,37 +3339,37 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "isBookmarked",
                                       "loc": {
-                                        "start": 4959,
-                                        "end": 4971
+                                        "start": 5230,
+                                        "end": 5242
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4959,
-                                      "end": 4971
+                                      "start": 5230,
+                                      "end": 5242
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4911,
-                                  "end": 4989
+                                  "start": 5182,
+                                  "end": 5260
                                 }
                               },
                               "loc": {
-                                "start": 4907,
-                                "end": 4989
+                                "start": 5178,
+                                "end": 5260
                               }
                             }
                           ],
                           "loc": {
-                            "start": 4664,
-                            "end": 5003
+                            "start": 4935,
+                            "end": 5274
                           }
                         },
                         "loc": {
-                          "start": 4660,
-                          "end": 5003
+                          "start": 4931,
+                          "end": 5274
                         }
                       },
                       {
@@ -3207,8 +3378,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "focusMode",
                           "loc": {
-                            "start": 5016,
-                            "end": 5025
+                            "start": 5287,
+                            "end": 5296
                           }
                         },
                         "arguments": [],
@@ -3222,8 +3393,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 5044,
-                                  "end": 5050
+                                  "start": 5315,
+                                  "end": 5321
                                 }
                               },
                               "arguments": [],
@@ -3237,15 +3408,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5073,
-                                        "end": 5075
+                                        "start": 5344,
+                                        "end": 5346
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5073,
-                                      "end": 5075
+                                      "start": 5344,
+                                      "end": 5346
                                     }
                                   },
                                   {
@@ -3254,15 +3425,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 5096,
-                                        "end": 5101
+                                        "start": 5367,
+                                        "end": 5372
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5096,
-                                      "end": 5101
+                                      "start": 5367,
+                                      "end": 5372
                                     }
                                   },
                                   {
@@ -3271,26 +3442,26 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 5122,
-                                        "end": 5127
+                                        "start": 5393,
+                                        "end": 5398
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5122,
-                                      "end": 5127
+                                      "start": 5393,
+                                      "end": 5398
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5051,
-                                  "end": 5145
+                                  "start": 5322,
+                                  "end": 5416
                                 }
                               },
                               "loc": {
-                                "start": 5044,
-                                "end": 5145
+                                "start": 5315,
+                                "end": 5416
                               }
                             },
                             {
@@ -3299,8 +3470,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 5162,
-                                  "end": 5174
+                                  "start": 5433,
+                                  "end": 5445
                                 }
                               },
                               "arguments": [],
@@ -3314,15 +3485,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5197,
-                                        "end": 5199
+                                        "start": 5468,
+                                        "end": 5470
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5197,
-                                      "end": 5199
+                                      "start": 5468,
+                                      "end": 5470
                                     }
                                   },
                                   {
@@ -3331,15 +3502,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 5220,
-                                        "end": 5230
+                                        "start": 5491,
+                                        "end": 5501
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5220,
-                                      "end": 5230
+                                      "start": 5491,
+                                      "end": 5501
                                     }
                                   },
                                   {
@@ -3348,15 +3519,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 5251,
-                                        "end": 5261
+                                        "start": 5522,
+                                        "end": 5532
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5251,
-                                      "end": 5261
+                                      "start": 5522,
+                                      "end": 5532
                                     }
                                   },
                                   {
@@ -3365,8 +3536,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 5282,
-                                        "end": 5291
+                                        "start": 5553,
+                                        "end": 5562
                                       }
                                     },
                                     "arguments": [],
@@ -3380,15 +3551,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5318,
-                                              "end": 5320
+                                              "start": 5589,
+                                              "end": 5591
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5318,
-                                            "end": 5320
+                                            "start": 5589,
+                                            "end": 5591
                                           }
                                         },
                                         {
@@ -3397,15 +3568,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 5345,
-                                              "end": 5355
+                                              "start": 5616,
+                                              "end": 5626
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5345,
-                                            "end": 5355
+                                            "start": 5616,
+                                            "end": 5626
                                           }
                                         },
                                         {
@@ -3414,15 +3585,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 5380,
-                                              "end": 5390
+                                              "start": 5651,
+                                              "end": 5661
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5380,
-                                            "end": 5390
+                                            "start": 5651,
+                                            "end": 5661
                                           }
                                         },
                                         {
@@ -3431,15 +3602,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 5415,
-                                              "end": 5419
+                                              "start": 5686,
+                                              "end": 5690
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5415,
-                                            "end": 5419
+                                            "start": 5686,
+                                            "end": 5690
                                           }
                                         },
                                         {
@@ -3448,15 +3619,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5444,
-                                              "end": 5455
+                                              "start": 5715,
+                                              "end": 5726
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5444,
-                                            "end": 5455
+                                            "start": 5715,
+                                            "end": 5726
                                           }
                                         },
                                         {
@@ -3465,15 +3636,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 5480,
-                                              "end": 5487
+                                              "start": 5751,
+                                              "end": 5758
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5480,
-                                            "end": 5487
+                                            "start": 5751,
+                                            "end": 5758
                                           }
                                         },
                                         {
@@ -3482,15 +3653,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 5512,
-                                              "end": 5517
+                                              "start": 5783,
+                                              "end": 5788
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5512,
-                                            "end": 5517
+                                            "start": 5783,
+                                            "end": 5788
                                           }
                                         },
                                         {
@@ -3499,15 +3670,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 5542,
-                                              "end": 5552
+                                              "start": 5813,
+                                              "end": 5823
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5542,
-                                            "end": 5552
+                                            "start": 5813,
+                                            "end": 5823
                                           }
                                         },
                                         {
@@ -3516,8 +3687,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 5577,
-                                              "end": 5590
+                                              "start": 5848,
+                                              "end": 5861
                                             }
                                           },
                                           "arguments": [],
@@ -3531,15 +3702,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 5621,
-                                                    "end": 5623
+                                                    "start": 5892,
+                                                    "end": 5894
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5621,
-                                                  "end": 5623
+                                                  "start": 5892,
+                                                  "end": 5894
                                                 }
                                               },
                                               {
@@ -3548,15 +3719,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 5652,
-                                                    "end": 5662
+                                                    "start": 5923,
+                                                    "end": 5933
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5652,
-                                                  "end": 5662
+                                                  "start": 5923,
+                                                  "end": 5933
                                                 }
                                               },
                                               {
@@ -3565,15 +3736,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 5691,
-                                                    "end": 5701
+                                                    "start": 5962,
+                                                    "end": 5972
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5691,
-                                                  "end": 5701
+                                                  "start": 5962,
+                                                  "end": 5972
                                                 }
                                               },
                                               {
@@ -3582,15 +3753,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 5730,
-                                                    "end": 5734
+                                                    "start": 6001,
+                                                    "end": 6005
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5730,
-                                                  "end": 5734
+                                                  "start": 6001,
+                                                  "end": 6005
                                                 }
                                               },
                                               {
@@ -3599,15 +3770,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 5763,
-                                                    "end": 5774
+                                                    "start": 6034,
+                                                    "end": 6045
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5763,
-                                                  "end": 5774
+                                                  "start": 6034,
+                                                  "end": 6045
                                                 }
                                               },
                                               {
@@ -3616,15 +3787,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 5803,
-                                                    "end": 5810
+                                                    "start": 6074,
+                                                    "end": 6081
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5803,
-                                                  "end": 5810
+                                                  "start": 6074,
+                                                  "end": 6081
                                                 }
                                               },
                                               {
@@ -3633,15 +3804,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 5839,
-                                                    "end": 5844
+                                                    "start": 6110,
+                                                    "end": 6115
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5839,
-                                                  "end": 5844
+                                                  "start": 6110,
+                                                  "end": 6115
                                                 }
                                               },
                                               {
@@ -3650,48 +3821,48 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 5873,
-                                                    "end": 5883
+                                                    "start": 6144,
+                                                    "end": 6154
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5873,
-                                                  "end": 5883
+                                                  "start": 6144,
+                                                  "end": 6154
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 5591,
-                                              "end": 5909
+                                              "start": 5862,
+                                              "end": 6180
                                             }
                                           },
                                           "loc": {
-                                            "start": 5577,
-                                            "end": 5909
+                                            "start": 5848,
+                                            "end": 6180
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5292,
-                                        "end": 5931
+                                        "start": 5563,
+                                        "end": 6202
                                       }
                                     },
                                     "loc": {
-                                      "start": 5282,
-                                      "end": 5931
+                                      "start": 5553,
+                                      "end": 6202
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5175,
-                                  "end": 5949
+                                  "start": 5446,
+                                  "end": 6220
                                 }
                               },
                               "loc": {
-                                "start": 5162,
-                                "end": 5949
+                                "start": 5433,
+                                "end": 6220
                               }
                             },
                             {
@@ -3700,8 +3871,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 5966,
-                                  "end": 5978
+                                  "start": 6237,
+                                  "end": 6249
                                 }
                               },
                               "arguments": [],
@@ -3715,15 +3886,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 6001,
-                                        "end": 6003
+                                        "start": 6272,
+                                        "end": 6274
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 6001,
-                                      "end": 6003
+                                      "start": 6272,
+                                      "end": 6274
                                     }
                                   },
                                   {
@@ -3732,15 +3903,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 6024,
-                                        "end": 6034
+                                        "start": 6295,
+                                        "end": 6305
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 6024,
-                                      "end": 6034
+                                      "start": 6295,
+                                      "end": 6305
                                     }
                                   },
                                   {
@@ -3749,8 +3920,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 6055,
-                                        "end": 6067
+                                        "start": 6326,
+                                        "end": 6338
                                       }
                                     },
                                     "arguments": [],
@@ -3764,15 +3935,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6094,
-                                              "end": 6096
+                                              "start": 6365,
+                                              "end": 6367
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6094,
-                                            "end": 6096
+                                            "start": 6365,
+                                            "end": 6367
                                           }
                                         },
                                         {
@@ -3781,15 +3952,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 6121,
-                                              "end": 6129
+                                              "start": 6392,
+                                              "end": 6400
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6121,
-                                            "end": 6129
+                                            "start": 6392,
+                                            "end": 6400
                                           }
                                         },
                                         {
@@ -3798,15 +3969,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 6154,
-                                              "end": 6165
+                                              "start": 6425,
+                                              "end": 6436
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6154,
-                                            "end": 6165
+                                            "start": 6425,
+                                            "end": 6436
                                           }
                                         },
                                         {
@@ -3815,26 +3986,26 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 6190,
-                                              "end": 6194
+                                              "start": 6461,
+                                              "end": 6465
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6190,
-                                            "end": 6194
+                                            "start": 6461,
+                                            "end": 6465
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6068,
-                                        "end": 6216
+                                        "start": 6339,
+                                        "end": 6487
                                       }
                                     },
                                     "loc": {
-                                      "start": 6055,
-                                      "end": 6216
+                                      "start": 6326,
+                                      "end": 6487
                                     }
                                   },
                                   {
@@ -3843,8 +4014,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 6237,
-                                        "end": 6246
+                                        "start": 6508,
+                                        "end": 6517
                                       }
                                     },
                                     "arguments": [],
@@ -3858,15 +4029,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6273,
-                                              "end": 6275
+                                              "start": 6544,
+                                              "end": 6546
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6273,
-                                            "end": 6275
+                                            "start": 6544,
+                                            "end": 6546
                                           }
                                         },
                                         {
@@ -3875,15 +4046,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 6300,
-                                              "end": 6305
+                                              "start": 6571,
+                                              "end": 6576
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6300,
-                                            "end": 6305
+                                            "start": 6571,
+                                            "end": 6576
                                           }
                                         },
                                         {
@@ -3892,15 +4063,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 6330,
-                                              "end": 6334
+                                              "start": 6601,
+                                              "end": 6605
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6330,
-                                            "end": 6334
+                                            "start": 6601,
+                                            "end": 6605
                                           }
                                         },
                                         {
@@ -3909,15 +4080,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 6359,
-                                              "end": 6366
+                                              "start": 6630,
+                                              "end": 6637
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6359,
-                                            "end": 6366
+                                            "start": 6630,
+                                            "end": 6637
                                           }
                                         },
                                         {
@@ -3926,8 +4097,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 6391,
-                                              "end": 6403
+                                              "start": 6662,
+                                              "end": 6674
                                             }
                                           },
                                           "arguments": [],
@@ -3941,15 +4112,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6434,
-                                                    "end": 6436
+                                                    "start": 6705,
+                                                    "end": 6707
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6434,
-                                                  "end": 6436
+                                                  "start": 6705,
+                                                  "end": 6707
                                                 }
                                               },
                                               {
@@ -3958,15 +4129,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 6465,
-                                                    "end": 6473
+                                                    "start": 6736,
+                                                    "end": 6744
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6465,
-                                                  "end": 6473
+                                                  "start": 6736,
+                                                  "end": 6744
                                                 }
                                               },
                                               {
@@ -3975,15 +4146,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6502,
-                                                    "end": 6513
+                                                    "start": 6773,
+                                                    "end": 6784
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6502,
-                                                  "end": 6513
+                                                  "start": 6773,
+                                                  "end": 6784
                                                 }
                                               },
                                               {
@@ -3992,48 +4163,48 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6542,
-                                                    "end": 6546
+                                                    "start": 6813,
+                                                    "end": 6817
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6542,
-                                                  "end": 6546
+                                                  "start": 6813,
+                                                  "end": 6817
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6404,
-                                              "end": 6572
+                                              "start": 6675,
+                                              "end": 6843
                                             }
                                           },
                                           "loc": {
-                                            "start": 6391,
-                                            "end": 6572
+                                            "start": 6662,
+                                            "end": 6843
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6247,
-                                        "end": 6594
+                                        "start": 6518,
+                                        "end": 6865
                                       }
                                     },
                                     "loc": {
-                                      "start": 6237,
-                                      "end": 6594
+                                      "start": 6508,
+                                      "end": 6865
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5979,
-                                  "end": 6612
+                                  "start": 6250,
+                                  "end": 6883
                                 }
                               },
                               "loc": {
-                                "start": 5966,
-                                "end": 6612
+                                "start": 6237,
+                                "end": 6883
                               }
                             },
                             {
@@ -4042,8 +4213,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 6629,
-                                  "end": 6637
+                                  "start": 6900,
+                                  "end": 6908
                                 }
                               },
                               "arguments": [],
@@ -4057,25 +4228,25 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 6663,
-                                        "end": 6678
+                                        "start": 6934,
+                                        "end": 6949
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 6660,
-                                      "end": 6678
+                                      "start": 6931,
+                                      "end": 6949
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 6638,
-                                  "end": 6696
+                                  "start": 6909,
+                                  "end": 6967
                                 }
                               },
                               "loc": {
-                                "start": 6629,
-                                "end": 6696
+                                "start": 6900,
+                                "end": 6967
                               }
                             },
                             {
@@ -4084,15 +4255,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 6713,
-                                  "end": 6715
+                                  "start": 6984,
+                                  "end": 6986
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6713,
-                                "end": 6715
+                                "start": 6984,
+                                "end": 6986
                               }
                             },
                             {
@@ -4101,15 +4272,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 6732,
-                                  "end": 6736
+                                  "start": 7003,
+                                  "end": 7007
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6732,
-                                "end": 6736
+                                "start": 7003,
+                                "end": 7007
                               }
                             },
                             {
@@ -4118,37 +4289,114 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 6753,
-                                  "end": 6764
+                                  "start": 7024,
+                                  "end": 7035
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6753,
-                                "end": 6764
+                                "start": 7024,
+                                "end": 7035
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "you",
+                                "loc": {
+                                  "start": 7052,
+                                  "end": 7055
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canDelete",
+                                      "loc": {
+                                        "start": 7078,
+                                        "end": 7087
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 7078,
+                                      "end": 7087
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canRead",
+                                      "loc": {
+                                        "start": 7108,
+                                        "end": 7115
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 7108,
+                                      "end": 7115
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canUpdate",
+                                      "loc": {
+                                        "start": 7136,
+                                        "end": 7145
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 7136,
+                                      "end": 7145
+                                    }
+                                  }
+                                ],
+                                "loc": {
+                                  "start": 7056,
+                                  "end": 7163
+                                }
+                              },
+                              "loc": {
+                                "start": 7052,
+                                "end": 7163
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5026,
-                            "end": 6778
+                            "start": 5297,
+                            "end": 7177
                           }
                         },
                         "loc": {
-                          "start": 5016,
-                          "end": 6778
+                          "start": 5287,
+                          "end": 7177
                         }
                       }
                     ],
                     "loc": {
-                      "start": 4608,
-                      "end": 6788
+                      "start": 4879,
+                      "end": 7187
                     }
                   },
                   "loc": {
-                    "start": 4600,
-                    "end": 6788
+                    "start": 4871,
+                    "end": 7187
                   }
                 },
                 {
@@ -4157,8 +4405,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "labels",
                     "loc": {
-                      "start": 6797,
-                      "end": 6803
+                      "start": 7196,
+                      "end": 7202
                     }
                   },
                   "arguments": [],
@@ -4172,15 +4420,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 6818,
-                            "end": 6820
+                            "start": 7217,
+                            "end": 7219
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 6818,
-                          "end": 6820
+                          "start": 7217,
+                          "end": 7219
                         }
                       },
                       {
@@ -4189,15 +4437,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "color",
                           "loc": {
-                            "start": 6833,
-                            "end": 6838
+                            "start": 7232,
+                            "end": 7237
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 6833,
-                          "end": 6838
+                          "start": 7232,
+                          "end": 7237
                         }
                       },
                       {
@@ -4206,26 +4454,26 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 6851,
-                            "end": 6856
+                            "start": 7250,
+                            "end": 7255
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 6851,
-                          "end": 6856
+                          "start": 7250,
+                          "end": 7255
                         }
                       }
                     ],
                     "loc": {
-                      "start": 6804,
-                      "end": 6866
+                      "start": 7203,
+                      "end": 7265
                     }
                   },
                   "loc": {
-                    "start": 6797,
-                    "end": 6866
+                    "start": 7196,
+                    "end": 7265
                   }
                 },
                 {
@@ -4234,8 +4482,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "reminderList",
                     "loc": {
-                      "start": 6875,
-                      "end": 6887
+                      "start": 7274,
+                      "end": 7286
                     }
                   },
                   "arguments": [],
@@ -4249,15 +4497,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 6902,
-                            "end": 6904
+                            "start": 7301,
+                            "end": 7303
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 6902,
-                          "end": 6904
+                          "start": 7301,
+                          "end": 7303
                         }
                       },
                       {
@@ -4266,15 +4514,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 6917,
-                            "end": 6927
+                            "start": 7316,
+                            "end": 7326
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 6917,
-                          "end": 6927
+                          "start": 7316,
+                          "end": 7326
                         }
                       },
                       {
@@ -4283,15 +4531,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 6940,
-                            "end": 6950
+                            "start": 7339,
+                            "end": 7349
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 6940,
-                          "end": 6950
+                          "start": 7339,
+                          "end": 7349
                         }
                       },
                       {
@@ -4300,8 +4548,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "reminders",
                           "loc": {
-                            "start": 6963,
-                            "end": 6972
+                            "start": 7362,
+                            "end": 7371
                           }
                         },
                         "arguments": [],
@@ -4315,15 +4563,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 6991,
-                                  "end": 6993
+                                  "start": 7390,
+                                  "end": 7392
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6991,
-                                "end": 6993
+                                "start": 7390,
+                                "end": 7392
                               }
                             },
                             {
@@ -4332,15 +4580,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 7010,
-                                  "end": 7020
+                                  "start": 7409,
+                                  "end": 7419
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7010,
-                                "end": 7020
+                                "start": 7409,
+                                "end": 7419
                               }
                             },
                             {
@@ -4349,15 +4597,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 7037,
-                                  "end": 7047
+                                  "start": 7436,
+                                  "end": 7446
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7037,
-                                "end": 7047
+                                "start": 7436,
+                                "end": 7446
                               }
                             },
                             {
@@ -4366,15 +4614,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 7064,
-                                  "end": 7068
+                                  "start": 7463,
+                                  "end": 7467
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7064,
-                                "end": 7068
+                                "start": 7463,
+                                "end": 7467
                               }
                             },
                             {
@@ -4383,15 +4631,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 7085,
-                                  "end": 7096
+                                  "start": 7484,
+                                  "end": 7495
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7085,
-                                "end": 7096
+                                "start": 7484,
+                                "end": 7495
                               }
                             },
                             {
@@ -4400,15 +4648,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "dueDate",
                                 "loc": {
-                                  "start": 7113,
-                                  "end": 7120
+                                  "start": 7512,
+                                  "end": 7519
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7113,
-                                "end": 7120
+                                "start": 7512,
+                                "end": 7519
                               }
                             },
                             {
@@ -4417,15 +4665,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "index",
                                 "loc": {
-                                  "start": 7137,
-                                  "end": 7142
+                                  "start": 7536,
+                                  "end": 7541
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7137,
-                                "end": 7142
+                                "start": 7536,
+                                "end": 7541
                               }
                             },
                             {
@@ -4434,15 +4682,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "isComplete",
                                 "loc": {
-                                  "start": 7159,
-                                  "end": 7169
+                                  "start": 7558,
+                                  "end": 7568
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7159,
-                                "end": 7169
+                                "start": 7558,
+                                "end": 7568
                               }
                             },
                             {
@@ -4451,8 +4699,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "reminderItems",
                                 "loc": {
-                                  "start": 7186,
-                                  "end": 7199
+                                  "start": 7585,
+                                  "end": 7598
                                 }
                               },
                               "arguments": [],
@@ -4466,15 +4714,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7222,
-                                        "end": 7224
+                                        "start": 7621,
+                                        "end": 7623
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7222,
-                                      "end": 7224
+                                      "start": 7621,
+                                      "end": 7623
                                     }
                                   },
                                   {
@@ -4483,15 +4731,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 7245,
-                                        "end": 7255
+                                        "start": 7644,
+                                        "end": 7654
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7245,
-                                      "end": 7255
+                                      "start": 7644,
+                                      "end": 7654
                                     }
                                   },
                                   {
@@ -4500,15 +4748,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 7276,
-                                        "end": 7286
+                                        "start": 7675,
+                                        "end": 7685
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7276,
-                                      "end": 7286
+                                      "start": 7675,
+                                      "end": 7685
                                     }
                                   },
                                   {
@@ -4517,15 +4765,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7307,
-                                        "end": 7311
+                                        "start": 7706,
+                                        "end": 7710
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7307,
-                                      "end": 7311
+                                      "start": 7706,
+                                      "end": 7710
                                     }
                                   },
                                   {
@@ -4534,15 +4782,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7332,
-                                        "end": 7343
+                                        "start": 7731,
+                                        "end": 7742
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7332,
-                                      "end": 7343
+                                      "start": 7731,
+                                      "end": 7742
                                     }
                                   },
                                   {
@@ -4551,15 +4799,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 7364,
-                                        "end": 7371
+                                        "start": 7763,
+                                        "end": 7770
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7364,
-                                      "end": 7371
+                                      "start": 7763,
+                                      "end": 7770
                                     }
                                   },
                                   {
@@ -4568,15 +4816,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 7392,
-                                        "end": 7397
+                                        "start": 7791,
+                                        "end": 7796
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7392,
-                                      "end": 7397
+                                      "start": 7791,
+                                      "end": 7796
                                     }
                                   },
                                   {
@@ -4585,48 +4833,48 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 7418,
-                                        "end": 7428
+                                        "start": 7817,
+                                        "end": 7827
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7418,
-                                      "end": 7428
+                                      "start": 7817,
+                                      "end": 7827
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 7200,
-                                  "end": 7446
+                                  "start": 7599,
+                                  "end": 7845
                                 }
                               },
                               "loc": {
-                                "start": 7186,
-                                "end": 7446
+                                "start": 7585,
+                                "end": 7845
                               }
                             }
                           ],
                           "loc": {
-                            "start": 6973,
-                            "end": 7460
+                            "start": 7372,
+                            "end": 7859
                           }
                         },
                         "loc": {
-                          "start": 6963,
-                          "end": 7460
+                          "start": 7362,
+                          "end": 7859
                         }
                       }
                     ],
                     "loc": {
-                      "start": 6888,
-                      "end": 7470
+                      "start": 7287,
+                      "end": 7869
                     }
                   },
                   "loc": {
-                    "start": 6875,
-                    "end": 7470
+                    "start": 7274,
+                    "end": 7869
                   }
                 },
                 {
@@ -4635,8 +4883,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "resourceList",
                     "loc": {
-                      "start": 7479,
-                      "end": 7491
+                      "start": 7878,
+                      "end": 7890
                     }
                   },
                   "arguments": [],
@@ -4650,15 +4898,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 7506,
-                            "end": 7508
+                            "start": 7905,
+                            "end": 7907
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 7506,
-                          "end": 7508
+                          "start": 7905,
+                          "end": 7907
                         }
                       },
                       {
@@ -4667,15 +4915,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 7521,
-                            "end": 7531
+                            "start": 7920,
+                            "end": 7930
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 7521,
-                          "end": 7531
+                          "start": 7920,
+                          "end": 7930
                         }
                       },
                       {
@@ -4684,8 +4932,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "translations",
                           "loc": {
-                            "start": 7544,
-                            "end": 7556
+                            "start": 7943,
+                            "end": 7955
                           }
                         },
                         "arguments": [],
@@ -4699,15 +4947,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7575,
-                                  "end": 7577
+                                  "start": 7974,
+                                  "end": 7976
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7575,
-                                "end": 7577
+                                "start": 7974,
+                                "end": 7976
                               }
                             },
                             {
@@ -4716,15 +4964,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "language",
                                 "loc": {
-                                  "start": 7594,
-                                  "end": 7602
+                                  "start": 7993,
+                                  "end": 8001
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7594,
-                                "end": 7602
+                                "start": 7993,
+                                "end": 8001
                               }
                             },
                             {
@@ -4733,15 +4981,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 7619,
-                                  "end": 7630
+                                  "start": 8018,
+                                  "end": 8029
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7619,
-                                "end": 7630
+                                "start": 8018,
+                                "end": 8029
                               }
                             },
                             {
@@ -4750,26 +4998,26 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 7647,
-                                  "end": 7651
+                                  "start": 8046,
+                                  "end": 8050
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7647,
-                                "end": 7651
+                                "start": 8046,
+                                "end": 8050
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7557,
-                            "end": 7665
+                            "start": 7956,
+                            "end": 8064
                           }
                         },
                         "loc": {
-                          "start": 7544,
-                          "end": 7665
+                          "start": 7943,
+                          "end": 8064
                         }
                       },
                       {
@@ -4778,8 +5026,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "resources",
                           "loc": {
-                            "start": 7678,
-                            "end": 7687
+                            "start": 8077,
+                            "end": 8086
                           }
                         },
                         "arguments": [],
@@ -4793,15 +5041,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7706,
-                                  "end": 7708
+                                  "start": 8105,
+                                  "end": 8107
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7706,
-                                "end": 7708
+                                "start": 8105,
+                                "end": 8107
                               }
                             },
                             {
@@ -4810,15 +5058,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "index",
                                 "loc": {
-                                  "start": 7725,
-                                  "end": 7730
+                                  "start": 8124,
+                                  "end": 8129
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7725,
-                                "end": 7730
+                                "start": 8124,
+                                "end": 8129
                               }
                             },
                             {
@@ -4827,15 +5075,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "link",
                                 "loc": {
-                                  "start": 7747,
-                                  "end": 7751
+                                  "start": 8146,
+                                  "end": 8150
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7747,
-                                "end": 7751
+                                "start": 8146,
+                                "end": 8150
                               }
                             },
                             {
@@ -4844,15 +5092,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "usedFor",
                                 "loc": {
-                                  "start": 7768,
-                                  "end": 7775
+                                  "start": 8167,
+                                  "end": 8174
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7768,
-                                "end": 7775
+                                "start": 8167,
+                                "end": 8174
                               }
                             },
                             {
@@ -4861,8 +5109,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 7792,
-                                  "end": 7804
+                                  "start": 8191,
+                                  "end": 8203
                                 }
                               },
                               "arguments": [],
@@ -4876,15 +5124,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7827,
-                                        "end": 7829
+                                        "start": 8226,
+                                        "end": 8228
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7827,
-                                      "end": 7829
+                                      "start": 8226,
+                                      "end": 8228
                                     }
                                   },
                                   {
@@ -4893,15 +5141,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 7850,
-                                        "end": 7858
+                                        "start": 8249,
+                                        "end": 8257
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7850,
-                                      "end": 7858
+                                      "start": 8249,
+                                      "end": 8257
                                     }
                                   },
                                   {
@@ -4910,15 +5158,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7879,
-                                        "end": 7890
+                                        "start": 8278,
+                                        "end": 8289
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7879,
-                                      "end": 7890
+                                      "start": 8278,
+                                      "end": 8289
                                     }
                                   },
                                   {
@@ -4927,48 +5175,48 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7911,
-                                        "end": 7915
+                                        "start": 8310,
+                                        "end": 8314
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7911,
-                                      "end": 7915
+                                      "start": 8310,
+                                      "end": 8314
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 7805,
-                                  "end": 7933
+                                  "start": 8204,
+                                  "end": 8332
                                 }
                               },
                               "loc": {
-                                "start": 7792,
-                                "end": 7933
+                                "start": 8191,
+                                "end": 8332
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7688,
-                            "end": 7947
+                            "start": 8087,
+                            "end": 8346
                           }
                         },
                         "loc": {
-                          "start": 7678,
-                          "end": 7947
+                          "start": 8077,
+                          "end": 8346
                         }
                       }
                     ],
                     "loc": {
-                      "start": 7492,
-                      "end": 7957
+                      "start": 7891,
+                      "end": 8356
                     }
                   },
                   "loc": {
-                    "start": 7479,
-                    "end": 7957
+                    "start": 7878,
+                    "end": 8356
                   }
                 },
                 {
@@ -4977,8 +5225,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "schedule",
                     "loc": {
-                      "start": 7966,
-                      "end": 7974
+                      "start": 8365,
+                      "end": 8373
                     }
                   },
                   "arguments": [],
@@ -4992,25 +5240,25 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "Schedule_common",
                           "loc": {
-                            "start": 7992,
-                            "end": 8007
+                            "start": 8391,
+                            "end": 8406
                           }
                         },
                         "directives": [],
                         "loc": {
-                          "start": 7989,
-                          "end": 8007
+                          "start": 8388,
+                          "end": 8406
                         }
                       }
                     ],
                     "loc": {
-                      "start": 7975,
-                      "end": 8017
+                      "start": 8374,
+                      "end": 8416
                     }
                   },
                   "loc": {
-                    "start": 7966,
-                    "end": 8017
+                    "start": 8365,
+                    "end": 8416
                   }
                 },
                 {
@@ -5019,15 +5267,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 8026,
-                      "end": 8028
+                      "start": 8425,
+                      "end": 8427
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8026,
-                    "end": 8028
+                    "start": 8425,
+                    "end": 8427
                   }
                 },
                 {
@@ -5036,15 +5284,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 8037,
-                      "end": 8041
+                      "start": 8436,
+                      "end": 8440
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8037,
-                    "end": 8041
+                    "start": 8436,
+                    "end": 8440
                   }
                 },
                 {
@@ -5053,26 +5301,103 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "description",
                     "loc": {
-                      "start": 8050,
-                      "end": 8061
+                      "start": 8449,
+                      "end": 8460
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8050,
-                    "end": 8061
+                    "start": 8449,
+                    "end": 8460
+                  }
+                },
+                {
+                  "kind": "Field",
+                  "name": {
+                    "kind": "Name",
+                    "value": "you",
+                    "loc": {
+                      "start": 8469,
+                      "end": 8472
+                    }
+                  },
+                  "arguments": [],
+                  "directives": [],
+                  "selectionSet": {
+                    "kind": "SelectionSet",
+                    "selections": [
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "canDelete",
+                          "loc": {
+                            "start": 8487,
+                            "end": 8496
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "loc": {
+                          "start": 8487,
+                          "end": 8496
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "canRead",
+                          "loc": {
+                            "start": 8509,
+                            "end": 8516
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "loc": {
+                          "start": 8509,
+                          "end": 8516
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "canUpdate",
+                          "loc": {
+                            "start": 8529,
+                            "end": 8538
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "loc": {
+                          "start": 8529,
+                          "end": 8538
+                        }
+                      }
+                    ],
+                    "loc": {
+                      "start": 8473,
+                      "end": 8548
+                    }
+                  },
+                  "loc": {
+                    "start": 8469,
+                    "end": 8548
                   }
                 }
               ],
               "loc": {
-                "start": 4590,
-                "end": 8067
+                "start": 4861,
+                "end": 8554
               }
             },
             "loc": {
-              "start": 4579,
-              "end": 8067
+              "start": 4850,
+              "end": 8554
             }
           },
           {
@@ -5081,15 +5406,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "handle",
               "loc": {
-                "start": 8072,
-                "end": 8078
+                "start": 8559,
+                "end": 8565
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8072,
-              "end": 8078
+              "start": 8559,
+              "end": 8565
             }
           },
           {
@@ -5098,15 +5423,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "hasPremium",
               "loc": {
-                "start": 8083,
-                "end": 8093
+                "start": 8570,
+                "end": 8580
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8083,
-              "end": 8093
+              "start": 8570,
+              "end": 8580
             }
           },
           {
@@ -5115,15 +5440,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "id",
               "loc": {
-                "start": 8098,
-                "end": 8100
+                "start": 8585,
+                "end": 8587
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8098,
-              "end": 8100
+              "start": 8585,
+              "end": 8587
             }
           },
           {
@@ -5132,15 +5457,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "languages",
               "loc": {
-                "start": 8105,
-                "end": 8114
+                "start": 8592,
+                "end": 8601
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8105,
-              "end": 8114
+              "start": 8592,
+              "end": 8601
             }
           },
           {
@@ -5149,15 +5474,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "membershipsCount",
               "loc": {
-                "start": 8119,
-                "end": 8135
+                "start": 8606,
+                "end": 8622
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8119,
-              "end": 8135
+              "start": 8606,
+              "end": 8622
             }
           },
           {
@@ -5166,15 +5491,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "name",
               "loc": {
-                "start": 8140,
-                "end": 8144
+                "start": 8627,
+                "end": 8631
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8140,
-              "end": 8144
+              "start": 8627,
+              "end": 8631
             }
           },
           {
@@ -5183,15 +5508,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "notesCount",
               "loc": {
-                "start": 8149,
-                "end": 8159
+                "start": 8636,
+                "end": 8646
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8149,
-              "end": 8159
+              "start": 8636,
+              "end": 8646
             }
           },
           {
@@ -5200,15 +5525,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "projectsCount",
               "loc": {
-                "start": 8164,
-                "end": 8177
+                "start": 8651,
+                "end": 8664
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8164,
-              "end": 8177
+              "start": 8651,
+              "end": 8664
             }
           },
           {
@@ -5217,15 +5542,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "questionsAskedCount",
               "loc": {
-                "start": 8182,
-                "end": 8201
+                "start": 8669,
+                "end": 8688
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8182,
-              "end": 8201
+              "start": 8669,
+              "end": 8688
             }
           },
           {
@@ -5234,32 +5559,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "routinesCount",
               "loc": {
-                "start": 8206,
-                "end": 8219
+                "start": 8693,
+                "end": 8706
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8206,
-              "end": 8219
-            }
-          },
-          {
-            "kind": "Field",
-            "name": {
-              "kind": "Name",
-              "value": "smartContractsCount",
-              "loc": {
-                "start": 8224,
-                "end": 8243
-              }
-            },
-            "arguments": [],
-            "directives": [],
-            "loc": {
-              "start": 8224,
-              "end": 8243
+              "start": 8693,
+              "end": 8706
             }
           },
           {
@@ -5268,15 +5576,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "standardsCount",
               "loc": {
-                "start": 8248,
-                "end": 8262
+                "start": 8711,
+                "end": 8725
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8248,
-              "end": 8262
+              "start": 8711,
+              "end": 8725
             }
           },
           {
@@ -5285,26 +5593,26 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "theme",
               "loc": {
-                "start": 8267,
-                "end": 8272
+                "start": 8730,
+                "end": 8735
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8267,
-              "end": 8272
+              "start": 8730,
+              "end": 8735
             }
           }
         ],
         "loc": {
           "start": 337,
-          "end": 8274
+          "end": 8737
         }
       },
       "loc": {
         "start": 331,
-        "end": 8274
+        "end": 8737
       }
     },
     {
@@ -5313,15 +5621,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "id",
         "loc": {
-          "start": 8312,
-          "end": 8314
+          "start": 8775,
+          "end": 8777
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 8312,
-        "end": 8314
+        "start": 8775,
+        "end": 8777
       }
     },
     {
@@ -5330,15 +5638,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "name",
         "loc": {
-          "start": 8315,
-          "end": 8319
+          "start": 8778,
+          "end": 8782
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 8315,
-        "end": 8319
+        "start": 8778,
+        "end": 8782
       }
     },
     {
@@ -5347,15 +5655,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "publicAddress",
         "loc": {
-          "start": 8320,
-          "end": 8333
+          "start": 8783,
+          "end": 8796
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 8320,
-        "end": 8333
+        "start": 8783,
+        "end": 8796
       }
     },
     {
@@ -5364,15 +5672,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "stakingAddress",
         "loc": {
-          "start": 8334,
-          "end": 8348
+          "start": 8797,
+          "end": 8811
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 8334,
-        "end": 8348
+        "start": 8797,
+        "end": 8811
       }
     },
     {
@@ -5381,15 +5689,15 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "verified",
         "loc": {
-          "start": 8349,
-          "end": 8357
+          "start": 8812,
+          "end": 8820
         }
       },
       "arguments": [],
       "directives": [],
       "loc": {
-        "start": 8349,
-        "end": 8357
+        "start": 8812,
+        "end": 8820
       }
     }
   ],
@@ -7093,27 +7401,104 @@ export const auth_walletComplete = {
                                             "start": 2845,
                                             "end": 2856
                                           }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "you",
+                                            "loc": {
+                                              "start": 2877,
+                                              "end": 2880
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canDelete",
+                                                  "loc": {
+                                                    "start": 2907,
+                                                    "end": 2916
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 2907,
+                                                  "end": 2916
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canRead",
+                                                  "loc": {
+                                                    "start": 2941,
+                                                    "end": 2948
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 2941,
+                                                  "end": 2948
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canUpdate",
+                                                  "loc": {
+                                                    "start": 2973,
+                                                    "end": 2982
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 2973,
+                                                  "end": 2982
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 2881,
+                                              "end": 3004
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 2877,
+                                            "end": 3004
+                                          }
                                         }
                                       ],
                                       "loc": {
                                         "start": 886,
-                                        "end": 2874
+                                        "end": 3022
                                       }
                                     },
                                     "loc": {
                                       "start": 876,
-                                      "end": 2874
+                                      "end": 3022
                                     }
                                   }
                                 ],
                                 "loc": {
                                   "start": 396,
-                                  "end": 2888
+                                  "end": 3036
                                 }
                               },
                               "loc": {
                                 "start": 388,
-                                "end": 2888
+                                "end": 3036
                               }
                             },
                             {
@@ -7122,8 +7507,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 2901,
-                                  "end": 2907
+                                  "start": 3049,
+                                  "end": 3055
                                 }
                               },
                               "arguments": [],
@@ -7137,15 +7522,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 2926,
-                                        "end": 2928
+                                        "start": 3074,
+                                        "end": 3076
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 2926,
-                                      "end": 2928
+                                      "start": 3074,
+                                      "end": 3076
                                     }
                                   },
                                   {
@@ -7154,15 +7539,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 2945,
-                                        "end": 2950
+                                        "start": 3093,
+                                        "end": 3098
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 2945,
-                                      "end": 2950
+                                      "start": 3093,
+                                      "end": 3098
                                     }
                                   },
                                   {
@@ -7171,26 +7556,26 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 2967,
-                                        "end": 2972
+                                        "start": 3115,
+                                        "end": 3120
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 2967,
-                                      "end": 2972
+                                      "start": 3115,
+                                      "end": 3120
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 2908,
-                                  "end": 2986
+                                  "start": 3056,
+                                  "end": 3134
                                 }
                               },
                               "loc": {
-                                "start": 2901,
-                                "end": 2986
+                                "start": 3049,
+                                "end": 3134
                               }
                             },
                             {
@@ -7199,8 +7584,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 2999,
-                                  "end": 3011
+                                  "start": 3147,
+                                  "end": 3159
                                 }
                               },
                               "arguments": [],
@@ -7214,15 +7599,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3030,
-                                        "end": 3032
+                                        "start": 3178,
+                                        "end": 3180
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3030,
-                                      "end": 3032
+                                      "start": 3178,
+                                      "end": 3180
                                     }
                                   },
                                   {
@@ -7231,15 +7616,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3049,
-                                        "end": 3059
+                                        "start": 3197,
+                                        "end": 3207
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3049,
-                                      "end": 3059
+                                      "start": 3197,
+                                      "end": 3207
                                     }
                                   },
                                   {
@@ -7248,15 +7633,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 3076,
-                                        "end": 3086
+                                        "start": 3224,
+                                        "end": 3234
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3076,
-                                      "end": 3086
+                                      "start": 3224,
+                                      "end": 3234
                                     }
                                   },
                                   {
@@ -7265,8 +7650,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 3103,
-                                        "end": 3112
+                                        "start": 3251,
+                                        "end": 3260
                                       }
                                     },
                                     "arguments": [],
@@ -7280,15 +7665,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3135,
-                                              "end": 3137
+                                              "start": 3283,
+                                              "end": 3285
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3135,
-                                            "end": 3137
+                                            "start": 3283,
+                                            "end": 3285
                                           }
                                         },
                                         {
@@ -7297,15 +7682,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 3158,
-                                              "end": 3168
+                                              "start": 3306,
+                                              "end": 3316
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3158,
-                                            "end": 3168
+                                            "start": 3306,
+                                            "end": 3316
                                           }
                                         },
                                         {
@@ -7314,15 +7699,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 3189,
-                                              "end": 3199
+                                              "start": 3337,
+                                              "end": 3347
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3189,
-                                            "end": 3199
+                                            "start": 3337,
+                                            "end": 3347
                                           }
                                         },
                                         {
@@ -7331,15 +7716,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3220,
-                                              "end": 3224
+                                              "start": 3368,
+                                              "end": 3372
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3220,
-                                            "end": 3224
+                                            "start": 3368,
+                                            "end": 3372
                                           }
                                         },
                                         {
@@ -7348,15 +7733,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3245,
-                                              "end": 3256
+                                              "start": 3393,
+                                              "end": 3404
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3245,
-                                            "end": 3256
+                                            "start": 3393,
+                                            "end": 3404
                                           }
                                         },
                                         {
@@ -7365,15 +7750,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 3277,
-                                              "end": 3284
+                                              "start": 3425,
+                                              "end": 3432
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3277,
-                                            "end": 3284
+                                            "start": 3425,
+                                            "end": 3432
                                           }
                                         },
                                         {
@@ -7382,15 +7767,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3305,
-                                              "end": 3310
+                                              "start": 3453,
+                                              "end": 3458
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3305,
-                                            "end": 3310
+                                            "start": 3453,
+                                            "end": 3458
                                           }
                                         },
                                         {
@@ -7399,15 +7784,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 3331,
-                                              "end": 3341
+                                              "start": 3479,
+                                              "end": 3489
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3331,
-                                            "end": 3341
+                                            "start": 3479,
+                                            "end": 3489
                                           }
                                         },
                                         {
@@ -7416,8 +7801,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 3362,
-                                              "end": 3375
+                                              "start": 3510,
+                                              "end": 3523
                                             }
                                           },
                                           "arguments": [],
@@ -7431,15 +7816,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 3402,
-                                                    "end": 3404
+                                                    "start": 3550,
+                                                    "end": 3552
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3402,
-                                                  "end": 3404
+                                                  "start": 3550,
+                                                  "end": 3552
                                                 }
                                               },
                                               {
@@ -7448,15 +7833,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 3429,
-                                                    "end": 3439
+                                                    "start": 3577,
+                                                    "end": 3587
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3429,
-                                                  "end": 3439
+                                                  "start": 3577,
+                                                  "end": 3587
                                                 }
                                               },
                                               {
@@ -7465,15 +7850,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 3464,
-                                                    "end": 3474
+                                                    "start": 3612,
+                                                    "end": 3622
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3464,
-                                                  "end": 3474
+                                                  "start": 3612,
+                                                  "end": 3622
                                                 }
                                               },
                                               {
@@ -7482,15 +7867,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 3499,
-                                                    "end": 3503
+                                                    "start": 3647,
+                                                    "end": 3651
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3499,
-                                                  "end": 3503
+                                                  "start": 3647,
+                                                  "end": 3651
                                                 }
                                               },
                                               {
@@ -7499,15 +7884,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 3528,
-                                                    "end": 3539
+                                                    "start": 3676,
+                                                    "end": 3687
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3528,
-                                                  "end": 3539
+                                                  "start": 3676,
+                                                  "end": 3687
                                                 }
                                               },
                                               {
@@ -7516,15 +7901,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 3564,
-                                                    "end": 3571
+                                                    "start": 3712,
+                                                    "end": 3719
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3564,
-                                                  "end": 3571
+                                                  "start": 3712,
+                                                  "end": 3719
                                                 }
                                               },
                                               {
@@ -7533,15 +7918,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 3596,
-                                                    "end": 3601
+                                                    "start": 3744,
+                                                    "end": 3749
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3596,
-                                                  "end": 3601
+                                                  "start": 3744,
+                                                  "end": 3749
                                                 }
                                               },
                                               {
@@ -7550,48 +7935,48 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 3626,
-                                                    "end": 3636
+                                                    "start": 3774,
+                                                    "end": 3784
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3626,
-                                                  "end": 3636
+                                                  "start": 3774,
+                                                  "end": 3784
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 3376,
-                                              "end": 3658
+                                              "start": 3524,
+                                              "end": 3806
                                             }
                                           },
                                           "loc": {
-                                            "start": 3362,
-                                            "end": 3658
+                                            "start": 3510,
+                                            "end": 3806
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3113,
-                                        "end": 3676
+                                        "start": 3261,
+                                        "end": 3824
                                       }
                                     },
                                     "loc": {
-                                      "start": 3103,
-                                      "end": 3676
+                                      "start": 3251,
+                                      "end": 3824
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3012,
-                                  "end": 3690
+                                  "start": 3160,
+                                  "end": 3838
                                 }
                               },
                               "loc": {
-                                "start": 2999,
-                                "end": 3690
+                                "start": 3147,
+                                "end": 3838
                               }
                             },
                             {
@@ -7600,8 +7985,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 3703,
-                                  "end": 3715
+                                  "start": 3851,
+                                  "end": 3863
                                 }
                               },
                               "arguments": [],
@@ -7615,15 +8000,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3734,
-                                        "end": 3736
+                                        "start": 3882,
+                                        "end": 3884
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3734,
-                                      "end": 3736
+                                      "start": 3882,
+                                      "end": 3884
                                     }
                                   },
                                   {
@@ -7632,15 +8017,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3753,
-                                        "end": 3763
+                                        "start": 3901,
+                                        "end": 3911
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3753,
-                                      "end": 3763
+                                      "start": 3901,
+                                      "end": 3911
                                     }
                                   },
                                   {
@@ -7649,8 +8034,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 3780,
-                                        "end": 3792
+                                        "start": 3928,
+                                        "end": 3940
                                       }
                                     },
                                     "arguments": [],
@@ -7664,15 +8049,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3815,
-                                              "end": 3817
+                                              "start": 3963,
+                                              "end": 3965
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3815,
-                                            "end": 3817
+                                            "start": 3963,
+                                            "end": 3965
                                           }
                                         },
                                         {
@@ -7681,15 +8066,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 3838,
-                                              "end": 3846
+                                              "start": 3986,
+                                              "end": 3994
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3838,
-                                            "end": 3846
+                                            "start": 3986,
+                                            "end": 3994
                                           }
                                         },
                                         {
@@ -7698,15 +8083,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3867,
-                                              "end": 3878
+                                              "start": 4015,
+                                              "end": 4026
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3867,
-                                            "end": 3878
+                                            "start": 4015,
+                                            "end": 4026
                                           }
                                         },
                                         {
@@ -7715,26 +8100,26 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3899,
-                                              "end": 3903
+                                              "start": 4047,
+                                              "end": 4051
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3899,
-                                            "end": 3903
+                                            "start": 4047,
+                                            "end": 4051
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3793,
-                                        "end": 3921
+                                        "start": 3941,
+                                        "end": 4069
                                       }
                                     },
                                     "loc": {
-                                      "start": 3780,
-                                      "end": 3921
+                                      "start": 3928,
+                                      "end": 4069
                                     }
                                   },
                                   {
@@ -7743,8 +8128,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 3938,
-                                        "end": 3947
+                                        "start": 4086,
+                                        "end": 4095
                                       }
                                     },
                                     "arguments": [],
@@ -7758,15 +8143,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3970,
-                                              "end": 3972
+                                              "start": 4118,
+                                              "end": 4120
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3970,
-                                            "end": 3972
+                                            "start": 4118,
+                                            "end": 4120
                                           }
                                         },
                                         {
@@ -7775,15 +8160,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3993,
-                                              "end": 3998
+                                              "start": 4141,
+                                              "end": 4146
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3993,
-                                            "end": 3998
+                                            "start": 4141,
+                                            "end": 4146
                                           }
                                         },
                                         {
@@ -7792,15 +8177,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 4019,
-                                              "end": 4023
+                                              "start": 4167,
+                                              "end": 4171
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4019,
-                                            "end": 4023
+                                            "start": 4167,
+                                            "end": 4171
                                           }
                                         },
                                         {
@@ -7809,15 +8194,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 4044,
-                                              "end": 4051
+                                              "start": 4192,
+                                              "end": 4199
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4044,
-                                            "end": 4051
+                                            "start": 4192,
+                                            "end": 4199
                                           }
                                         },
                                         {
@@ -7826,8 +8211,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 4072,
-                                              "end": 4084
+                                              "start": 4220,
+                                              "end": 4232
                                             }
                                           },
                                           "arguments": [],
@@ -7841,15 +8226,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 4111,
-                                                    "end": 4113
+                                                    "start": 4259,
+                                                    "end": 4261
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4111,
-                                                  "end": 4113
+                                                  "start": 4259,
+                                                  "end": 4261
                                                 }
                                               },
                                               {
@@ -7858,15 +8243,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 4138,
-                                                    "end": 4146
+                                                    "start": 4286,
+                                                    "end": 4294
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4138,
-                                                  "end": 4146
+                                                  "start": 4286,
+                                                  "end": 4294
                                                 }
                                               },
                                               {
@@ -7875,15 +8260,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4171,
-                                                    "end": 4182
+                                                    "start": 4319,
+                                                    "end": 4330
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4171,
-                                                  "end": 4182
+                                                  "start": 4319,
+                                                  "end": 4330
                                                 }
                                               },
                                               {
@@ -7892,48 +8277,48 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 4207,
-                                                    "end": 4211
+                                                    "start": 4355,
+                                                    "end": 4359
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4207,
-                                                  "end": 4211
+                                                  "start": 4355,
+                                                  "end": 4359
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 4085,
-                                              "end": 4233
+                                              "start": 4233,
+                                              "end": 4381
                                             }
                                           },
                                           "loc": {
-                                            "start": 4072,
-                                            "end": 4233
+                                            "start": 4220,
+                                            "end": 4381
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3948,
-                                        "end": 4251
+                                        "start": 4096,
+                                        "end": 4399
                                       }
                                     },
                                     "loc": {
-                                      "start": 3938,
-                                      "end": 4251
+                                      "start": 4086,
+                                      "end": 4399
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3716,
-                                  "end": 4265
+                                  "start": 3864,
+                                  "end": 4413
                                 }
                               },
                               "loc": {
-                                "start": 3703,
-                                "end": 4265
+                                "start": 3851,
+                                "end": 4413
                               }
                             },
                             {
@@ -7942,8 +8327,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 4278,
-                                  "end": 4286
+                                  "start": 4426,
+                                  "end": 4434
                                 }
                               },
                               "arguments": [],
@@ -7957,25 +8342,25 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 4308,
-                                        "end": 4323
+                                        "start": 4456,
+                                        "end": 4471
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 4305,
-                                      "end": 4323
+                                      "start": 4453,
+                                      "end": 4471
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4287,
-                                  "end": 4337
+                                  "start": 4435,
+                                  "end": 4485
                                 }
                               },
                               "loc": {
-                                "start": 4278,
-                                "end": 4337
+                                "start": 4426,
+                                "end": 4485
                               }
                             },
                             {
@@ -7984,15 +8369,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4350,
-                                  "end": 4352
+                                  "start": 4498,
+                                  "end": 4500
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4350,
-                                "end": 4352
+                                "start": 4498,
+                                "end": 4500
                               }
                             },
                             {
@@ -8001,15 +8386,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 4365,
-                                  "end": 4369
+                                  "start": 4513,
+                                  "end": 4517
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4365,
-                                "end": 4369
+                                "start": 4513,
+                                "end": 4517
                               }
                             },
                             {
@@ -8018,26 +8403,103 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 4382,
-                                  "end": 4393
+                                  "start": 4530,
+                                  "end": 4541
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4382,
-                                "end": 4393
+                                "start": 4530,
+                                "end": 4541
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "you",
+                                "loc": {
+                                  "start": 4554,
+                                  "end": 4557
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canDelete",
+                                      "loc": {
+                                        "start": 4576,
+                                        "end": 4585
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 4576,
+                                      "end": 4585
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canRead",
+                                      "loc": {
+                                        "start": 4602,
+                                        "end": 4609
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 4602,
+                                      "end": 4609
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canUpdate",
+                                      "loc": {
+                                        "start": 4626,
+                                        "end": 4635
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 4626,
+                                      "end": 4635
+                                    }
+                                  }
+                                ],
+                                "loc": {
+                                  "start": 4558,
+                                  "end": 4649
+                                }
+                              },
+                              "loc": {
+                                "start": 4554,
+                                "end": 4649
                               }
                             }
                           ],
                           "loc": {
                             "start": 374,
-                            "end": 4403
+                            "end": 4659
                           }
                         },
                         "loc": {
                           "start": 369,
-                          "end": 4403
+                          "end": 4659
                         }
                       },
                       {
@@ -8046,15 +8508,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "stopCondition",
                           "loc": {
-                            "start": 4412,
-                            "end": 4425
+                            "start": 4668,
+                            "end": 4681
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4412,
-                          "end": 4425
+                          "start": 4668,
+                          "end": 4681
                         }
                       },
                       {
@@ -8063,26 +8525,26 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "stopTime",
                           "loc": {
-                            "start": 4434,
-                            "end": 4442
+                            "start": 4690,
+                            "end": 4698
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4434,
-                          "end": 4442
+                          "start": 4690,
+                          "end": 4698
                         }
                       }
                     ],
                     "loc": {
                       "start": 359,
-                      "end": 4448
+                      "end": 4704
                     }
                   },
                   "loc": {
                     "start": 343,
-                    "end": 4448
+                    "end": 4704
                   }
                 },
                 {
@@ -8091,15 +8553,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 4453,
-                      "end": 4462
+                      "start": 4709,
+                      "end": 4718
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 4453,
-                    "end": 4462
+                    "start": 4709,
+                    "end": 4718
                   }
                 },
                 {
@@ -8108,8 +8570,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "bookmarkLists",
                     "loc": {
-                      "start": 4467,
-                      "end": 4480
+                      "start": 4723,
+                      "end": 4736
                     }
                   },
                   "arguments": [],
@@ -8123,15 +8585,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 4491,
-                            "end": 4493
+                            "start": 4747,
+                            "end": 4749
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4491,
-                          "end": 4493
+                          "start": 4747,
+                          "end": 4749
                         }
                       },
                       {
@@ -8140,15 +8602,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 4502,
-                            "end": 4512
+                            "start": 4758,
+                            "end": 4768
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4502,
-                          "end": 4512
+                          "start": 4758,
+                          "end": 4768
                         }
                       },
                       {
@@ -8157,15 +8619,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 4521,
-                            "end": 4531
+                            "start": 4777,
+                            "end": 4787
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4521,
-                          "end": 4531
+                          "start": 4777,
+                          "end": 4787
                         }
                       },
                       {
@@ -8174,15 +8636,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 4540,
-                            "end": 4545
+                            "start": 4796,
+                            "end": 4801
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4540,
-                          "end": 4545
+                          "start": 4796,
+                          "end": 4801
                         }
                       },
                       {
@@ -8191,26 +8653,43 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "bookmarksCount",
                           "loc": {
-                            "start": 4554,
-                            "end": 4568
+                            "start": 4810,
+                            "end": 4824
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 4554,
-                          "end": 4568
+                          "start": 4810,
+                          "end": 4824
                         }
                       }
                     ],
                     "loc": {
-                      "start": 4481,
-                      "end": 4574
+                      "start": 4737,
+                      "end": 4830
                     }
                   },
                   "loc": {
-                    "start": 4467,
-                    "end": 4574
+                    "start": 4723,
+                    "end": 4830
+                  }
+                },
+                {
+                  "kind": "Field",
+                  "name": {
+                    "kind": "Name",
+                    "value": "codesCount",
+                    "loc": {
+                      "start": 4835,
+                      "end": 4845
+                    }
+                  },
+                  "arguments": [],
+                  "directives": [],
+                  "loc": {
+                    "start": 4835,
+                    "end": 4845
                   }
                 },
                 {
@@ -8219,8 +8698,8 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "focusModes",
                     "loc": {
-                      "start": 4579,
-                      "end": 4589
+                      "start": 4850,
+                      "end": 4860
                     }
                   },
                   "arguments": [],
@@ -8234,8 +8713,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 4600,
-                            "end": 4607
+                            "start": 4871,
+                            "end": 4878
                           }
                         },
                         "arguments": [],
@@ -8249,15 +8728,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4622,
-                                  "end": 4624
+                                  "start": 4893,
+                                  "end": 4895
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4622,
-                                "end": 4624
+                                "start": 4893,
+                                "end": 4895
                               }
                             },
                             {
@@ -8266,15 +8745,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 4637,
-                                  "end": 4647
+                                  "start": 4908,
+                                  "end": 4918
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4637,
-                                "end": 4647
+                                "start": 4908,
+                                "end": 4918
                               }
                             },
                             {
@@ -8283,8 +8762,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 4660,
-                                  "end": 4663
+                                  "start": 4931,
+                                  "end": 4934
                                 }
                               },
                               "arguments": [],
@@ -8298,15 +8777,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4682,
-                                        "end": 4684
+                                        "start": 4953,
+                                        "end": 4955
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4682,
-                                      "end": 4684
+                                      "start": 4953,
+                                      "end": 4955
                                     }
                                   },
                                   {
@@ -8315,15 +8794,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 4701,
-                                        "end": 4711
+                                        "start": 4972,
+                                        "end": 4982
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4701,
-                                      "end": 4711
+                                      "start": 4972,
+                                      "end": 4982
                                     }
                                   },
                                   {
@@ -8332,15 +8811,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 4728,
-                                        "end": 4731
+                                        "start": 4999,
+                                        "end": 5002
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4728,
-                                      "end": 4731
+                                      "start": 4999,
+                                      "end": 5002
                                     }
                                   },
                                   {
@@ -8349,15 +8828,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 4748,
-                                        "end": 4757
+                                        "start": 5019,
+                                        "end": 5028
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4748,
-                                      "end": 4757
+                                      "start": 5019,
+                                      "end": 5028
                                     }
                                   },
                                   {
@@ -8366,8 +8845,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 4774,
-                                        "end": 4786
+                                        "start": 5045,
+                                        "end": 5057
                                       }
                                     },
                                     "arguments": [],
@@ -8381,15 +8860,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4809,
-                                              "end": 4811
+                                              "start": 5080,
+                                              "end": 5082
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4809,
-                                            "end": 4811
+                                            "start": 5080,
+                                            "end": 5082
                                           }
                                         },
                                         {
@@ -8398,15 +8877,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 4832,
-                                              "end": 4840
+                                              "start": 5103,
+                                              "end": 5111
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4832,
-                                            "end": 4840
+                                            "start": 5103,
+                                            "end": 5111
                                           }
                                         },
                                         {
@@ -8415,26 +8894,26 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4861,
-                                              "end": 4872
+                                              "start": 5132,
+                                              "end": 5143
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4861,
-                                            "end": 4872
+                                            "start": 5132,
+                                            "end": 5143
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4787,
-                                        "end": 4890
+                                        "start": 5058,
+                                        "end": 5161
                                       }
                                     },
                                     "loc": {
-                                      "start": 4774,
-                                      "end": 4890
+                                      "start": 5045,
+                                      "end": 5161
                                     }
                                   },
                                   {
@@ -8443,8 +8922,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 4907,
-                                        "end": 4910
+                                        "start": 5178,
+                                        "end": 5181
                                       }
                                     },
                                     "arguments": [],
@@ -8458,15 +8937,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 4933,
-                                              "end": 4938
+                                              "start": 5204,
+                                              "end": 5209
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4933,
-                                            "end": 4938
+                                            "start": 5204,
+                                            "end": 5209
                                           }
                                         },
                                         {
@@ -8475,37 +8954,37 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 4959,
-                                              "end": 4971
+                                              "start": 5230,
+                                              "end": 5242
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4959,
-                                            "end": 4971
+                                            "start": 5230,
+                                            "end": 5242
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4911,
-                                        "end": 4989
+                                        "start": 5182,
+                                        "end": 5260
                                       }
                                     },
                                     "loc": {
-                                      "start": 4907,
-                                      "end": 4989
+                                      "start": 5178,
+                                      "end": 5260
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4664,
-                                  "end": 5003
+                                  "start": 4935,
+                                  "end": 5274
                                 }
                               },
                               "loc": {
-                                "start": 4660,
-                                "end": 5003
+                                "start": 4931,
+                                "end": 5274
                               }
                             },
                             {
@@ -8514,8 +8993,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 5016,
-                                  "end": 5025
+                                  "start": 5287,
+                                  "end": 5296
                                 }
                               },
                               "arguments": [],
@@ -8529,8 +9008,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 5044,
-                                        "end": 5050
+                                        "start": 5315,
+                                        "end": 5321
                                       }
                                     },
                                     "arguments": [],
@@ -8544,15 +9023,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5073,
-                                              "end": 5075
+                                              "start": 5344,
+                                              "end": 5346
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5073,
-                                            "end": 5075
+                                            "start": 5344,
+                                            "end": 5346
                                           }
                                         },
                                         {
@@ -8561,15 +9040,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 5096,
-                                              "end": 5101
+                                              "start": 5367,
+                                              "end": 5372
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5096,
-                                            "end": 5101
+                                            "start": 5367,
+                                            "end": 5372
                                           }
                                         },
                                         {
@@ -8578,26 +9057,26 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 5122,
-                                              "end": 5127
+                                              "start": 5393,
+                                              "end": 5398
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5122,
-                                            "end": 5127
+                                            "start": 5393,
+                                            "end": 5398
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5051,
-                                        "end": 5145
+                                        "start": 5322,
+                                        "end": 5416
                                       }
                                     },
                                     "loc": {
-                                      "start": 5044,
-                                      "end": 5145
+                                      "start": 5315,
+                                      "end": 5416
                                     }
                                   },
                                   {
@@ -8606,8 +9085,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "reminderList",
                                       "loc": {
-                                        "start": 5162,
-                                        "end": 5174
+                                        "start": 5433,
+                                        "end": 5445
                                       }
                                     },
                                     "arguments": [],
@@ -8621,15 +9100,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5197,
-                                              "end": 5199
+                                              "start": 5468,
+                                              "end": 5470
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5197,
-                                            "end": 5199
+                                            "start": 5468,
+                                            "end": 5470
                                           }
                                         },
                                         {
@@ -8638,15 +9117,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 5220,
-                                              "end": 5230
+                                              "start": 5491,
+                                              "end": 5501
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5220,
-                                            "end": 5230
+                                            "start": 5491,
+                                            "end": 5501
                                           }
                                         },
                                         {
@@ -8655,15 +9134,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 5251,
-                                              "end": 5261
+                                              "start": 5522,
+                                              "end": 5532
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5251,
-                                            "end": 5261
+                                            "start": 5522,
+                                            "end": 5532
                                           }
                                         },
                                         {
@@ -8672,8 +9151,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "reminders",
                                             "loc": {
-                                              "start": 5282,
-                                              "end": 5291
+                                              "start": 5553,
+                                              "end": 5562
                                             }
                                           },
                                           "arguments": [],
@@ -8687,15 +9166,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 5318,
-                                                    "end": 5320
+                                                    "start": 5589,
+                                                    "end": 5591
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5318,
-                                                  "end": 5320
+                                                  "start": 5589,
+                                                  "end": 5591
                                                 }
                                               },
                                               {
@@ -8704,15 +9183,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 5345,
-                                                    "end": 5355
+                                                    "start": 5616,
+                                                    "end": 5626
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5345,
-                                                  "end": 5355
+                                                  "start": 5616,
+                                                  "end": 5626
                                                 }
                                               },
                                               {
@@ -8721,15 +9200,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 5380,
-                                                    "end": 5390
+                                                    "start": 5651,
+                                                    "end": 5661
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5380,
-                                                  "end": 5390
+                                                  "start": 5651,
+                                                  "end": 5661
                                                 }
                                               },
                                               {
@@ -8738,15 +9217,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 5415,
-                                                    "end": 5419
+                                                    "start": 5686,
+                                                    "end": 5690
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5415,
-                                                  "end": 5419
+                                                  "start": 5686,
+                                                  "end": 5690
                                                 }
                                               },
                                               {
@@ -8755,15 +9234,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 5444,
-                                                    "end": 5455
+                                                    "start": 5715,
+                                                    "end": 5726
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5444,
-                                                  "end": 5455
+                                                  "start": 5715,
+                                                  "end": 5726
                                                 }
                                               },
                                               {
@@ -8772,15 +9251,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 5480,
-                                                    "end": 5487
+                                                    "start": 5751,
+                                                    "end": 5758
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5480,
-                                                  "end": 5487
+                                                  "start": 5751,
+                                                  "end": 5758
                                                 }
                                               },
                                               {
@@ -8789,15 +9268,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 5512,
-                                                    "end": 5517
+                                                    "start": 5783,
+                                                    "end": 5788
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5512,
-                                                  "end": 5517
+                                                  "start": 5783,
+                                                  "end": 5788
                                                 }
                                               },
                                               {
@@ -8806,15 +9285,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 5542,
-                                                    "end": 5552
+                                                    "start": 5813,
+                                                    "end": 5823
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 5542,
-                                                  "end": 5552
+                                                  "start": 5813,
+                                                  "end": 5823
                                                 }
                                               },
                                               {
@@ -8823,8 +9302,8 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "reminderItems",
                                                   "loc": {
-                                                    "start": 5577,
-                                                    "end": 5590
+                                                    "start": 5848,
+                                                    "end": 5861
                                                   }
                                                 },
                                                 "arguments": [],
@@ -8838,15 +9317,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 5621,
-                                                          "end": 5623
+                                                          "start": 5892,
+                                                          "end": 5894
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5621,
-                                                        "end": 5623
+                                                        "start": 5892,
+                                                        "end": 5894
                                                       }
                                                     },
                                                     {
@@ -8855,15 +9334,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "created_at",
                                                         "loc": {
-                                                          "start": 5652,
-                                                          "end": 5662
+                                                          "start": 5923,
+                                                          "end": 5933
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5652,
-                                                        "end": 5662
+                                                        "start": 5923,
+                                                        "end": 5933
                                                       }
                                                     },
                                                     {
@@ -8872,15 +9351,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "updated_at",
                                                         "loc": {
-                                                          "start": 5691,
-                                                          "end": 5701
+                                                          "start": 5962,
+                                                          "end": 5972
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5691,
-                                                        "end": 5701
+                                                        "start": 5962,
+                                                        "end": 5972
                                                       }
                                                     },
                                                     {
@@ -8889,15 +9368,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 5730,
-                                                          "end": 5734
+                                                          "start": 6001,
+                                                          "end": 6005
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5730,
-                                                        "end": 5734
+                                                        "start": 6001,
+                                                        "end": 6005
                                                       }
                                                     },
                                                     {
@@ -8906,15 +9385,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 5763,
-                                                          "end": 5774
+                                                          "start": 6034,
+                                                          "end": 6045
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5763,
-                                                        "end": 5774
+                                                        "start": 6034,
+                                                        "end": 6045
                                                       }
                                                     },
                                                     {
@@ -8923,15 +9402,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "dueDate",
                                                         "loc": {
-                                                          "start": 5803,
-                                                          "end": 5810
+                                                          "start": 6074,
+                                                          "end": 6081
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5803,
-                                                        "end": 5810
+                                                        "start": 6074,
+                                                        "end": 6081
                                                       }
                                                     },
                                                     {
@@ -8940,15 +9419,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "index",
                                                         "loc": {
-                                                          "start": 5839,
-                                                          "end": 5844
+                                                          "start": 6110,
+                                                          "end": 6115
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5839,
-                                                        "end": 5844
+                                                        "start": 6110,
+                                                        "end": 6115
                                                       }
                                                     },
                                                     {
@@ -8957,48 +9436,48 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "isComplete",
                                                         "loc": {
-                                                          "start": 5873,
-                                                          "end": 5883
+                                                          "start": 6144,
+                                                          "end": 6154
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 5873,
-                                                        "end": 5883
+                                                        "start": 6144,
+                                                        "end": 6154
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 5591,
-                                                    "end": 5909
+                                                    "start": 5862,
+                                                    "end": 6180
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 5577,
-                                                  "end": 5909
+                                                  "start": 5848,
+                                                  "end": 6180
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 5292,
-                                              "end": 5931
+                                              "start": 5563,
+                                              "end": 6202
                                             }
                                           },
                                           "loc": {
-                                            "start": 5282,
-                                            "end": 5931
+                                            "start": 5553,
+                                            "end": 6202
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5175,
-                                        "end": 5949
+                                        "start": 5446,
+                                        "end": 6220
                                       }
                                     },
                                     "loc": {
-                                      "start": 5162,
-                                      "end": 5949
+                                      "start": 5433,
+                                      "end": 6220
                                     }
                                   },
                                   {
@@ -9007,8 +9486,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "resourceList",
                                       "loc": {
-                                        "start": 5966,
-                                        "end": 5978
+                                        "start": 6237,
+                                        "end": 6249
                                       }
                                     },
                                     "arguments": [],
@@ -9022,15 +9501,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6001,
-                                              "end": 6003
+                                              "start": 6272,
+                                              "end": 6274
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6001,
-                                            "end": 6003
+                                            "start": 6272,
+                                            "end": 6274
                                           }
                                         },
                                         {
@@ -9039,15 +9518,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6024,
-                                              "end": 6034
+                                              "start": 6295,
+                                              "end": 6305
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6024,
-                                            "end": 6034
+                                            "start": 6295,
+                                            "end": 6305
                                           }
                                         },
                                         {
@@ -9056,8 +9535,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 6055,
-                                              "end": 6067
+                                              "start": 6326,
+                                              "end": 6338
                                             }
                                           },
                                           "arguments": [],
@@ -9071,15 +9550,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6094,
-                                                    "end": 6096
+                                                    "start": 6365,
+                                                    "end": 6367
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6094,
-                                                  "end": 6096
+                                                  "start": 6365,
+                                                  "end": 6367
                                                 }
                                               },
                                               {
@@ -9088,15 +9567,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 6121,
-                                                    "end": 6129
+                                                    "start": 6392,
+                                                    "end": 6400
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6121,
-                                                  "end": 6129
+                                                  "start": 6392,
+                                                  "end": 6400
                                                 }
                                               },
                                               {
@@ -9105,15 +9584,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6154,
-                                                    "end": 6165
+                                                    "start": 6425,
+                                                    "end": 6436
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6154,
-                                                  "end": 6165
+                                                  "start": 6425,
+                                                  "end": 6436
                                                 }
                                               },
                                               {
@@ -9122,26 +9601,26 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6190,
-                                                    "end": 6194
+                                                    "start": 6461,
+                                                    "end": 6465
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6190,
-                                                  "end": 6194
+                                                  "start": 6461,
+                                                  "end": 6465
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6068,
-                                              "end": 6216
+                                              "start": 6339,
+                                              "end": 6487
                                             }
                                           },
                                           "loc": {
-                                            "start": 6055,
-                                            "end": 6216
+                                            "start": 6326,
+                                            "end": 6487
                                           }
                                         },
                                         {
@@ -9150,8 +9629,8 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "resources",
                                             "loc": {
-                                              "start": 6237,
-                                              "end": 6246
+                                              "start": 6508,
+                                              "end": 6517
                                             }
                                           },
                                           "arguments": [],
@@ -9165,15 +9644,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6273,
-                                                    "end": 6275
+                                                    "start": 6544,
+                                                    "end": 6546
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6273,
-                                                  "end": 6275
+                                                  "start": 6544,
+                                                  "end": 6546
                                                 }
                                               },
                                               {
@@ -9182,15 +9661,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 6300,
-                                                    "end": 6305
+                                                    "start": 6571,
+                                                    "end": 6576
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6300,
-                                                  "end": 6305
+                                                  "start": 6571,
+                                                  "end": 6576
                                                 }
                                               },
                                               {
@@ -9199,15 +9678,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "link",
                                                   "loc": {
-                                                    "start": 6330,
-                                                    "end": 6334
+                                                    "start": 6601,
+                                                    "end": 6605
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6330,
-                                                  "end": 6334
+                                                  "start": 6601,
+                                                  "end": 6605
                                                 }
                                               },
                                               {
@@ -9216,15 +9695,15 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "usedFor",
                                                   "loc": {
-                                                    "start": 6359,
-                                                    "end": 6366
+                                                    "start": 6630,
+                                                    "end": 6637
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6359,
-                                                  "end": 6366
+                                                  "start": 6630,
+                                                  "end": 6637
                                                 }
                                               },
                                               {
@@ -9233,8 +9712,8 @@ export const auth_walletComplete = {
                                                   "kind": "Name",
                                                   "value": "translations",
                                                   "loc": {
-                                                    "start": 6391,
-                                                    "end": 6403
+                                                    "start": 6662,
+                                                    "end": 6674
                                                   }
                                                 },
                                                 "arguments": [],
@@ -9248,15 +9727,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 6434,
-                                                          "end": 6436
+                                                          "start": 6705,
+                                                          "end": 6707
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6434,
-                                                        "end": 6436
+                                                        "start": 6705,
+                                                        "end": 6707
                                                       }
                                                     },
                                                     {
@@ -9265,15 +9744,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "language",
                                                         "loc": {
-                                                          "start": 6465,
-                                                          "end": 6473
+                                                          "start": 6736,
+                                                          "end": 6744
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6465,
-                                                        "end": 6473
+                                                        "start": 6736,
+                                                        "end": 6744
                                                       }
                                                     },
                                                     {
@@ -9282,15 +9761,15 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 6502,
-                                                          "end": 6513
+                                                          "start": 6773,
+                                                          "end": 6784
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6502,
-                                                        "end": 6513
+                                                        "start": 6773,
+                                                        "end": 6784
                                                       }
                                                     },
                                                     {
@@ -9299,48 +9778,48 @@ export const auth_walletComplete = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 6542,
-                                                          "end": 6546
+                                                          "start": 6813,
+                                                          "end": 6817
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6542,
-                                                        "end": 6546
+                                                        "start": 6813,
+                                                        "end": 6817
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 6404,
-                                                    "end": 6572
+                                                    "start": 6675,
+                                                    "end": 6843
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 6391,
-                                                  "end": 6572
+                                                  "start": 6662,
+                                                  "end": 6843
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6247,
-                                              "end": 6594
+                                              "start": 6518,
+                                              "end": 6865
                                             }
                                           },
                                           "loc": {
-                                            "start": 6237,
-                                            "end": 6594
+                                            "start": 6508,
+                                            "end": 6865
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5979,
-                                        "end": 6612
+                                        "start": 6250,
+                                        "end": 6883
                                       }
                                     },
                                     "loc": {
-                                      "start": 5966,
-                                      "end": 6612
+                                      "start": 6237,
+                                      "end": 6883
                                     }
                                   },
                                   {
@@ -9349,8 +9828,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 6629,
-                                        "end": 6637
+                                        "start": 6900,
+                                        "end": 6908
                                       }
                                     },
                                     "arguments": [],
@@ -9364,25 +9843,25 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 6663,
-                                              "end": 6678
+                                              "start": 6934,
+                                              "end": 6949
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 6660,
-                                            "end": 6678
+                                            "start": 6931,
+                                            "end": 6949
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6638,
-                                        "end": 6696
+                                        "start": 6909,
+                                        "end": 6967
                                       }
                                     },
                                     "loc": {
-                                      "start": 6629,
-                                      "end": 6696
+                                      "start": 6900,
+                                      "end": 6967
                                     }
                                   },
                                   {
@@ -9391,15 +9870,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 6713,
-                                        "end": 6715
+                                        "start": 6984,
+                                        "end": 6986
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 6713,
-                                      "end": 6715
+                                      "start": 6984,
+                                      "end": 6986
                                     }
                                   },
                                   {
@@ -9408,15 +9887,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 6732,
-                                        "end": 6736
+                                        "start": 7003,
+                                        "end": 7007
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 6732,
-                                      "end": 6736
+                                      "start": 7003,
+                                      "end": 7007
                                     }
                                   },
                                   {
@@ -9425,37 +9904,114 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 6753,
-                                        "end": 6764
+                                        "start": 7024,
+                                        "end": 7035
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 6753,
-                                      "end": 6764
+                                      "start": 7024,
+                                      "end": 7035
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "you",
+                                      "loc": {
+                                        "start": 7052,
+                                        "end": 7055
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canDelete",
+                                            "loc": {
+                                              "start": 7078,
+                                              "end": 7087
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 7078,
+                                            "end": 7087
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canRead",
+                                            "loc": {
+                                              "start": 7108,
+                                              "end": 7115
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 7108,
+                                            "end": 7115
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canUpdate",
+                                            "loc": {
+                                              "start": 7136,
+                                              "end": 7145
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 7136,
+                                            "end": 7145
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 7056,
+                                        "end": 7163
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 7052,
+                                      "end": 7163
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5026,
-                                  "end": 6778
+                                  "start": 5297,
+                                  "end": 7177
                                 }
                               },
                               "loc": {
-                                "start": 5016,
-                                "end": 6778
+                                "start": 5287,
+                                "end": 7177
                               }
                             }
                           ],
                           "loc": {
-                            "start": 4608,
-                            "end": 6788
+                            "start": 4879,
+                            "end": 7187
                           }
                         },
                         "loc": {
-                          "start": 4600,
-                          "end": 6788
+                          "start": 4871,
+                          "end": 7187
                         }
                       },
                       {
@@ -9464,8 +10020,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 6797,
-                            "end": 6803
+                            "start": 7196,
+                            "end": 7202
                           }
                         },
                         "arguments": [],
@@ -9479,15 +10035,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 6818,
-                                  "end": 6820
+                                  "start": 7217,
+                                  "end": 7219
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6818,
-                                "end": 6820
+                                "start": 7217,
+                                "end": 7219
                               }
                             },
                             {
@@ -9496,15 +10052,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 6833,
-                                  "end": 6838
+                                  "start": 7232,
+                                  "end": 7237
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6833,
-                                "end": 6838
+                                "start": 7232,
+                                "end": 7237
                               }
                             },
                             {
@@ -9513,26 +10069,26 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 6851,
-                                  "end": 6856
+                                  "start": 7250,
+                                  "end": 7255
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6851,
-                                "end": 6856
+                                "start": 7250,
+                                "end": 7255
                               }
                             }
                           ],
                           "loc": {
-                            "start": 6804,
-                            "end": 6866
+                            "start": 7203,
+                            "end": 7265
                           }
                         },
                         "loc": {
-                          "start": 6797,
-                          "end": 6866
+                          "start": 7196,
+                          "end": 7265
                         }
                       },
                       {
@@ -9541,8 +10097,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 6875,
-                            "end": 6887
+                            "start": 7274,
+                            "end": 7286
                           }
                         },
                         "arguments": [],
@@ -9556,15 +10112,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 6902,
-                                  "end": 6904
+                                  "start": 7301,
+                                  "end": 7303
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6902,
-                                "end": 6904
+                                "start": 7301,
+                                "end": 7303
                               }
                             },
                             {
@@ -9573,15 +10129,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 6917,
-                                  "end": 6927
+                                  "start": 7316,
+                                  "end": 7326
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6917,
-                                "end": 6927
+                                "start": 7316,
+                                "end": 7326
                               }
                             },
                             {
@@ -9590,15 +10146,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 6940,
-                                  "end": 6950
+                                  "start": 7339,
+                                  "end": 7349
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 6940,
-                                "end": 6950
+                                "start": 7339,
+                                "end": 7349
                               }
                             },
                             {
@@ -9607,8 +10163,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 6963,
-                                  "end": 6972
+                                  "start": 7362,
+                                  "end": 7371
                                 }
                               },
                               "arguments": [],
@@ -9622,15 +10178,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 6991,
-                                        "end": 6993
+                                        "start": 7390,
+                                        "end": 7392
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 6991,
-                                      "end": 6993
+                                      "start": 7390,
+                                      "end": 7392
                                     }
                                   },
                                   {
@@ -9639,15 +10195,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 7010,
-                                        "end": 7020
+                                        "start": 7409,
+                                        "end": 7419
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7010,
-                                      "end": 7020
+                                      "start": 7409,
+                                      "end": 7419
                                     }
                                   },
                                   {
@@ -9656,15 +10212,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 7037,
-                                        "end": 7047
+                                        "start": 7436,
+                                        "end": 7446
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7037,
-                                      "end": 7047
+                                      "start": 7436,
+                                      "end": 7446
                                     }
                                   },
                                   {
@@ -9673,15 +10229,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7064,
-                                        "end": 7068
+                                        "start": 7463,
+                                        "end": 7467
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7064,
-                                      "end": 7068
+                                      "start": 7463,
+                                      "end": 7467
                                     }
                                   },
                                   {
@@ -9690,15 +10246,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7085,
-                                        "end": 7096
+                                        "start": 7484,
+                                        "end": 7495
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7085,
-                                      "end": 7096
+                                      "start": 7484,
+                                      "end": 7495
                                     }
                                   },
                                   {
@@ -9707,15 +10263,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 7113,
-                                        "end": 7120
+                                        "start": 7512,
+                                        "end": 7519
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7113,
-                                      "end": 7120
+                                      "start": 7512,
+                                      "end": 7519
                                     }
                                   },
                                   {
@@ -9724,15 +10280,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 7137,
-                                        "end": 7142
+                                        "start": 7536,
+                                        "end": 7541
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7137,
-                                      "end": 7142
+                                      "start": 7536,
+                                      "end": 7541
                                     }
                                   },
                                   {
@@ -9741,15 +10297,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 7159,
-                                        "end": 7169
+                                        "start": 7558,
+                                        "end": 7568
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7159,
-                                      "end": 7169
+                                      "start": 7558,
+                                      "end": 7568
                                     }
                                   },
                                   {
@@ -9758,8 +10314,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 7186,
-                                        "end": 7199
+                                        "start": 7585,
+                                        "end": 7598
                                       }
                                     },
                                     "arguments": [],
@@ -9773,15 +10329,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 7222,
-                                              "end": 7224
+                                              "start": 7621,
+                                              "end": 7623
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7222,
-                                            "end": 7224
+                                            "start": 7621,
+                                            "end": 7623
                                           }
                                         },
                                         {
@@ -9790,15 +10346,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 7245,
-                                              "end": 7255
+                                              "start": 7644,
+                                              "end": 7654
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7245,
-                                            "end": 7255
+                                            "start": 7644,
+                                            "end": 7654
                                           }
                                         },
                                         {
@@ -9807,15 +10363,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 7276,
-                                              "end": 7286
+                                              "start": 7675,
+                                              "end": 7685
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7276,
-                                            "end": 7286
+                                            "start": 7675,
+                                            "end": 7685
                                           }
                                         },
                                         {
@@ -9824,15 +10380,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 7307,
-                                              "end": 7311
+                                              "start": 7706,
+                                              "end": 7710
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7307,
-                                            "end": 7311
+                                            "start": 7706,
+                                            "end": 7710
                                           }
                                         },
                                         {
@@ -9841,15 +10397,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 7332,
-                                              "end": 7343
+                                              "start": 7731,
+                                              "end": 7742
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7332,
-                                            "end": 7343
+                                            "start": 7731,
+                                            "end": 7742
                                           }
                                         },
                                         {
@@ -9858,15 +10414,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 7364,
-                                              "end": 7371
+                                              "start": 7763,
+                                              "end": 7770
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7364,
-                                            "end": 7371
+                                            "start": 7763,
+                                            "end": 7770
                                           }
                                         },
                                         {
@@ -9875,15 +10431,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 7392,
-                                              "end": 7397
+                                              "start": 7791,
+                                              "end": 7796
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7392,
-                                            "end": 7397
+                                            "start": 7791,
+                                            "end": 7796
                                           }
                                         },
                                         {
@@ -9892,48 +10448,48 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 7418,
-                                              "end": 7428
+                                              "start": 7817,
+                                              "end": 7827
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7418,
-                                            "end": 7428
+                                            "start": 7817,
+                                            "end": 7827
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7200,
-                                        "end": 7446
+                                        "start": 7599,
+                                        "end": 7845
                                       }
                                     },
                                     "loc": {
-                                      "start": 7186,
-                                      "end": 7446
+                                      "start": 7585,
+                                      "end": 7845
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 6973,
-                                  "end": 7460
+                                  "start": 7372,
+                                  "end": 7859
                                 }
                               },
                               "loc": {
-                                "start": 6963,
-                                "end": 7460
+                                "start": 7362,
+                                "end": 7859
                               }
                             }
                           ],
                           "loc": {
-                            "start": 6888,
-                            "end": 7470
+                            "start": 7287,
+                            "end": 7869
                           }
                         },
                         "loc": {
-                          "start": 6875,
-                          "end": 7470
+                          "start": 7274,
+                          "end": 7869
                         }
                       },
                       {
@@ -9942,8 +10498,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 7479,
-                            "end": 7491
+                            "start": 7878,
+                            "end": 7890
                           }
                         },
                         "arguments": [],
@@ -9957,15 +10513,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7506,
-                                  "end": 7508
+                                  "start": 7905,
+                                  "end": 7907
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7506,
-                                "end": 7508
+                                "start": 7905,
+                                "end": 7907
                               }
                             },
                             {
@@ -9974,15 +10530,15 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 7521,
-                                  "end": 7531
+                                  "start": 7920,
+                                  "end": 7930
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7521,
-                                "end": 7531
+                                "start": 7920,
+                                "end": 7930
                               }
                             },
                             {
@@ -9991,8 +10547,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 7544,
-                                  "end": 7556
+                                  "start": 7943,
+                                  "end": 7955
                                 }
                               },
                               "arguments": [],
@@ -10006,15 +10562,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7575,
-                                        "end": 7577
+                                        "start": 7974,
+                                        "end": 7976
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7575,
-                                      "end": 7577
+                                      "start": 7974,
+                                      "end": 7976
                                     }
                                   },
                                   {
@@ -10023,15 +10579,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 7594,
-                                        "end": 7602
+                                        "start": 7993,
+                                        "end": 8001
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7594,
-                                      "end": 7602
+                                      "start": 7993,
+                                      "end": 8001
                                     }
                                   },
                                   {
@@ -10040,15 +10596,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7619,
-                                        "end": 7630
+                                        "start": 8018,
+                                        "end": 8029
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7619,
-                                      "end": 7630
+                                      "start": 8018,
+                                      "end": 8029
                                     }
                                   },
                                   {
@@ -10057,26 +10613,26 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7647,
-                                        "end": 7651
+                                        "start": 8046,
+                                        "end": 8050
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7647,
-                                      "end": 7651
+                                      "start": 8046,
+                                      "end": 8050
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 7557,
-                                  "end": 7665
+                                  "start": 7956,
+                                  "end": 8064
                                 }
                               },
                               "loc": {
-                                "start": 7544,
-                                "end": 7665
+                                "start": 7943,
+                                "end": 8064
                               }
                             },
                             {
@@ -10085,8 +10641,8 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 7678,
-                                  "end": 7687
+                                  "start": 8077,
+                                  "end": 8086
                                 }
                               },
                               "arguments": [],
@@ -10100,15 +10656,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7706,
-                                        "end": 7708
+                                        "start": 8105,
+                                        "end": 8107
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7706,
-                                      "end": 7708
+                                      "start": 8105,
+                                      "end": 8107
                                     }
                                   },
                                   {
@@ -10117,15 +10673,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 7725,
-                                        "end": 7730
+                                        "start": 8124,
+                                        "end": 8129
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7725,
-                                      "end": 7730
+                                      "start": 8124,
+                                      "end": 8129
                                     }
                                   },
                                   {
@@ -10134,15 +10690,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 7747,
-                                        "end": 7751
+                                        "start": 8146,
+                                        "end": 8150
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7747,
-                                      "end": 7751
+                                      "start": 8146,
+                                      "end": 8150
                                     }
                                   },
                                   {
@@ -10151,15 +10707,15 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 7768,
-                                        "end": 7775
+                                        "start": 8167,
+                                        "end": 8174
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7768,
-                                      "end": 7775
+                                      "start": 8167,
+                                      "end": 8174
                                     }
                                   },
                                   {
@@ -10168,8 +10724,8 @@ export const auth_walletComplete = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 7792,
-                                        "end": 7804
+                                        "start": 8191,
+                                        "end": 8203
                                       }
                                     },
                                     "arguments": [],
@@ -10183,15 +10739,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 7827,
-                                              "end": 7829
+                                              "start": 8226,
+                                              "end": 8228
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7827,
-                                            "end": 7829
+                                            "start": 8226,
+                                            "end": 8228
                                           }
                                         },
                                         {
@@ -10200,15 +10756,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 7850,
-                                              "end": 7858
+                                              "start": 8249,
+                                              "end": 8257
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7850,
-                                            "end": 7858
+                                            "start": 8249,
+                                            "end": 8257
                                           }
                                         },
                                         {
@@ -10217,15 +10773,15 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 7879,
-                                              "end": 7890
+                                              "start": 8278,
+                                              "end": 8289
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7879,
-                                            "end": 7890
+                                            "start": 8278,
+                                            "end": 8289
                                           }
                                         },
                                         {
@@ -10234,48 +10790,48 @@ export const auth_walletComplete = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 7911,
-                                              "end": 7915
+                                              "start": 8310,
+                                              "end": 8314
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 7911,
-                                            "end": 7915
+                                            "start": 8310,
+                                            "end": 8314
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7805,
-                                        "end": 7933
+                                        "start": 8204,
+                                        "end": 8332
                                       }
                                     },
                                     "loc": {
-                                      "start": 7792,
-                                      "end": 7933
+                                      "start": 8191,
+                                      "end": 8332
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 7688,
-                                  "end": 7947
+                                  "start": 8087,
+                                  "end": 8346
                                 }
                               },
                               "loc": {
-                                "start": 7678,
-                                "end": 7947
+                                "start": 8077,
+                                "end": 8346
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7492,
-                            "end": 7957
+                            "start": 7891,
+                            "end": 8356
                           }
                         },
                         "loc": {
-                          "start": 7479,
-                          "end": 7957
+                          "start": 7878,
+                          "end": 8356
                         }
                       },
                       {
@@ -10284,8 +10840,8 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 7966,
-                            "end": 7974
+                            "start": 8365,
+                            "end": 8373
                           }
                         },
                         "arguments": [],
@@ -10299,25 +10855,25 @@ export const auth_walletComplete = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 7992,
-                                  "end": 8007
+                                  "start": 8391,
+                                  "end": 8406
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 7989,
-                                "end": 8007
+                                "start": 8388,
+                                "end": 8406
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7975,
-                            "end": 8017
+                            "start": 8374,
+                            "end": 8416
                           }
                         },
                         "loc": {
-                          "start": 7966,
-                          "end": 8017
+                          "start": 8365,
+                          "end": 8416
                         }
                       },
                       {
@@ -10326,15 +10882,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 8026,
-                            "end": 8028
+                            "start": 8425,
+                            "end": 8427
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 8026,
-                          "end": 8028
+                          "start": 8425,
+                          "end": 8427
                         }
                       },
                       {
@@ -10343,15 +10899,15 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 8037,
-                            "end": 8041
+                            "start": 8436,
+                            "end": 8440
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 8037,
-                          "end": 8041
+                          "start": 8436,
+                          "end": 8440
                         }
                       },
                       {
@@ -10360,26 +10916,103 @@ export const auth_walletComplete = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 8050,
-                            "end": 8061
+                            "start": 8449,
+                            "end": 8460
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 8050,
-                          "end": 8061
+                          "start": 8449,
+                          "end": 8460
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "you",
+                          "loc": {
+                            "start": 8469,
+                            "end": 8472
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canDelete",
+                                "loc": {
+                                  "start": 8487,
+                                  "end": 8496
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 8487,
+                                "end": 8496
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canRead",
+                                "loc": {
+                                  "start": 8509,
+                                  "end": 8516
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 8509,
+                                "end": 8516
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canUpdate",
+                                "loc": {
+                                  "start": 8529,
+                                  "end": 8538
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 8529,
+                                "end": 8538
+                              }
+                            }
+                          ],
+                          "loc": {
+                            "start": 8473,
+                            "end": 8548
+                          }
+                        },
+                        "loc": {
+                          "start": 8469,
+                          "end": 8548
                         }
                       }
                     ],
                     "loc": {
-                      "start": 4590,
-                      "end": 8067
+                      "start": 4861,
+                      "end": 8554
                     }
                   },
                   "loc": {
-                    "start": 4579,
-                    "end": 8067
+                    "start": 4850,
+                    "end": 8554
                   }
                 },
                 {
@@ -10388,15 +11021,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 8072,
-                      "end": 8078
+                      "start": 8559,
+                      "end": 8565
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8072,
-                    "end": 8078
+                    "start": 8559,
+                    "end": 8565
                   }
                 },
                 {
@@ -10405,15 +11038,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 8083,
-                      "end": 8093
+                      "start": 8570,
+                      "end": 8580
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8083,
-                    "end": 8093
+                    "start": 8570,
+                    "end": 8580
                   }
                 },
                 {
@@ -10422,15 +11055,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 8098,
-                      "end": 8100
+                      "start": 8585,
+                      "end": 8587
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8098,
-                    "end": 8100
+                    "start": 8585,
+                    "end": 8587
                   }
                 },
                 {
@@ -10439,15 +11072,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 8105,
-                      "end": 8114
+                      "start": 8592,
+                      "end": 8601
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8105,
-                    "end": 8114
+                    "start": 8592,
+                    "end": 8601
                   }
                 },
                 {
@@ -10456,15 +11089,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 8119,
-                      "end": 8135
+                      "start": 8606,
+                      "end": 8622
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8119,
-                    "end": 8135
+                    "start": 8606,
+                    "end": 8622
                   }
                 },
                 {
@@ -10473,15 +11106,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 8140,
-                      "end": 8144
+                      "start": 8627,
+                      "end": 8631
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8140,
-                    "end": 8144
+                    "start": 8627,
+                    "end": 8631
                   }
                 },
                 {
@@ -10490,15 +11123,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 8149,
-                      "end": 8159
+                      "start": 8636,
+                      "end": 8646
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8149,
-                    "end": 8159
+                    "start": 8636,
+                    "end": 8646
                   }
                 },
                 {
@@ -10507,15 +11140,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 8164,
-                      "end": 8177
+                      "start": 8651,
+                      "end": 8664
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8164,
-                    "end": 8177
+                    "start": 8651,
+                    "end": 8664
                   }
                 },
                 {
@@ -10524,15 +11157,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 8182,
-                      "end": 8201
+                      "start": 8669,
+                      "end": 8688
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8182,
-                    "end": 8201
+                    "start": 8669,
+                    "end": 8688
                   }
                 },
                 {
@@ -10541,32 +11174,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 8206,
-                      "end": 8219
+                      "start": 8693,
+                      "end": 8706
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8206,
-                    "end": 8219
-                  }
-                },
-                {
-                  "kind": "Field",
-                  "name": {
-                    "kind": "Name",
-                    "value": "smartContractsCount",
-                    "loc": {
-                      "start": 8224,
-                      "end": 8243
-                    }
-                  },
-                  "arguments": [],
-                  "directives": [],
-                  "loc": {
-                    "start": 8224,
-                    "end": 8243
+                    "start": 8693,
+                    "end": 8706
                   }
                 },
                 {
@@ -10575,15 +11191,15 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 8248,
-                      "end": 8262
+                      "start": 8711,
+                      "end": 8725
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8248,
-                    "end": 8262
+                    "start": 8711,
+                    "end": 8725
                   }
                 },
                 {
@@ -10592,37 +11208,37 @@ export const auth_walletComplete = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 8267,
-                      "end": 8272
+                      "start": 8730,
+                      "end": 8735
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 8267,
-                    "end": 8272
+                    "start": 8730,
+                    "end": 8735
                   }
                 }
               ],
               "loc": {
                 "start": 337,
-                "end": 8274
+                "end": 8737
               }
             },
             "loc": {
               "start": 331,
-              "end": 8274
+              "end": 8737
             }
           }
         ],
         "loc": {
           "start": 309,
-          "end": 8276
+          "end": 8739
         }
       },
       "loc": {
         "start": 276,
-        "end": 8276
+        "end": 8739
       }
     },
     "Wallet_common": {
@@ -10631,8 +11247,8 @@ export const auth_walletComplete = {
         "kind": "Name",
         "value": "Wallet_common",
         "loc": {
-          "start": 8286,
-          "end": 8299
+          "start": 8749,
+          "end": 8762
         }
       },
       "typeCondition": {
@@ -10641,13 +11257,13 @@ export const auth_walletComplete = {
           "kind": "Name",
           "value": "Wallet",
           "loc": {
-            "start": 8303,
-            "end": 8309
+            "start": 8766,
+            "end": 8772
           }
         },
         "loc": {
-          "start": 8303,
-          "end": 8309
+          "start": 8766,
+          "end": 8772
         }
       },
       "directives": [],
@@ -10660,15 +11276,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "id",
               "loc": {
-                "start": 8312,
-                "end": 8314
+                "start": 8775,
+                "end": 8777
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8312,
-              "end": 8314
+              "start": 8775,
+              "end": 8777
             }
           },
           {
@@ -10677,15 +11293,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "name",
               "loc": {
-                "start": 8315,
-                "end": 8319
+                "start": 8778,
+                "end": 8782
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8315,
-              "end": 8319
+              "start": 8778,
+              "end": 8782
             }
           },
           {
@@ -10694,15 +11310,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "publicAddress",
               "loc": {
-                "start": 8320,
-                "end": 8333
+                "start": 8783,
+                "end": 8796
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8320,
-              "end": 8333
+              "start": 8783,
+              "end": 8796
             }
           },
           {
@@ -10711,15 +11327,15 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "stakingAddress",
               "loc": {
-                "start": 8334,
-                "end": 8348
+                "start": 8797,
+                "end": 8811
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8334,
-              "end": 8348
+              "start": 8797,
+              "end": 8811
             }
           },
           {
@@ -10728,26 +11344,26 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "verified",
               "loc": {
-                "start": 8349,
-                "end": 8357
+                "start": 8812,
+                "end": 8820
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 8349,
-              "end": 8357
+              "start": 8812,
+              "end": 8820
             }
           }
         ],
         "loc": {
-          "start": 8310,
-          "end": 8359
+          "start": 8773,
+          "end": 8822
         }
       },
       "loc": {
-        "start": 8277,
-        "end": 8359
+        "start": 8740,
+        "end": 8822
       }
     }
   },
@@ -10759,8 +11375,8 @@ export const auth_walletComplete = {
       "kind": "Name",
       "value": "walletComplete",
       "loc": {
-        "start": 8370,
-        "end": 8384
+        "start": 8833,
+        "end": 8847
       }
     },
     "variableDefinitions": [
@@ -10772,13 +11388,13 @@ export const auth_walletComplete = {
             "kind": "Name",
             "value": "input",
             "loc": {
-              "start": 8386,
-              "end": 8391
+              "start": 8849,
+              "end": 8854
             }
           },
           "loc": {
-            "start": 8385,
-            "end": 8391
+            "start": 8848,
+            "end": 8854
           }
         },
         "type": {
@@ -10789,24 +11405,24 @@ export const auth_walletComplete = {
               "kind": "Name",
               "value": "WalletCompleteInput",
               "loc": {
-                "start": 8393,
-                "end": 8412
+                "start": 8856,
+                "end": 8875
               }
             },
             "loc": {
-              "start": 8393,
-              "end": 8412
+              "start": 8856,
+              "end": 8875
             }
           },
           "loc": {
-            "start": 8393,
-            "end": 8413
+            "start": 8856,
+            "end": 8876
           }
         },
         "directives": [],
         "loc": {
-          "start": 8385,
-          "end": 8413
+          "start": 8848,
+          "end": 8876
         }
       }
     ],
@@ -10820,8 +11436,8 @@ export const auth_walletComplete = {
             "kind": "Name",
             "value": "walletComplete",
             "loc": {
-              "start": 8419,
-              "end": 8433
+              "start": 8882,
+              "end": 8896
             }
           },
           "arguments": [
@@ -10831,8 +11447,8 @@ export const auth_walletComplete = {
                 "kind": "Name",
                 "value": "input",
                 "loc": {
-                  "start": 8434,
-                  "end": 8439
+                  "start": 8897,
+                  "end": 8902
                 }
               },
               "value": {
@@ -10841,18 +11457,18 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "input",
                   "loc": {
-                    "start": 8442,
-                    "end": 8447
+                    "start": 8905,
+                    "end": 8910
                   }
                 },
                 "loc": {
-                  "start": 8441,
-                  "end": 8447
+                  "start": 8904,
+                  "end": 8910
                 }
               },
               "loc": {
-                "start": 8434,
-                "end": 8447
+                "start": 8897,
+                "end": 8910
               }
             }
           ],
@@ -10866,15 +11482,15 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "firstLogIn",
                   "loc": {
-                    "start": 8455,
-                    "end": 8465
+                    "start": 8918,
+                    "end": 8928
                   }
                 },
                 "arguments": [],
                 "directives": [],
                 "loc": {
-                  "start": 8455,
-                  "end": 8465
+                  "start": 8918,
+                  "end": 8928
                 }
               },
               {
@@ -10883,8 +11499,8 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "session",
                   "loc": {
-                    "start": 8470,
-                    "end": 8477
+                    "start": 8933,
+                    "end": 8940
                   }
                 },
                 "arguments": [],
@@ -10898,25 +11514,25 @@ export const auth_walletComplete = {
                         "kind": "Name",
                         "value": "Session_full",
                         "loc": {
-                          "start": 8491,
-                          "end": 8503
+                          "start": 8954,
+                          "end": 8966
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 8488,
-                        "end": 8503
+                        "start": 8951,
+                        "end": 8966
                       }
                     }
                   ],
                   "loc": {
-                    "start": 8478,
-                    "end": 8509
+                    "start": 8941,
+                    "end": 8972
                   }
                 },
                 "loc": {
-                  "start": 8470,
-                  "end": 8509
+                  "start": 8933,
+                  "end": 8972
                 }
               },
               {
@@ -10925,8 +11541,8 @@ export const auth_walletComplete = {
                   "kind": "Name",
                   "value": "wallet",
                   "loc": {
-                    "start": 8514,
-                    "end": 8520
+                    "start": 8977,
+                    "end": 8983
                   }
                 },
                 "arguments": [],
@@ -10940,47 +11556,47 @@ export const auth_walletComplete = {
                         "kind": "Name",
                         "value": "Wallet_common",
                         "loc": {
-                          "start": 8534,
-                          "end": 8547
+                          "start": 8997,
+                          "end": 9010
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 8531,
-                        "end": 8547
+                        "start": 8994,
+                        "end": 9010
                       }
                     }
                   ],
                   "loc": {
-                    "start": 8521,
-                    "end": 8553
+                    "start": 8984,
+                    "end": 9016
                   }
                 },
                 "loc": {
-                  "start": 8514,
-                  "end": 8553
+                  "start": 8977,
+                  "end": 9016
                 }
               }
             ],
             "loc": {
-              "start": 8449,
-              "end": 8557
+              "start": 8912,
+              "end": 9020
             }
           },
           "loc": {
-            "start": 8419,
-            "end": 8557
+            "start": 8882,
+            "end": 9020
           }
         }
       ],
       "loc": {
-        "start": 8415,
-        "end": 8559
+        "start": 8878,
+        "end": 9022
       }
     },
     "loc": {
-      "start": 8361,
-      "end": 8559
+      "start": 8824,
+      "end": 9022
     }
   },
   "variableValues": {},

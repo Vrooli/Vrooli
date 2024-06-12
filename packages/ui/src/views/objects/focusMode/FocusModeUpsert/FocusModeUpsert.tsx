@@ -4,9 +4,9 @@ import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { ResourceListHorizontalInput } from "components/inputs/ResourceListHorizontalInput/ResourceListHorizontalInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
+import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
@@ -19,7 +19,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -93,7 +92,7 @@ const FocusModeForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<FocusMode>({
+    const { handleCancel, handleCompleted } = useUpsertActions<FocusMode>({
         display,
         isCreate,
         objectId: values.id,
@@ -110,7 +109,7 @@ const FocusModeForm = ({
         endpointCreate: endpointPostFocusMode,
         endpointUpdate: endpointPutFocusMode,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "FocusMode" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "FocusMode" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -139,7 +138,7 @@ const FocusModeForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.FocusMode}
+                defaultTab="FocusMode"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -240,7 +239,8 @@ const FocusModeForm = ({
                             </ListItem>
                         )}
                     </ListContainer>}
-                    <ResourceListHorizontalInput
+                    <ResourceListInput
+                        horizontal
                         isCreate={true}
                         parent={{ __typename: "FocusMode", id: values.id }}
                     />

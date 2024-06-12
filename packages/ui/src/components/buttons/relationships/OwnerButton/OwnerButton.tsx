@@ -4,11 +4,12 @@ import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObject
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
-import { RelationshipItemOrganization, RelationshipItemUser } from "components/lists/types";
+import { RelationshipItemTeam, RelationshipItemUser } from "components/lists/types";
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
-import { OrganizationIcon, UserIcon } from "icons";
+import { usePopover } from "hooks/usePopover";
+import { TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -22,18 +23,18 @@ import { OwnerButtonProps } from "../types";
 
 enum OwnerTypesEnum {
     Self = "Self",
-    Organization = "Organization",
+    Team = "Team",
 }
 
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
     { labelKey: "Self", value: OwnerTypesEnum.Self },
-    { labelKey: "Organization", value: OwnerTypesEnum.Organization },
+    { labelKey: "Team", value: OwnerTypesEnum.Team },
 ];
 
-export function OwnerButton({
+export const OwnerButton = ({
     isEditing,
     objectType,
-}: OwnerButtonProps) {
+}: OwnerButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -43,24 +44,21 @@ export function OwnerButton({
     const [versionField, , versionHelpers] = useField("owner");
     const [rootField, , rootHelpers] = useField("root.owner");
 
-    const isAvailable = useMemo(() => ["Project", "Routine", "Standard"].includes(objectType), [objectType]);
-
-    // Organization/User owner dialogs (displayed after selecting owner dialog)
-    const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
-    const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true); }, [setOrganizationDialogOpen]);
-    const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
+    // Team/User owner dialogs (displayed after selecting owner dialog)
+    const [isTeamDialogOpen, setTeamDialogOpen] = useState<boolean>(false);
+    const openTeamDialog = useCallback(() => { setTeamDialogOpen(true); }, [setTeamDialogOpen]);
+    const closeTeamDialog = useCallback(() => { setTeamDialogOpen(false); }, [setTeamDialogOpen]);
     const handleOwnerSelect = useCallback((owner: OwnerShape) => {
         const ownerId = versionField?.value?.id ?? rootField?.value?.id;
         if (owner?.id === ownerId) return;
         exists(versionHelpers) && versionHelpers.setValue(owner);
         exists(rootHelpers) && rootHelpers.setValue(owner);
-        closeOrganizationDialog();
-    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeOrganizationDialog]);
+        closeTeamDialog();
+    }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeTeamDialog]);
 
-    // Owner list dialog (select self, organization, or another user)
-    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
-    const handleOwnerClick = useCallback((ev: React.MouseEvent<Element>) => {
-        if (!isAvailable) return;
+    // Owner list dialog (select self, team, or another user)
+    const [ownerDialogAnchor, openOwnerDialog, closeOwnerDialog] = usePopover();
+    const handleOwnerClick = useCallback((ev: React.MouseEvent<HTMLElement>) => {
         ev.stopPropagation();
         const owner = versionField?.value ?? rootField?.value;
         // If not editing, navigate to owner
@@ -68,25 +66,24 @@ export function OwnerButton({
             if (owner) openObject(owner, setLocation);
         }
         // Otherwise, open dialog
-        else setOwnerDialogAnchor(ev.currentTarget);
-    }, [isEditing, isAvailable, versionField?.value, rootField?.value, setLocation]);
-    const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
+        else openOwnerDialog(ev);
+    }, [versionField?.value, rootField?.value, isEditing, openOwnerDialog, setLocation]);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
-        if (ownerType === OwnerTypesEnum.Organization) {
-            openOrganizationDialog();
+        if (ownerType === OwnerTypesEnum.Team) {
+            openTeamDialog();
         } else {
             const owner = session ? userFromSession(session) : undefined;
             exists(versionHelpers) && versionHelpers.setValue(owner);
             exists(rootHelpers) && rootHelpers.setValue(owner);
         }
         closeOwnerDialog();
-    }, [closeOwnerDialog, openOrganizationDialog, session, versionHelpers, rootHelpers]);
+    }, [closeOwnerDialog, openTeamDialog, session, versionHelpers, rootHelpers]);
 
     // FindObjectDialog
     const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
-        if (isOrganizationDialogOpen) return ["Organization", handleOwnerSelect, closeOrganizationDialog];
+        if (isTeamDialogOpen) return ["Team", handleOwnerSelect, closeTeamDialog];
         return [null, noop, noop];
-    }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog]);
+    }, [isTeamDialogOpen, handleOwnerSelect, closeTeamDialog]);
 
     const { Icon, tooltip } = useMemo(() => {
         const owner = versionField?.value ?? rootField?.value;
@@ -95,10 +92,10 @@ export function OwnerButton({
             Icon: null,
             tooltip: t(`OwnerNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
-        // If owner is organization, use organization icon
-        if (owner.__typename === "Organization") {
-            const Icon = OrganizationIcon;
-            const ownerName = firstString(getTranslation(owner as RelationshipItemOrganization, languages, true).name, "organization");
+        // If owner is team, use team icon
+        if (owner.__typename === "Team") {
+            const Icon = TeamIcon;
+            const ownerName = firstString(getTranslation(owner as RelationshipItemTeam, languages, true).name, "team");
             return {
                 Icon,
                 tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: ownerName }),
@@ -115,7 +112,7 @@ export function OwnerButton({
     }, [isEditing, languages, rootField?.value, session, t, versionField?.value]);
 
     // If not available, return null
-    if (!isAvailable || (!isEditing && !Icon)) return null;
+    if (!isEditing && !Icon) return null;
     // Return button with label on top
     return (
         <>
@@ -128,7 +125,7 @@ export function OwnerButton({
                 onSelect={handleOwnerDialogSelect}
                 onClose={closeOwnerDialog}
             />
-            {/* Popup for selecting organization or user */}
+            {/* Popup for selecting team or user */}
             {findType && <FindObjectDialog
                 find="List"
                 isOpen={Boolean(findType)}
@@ -153,4 +150,4 @@ export function OwnerButton({
             </Stack>
         </>
     );
-}
+};

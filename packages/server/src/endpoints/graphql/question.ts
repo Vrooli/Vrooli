@@ -22,15 +22,15 @@ export const typeDef = gql`
 
     enum QuestionForType {
         Api
+        Code
         Note
-        Organization
         Project
         Routine
-        SmartContract
         Standard
+        Team
     }
 
-    union QuestionFor = Api | Note | Organization | Project | Routine | SmartContract | Standard
+    union QuestionFor = Api | Code | Note | Project | Routine | Standard | Team
 
     input QuestionCreateInput {
         id: ID!
@@ -113,12 +113,12 @@ export const typeDef = gql`
         hasAcceptedAnswer: Boolean
         createdById: ID
         apiId: ID
+        codeId: ID
         noteId: ID
-        organizationId: ID
         projectId: ID
         routineId: ID
-        smartContractId: ID
         standardId: ID
+        teamId: ID
         ids: [ID!]
         translationLanguages: [String!]
         maxScore: Int

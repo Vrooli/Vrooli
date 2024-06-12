@@ -1,19 +1,19 @@
 /**
- * Displays all search options for an organization
+ * Displays all search options for a team
  */
-import { Button, Grid, Stack, Typography } from "@mui/material";
+import { Button, Divider, Grid, Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFormik } from "formik";
 import { useTranslation } from "react-i18next";
-import { CookiePreferences, setCookiePreferences } from "utils/cookies";
+import { CookiePreferences, setCookie } from "utils/cookies";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { CookieSettingsDialogProps } from "../types";
 
 const titleId = "cookie-settings-dialog-title";
 const strictlyNecessaryUses = ["Authentication"] as const;
-const functionalUses = ["Theme", "FontSize"] as const;
+const functionalUses = ["DisplayCustomization", "Caching"] as const;
 const zIndex = 30000;
 
 export const CookieSettingsDialog = ({
@@ -24,7 +24,7 @@ export const CookieSettingsDialog = ({
 
     const setPreferences = (preferences: CookiePreferences) => {
         // Set preference in local storage
-        setCookiePreferences(preferences);
+        setCookie("Preferences", preferences);
         // Close dialog
         handleClose(preferences);
     };
@@ -58,6 +58,10 @@ export const CookieSettingsDialog = ({
             isOpen={isOpen}
             onClose={onCancel}
             titleId={titleId}
+            sxs={{
+                paper: { width: "min(100vw - 64px, 600px)" },
+                root: { zIndex },
+            }}
         >
             <TopBar
                 display="dialog"
@@ -86,27 +90,9 @@ export const CookieSettingsDialog = ({
                         {t("CurrentUses")}: {strictlyNecessaryUses.map((use) => t(use)).join(", ")}
                     </Typography>
                 </Stack>
-                {/* Performance */}
-                <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
-                    <Stack direction="row" marginRight="auto" alignItems="center">
-                        <Typography component="h2" variant="h5" textAlign="center">{t("Performance")}</Typography>
-                        <HelpButton markdown={t("CookiePerformanceDescription")} />
-                        <ToggleSwitch
-                            checked={formik.values.performance}
-                            name="performance"
-                            onChange={formik.handleChange}
-                            sx={{
-                                position: "absolute",
-                                right: "16px",
-                            }}
-                        />
-                    </Stack>
-                    <Typography variant="body1">
-                        {t("CurrentUses")}: <b>{t("None")}</b>
-                    </Typography>
-                </Stack>
+                <Divider />
                 {/* Functional */}
-                <Stack direction="column" spacing={1} sx={{ marginBottom: 2 }}>
+                <Stack direction="column" spacing={1} sx={{ marginTop: 2, marginBottom: 2 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t("Functional")}</Typography>
                         <HelpButton markdown={t("CookieFunctionalDescription")} />
@@ -124,8 +110,29 @@ export const CookieSettingsDialog = ({
                         {t("CurrentUses")}: {functionalUses.map((use) => t(use)).join(", ")}
                     </Typography>
                 </Stack>
+                <Divider />
+                {/* Performance */}
+                <Stack direction="column" spacing={1} sx={{ marginTop: 2, marginBottom: 2 }}>
+                    <Stack direction="row" marginRight="auto" alignItems="center">
+                        <Typography component="h2" variant="h5" textAlign="center">{t("Performance")}</Typography>
+                        <HelpButton markdown={t("CookiePerformanceDescription")} />
+                        <ToggleSwitch
+                            checked={formik.values.performance}
+                            name="performance"
+                            onChange={formik.handleChange}
+                            sx={{
+                                position: "absolute",
+                                right: "16px",
+                            }}
+                        />
+                    </Stack>
+                    <Typography variant="body1">
+                        {t("CurrentUses")}: <b>{t("None")}</b>
+                    </Typography>
+                </Stack>
+                <Divider />
                 {/* Targeting */}
-                <Stack direction="column" spacing={1} sx={{ marginBottom: 4 }}>
+                <Stack direction="column" spacing={1} sx={{ marginTop: 2, marginBottom: 4 }}>
                     <Stack direction="row" marginRight="auto" alignItems="center">
                         <Typography component="h2" variant="h5" textAlign="center">{t("Targeting")}</Typography>
                         <HelpButton markdown={t("CookieTargetingDescription")} />

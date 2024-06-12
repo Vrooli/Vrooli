@@ -4,12 +4,12 @@ import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MemberFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { MemberModelInfo, MemberModelLogic, OrganizationModelInfo, OrganizationModelLogic, RoleModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { MemberModelInfo, MemberModelLogic, RoleModelLogic, TeamModelInfo, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.member,
+    dbTable: "member",
     display: () => ({
         label: {
             select: () => ({
@@ -25,23 +25,25 @@ export const MemberModel: MemberModelLogic = ({
         sortBy: MemberSortBy,
         searchFields: {
             createdTimeFrame: true,
-            organizationId: true,
+            isAdmin: true,
+            roles: true,
+            teamId: true,
             updatedTimeFrame: true,
             userId: true,
         },
         searchStringQuery: () => ({
             OR: [
-                { organization: ModelMap.get<OrganizationModelLogic>("Organization").search.searchStringQuery() },
                 { role: ModelMap.get<RoleModelLogic>("Role").search.searchStringQuery() },
+                { team: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
                 { user: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
             ],
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },
@@ -50,15 +52,15 @@ export const MemberModel: MemberModelLogic = ({
     validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        permissionsSelect: () => ({ id: true, organization: "Organization" }),
+        permissionsSelect: () => ({ id: true, team: "Team" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<OrganizationModelLogic>("Organization").validate().owner(data?.organization as OrganizationModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<OrganizationModelLogic>("Organization").validate().isDeleted(data.organization as OrganizationModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<MemberModelInfo["PrismaSelect"]>([["organization", "Organization"]], ...rest),
+        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["PrismaModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
+        isPublic: (...rest) => oneIsPublic<MemberModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.private },
-            public: { organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.public },
-            owner: (userId) => ({ organization: ModelMap.get<OrganizationModelLogic>("Organization").validate().visibility.owner(userId) }),
+            private: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+            public: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+            owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
         },
     }),
 });

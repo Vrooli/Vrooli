@@ -10,7 +10,7 @@ import { NodeEndModelInfo, NodeEndModelLogic, NodeModelInfo, NodeModelLogic } fr
 const __typename = "NodeEnd" as const;
 export const NodeEndModel: NodeEndModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_end,
+    dbTable: "node_end",
     display: () => ({
         label: {
             select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),
@@ -24,14 +24,14 @@ export const NodeEndModel: NodeEndModelLogic = ({
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "end", data, ...rest })),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ["Connect"], data, ...rest })),
+                    node: await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "end", data, ...rest }),
+                    suggestedNextRoutineVersions: await nodeEndNextShapeHelper({ relTypes: ["Connect"], data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
                 return {
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await nodeEndNextShapeHelper({ relTypes: ["Connect", "Disconnect"], data, ...rest })),
+                    suggestedNextRoutineVersions: await nodeEndNextShapeHelper({ relTypes: ["Connect", "Disconnect"], data, ...rest }),
                 };
             },
         },

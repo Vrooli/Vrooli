@@ -8,7 +8,7 @@ import { QuizModelInfo, QuizModelLogic, StatsQuizModelInfo, StatsQuizModelLogic 
 const __typename = "StatsQuiz" as const;
 export const StatsQuizModel: StatsQuizModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.stats_quiz,
+    dbTable: "stats_quiz",
     display: () => ({
         label: {
             select: () => ({ id: true, quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display().label.select() } }),

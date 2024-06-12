@@ -1,4 +1,4 @@
-import { DUMMY_ID, exists, nodeRoutineListItemValidation, noopSubmit, orDefault, ResourceList, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, exists, nodeRoutineListItemValidation, noopSubmit, orDefault, ResourceList as ResourceListType, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
@@ -9,7 +9,7 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
@@ -85,8 +85,7 @@ const SubroutineForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "instructions", "name"],
-        validationSchema: routineVersionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const isLoading = useMemo(() => props.isSubmitting, [props.isSubmitting]);
@@ -95,7 +94,7 @@ const SubroutineForm = ({
     const [isInternalField] = useField<boolean>("routineVersion.root.isInternal");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("routineVersion.inputs");
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("routineVersion.outputs");
-    const [resourceListField, , resourceListHelpers] = useField<ResourceList>("routineVersion.resourceList");
+    const [resourceListField, , resourceListHelpers] = useField<ResourceListType>("routineVersion.resourceList");
     const [tagsField] = useField<TagShape[]>("routineVersion.root.tags");
     const [versionlabelField] = useField<string>("routineVersion.versionLabel");
     const [versionsField] = useField<{ versionLabel: string }[]>("routineVersion.root.versions");
@@ -166,7 +165,7 @@ const SubroutineForm = ({
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
-                    prefix={" - "}
+                    prefix={" - v"}
                     versions={versionsField.value ?? []}
                 />
                 {/* Position */}
@@ -218,7 +217,8 @@ const SubroutineForm = ({
                     />
                     {
                         (canUpdateRoutineVersion || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
-                            <ResourceListHorizontal
+                            <ResourceList
+                                horizontal
                                 list={resourceListField.value}
                                 canUpdate={canUpdateRoutineVersion}
                                 handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}

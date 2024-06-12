@@ -6,12 +6,12 @@ import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../util
 import { getSingleTypePermissions } from "../../validators";
 import { RunProjectFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { OrganizationModelLogic, ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } from "./types";
+import { ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "RunProject" as const;
 export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.run_project,
+    dbTable: "run_project",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -36,13 +36,13 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
-                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
-                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(data.organizationConnect ? {} : { user: { connect: { id: rest.userData.id } } }),
-                    ...(await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "organization", relTypes: ["Connect"], isOneToOne: true, objectType: "Organization", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
+                    user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
+                    projectVersion: await shapeHelper({ relation: "projectVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "runProjects", data, ...rest }),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest }),
+                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
+                    team: await shapeHelper({ relation: "team", relTypes: ["Connect"], isOneToOne: true, objectType: "Team", parentRelationshipName: "runProjects", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
@@ -52,10 +52,11 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     isPrivate: noNull(data.isPrivate),
                     status: noNull(data.status),
                     timeElapsed: noNull(data.timeElapsed),
-                    ...(data.status === RunStatus.InProgress ? { startedAt: new Date() } : {}),
-                    ...(data.status === RunStatus.Completed ? { completedAt: new Date() } : {}),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest })),
-                    ...(await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest })),
+                    // TODO should have way to check previous status, so we don't overwrite startedAt/completedAt
+                    startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
+                    completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "runProjects", data, ...rest }),
+                    steps: await shapeHelper({ relation: "steps", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RunRoutineStep", parentRelationshipName: "runRoutine", data, ...rest }),
                 };
             },
         },
@@ -84,10 +85,10 @@ export const RunProjectModel: RunProjectModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },
@@ -99,28 +100,33 @@ export const RunProjectModel: RunProjectModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             isPrivate: true,
-            organization: "Organization",
             projectVersion: "ProjectVersion",
+            team: "Team",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
-            ["organization", "Organization"],
-            ["user", "User"],
-        ], data, ...rest),
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            (
+                (data.user === null && data.team === null) ||
+                oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
+                    ["team", "Team"],
+                    ["user", "User"],
+                ], data, ...rest)
+            ),
         profanityFields: ["name"],
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

@@ -10,7 +10,8 @@ import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVer
 const __typename = "RoutineVersionInput" as const;
 export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.routine_version_input,
+    dbTable: "routine_version_input",
+    dbTranslationTable: "routine_version_input_translation",
     display: () => ({
         label: {
             select: () => ({
@@ -29,16 +30,16 @@ export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({
                 index: noNull(data.index),
                 isRequired: noNull(data.isRequired),
                 name: noNull(data.name),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "inputs", data, ...rest })),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "inputs", data, ...rest }),
+                standardVersion: await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 index: noNull(data.index),
                 isRequired: noNull(data.isRequired),
                 name: noNull(data.name),
-                ...(await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Disconnect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Create", "Delete"], data, ...rest })),
+                standardVersion: await shapeHelper({ relation: "standardVersion", relTypes: ["Connect", "Create", "Disconnect"], isOneToOne: true, objectType: "StandardVersion", parentRelationshipName: "routineVersionInputs", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Create", "Delete"], data, ...rest }),
             }),
         },
         yup: routineVersionInputValidation,

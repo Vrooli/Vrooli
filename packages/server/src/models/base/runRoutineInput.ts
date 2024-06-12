@@ -7,7 +7,7 @@ import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RunRoutine
 const __typename = "RunRoutineInput" as const;
 export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.run_routine_input,
+    dbTable: "run_routine_input",
     display: () => ({
         label: {
             select: () => ({

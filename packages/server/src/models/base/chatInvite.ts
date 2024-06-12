@@ -11,7 +11,7 @@ import { ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, Use
 const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.chat_invite,
+    dbTable: "chat_invite",
     display: () => ({
         // Label is the user label
         label: {
@@ -26,8 +26,8 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
                 return {
                     id: data.id,
                     message: noNull(data.message),
-                    ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "chatsInvited", data, ...rest })),
-                    ...(await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "invites", data, ...rest })),
+                    user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "chatsInvited", data, ...rest }),
+                    chat: await shapeHelper({ relation: "chat", relTypes: ["Connect"], isOneToOne: true, objectType: "Chat", parentRelationshipName: "invites", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => ({
@@ -35,7 +35,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             }),
         },
         trigger: {
-            afterMutations: async ({ createdIds, prisma, userData }) => {
+            afterMutations: async ({ createdIds, userData }) => {
                 //TODO Create invite notifications
             },
         },
@@ -61,10 +61,10 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },
@@ -76,7 +76,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data?.chat as ChatModelInfo["PrismaModel"])?.organization,
+            Team: (data?.chat as ChatModelInfo["PrismaModel"])?.team,
             User: (data?.chat as ChatModelInfo["PrismaModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {

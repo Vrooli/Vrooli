@@ -1,14 +1,98 @@
+import { SessionUserToken } from "@local/server";
+import { HOURS_1_S, Success } from "@local/shared";
 import Bull from "bull";
-import { HOST, PORT } from "../../redisConn.js";
-import { exportProcess } from "./process.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import winston from "winston";
+import { addJobToQueue } from "../queueHelper";
 
 export type ExportProcessPayload = {
+    /** What data should be exported */
+    flags: {
+        all: boolean;
+        account: boolean;
+        apis: boolean;
+        bookmarks: boolean;
+        bots: boolean;
+        chats: boolean;
+        codes: boolean;
+        comments: boolean;
+        issues: boolean;
+        notes: boolean;
+        //posts: boolean;
+        pullRequests: boolean;
+        projects: boolean;
+        questions: boolean;
+        questionAnswers: boolean;
+        // quizzes: boolean;
+        // quizResponses: boolean; // Includes attempts, answers, etc.
+        reactions: boolean;
+        reminders: boolean;
+        reports: boolean;
+        routines: boolean;
+        runs: boolean;
+        schedules: boolean;
+        standards: boolean;
+        // tags: boolean;
+        /** Includes meetings and roles */
+        teams: boolean;
+        views: boolean;
+    };
+    /** What should happen to the exported data */
+    requestType: "Delete" | "Download" | "DownloadAndDelete";
+    /** The user who's running the command (not the bot) */
+    userData: SessionUserToken;
+};
 
-}
+let logger: winston.Logger;
+let HOST: string;
+let PORT: number;
+let exportProcess: (job: Bull.Job<ExportProcessPayload>) => Promise<unknown>;
+let exportQueue: Bull.Queue<ExportProcessPayload>;
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
-const exportQueue = new Bull<ExportProcessPayload>("export", { redis: { port: PORT, host: HOST } });
-exportQueue.process(exportProcess);
+// Call this on server startup
+export const setupExportQueue = async () => {
+    try {
+        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
+        const loggerModule = await import(loggerPath);
+        logger = loggerModule.logger;
 
-export function exportData(data: ExportProcessPayload) {
-    exportQueue.add(data); //TODO
-}
+        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
+        const redisConnModule = await import(redisConnPath);
+        HOST = redisConnModule.HOST;
+        PORT = redisConnModule.PORT;
+
+        const processPath = path.join(dirname, "./process" + importExtension);
+        const processModule = await import(processPath);
+        exportProcess = processModule.exportProcess;
+
+        // Initialize the Bull queue
+        exportQueue = new Bull<ExportProcessPayload>("export", {
+            redis: { port: PORT, host: HOST },
+            defaultJobOptions: {
+                removeOnComplete: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+                removeOnFail: {
+                    age: HOURS_1_S,
+                    count: 10_000,
+                },
+            },
+        });
+        exportQueue.process(exportProcess);
+    } catch (error) {
+        const errorMessage = "Failed to setup export queue";
+        if (logger) {
+            logger.error(errorMessage, { trace: "0206", error });
+        } else {
+            console.error(errorMessage, error);
+        }
+    }
+};
+
+export const exportData = (data: ExportProcessPayload): Promise<Success> => {
+    return addJobToQueue(exportQueue, data, {});
+};

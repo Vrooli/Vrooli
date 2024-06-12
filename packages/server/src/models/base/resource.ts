@@ -10,7 +10,8 @@ import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, Resou
 const __typename = "Resource" as const;
 export const ResourceModel: ResourceModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.resource,
+    dbTable: "resource",
+    dbTranslationTable: "resource_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -25,15 +26,15 @@ export const ResourceModel: ResourceModelLogic = ({
                 index: noNull(data.index),
                 link: data.link,
                 usedFor: data.usedFor,
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 index: noNull(data.index),
                 link: noNull(data.link),
                 usedFor: noNull(data.usedFor),
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "resources", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: resourceValidation,

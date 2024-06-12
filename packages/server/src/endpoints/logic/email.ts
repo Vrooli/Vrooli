@@ -1,6 +1,7 @@
 import { Email, EmailCreateInput, SendVerificationEmailInput, Success } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
-import { setupVerificationCode } from "../../auth/email";
+import { setupEmailVerificationCode } from "../../auth/email";
+import { assertRequestFrom } from "../../auth/request";
 import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, GQLEndpoint } from "../../types";
 
@@ -14,13 +15,14 @@ export type EndpointsEmail = {
 const objectType = "Email";
 export const EmailEndpoints: EndpointsEmail = {
     Mutation: {
-        emailCreate: async (_, { input }, { prisma, req }, info) => {
+        emailCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 10, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        sendVerificationEmail: async (_, { input }, { prisma, req }) => {
+        sendVerificationEmail: async (_, { input }, { req }) => {
+            const { id: userId } = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 50, req });
-            await setupVerificationCode(input.emailAddress, prisma, req.session.languages);
+            await setupEmailVerificationCode(input.emailAddress, userId, req.session.languages);
             return { __typename: "Success" as const, success: true };
         },
     },

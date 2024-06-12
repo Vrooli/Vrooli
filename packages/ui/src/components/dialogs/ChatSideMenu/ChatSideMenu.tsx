@@ -1,9 +1,10 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, endpointPostBookmark, noop, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, CommonKey, ListObject, endpointPostBookmark, getObjectUrlBase, noop, uuid } from "@local/shared";
 import { Box, IconButton, SwipeableDrawer, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
+import { SelectorBase } from "components/inputs/Selector/Selector";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { SessionContext } from "contexts/SessionContext";
+import { useFindMany } from "hooks/useFindMany";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
@@ -16,7 +17,6 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { getObjectUrlBase } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, chatTabParams } from "utils/search/objectToSearch";
 import { BookmarkShape, shapeBookmark } from "utils/shape/models/bookmark";
@@ -49,7 +49,7 @@ export const ChatSideMenu = ({
         searchType,
         tabs,
         where,
-    } = useTabs<ChatPageTabOption>({ id: `${idPrefix ?? ""}chat-side-tabs`, tabParams: chatTabParams, display: "dialog" });
+    } = useTabs({ id: `${idPrefix ?? ""}chat-side-tabs`, tabParams: chatTabParams, display: "dialog" });
 
     // Handle opening and closing
     const { isOpen, close } = useSideMenu({ id, idPrefix, isMobile });
@@ -111,11 +111,18 @@ export const ChatSideMenu = ({
     }, [addBookmark, bookmarkLists]);
 
     const tabToAddData: { [key in ChatPageTabOption]?: readonly [CommonKey, (() => unknown)] } = {
-        [ChatPageTabOption.Chat]: ["NewChat", () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); }],
-        [ChatPageTabOption.Favorite]: ["AddBookmark", () => { openFindBookmarkDialog(); }],
-        [ChatPageTabOption.PromptMy]: ["CreatePrompt", () => { setLocation(`${getObjectUrlBase({ __typename: "Standard" })}/add`); }],
-        [ChatPageTabOption.RoutineMy]: ["CreateRoutine", () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); }],
+        Chat: ["NewChat", () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); }],
+        Favorite: ["AddBookmark", () => { openFindBookmarkDialog(); }],
+        PromptMy: ["CreatePrompt", () => { setLocation(`${getObjectUrlBase({ __typename: "Standard" })}/add`); }],
+        RoutineMy: ["CreateRoutine", () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); }],
     } as const;
+
+    const findManyData = useFindMany<ListObject>({
+        controlsUrl: false,
+        searchType,
+        take: 20,
+        where: where(),
+    });
 
     return (
         <>
@@ -184,30 +191,36 @@ export const ChatSideMenu = ({
                             <SearchIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                         </IconButton>
                     </Tooltip>
-                    {tabToAddData[currTab.tabType] && <Tooltip title={t(tabToAddData[currTab.tabType]![0])}>
-                        <IconButton aria-label="add" onClick={tabToAddData[currTab.tabType]![1]}>
+                    {tabToAddData[currTab.key] && <Tooltip title={t(tabToAddData[currTab.key]![0])}>
+                        <IconButton aria-label="add" onClick={tabToAddData[currTab.key]![1]}>
                             <AddIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                         </IconButton>
                     </Tooltip>}
                 </Box>
+                <SelectorBase
+                    color={palette.background.textPrimary}
+                    name="tab"
+                    value={currTab}
+                    label=""
+                    onChange={(tab) => handleTabChange(undefined, tab)}
+                    options={tabs}
+                    getOptionLabel={(o) => o.label}
+                    fullWidth={true}
+                    sxs={{
+                        fieldset: {
+                            border: "none",
+                            borderRadius: 0,
+                            borderBottom: `1px solid ${palette.divider}`,
+                        },
+                    }}
+                />
                 <Box sx={{ overflowY: "auto" }} >
-                    <SelectorBase
-                        color={palette.primary.contrastText}
-                        name="tab"
-                        value={currTab}
-                        label=""
-                        onChange={(tab) => handleTabChange(undefined, tab)}
-                        options={tabs}
-                        getOptionLabel={(o) => o.label}
-                        fullWidth={true}
-                    />
                     <SearchList
+                        {...findManyData}
                         id="chat-related-search-list"
                         display={isMobile ? "dialog" : "partial"}
                         dummyLength={10}
                         hideUpdateButton={true}
-                        take={20}
-                        searchType={searchType}
                         sxs={{
                             ...(showSearchFilters ?
                                 { search: { marginTop: 2 } } :
@@ -220,7 +233,6 @@ export const ChatSideMenu = ({
                                 borderRadius: 0,
                             },
                         }}
-                        where={where()}
                     />
                 </Box>
             </SwipeableDrawer>

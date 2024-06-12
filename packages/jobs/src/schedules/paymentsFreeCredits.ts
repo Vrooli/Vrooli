@@ -1,69 +1,69 @@
-import { batch } from "@local/server";
+import { Notify, batch, emitSocketEvent, logger, prismaInstance } from "@local/server";
+import { API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
-const CREDITS_FREE = 100;
-const CREDITS_PREMIUM = 10_000;
+/**
+ * The max number of free credits to give to premium users.
+ * This is 6x the monthly free amount.
+ */
+const MAX_FREE_CREDITS = BigInt(6) * API_CREDITS_PREMIUM;
 
 /**
- * Provides free credits to users based on their premium status.
- * NOTE: Skips users who don't have a verified email address or wallet.
+ * Provides free credits to premium users.
  */
-export const paymentsFreeCredits = async (): Promise<void> => {
-    await batch<Prisma.userFindManyArgs>({
-        objectType: "User",
-        processBatch: async (batch, prisma) => {
-            for (const user of batch) {
-                // If the user doesn't have a verified email or wallet, skip them
-                const hasVerifiedEmail = user.emails.some(email => email.verified);
-                const hasVerifiedWallet = user.wallets.some(wallet => wallet.verified);
-                if (!(hasVerifiedEmail || hasVerifiedWallet)) continue;
+export const paymentsCreditsFreePremium = async (): Promise<void> => {
+    try {
+        await batch<Prisma.userFindManyArgs>({
+            objectType: "User",
+            processBatch: async (batch) => {
+                for (const user of batch) {
+                    if (!user.premium || user.premium.isActive === false) continue;
 
-                const currentCredits = user.premium?.credits ?? 0;
-                const newCredits = user.premium?.isActive
-                    ? Math.max(CREDITS_PREMIUM, currentCredits)
-                    : Math.max(CREDITS_FREE, currentCredits);
-
-                if (user.premium) {
-                    // Update existing premium record
-                    await prisma.premium.update({
+                    await prismaInstance.premium.update({
                         where: { id: user.premium.id },
-                        data: { credits: newCredits },
-                    });
-                } else {
-                    // Create new premium record
-                    await prisma.premium.create({
+                        // Only give free credits if the user has less than 6x the monthly free amount
                         data: {
-                            user: { connect: { id: user.id } },
-                            isActive: false,
-                            credits: newCredits,
+                            // If user has less than the max free amount
+                            credits: user.premium.credits < MAX_FREE_CREDITS
+                                // If user has less than the max free amount - the monthly free amount
+                                ? user.premium.credits < (MAX_FREE_CREDITS - API_CREDITS_PREMIUM)
+                                    // Give the monthly free amount
+                                    ? user.premium.credits + API_CREDITS_PREMIUM
+                                    // Give them the max free amount, since the refill would put them over the max free amount
+                                    : MAX_FREE_CREDITS
+                                // Otherwise (the user has more than the max free amount) keep their current amount
+                                : user.premium.credits,
                         },
                     });
+                    // Notify user of free credits
+                    if (API_CREDITS_PREMIUM > user.premium.credits) {
+                        const language = user.languages.length > 0 ? user.languages[0].language : "en";
+                        Notify(language).pushFreeCreditsReceived().toUser(user.id);
+                    }
+                    // Update credits shown in UI for user, if they happen to be online
+                    emitSocketEvent("apiCredits", user.id, { credits: user.premium.credits + "" });
                 }
-            }
-        },
-        select: {
-            id: true,
-            emails: {
-                select: {
-                    verified: true,
+            },
+            select: {
+                id: true,
+                languages: {
+                    select: {
+                        language: true,
+                    },
+                },
+                premium: {
+                    select: {
+                        id: true,
+                        isActive: true,
+                        credits: true,
+                    },
                 },
             },
-            premium: {
-                select: {
-                    id: true,
-                    isActive: true,
-                    credits: true,
-                },
+            where: {
+                isBot: false,
             },
-            wallets: {
-                select: {
-                    verified: true,
-                },
-            },
-        },
-        where: {
-            isBot: false,
-        },
-        trace: "0470",
-    });
+        });
+    } catch (error) {
+        logger.error("Error giving free credits to pro users", { error, trace: "0470" });
+    }
 };

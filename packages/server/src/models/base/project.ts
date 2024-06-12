@@ -5,49 +5,57 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { ProjectFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, OrganizationModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+
+type ProjectPre = PreShapeRootResult;
 
 const __typename = "Project" as const;
 export const ProjectModel: ProjectModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.project,
+    dbTable: "project",
     display: () => rootObjectDisplay(ModelMap.get<ProjectVersionModelLogic>("ProjectVersion")),
     format: ProjectFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, Delete, prisma, userData }) => {
-                await handlesCheck(prisma, __typename, Create, Update, userData.languages);
-                const maps = await preShapeRoot({ Create, Update, Delete, prisma, userData, objectType: __typename });
+            pre: async ({ Create, Update, Delete, userData }): Promise<ProjectPre> => {
+                await handlesCheck(__typename, Create, Update, userData.languages);
+                const maps = await preShapeRoot({ Create, Update, Delete, userData, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                handle: noNull(data.handle),
-                isPrivate: data.isPrivate,
-                permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", relation: "labels", data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                handle: noNull(data.handle),
-                isPrivate: noNull(data.isPrivate),
-                permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", relation: "labels", data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as ProjectPre;
+                return {
+                    id: data.id,
+                    handle: noNull(data.handle),
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Project", data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as ProjectPre;
+                return {
+                    handle: noNull(data.handle),
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "projects", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Project", data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {
@@ -72,7 +80,7 @@ export const ProjectModel: ProjectModelLogic = ({
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -90,15 +98,15 @@ export const ProjectModel: ProjectModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                    translatedName: await getLabels(ids, __typename, userData?.languages ?? ["en"], "project.translatedName"),
                 };
             },
         },
@@ -107,16 +115,20 @@ export const ProjectModel: ProjectModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, ...rest) => data.isPrivate === false &&
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ProjectModelInfo["PrismaSelect"]>([
-                ["ownedByOrganization", "Organization"],
-                ["ownedByUser", "User"],
-            ], data, ...rest),
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<ProjectModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -127,17 +139,32 @@ export const ProjectModel: ProjectModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["ProjectVersion", ["root"]],
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

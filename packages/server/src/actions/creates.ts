@@ -16,7 +16,6 @@ export async function createManyHelper<GraphQLModel>({
     info,
     input,
     objectType,
-    prisma,
     req,
 }: CreateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
     const userData = assertRequestFrom(req, { isUser: true });
@@ -26,19 +25,18 @@ export async function createManyHelper<GraphQLModel>({
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
         inputData: input.map(d => ({
-            actionType: "Create",
+            action: "Create",
             input: d,
             objectType,
         })),
         partialInfo,
-        prisma,
         userData,
     });
     // Make sure none of the items in the array are booleans
     if (created.some(d => typeof d === "boolean")) {
         throw new CustomError("0028", "ErrorUnknown", userData.languages);
     }
-    return await addSupplementalFields(prisma, userData, created as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
+    return await addSupplementalFields(userData, created as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
 }
 
 /**

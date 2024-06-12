@@ -1,4 +1,5 @@
 import { CommentFor, CommonKey } from "@local/shared";
+import { TypographyProps } from "@mui/material";
 import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "components/inputs/types";
 import { ReactNode } from "react";
 import { SvgComponent, SvgProps, SxType } from "types";
@@ -20,7 +21,6 @@ export interface TitleContainerProps {
     title: string;
     id?: string;
     loading?: boolean;
-    onClick?: (event: React.MouseEvent) => unknown;
     options?: {
         /** Adds icon for option to the right of the title */
         Icon?: SvgComponent;
@@ -48,6 +48,8 @@ export type DialogActionItem = [string, SvgComponent, boolean, boolean, () => un
 
 export interface ContentCollapseProps {
     children?: React.ReactNode;
+    /** True if the container is not collapsible. Defaults to false. */
+    disableCollapse?: boolean;
     helpText?: string;
     id?: string;
     isOpen?: boolean;
@@ -58,9 +60,11 @@ export interface ContentCollapseProps {
         helpButton?: SvgProps;
     }
     title?: string | null;
-    titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
+    titleComponent?: TypographyProps["component"];
+    titleVariant?: TypographyProps["variant"];
     titleKey?: CommonKey;
     titleVariables?: { [x: string]: string | number };
+    toTheRight?: JSX.Element;
 }
 
 export interface TextCollapseProps {

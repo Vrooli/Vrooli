@@ -1,15 +1,15 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, ListObject, getObjectUrlBase } from "@local/shared";
 import { IconButton, useTheme } from "@mui/material";
+import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
+import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { getObjectUrlBase } from "utils/navigation/openObject";
-import { HistoryPageTabOption, historyTabParams, SearchType } from "utils/search/objectToSearch";
+import { SearchType, historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
 export const HistoryView = ({
@@ -27,7 +27,14 @@ export const HistoryView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<HistoryPageTabOption>({ id: "history-tabs", tabParams: historyTabParams, display });
+    } = useTabs({ id: "history-tabs", tabParams: historyTabParams, display });
+
+    const findManyData = useFindMany<ListObject>({
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where(),
+    });
 
     return (
         <>
@@ -46,17 +53,11 @@ export const HistoryView = ({
             />
             {
                 searchType && <SearchList
+                    {...findManyData}
                     id="history-page-list"
                     display={display}
                     dummyLength={display === "page" ? 5 : 3}
-                    take={20}
-                    searchType={searchType}
-                    sxs={{
-                        search: {
-                            marginTop: 2,
-                        },
-                    }}
-                    where={where()}
+                    sxs={{ search: { marginTop: 2 } }}
                 />
             }
             {

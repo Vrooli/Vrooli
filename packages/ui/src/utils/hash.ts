@@ -1,5 +1,3 @@
-import { AssistantTask } from "types";
-
 /** A weak string hash for things like cache keys. */
 export const weakHash = (str: string) => {
     let hash = 0;
@@ -14,7 +12,7 @@ export const weakHash = (str: string) => {
     return hash.toString();
 };
 
-export const chatMatchHash = (userIds: string[], task?: AssistantTask): string => {
+export const chatMatchHash = (userIds: string[], task?: string): string => {
     // Sort for consistent ordering
     let toHash = userIds.sort().join("|");
     // Append the task if it exists

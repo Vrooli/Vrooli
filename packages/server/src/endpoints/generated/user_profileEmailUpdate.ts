@@ -8,7 +8,6 @@ export const user_profileEmailUpdate = {
   "isPrivateApis": true,
   "isPrivateApisCreated": true,
   "isPrivateMemberships": true,
-  "isPrivateOrganizationsCreated": true,
   "isPrivateProjects": true,
   "isPrivateProjectsCreated": true,
   "isPrivatePullRequests": true,
@@ -20,6 +19,7 @@ export const user_profileEmailUpdate = {
   "isPrivateRoutinesCreated": true,
   "isPrivateStandards": true,
   "isPrivateStandardsCreated": true,
+  "isPrivateTeamsCreated": true,
   "isPrivateBookmarks": true,
   "isPrivateVotes": true,
   "name": true,
@@ -138,6 +138,11 @@ export const user_profileEmailUpdate = {
         "id": true,
         "name": true,
         "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        },
         "__typename": "FocusMode"
       },
       "__typename": "FocusModeFilter"
@@ -227,7 +232,17 @@ export const user_profileEmailUpdate = {
     "id": true,
     "name": true,
     "description": true,
+    "you": {
+      "canDelete": true,
+      "canRead": true,
+      "canUpdate": true
+    },
     "__typename": "FocusMode"
+  },
+  "phones": {
+    "id": true,
+    "phoneNumber": true,
+    "verified": true
   },
   "pushDevices": {
     "id": true,

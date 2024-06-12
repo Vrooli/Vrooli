@@ -58,7 +58,12 @@ export const reminderList_findMany = {
         },
         "id": true,
         "name": true,
-        "description": true
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        }
       },
       "reminders": {
         "id": true,

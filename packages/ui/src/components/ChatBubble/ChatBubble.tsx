@@ -1,5 +1,5 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageUpdateInput, endpointPostChatMessage, endpointPostReact, endpointPutChatMessage, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
-import { Avatar, Box, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { DUMMY_ID, endpointPostReact, getObjectUrl, ListObject, LlmTaskInfo, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
+import { Avatar, Box, Chip, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
 import IconButton from "@mui/material/IconButton";
@@ -7,59 +7,57 @@ import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { usePopover } from "hooks/usePopover";
 import usePress from "hooks/usePress";
-import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, PlayIcon, RefreshIcon, ReplyIcon, SearchIcon, SuccessIcon, UserIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { NavigableObject } from "types";
-import { getCurrentUser } from "utils/authentication/session";
+import { openLink, useLocation } from "route";
+import { isTaskStale } from "utils/display/chatTools";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getDisplay, ListObject } from "utils/display/listTools";
-import { fontSizeToPixels } from "utils/display/stringTools";
+import { getDisplay } from "utils/display/listTools";
+import { displayDate, fontSizeToPixels } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { shapeChatMessage } from "utils/shape/models/chatMessage";
+import { ChatMessageStatus } from "utils/shape/models/chatMessage";
 
 /**
  * Displays a visual indicator for the status of a chat message (that you sent).
  * It shows a CircularProgress that progresses as the message is sending,
  * and changes color and icon based on the success or failure of the operation.
  */
-const ChatBubbleStatus = ({
-    hasError,
+export const ChatBubbleStatus = ({
     isEditing,
-    isSending,
     onDelete,
     onEdit,
     onRetry,
     showButtons,
+    status,
 }: {
     isEditing: boolean;
-    /** Indicates if the message is still sending */
-    isSending: boolean;
-    /** Indicates if there has been an error in sending the message */
-    hasError: boolean;
     onDelete: () => unknown;
     onEdit: () => unknown;
     onRetry: () => unknown;
     /** Indicates if the edit and delete buttons should be shown */
     showButtons: boolean;
+    status: ChatMessageStatus;
 }) => {
+    const { palette } = useTheme();
+    console.log("in chatbubblestatus", useTranslation);
+    const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
 
     useEffect(() => {
         // Updates the progress value every 100ms, but stops at 90 if the message is still sending
         let timer: NodeJS.Timeout;
-        if (isSending) {
+        if (status === "sending") {
             timer = setInterval(() => {
                 setProgress((oldProgress) => {
                     if (oldProgress === 100) {
@@ -67,7 +65,7 @@ const ChatBubbleStatus = ({
                         return 100;
                     }
                     const diff = 3;
-                    return Math.min(oldProgress + diff, isSending ? 90 : 100);
+                    return Math.min(oldProgress + diff, status === "sending" ? 90 : 100);
                 });
             }, 50);
         }
@@ -76,11 +74,11 @@ const ChatBubbleStatus = ({
         return () => {
             if (timer) clearInterval(timer);
         };
-    }, [isSending]);
+    }, [status]);
 
     useEffect(() => {
         // Resets the progress and completion state after a delay when the sending has completed
-        if (isCompleted && !isSending) {
+        if (isCompleted && status !== "sending") {
             const timer = setTimeout(() => {
                 setProgress(0);
                 setIsCompleted(false);
@@ -89,16 +87,22 @@ const ChatBubbleStatus = ({
                 clearTimeout(timer);
             };
         }
-    }, [isCompleted, isSending]);
+    }, [isCompleted, status]);
 
     // While the message is sending or has just completed, show a CircularProgress
-    if (isSending || isCompleted) {
+    if (status === "sending" || isCompleted) {
         return (
             <CircularProgress
                 variant="determinate"
                 value={progress}
                 size={24}
-                sx={{ color: isSending ? "secondary.main" : hasError ? red[500] : green[500] }}
+                sx={{
+                    color: status === "sending"
+                        ? palette.secondary.main
+                        : status === "failed"
+                            ? red[500]
+                            : green[500],
+                }}
             />
         );
     }
@@ -108,9 +112,13 @@ const ChatBubbleStatus = ({
         return null;
     }
     // If there was an error, show an ErrorIcon
-    if (hasError) {
+    if (status === "failed") {
         return (
-            <IconButton onClick={() => { onRetry(); }} sx={{ color: red[500] }}>
+            <IconButton
+                aria-label={t("Retry")}
+                onClick={() => { onRetry(); }}
+                sx={{ color: red[500] }}
+            >
                 <ErrorIcon />
             </IconButton>
         );
@@ -118,10 +126,18 @@ const ChatBubbleStatus = ({
     // If allowed to show buttons, show edit and delete buttons
     if (showButtons) return (
         <>
-            <IconButton onClick={onEdit} sx={{ color: green[500] }}>
+            <IconButton
+                aria-label={t("Edit")}
+                onClick={onEdit}
+                sx={{ color: green[500] }}
+            >
                 <EditIcon />
             </IconButton>
-            <IconButton onClick={onDelete} sx={{ color: red[500] }}>
+            <IconButton
+                aria-label={t("Delete")}
+                onClick={onDelete}
+                sx={{ color: red[500] }}
+            >
                 <DeleteIcon />
             </IconButton>
         </>
@@ -129,6 +145,68 @@ const ChatBubbleStatus = ({
     // Otherwise, show nothing
     return null;
 };
+
+export const NavigationArrows = ({
+    activeIndex,
+    numSiblings,
+    onIndexChange,
+}: {
+    activeIndex: number,
+    numSiblings: number,
+    onIndexChange: (newIndex: number) => unknown,
+}) => {
+    const { palette } = useTheme();
+
+    if (numSiblings < 2) {
+        return null; // Do not render anything if there are less than 2 siblings
+    }
+
+    const handleActiveIndexChange = (newIndex: number) => {
+        if (newIndex >= 0 && newIndex < numSiblings) {
+            onIndexChange(newIndex);
+        }
+    };
+
+    return (
+        <div style={{ display: "flex", alignItems: "center" }}>
+            <IconButton
+                size="small"
+                onClick={() => handleActiveIndexChange(activeIndex - 1)}
+                disabled={activeIndex <= 0}
+                aria-label="left"
+            >
+                <ChevronLeftIcon fill={palette.background.textSecondary} />
+            </IconButton>
+            <Typography variant="body2" color="textSecondary">
+                {activeIndex + 1}/{numSiblings}
+            </Typography>
+            <IconButton
+                size="small"
+                onClick={() => handleActiveIndexChange(activeIndex + 1)}
+                disabled={activeIndex >= numSiblings - 1}
+                aria-label="right"
+            >
+                <ChevronRightIcon fill={palette.background.textSecondary} />
+            </IconButton>
+        </div>
+    );
+};
+
+type ChatBubbleReactionsProps = {
+    activeIndex: number,
+    handleActiveIndexChange: (newIndex: number) => unknown,
+    handleCopy,
+    handleReactionAdd: (emoji: string) => unknown,
+    handleReply: () => unknown,
+    handleRetry: () => unknown,
+    isBot: boolean,
+    isLastMessage: boolean,
+    isOwn: boolean,
+    numSiblings: number,
+    messageId: string,
+    reactions: ReactionSummary[],
+    status: ChatMessageStatus,
+}
 
 /**
  * Displays message reactions and actions (i.e. refresh and report). 
@@ -143,41 +221,23 @@ const ChatBubbleReactions = ({
     handleReply,
     handleRetry,
     isBot,
+    isLastMessage,
     isOwn,
-    isUnsent,
-    messagesCount,
+    numSiblings,
     messageId,
     reactions,
-}: {
-    activeIndex: number,
-    handleActiveIndexChange: (newIndex: number) => unknown,
-    handleCopy,
-    handleReactionAdd: (emoji: string) => unknown,
-    handleReply: () => unknown,
-    handleRetry: () => unknown,
-    isBot: boolean,
-    isOwn: boolean,
-    isUnsent: boolean,
-    messagesCount: number,
-    messageId: string,
-    reactions: ReactionSummary[],
-}) => {
+    status,
+}: ChatBubbleReactionsProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const handleEmojiMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-    const handleEmojiMenuClose = () => {
-        setAnchorEl(null);
-    };
+    const [anchorEl, openReactionMenu, closeReactionMenu] = usePopover();
     const onReactionAdd = (emoji: string) => {
-        setAnchorEl(null);
+        closeReactionMenu();
         handleReactionAdd(emoji);
     };
 
-    if (isUnsent) return null;
+    if (status === "unsent") return null;
     return (
         <Box
             display="flex"
@@ -219,14 +279,14 @@ const ChatBubbleReactions = ({
                     <IconButton
                         size="small"
                         style={{ borderRadius: 0, background: "transparent" }}
-                        onClick={handleEmojiMenuOpen}
+                        onClick={openReactionMenu}
                     >
                         <AddIcon />
                     </IconButton>
                 )}
                 <EmojiPicker
                     anchorEl={anchorEl}
-                    onClose={handleEmojiMenuClose}
+                    onClose={closeReactionMenu}
                     onSelect={onReactionAdd}
                 />
             </Stack>
@@ -236,45 +296,150 @@ const ChatBubbleReactions = ({
                         <CopyIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Tooltip>
-                {isBot && <>
-                    <Tooltip title={t("Retry")}>
-                        <IconButton size="small" onClick={handleRetry}>
-                            <RefreshIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t("Reply")}>
-                        <IconButton size="small" onClick={handleReply}>
-                            <ReplyIcon fill={palette.background.textSecondary} />
-                        </IconButton>
-                    </Tooltip>
-                    <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />
-                </>}
-                {activeIndex > 0 && activeIndex < (messagesCount - 1) && <IconButton
-                    size="small"
-                    onClick={() => { handleActiveIndexChange(Math.max(0, activeIndex - 1)); }}>
-                    <ChevronLeftIcon fill={palette.background.textSecondary} />
-                </IconButton>}
-                {activeIndex >= 0 && activeIndex < (messagesCount - 2) && <IconButton
-                    size="small"
-                    onClick={() => { handleActiveIndexChange(Math.min(messagesCount - 1, activeIndex + 1)); }}>
-                    <ChevronRightIcon fill={palette.background.textSecondary} />
-                </IconButton>}
+                {(isBot || (isOwn && isLastMessage)) && <Tooltip title={t("Retry")}>
+                    <IconButton size="small" onClick={handleRetry}>
+                        <RefreshIcon fill={palette.background.textSecondary} />
+                    </IconButton>
+                </Tooltip>}
+                {isBot && <Tooltip title={t("Reply")}>
+                    <IconButton size="small" onClick={handleReply}>
+                        <ReplyIcon fill={palette.background.textSecondary} />
+                    </IconButton>
+                </Tooltip>}
+                {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
+                <NavigationArrows
+                    activeIndex={activeIndex}
+                    numSiblings={numSiblings}
+                    onIndexChange={handleActiveIndexChange}
+                />
             </Stack>
         </Box >
+    );
+};
+
+
+
+/** Displays a suggested, active, or finished task that is associated with the message */
+export const TaskChip = ({
+    taskInfo,
+    onTaskClick,
+}: {
+    taskInfo: LlmTaskInfo,
+    onTaskClick: (task: LlmTaskInfo) => unknown,
+}) => {
+    const { label, status, resultLabel, resultLink, task } = taskInfo;
+    const [, setLocation] = useLocation();
+
+    const isStale = isTaskStale(taskInfo);
+    const canPress =
+        isStale // Has been running or canceling for too long
+        || !["Completed", "Canceling"].includes(status)
+        || (status === "Completed" && resultLink); // Result can be opened
+
+    const getStatusColor = () => {
+        if (isStale) return "warning";
+        switch (status) {
+            case "Running":
+            case "Canceling":
+                return "primary";
+            case "Completed":
+                return "success";
+            case "Failed":
+                return "error";
+            default:
+                return "default";
+        }
+    };
+
+    const getStatusIcon = () => {
+        if (isStale || !task) return <ErrorIcon />;
+        switch (status) {
+            case "Running":
+            case "Canceling":
+                return <CircularProgress size={20} color="inherit" />;
+            case "Completed":
+                return <SuccessIcon />;
+            case "Failed":
+                return <ErrorIcon />;
+            default:
+                // Base Icon style on task type
+                if (task.endsWith("Add"))
+                    return <AddIcon />;
+                if (task.endsWith("Delete"))
+                    return <DeleteIcon />;
+                if (task.endsWith("Find"))
+                    return <SearchIcon />;
+                if (task.endsWith("Update"))
+                    return <EditIcon />;
+                return <PlayIcon />;
+        }
+    };
+
+    const getStatusTooltip = () => {
+        if (isStale) return `Task is stale: ${label}`;
+        switch (status) {
+            case "Suggested":
+                return `Press to start task: ${label}`;
+            case "Running":
+                return `Task is running: ${label} (Started: ${displayDate(taskInfo.lastUpdated)})`;
+            case "Canceling":
+                return `Task is canceling: ${label}`;
+            case "Completed":
+                return `Task completed: ${resultLabel || label}`;
+            case "Failed":
+                return `Task failed: ${label}`;
+            default:
+                return `Task: ${label}`;
+        }
+    };
+
+    const handleTaskClick = () => {
+        // If the result link is available, open it
+        if (resultLink) {
+            openLink(setLocation, resultLink);
+        } else {
+            onTaskClick(taskInfo);
+        }
+    };
+
+    return (
+        <Tooltip title={getStatusTooltip()}>
+            {/* Wrap in span so tooltip displayed when disabled */}
+            <span>
+                <Chip
+                    label={resultLabel || label}
+                    onClick={() => canPress ? handleTaskClick() : undefined}
+                    color={getStatusColor()}
+                    icon={getStatusIcon()}
+                    style={{
+                        transition: "all 0.3s ease",
+                        cursor: canPress ? "pointer" : "default",
+                        borderRadius: "4px",
+                        border: status === "Suggested" ? "1px solid" : "none",
+                        paddingLeft: "4px",
+                    }}
+                    disabled={!canPress}
+                />
+            </span>
+        </Tooltip>
     );
 };
 
 export const ChatBubble = ({
     activeIndex,
     chatWidth,
+    isBotOnlyChat,
+    isLastMessage,
     isOwn,
     message,
-    messagesCount,
+    numSiblings,
     onActiveIndexChange,
     onDeleted,
     onReply,
     onRetry,
+    onTaskClick,
     onUpdated,
+    tasks,
 }: ChatBubbleProps) => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -282,16 +447,7 @@ export const ChatBubble = ({
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
 
-    const [createMessage, { loading: isCreating, errors: createErrors }] = useLazyFetch<ChatMessageCreateInput, ChatMessage>(endpointPostChatMessage);
-    const [updateMessage, { loading: isUpdating, errors: updateErrors }] = useLazyFetch<ChatMessageUpdateInput, ChatMessage>(endpointPutChatMessage);
-    const [react, { loading: isReacting }] = useLazyFetch<ReactInput, Success>(endpointPostReact);
-
-    const [hasError, setHasError] = useState(false);
-    useEffect(() => {
-        if ((Array.isArray(createErrors) && createErrors.length > 0) || (Array.isArray(updateErrors) && updateErrors.length > 0)) {
-            setHasError(true);
-        }
-    }, [createErrors, updateErrors]);
+    const [react] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
     const {
         handleDelete,
@@ -302,71 +458,59 @@ export const ChatBubble = ({
         onActionComplete: () => { onDeleted(message); },
     });
 
-    const shouldRetry = useRef(true);
-    useEffect(() => {
-        if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
-            shouldRetry.current = false;
-            fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
-                fetch: createMessage,
-                inputs: shapeChatMessage.create({ ...message, versionOfId: message.id }),
-                successCondition: (data) => data !== null,
-                onSuccess: (data) => {
-                    setEditingText(undefined);
-                    console.log("chatbubble setting error false 1", data);
-                    setHasError(false);
-                    onUpdated({ ...data, isUnsent: false });
-                },
-            });
-        }
-    }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
+    // const shouldRetry = useRef(true);
+    // useEffect(() => {
+    //     if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
+    //         shouldRetry.current = false;
+    //         fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
+    //             fetch: createMessage,
+    //             inputs: shapeChatMessage.create({ ...message }),
+    //             successCondition: (data) => data !== null,
+    //             onSuccess: (data) => {
+    //                 setEditingText(undefined);
+    //                 console.log("chatbubble setting error false 1", data);
+    //                 setHasError(false);
+    //                 onUpdated({ ...data, isUnsent: false });
+    //             },
+    //         });
+    //     }
+    // }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
 
     const [editingText, setEditingText] = useState<string | undefined>(undefined);
     const isEditing = Boolean(editingText);
-    const startEditing = () => {
-        if (message.isUnsent) return;
+    const startEditing = useCallback(() => {
+        if (message.status && message.status !== "sent") return;
         setEditingText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
-    };
+    }, [message, session]);
     const finishEditing = () => {
-        if (message.isUnsent || editingText === undefined || editingText.trim() === "") return;
-        // TODO when talking to a bot, should create new fork. When talking to a user,
-        // should update the message instead. Need to figure out what to do in chat groups, 
-        // with mixed bots and users.
-        fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
-            fetch: createMessage,
-            inputs: shapeChatMessage.create({
+        if (message.status !== "sent" || editingText === undefined || editingText.trim() === "") return;
+        if (isBotOnlyChat) {
+            //TODO
+        }
+        // Otherwise, update the existing message
+        else {
+            const updatedMessage = {
                 ...message,
-                versionOfId: message.id,
                 translations: [
                     ...message.translations.filter((t) => t.language !== lng),
                     {
+                        __typename: "ChatMessageTranslation" as const,
+                        id: DUMMY_ID,
+                        language: lng,
                         ...message.translations.find((t) => t.language === lng),
                         text: editingText,
                     },
-                ] as any,
-            }),
-            successCondition: (data) => data !== null,
-            onSuccess: (data) => {
-                setEditingText(undefined);
-                console.log("chatbubble setting error false 2", data);
-                setHasError(false);
-                onUpdated({ ...data, isUnsent: false });
-            },
-        });
+                ],
+            };
+            onUpdated(updatedMessage);
+            // TODO need these after update complete
+            // setEditingText(undefined);
+            // setHasError(false);
+        }
     };
 
-    useEffect(() => {
-        const chatMessageEditSub = PubSub.get().subscribe("chatMessageEdit", (data) => {
-            if (data === false) {
-                setEditingText(undefined);
-            } else if (data === message.id) {
-                startEditing();
-            }
-        });
-        return () => { PubSub.get().unsubscribe(chatMessageEditSub); };
-    }, [message.id, startEditing]);
-
     const handleReactionAdd = (emoji: string) => {
-        if (message.isUnsent) return;
+        if (message.status !== "sent") return;
         const originalSummaries = message.reactionSummaries;
         // Add to summaries right away, so that the UI updates immediately
         const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
@@ -449,8 +593,8 @@ export const ChatBubble = ({
                         <Typography variant="body2">
                             {name}
                         </Typography>
-                        {adornments.length > 0 && adornments.map((Adornment, index) => (
-                            <Box key={index} sx={{
+                        {adornments.map(({ Adornment, key }, index) => (
+                            <Box key={key} sx={{
                                 width: fontSizeToPixels("0.85rem") * Number("1.5"),
                                 height: fontSizeToPixels("0.85rem") * Number("1.5"),
                             }}>
@@ -491,10 +635,14 @@ export const ChatBubble = ({
                             pr: isEditing ? 0 : 2,
                             ml: isOwn ? "auto" : 0,
                             mr: isOwn ? 0 : "auto",
-                            backgroundColor: (isOwn && !isEditing) ?
-                                palette.mode === "light" ? "#88d17e" : "#1a5413" :
-                                palette.background.paper,
-                            color: palette.background.textPrimary,
+                            background: !isOwn && message.status === "failed"
+                                ? palette.error.dark
+                                : (isOwn && !isEditing)
+                                    ? palette.mode === "light" ? "#88d17e" : "#1a5413"
+                                    : palette.background.paper,
+                            color: !isOwn && message.status === "failed"
+                                ? palette.error.contrastText
+                                : palette.background.textPrimary,
                             borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
                             boxShadow: 2,
                             minWidth: "50px",
@@ -523,8 +671,8 @@ export const ChatBubble = ({
                             />
                             <Grid container spacing={1} mt={2}>
                                 <BottomActionsButtons
-                                    disabledCancel={isCreating || isUpdating}
-                                    disabledSubmit={isCreating || isUpdating}
+                                    disabledCancel={message.status !== "sent"}
+                                    disabledSubmit={!["unsent", "editing"].includes(message.status ?? "sent")}
                                     display="page"
                                     errors={{}}
                                     isCreate={false}
@@ -544,17 +692,15 @@ export const ChatBubble = ({
                         <Box display="flex" alignItems="center">
                             <ChatBubbleStatus
                                 isEditing={isEditing}
-                                isSending={isCreating || isUpdating}
-                                hasError={hasError}
                                 onDelete={handleDelete}
                                 onEdit={() => {
                                     startEditing();
                                 }}
                                 onRetry={() => {
-                                    shouldRetry.current = true;
-                                    onUpdated({ ...message, isUnsent: true });
+                                    //TODO
                                 }}
                                 showButtons={bubblePressed}
+                                status={message.status ?? "sent"}
                             />
                         </Box>
                     )}
@@ -568,12 +714,21 @@ export const ChatBubble = ({
                     handleReply={() => { onReply(message); }}
                     handleRetry={() => { onRetry(message); }}
                     isBot={message.user?.isBot ?? false}
+                    isLastMessage={isLastMessage}
                     isOwn={isOwn}
-                    isUnsent={message.isUnsent ?? false}
-                    messagesCount={messagesCount}
+                    numSiblings={numSiblings}
                     messageId={message.id}
                     reactions={message.reactionSummaries}
+                    status={message.status ?? "sent"}
                 />
+                {/* Tasks associated with message */}
+                {tasks && tasks.length > 0 && (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
+                        {tasks.map((taskInfo) => (
+                            <TaskChip key={taskInfo.id} taskInfo={taskInfo} onTaskClick={onTaskClick} />
+                        ))}
+                    </Box>
+                )}
             </Box>
         </>
     );

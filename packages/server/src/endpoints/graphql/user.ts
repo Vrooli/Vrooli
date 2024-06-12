@@ -24,8 +24,10 @@ export const typeDef = gql`
         isPrivate: Boolean!
         isPrivateApis: Boolean!
         isPrivateApisCreated: Boolean!
+        isPrivateBookmarks: Boolean!
+        isPrivateCodes: Boolean!
+        isPrivateCodesCreated: Boolean!
         isPrivateMemberships: Boolean!
-        isPrivateOrganizationsCreated: Boolean!
         isPrivateProjects: Boolean!
         isPrivateProjectsCreated: Boolean!
         isPrivatePullRequests: Boolean!
@@ -35,10 +37,9 @@ export const typeDef = gql`
         isPrivateRoles: Boolean!
         isPrivateRoutines: Boolean!
         isPrivateRoutinesCreated: Boolean!
-        isPrivateSmartContracts: Boolean!
         isPrivateStandards: Boolean!
         isPrivateStandardsCreated: Boolean!
-        isPrivateBookmarks: Boolean!
+        isPrivateTeamsCreated: Boolean!
         isPrivateVotes: Boolean!
         name: String!
         profileImage: String
@@ -51,9 +52,11 @@ export const typeDef = gql`
         apisCount: Int!
         apisCreated: [Api!]
         awards: [Award!]
+        codes: [Code!]
+        codesCount: Int!
+        codesCreated: [Code!]
         comments: [Comment!]
         emails: [Email!]
-        organizationsCreate: [Organization!]
         invitedByUser: User
         invitedUsers: [User!]
         issuesCreated: [Issue!]
@@ -72,6 +75,7 @@ export const typeDef = gql`
         notificationSubscriptions: [NotificationSubscription!]
         notificationSettings: String
         paymentHistory: [Payment!]
+        phones: [Phone!]
         premium: Premium
         projects: [Project!]
         projectsCount: Int!
@@ -96,15 +100,13 @@ export const typeDef = gql`
         runProjects: [RunProject!]
         runRoutines: [RunRoutine!]
         focusModes: [FocusMode!]
-        smartContracts: [SmartContract!]
-        smartContractsCount: Int!
-        smartContractsCreated: [SmartContract!]
         standards: [Standard!]
         standardsCount: Int!
         standardsCreated: [Standard!]
         bookmarkedBy: [User!]!
         bookmarked: [Bookmark!]
         tags: [Tag!]
+        teamsCreated: [Team!]
         transfersIncoming: [Transfer!]
         transfersOutgoing: [Transfer!]
         translations: [UserTranslation!]!
@@ -174,8 +176,10 @@ export const typeDef = gql`
         isPrivate: Boolean
         isPrivateApis: Boolean
         isPrivateApisCreated: Boolean
+        isPrivateBookmarks: Boolean
+        isPrivateCodes: Boolean
+        isPrivateCodesCreated: Boolean
         isPrivateMemberships: Boolean
-        isPrivateOrganizationsCreated: Boolean
         isPrivateProjects: Boolean
         isPrivateProjectsCreated: Boolean
         isPrivatePullRequests: Boolean
@@ -185,10 +189,9 @@ export const typeDef = gql`
         isPrivateRoles: Boolean
         isPrivateRoutines: Boolean
         isPrivateRoutinesCreated: Boolean
-        isPrivateSmartContracts: Boolean
         isPrivateStandards: Boolean
         isPrivateStandardsCreated: Boolean
-        isPrivateBookmarks: Boolean
+        isPrivateTeamsCreated: Boolean
         isPrivateVotes: Boolean
         notificationSettings: String
         languages: [String!]
@@ -220,7 +223,7 @@ export const typeDef = gql`
         excludeIds: [ID!]
         maxBookmarks: Int
         maxViews: Int
-        memberInOrganizationId: ID
+        memberInTeamId: ID
         minBookmarks: Int
         minViews: Int
         notInChatId: ID

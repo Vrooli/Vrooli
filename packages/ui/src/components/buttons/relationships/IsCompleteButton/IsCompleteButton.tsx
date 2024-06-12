@@ -7,10 +7,10 @@ import { useTranslation } from "react-i18next";
 import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
 import { IsCompleteButtonProps } from "../types";
 
-export function IsCompleteButton({
+export const IsCompleteButton = ({
     isEditing,
     objectType,
-}: IsCompleteButtonProps) {
+}: IsCompleteButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

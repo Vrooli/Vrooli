@@ -1,7 +1,7 @@
-import { noop, OrArray } from "@local/shared";
+import { ListObject, noop, OrArray } from "@local/shared";
 import { Method } from "api";
-import { ListObject } from "utils/display/listTools";
-import { MakeLazyRequest, useLazyFetch, UseLazyFetchProps } from "./useLazyFetch";
+import { LazyRequestWithResult } from "api/types";
+import { useLazyFetch, UseLazyFetchProps } from "./useLazyFetch";
 
 type CommonProps<IsMutate extends boolean> = {
     isCreate: boolean,
@@ -30,9 +30,9 @@ export const useUpsertFetch = <
     isCreate,
     isMutate = true,
 }: UseUpsertFetchParams<typeof isMutate>) => {
-    const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(isMutate === false ? {} : endpointCreate as UseLazyFetchProps<TCreateInput, T>);
-    const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(isMutate === false ? {} : endpointUpdate as UseLazyFetchProps<TUpdateInput, T>);
-    const fetch = (isMutate === false ? noop : isCreate ? fetchCreate : fetchUpdate) as MakeLazyRequest<TCreateInput | TUpdateInput, T>;
+    const [fetchCreate, { loading: isCreateLoading }] = useLazyFetch<TCreateInput, T>(isMutate === false ? {} : endpointCreate as UseLazyFetchProps<TCreateInput>);
+    const [fetchUpdate, { loading: isUpdateLoading }] = useLazyFetch<TUpdateInput, T>(isMutate === false ? {} : endpointUpdate as UseLazyFetchProps<TUpdateInput>);
+    const fetch = (isMutate === false ? noop : isCreate ? fetchCreate : fetchUpdate) as LazyRequestWithResult<TCreateInput | TUpdateInput, T>;
 
     return {
         fetch,

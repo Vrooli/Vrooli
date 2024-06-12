@@ -1,9 +1,8 @@
-import { calculateVersionsFromString, meetsMinVersion } from "@local/shared";
+import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { getMinimumVersion } from "utils/shape/general";
 import { TextInput } from "../TextInput/TextInput";
 import { VersionInputProps } from "../types";
 
@@ -28,7 +27,7 @@ export const VersionInput = ({
         setInternalValue(newValue);
         // If value is a valid version (e.g. 1.0.0, 1.0, 1) and is at least the minimum value, then call onChange
         if (newValue.match(/^[0-9]+(\.[0-9]+){0,2}$/)) {
-            if (meetsMinVersion(newValue, getMinimumVersion(versions))) {
+            if (meetsMinVersion(newValue, getMinVersion(versions))) {
                 helpers.setValue(newValue);
             }
         }

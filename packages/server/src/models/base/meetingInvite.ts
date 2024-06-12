@@ -11,7 +11,7 @@ import { MeetingInviteModelInfo, MeetingInviteModelLogic, MeetingModelInfo, Meet
 const __typename = "MeetingInvite" as const;
 export const MeetingInviteModel: MeetingInviteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.meeting_invite,
+    dbTable: "meeting_invite",
     display: () => ({
         // Label is the meeting label
         label: {
@@ -25,8 +25,8 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 message: noNull(data.message),
-                ...(await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "meetingsInvited", data, ...rest })),
-                ...(await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "invites", data, ...rest })),
+                user: await shapeHelper({ relation: "user", relTypes: ["Connect"], isOneToOne: true, objectType: "User", parentRelationshipName: "meetingsInvited", data, ...rest }),
+                meeting: await shapeHelper({ relation: "meeting", relTypes: ["Connect"], isOneToOne: true, objectType: "Meeting", parentRelationshipName: "invites", data, ...rest }),
             }),
             update: async ({ data }) => ({
                 message: noNull(data.message),
@@ -42,8 +42,8 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             status: true,
             statuses: true,
             meetingId: true,
+            teamId: true,
             userId: true,
-            organizationId: true,
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({
@@ -54,10 +54,10 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },
@@ -73,7 +73,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: (data?.meeting as MeetingModelInfo["PrismaModel"])?.organization,
+            Team: (data?.meeting as MeetingModelInfo["PrismaModel"])?.team,
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),

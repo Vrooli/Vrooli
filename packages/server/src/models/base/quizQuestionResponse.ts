@@ -12,7 +12,7 @@ import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, Qui
 const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.quiz_question_response,
+    dbTable: "quiz_question_response",
     display: () => ({
         label: {
             select: () => ({ id: true, quizQuestion: { select: ModelMap.get<QuizQuestionModelLogic>("QuizQuestion").display().label.select() } }),
@@ -28,8 +28,8 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 response: data.response,
-                ...(await shapeHelper({ relation: "quizAttempt", relTypes: ["Connect"], isOneToOne: true, objectType: "QuizAttempt", parentRelationshipName: "responses", data, ...rest })),
-                ...(await shapeHelper({ relation: "quizQuestion", relTypes: ["Connect"], isOneToOne: true, objectType: "QuizQuestion", parentRelationshipName: "responses", data, ...rest })),
+                quizAttempt: await shapeHelper({ relation: "quizAttempt", relTypes: ["Connect"], isOneToOne: true, objectType: "QuizAttempt", parentRelationshipName: "responses", data, ...rest }),
+                quizQuestion: await shapeHelper({ relation: "quizQuestion", relTypes: ["Connect"], isOneToOne: true, objectType: "QuizQuestion", parentRelationshipName: "responses", data, ...rest }),
             }),
             update: async ({ data }) => ({
                 response: noNull(data.response),
@@ -53,10 +53,10 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

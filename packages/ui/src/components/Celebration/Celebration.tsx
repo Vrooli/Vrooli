@@ -25,8 +25,7 @@ export const Celebration = () => {
     const lastIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        const celebrationSub = PubSub.get().subscribe("celebration", (data) => {
-            console.log("in celebration sub", data);
+        const unsubscribe = PubSub.get().subscribe("celebration", (data) => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
@@ -80,8 +79,7 @@ export const Celebration = () => {
         });
 
         return () => {
-            console.log("cleaning up celebration");
-            PubSub.get().unsubscribe(celebrationSub);
+            unsubscribe();
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
@@ -89,7 +87,6 @@ export const Celebration = () => {
     }, []);
 
     useEffect(() => {
-        console.log("is rewarding?", state.isActive, state);
         if (state.isActive && state.id !== lastIdRef.current) {
             lastIdRef.current = state.id;
             reward();

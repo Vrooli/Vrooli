@@ -25,7 +25,12 @@ export interface SessionToken extends BasicToken {
 }
 export type SessionUserToken = Pick<SessionUser, "id" | "credits" | "handle" | "hasPremium" | "languages" | "name" | "profileImage" | "updated_at"> & {
     activeFocusMode?: {
-        mode: { id: string; },
+        mode: {
+            id: string,
+            reminderList?: {
+                id: string;
+            } | null,
+        },
         stopCondition: FocusModeStopCondition,
         stopTime?: Date | null,
     } | null;
@@ -61,6 +66,13 @@ declare module "socket.io" {
     }
 }
 
+declare module "winston" {
+    // Add "warning" to the list of levels
+    interface Logger {
+        warning: winston.LeveledLogMethod;
+    }
+}
+
 // Request type
 declare global {
     namespace Express {
@@ -90,6 +102,15 @@ export type RecursivePartial<T> = {
     : T[P] extends object
     ? RecursivePartial<T[P]>
     : T[P]
+};
+
+/** Like RecursivePartial, but allows `null` */
+export type RecursivePartialNullable<T> = {
+    [P in keyof T]?: T[P] extends Date
+    ? T[P]
+    : T[P] extends object
+    ? RecursivePartialNullable<T[P]>
+    : T[P] | null
 };
 
 /** Return type of find one queries */

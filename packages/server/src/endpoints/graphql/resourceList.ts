@@ -14,16 +14,16 @@ export const typeDef = gql`
 
     enum ResourceListFor {
         ApiVersion
+        CodeVersion
         FocusMode
-        Organization
         Post
         ProjectVersion
         RoutineVersion
-        SmartContractVersion
         StandardVersion
+        Team
     }   
 
-    union ResourceListOn = ApiVersion | FocusMode | Organization | Post | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion
+    union ResourceListOn = ApiVersion | CodeVersion | FocusMode | Post | ProjectVersion | RoutineVersion | StandardVersion | Team
 
     input ResourceListCreateInput {
         id: ID!
@@ -78,14 +78,14 @@ export const typeDef = gql`
         after: String
         take: Int
         apiVersionId: ID
-        organizationId: ID
+        codeVersionId: ID
+        focusModeId: ID
         postId: ID
         projectVersionId: ID
         routineVersionId: ID
-        smartContractVersionId: ID
         standardVersionId: ID
+        teamId: ID
         translationLanguages: [String!]
-        focusModeId: ID
     }
 
     type ResourceListSearchResult {

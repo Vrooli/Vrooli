@@ -1,18 +1,31 @@
 {
+    "exclude": [
+        "/.*\\/types\\.ts$/",
+        "/.*\\/types\\.d\\.ts$/"
+    ],
     "jsc": {
         "minify": {
             "compress": true,
             "mangle": true
         },
+        "target": "es2017",
         "parser": {
             "syntax": "typescript",
             "tsx": true,
-            "decorators": true,
-            "dynamicImport": true
+            "decorators": false,
+            "dynamicImport": false
         },
-        "target": "es2017"
+        "transform": {
+            "hidden": {
+                "jest": true
+            }
+        }
     },
     "module": {
-        "type": "es6"
+        "type": "es6",
+        "strict": false,
+        "strictMode": true,
+        "lazy": false,
+        "noInterop": false
     }
 }

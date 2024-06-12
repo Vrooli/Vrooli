@@ -1,11 +1,11 @@
 import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
-import { PrismaType } from "../types";
 
 /**
  * Weight data for a subroutine, or all subroutines in a node combined.
  */
-type WeightData = {
+export type SubroutineWeightData = {
     simplicity: number,
     complexity: number,
     optionalInputs: number,
@@ -29,7 +29,7 @@ type LinkData = {
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
 export const calculateShortestLongestWeightedPath = (
-    nodes: { [id: string]: WeightData },
+    nodes: { [id: string]: SubroutineWeightData },
     edges: LinkData[],
     languages: string[],
 ): [number, number] => {
@@ -142,7 +142,7 @@ const routineVersionSelect = ({
 
 type GroupRoutineVersionDataResult = {
     linkData: { [linkId: string]: LinkData },
-    nodeData: { [nodeId: string]: { routineVersionId: string, subroutines: WeightData[] } },
+    nodeData: { [nodeId: string]: { routineVersionId: string, subroutines: SubroutineWeightData[] } },
     subroutineItemData: { [itemId: string]: string },
     optionalRoutineVersionInputCounts: { [routineId: string]: number }
     allRoutineVersionInputCounts: { [routineId: string]: number }
@@ -151,10 +151,9 @@ type GroupRoutineVersionDataResult = {
 /**
  * Queries and groups existing routine data from the database into links, nodes, and a map of routineListItems to subroutines
  * @param ids The routine version IDs, and the id of the routine they're in, if they're a subroutine
- * @param prisma The prisma client
  * @returns Object with linkData, nodeData, subroutineItemData, and input counts by routine version ID
  */
-const groupRoutineVersionData = async (ids: { id: string, parentId: string | null }[], prisma: PrismaType): Promise<GroupRoutineVersionDataResult> => {
+const groupRoutineVersionData = async (ids: { id: string, parentId: string | null }[]): Promise<GroupRoutineVersionDataResult> => {
     // Initialize data
     const linkData: Pick<GroupRoutineVersionDataResult, "linkData">["linkData"] = {};
     const nodeData: Pick<GroupRoutineVersionDataResult, "nodeData">["nodeData"] = {};
@@ -162,7 +161,7 @@ const groupRoutineVersionData = async (ids: { id: string, parentId: string | nul
     const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
     const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
-    const data = await prisma.routine_version.findMany({
+    const data = await prismaInstance.routine_version.findMany({
         where: { id: { in: ids.map(i => i.id) } },
         select: routineVersionSelect,
     });
@@ -217,7 +216,7 @@ const groupRoutineVersionData = async (ids: { id: string, parentId: string | nul
 
 type CalculateComplexityResult = {
     updatingSubroutineIds: string[],
-    dataWeights: (WeightData & { id: string })[],
+    dataWeights: (SubroutineWeightData & { id: string })[],
 }
 
 /**
@@ -225,7 +224,6 @@ type CalculateComplexityResult = {
  * routine versions based on the number of steps. 
  * Simplicity is a the minimum number of inputs and decisions required to complete the routine version, while 
  * complexity is the maximum. 
- * @param prisma The prisma client
  * @param languages Preferred languages for error messages
  * @param inputs The routine version's create or update input
  * @param disallowIds IDs of routine versions that are not allowed to be used. This is used to 
@@ -233,7 +231,6 @@ type CalculateComplexityResult = {
  * @returns Data used for recursion, as well as an array of weightData (in same order as inputs)
  */
 export const calculateWeightData = async (
-    prisma: PrismaType,
     languages: string[],
     inputs: (RoutineVersionUpdateInput | RoutineVersionCreateInput)[],
     disallowIds: string[],
@@ -245,7 +242,7 @@ export const calculateWeightData = async (
     }
     // Initialize data used to calculate complexity/simplicity
     const linkData: { [id: string]: LinkData } = {};
-    const nodeData: { [id: string]: { routineVersionId: string, subroutines: (WeightData & { id: string })[] } } = {};
+    const nodeData: { [id: string]: { routineVersionId: string, subroutines: (SubroutineWeightData & { id: string })[] } } = {};
     const subroutineItemData: { [id: string]: string } = {}; // Routine list item ID to subroutine ID
     const optionalRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Excludes subroutine inputs
     const allRoutineVersionInputCounts: { [routineVersionId: string]: number } = {}; // Includes subroutine inputs
@@ -260,7 +257,7 @@ export const calculateWeightData = async (
         subroutineItemData: existingSubroutineItemData,
         optionalRoutineVersionInputCounts: existingOptionalRoutineVersionInputCounts,
         allRoutineVersionInputCounts: existingAllRoutineVersionInputCounts,
-    } = await groupRoutineVersionData(inputs.map(i => ({ id: i.id, parentId: null })), prisma);
+    } = await groupRoutineVersionData(inputs.map(i => ({ id: i.id, parentId: null })));
     Object.assign(linkData, existingLinkData);
     Object.assign(nodeData, existingNodeData);
     Object.assign(subroutineItemData, existingSubroutineItemData);
@@ -348,7 +345,7 @@ export const calculateWeightData = async (
             linkData: connectingSubroutineLinkData,
             nodeData: connectingSubroutineNodeData,
             subroutineItemData: connectingSubroutineItemData,
-        } = await groupRoutineVersionData(connectingSubroutineDataIds, prisma);
+        } = await groupRoutineVersionData(connectingSubroutineDataIds);
         updatingSubroutineIds.push(...connectingSubroutineDataIds.map(i => i.id));
         Object.assign(linkData, connectingSubroutineLinkData);
         Object.assign(nodeData, connectingSubroutineNodeData);
@@ -359,7 +356,7 @@ export const calculateWeightData = async (
         const {
             updatingSubroutineIds: recursedUpdatingSubroutineIds,
             dataWeights: recursedDataWeights,
-        } = await calculateWeightData(prisma, languages, updatingSubroutineData, [...disallowIds, ...inputIds]);
+        } = await calculateWeightData(languages, updatingSubroutineData, [...disallowIds, ...inputIds]);
         updatingSubroutineIds.push(...recursedUpdatingSubroutineIds);
         for (let i = 0; i < recursedDataWeights.length; i++) {
             const currWeight = recursedDataWeights[i];
@@ -378,7 +375,7 @@ export const calculateWeightData = async (
     }
     // Calculate weights for each main (i.e. not subroutines) routine version
     // Map routineVersionId to nodes and links
-    const nodesByRVerId: { [routineVersionId: string]: { nodeId: string, subroutines: (WeightData & { id: string })[] }[] } = {};
+    const nodesByRVerId: { [routineVersionId: string]: { nodeId: string, subroutines: (SubroutineWeightData & { id: string })[] }[] } = {};
     const linksByRVerId: { [routineVersionId: string]: LinkData[] } = {};
     for (const nodeId in nodeData) {
         const node = nodeData[nodeId];
@@ -391,12 +388,12 @@ export const calculateWeightData = async (
         linksByRVerId[link.routineVersionId].push(link);
     }
     // For each main (i.e. not subroutine) routine version, calculate the weights using its nodes and links
-    const dataWeights: (WeightData & { id: string })[] = [];
+    const dataWeights: (SubroutineWeightData & { id: string })[] = [];
     for (const versionId in nodesByRVerId) {
         const nodes = nodesByRVerId[versionId];
         const links = linksByRVerId[versionId];
         // Combine the weights of all subroutines in each node
-        const squishedNodes: { [nodeId: string]: WeightData } = {};
+        const squishedNodes: { [nodeId: string]: SubroutineWeightData } = {};
         for (const node of nodes) {
             const squishedNode = node.subroutines.reduce((acc, { complexity, simplicity, optionalInputs, allInputs }) => {
                 return {

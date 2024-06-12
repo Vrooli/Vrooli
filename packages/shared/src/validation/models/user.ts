@@ -13,7 +13,7 @@ export const emailLogInSchema = yup.object().shape({
     verificationCode: opt(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
 });
 
-export const userTranslationValidation: YupModel = transRel({
+export const userTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         bio: opt(bio),
     }),
@@ -22,7 +22,7 @@ export const userTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const profileValidation: YupModel<false, true> = {
+export const profileValidation: YupModel<["update"]> = {
     // Can't create a non-bot user directly - must use sign up form(s)
     update: (d) => yupObj({
         bannerImage: opt(imageFile),
@@ -31,8 +31,9 @@ export const profileValidation: YupModel<false, true> = {
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
+        isPrivateCodes: opt(bool),
+        isPrivateCodesCreated: opt(bool),
         isPrivateMemberships: opt(bool),
-        isPrivateOrganizationsCreated: opt(bool),
         isPrivateProjects: opt(bool),
         isPrivateProjectsCreated: opt(bool),
         isPrivatePullRequests: opt(bool),
@@ -42,9 +43,9 @@ export const profileValidation: YupModel<false, true> = {
         isPrivateRoles: opt(bool),
         isPrivateRoutines: opt(bool),
         isPrivateRoutinesCreated: opt(bool),
-        isPrivateSmartContracts: opt(bool),
         isPrivateStandards: opt(bool),
         isPrivateStandardsCreated: opt(bool),
+        isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
         profileImage: opt(imageFile),
@@ -57,7 +58,7 @@ export const profileValidation: YupModel<false, true> = {
 
 // Since bots are a special case of users, we must create a combined validation model 
 // for the User ModelLogic object to use when creating/updating bots or updating your profile
-export const userValidation: YupModel<true, true> = {
+export const userValidation: YupModel<["create", "update"]> = {
     // You can only create bots, so we can take botValidation.create directly
     create: botValidation.create,
     // For update, we must combine both botValidation.update and profileValidation.update
@@ -73,8 +74,9 @@ export const userValidation: YupModel<true, true> = {
         isPrivate: opt(bool),
         isPrivateApis: opt(bool),
         isPrivateApisCreated: opt(bool),
+        isPrivateCodes: opt(bool),
+        isPrivateCodesCreated: opt(bool),
         isPrivateMemberships: opt(bool),
-        isPrivateOrganizationsCreated: opt(bool),
         isPrivateProjects: opt(bool),
         isPrivateProjectsCreated: opt(bool),
         isPrivatePullRequests: opt(bool),
@@ -84,9 +86,9 @@ export const userValidation: YupModel<true, true> = {
         isPrivateRoles: opt(bool),
         isPrivateRoutines: opt(bool),
         isPrivateRoutinesCreated: opt(bool),
-        isPrivateSmartContracts: opt(bool),
         isPrivateStandards: opt(bool),
         isPrivateStandardsCreated: opt(bool),
+        isPrivateTeamsCreated: opt(bool),
         isPrivateBookmarks: opt(bool),
         isPrivateVotes: opt(bool),
         profileImage: opt(imageFile),
@@ -107,22 +109,18 @@ export const userDeleteOneSchema = yup.object().shape({
     deletePublicData: req(bool),
 });
 
-/**
- * Schema for sending a password reset request
- */
+/** Schema for sending a password reset request */
 export const emailRequestPasswordChangeSchema = yup.object().shape({
     email: req(email),
 });
 
-/**
- * Schema for resetting your password
- */
+/** Schema for resetting your password */
 export const emailResetPasswordSchema = yup.object().shape({
     newPassword: req(password),
-    confirmNewPassword: yup.string().oneOf([yup.ref("newPassword"), null], "Passwords must match"),
+    confirmNewPassword: req(password).oneOf([yup.ref("newPassword")], "Passwords must match"),
 });
 
-export const profileEmailUpdateValidation: YupModel<false, true> = {
+export const profileEmailUpdateValidation: YupModel<["update"]> = {
     update: (d) => yupObj({
         currentPassword: req(password),
         newPassword: opt(password),

@@ -21,25 +21,25 @@ export type EndpointsIssue = {
 const objectType = "Issue";
 export const IssueEndpoints: EndpointsIssue = {
     Query: {
-        issue: async (_, { input }, { prisma, req }, info) => {
+        issue: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        issues: async (_, { input }, { prisma, req }, info) => {
+        issues: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        issueCreate: async (_, { input }, { prisma, req }, info) => {
+        issueCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        issueUpdate: async (_, { input }, { prisma, req }, info) => {
+        issueUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
-        issueClose: async (_, { input }, { prisma, req }, info) => {
+        issueClose: async (_, { input }, { req }, info) => {
             throw new CustomError("0000", "NotImplemented", ["en"]);
             // TODO make sure to set hasBeenClosedOrRejected to true
         },

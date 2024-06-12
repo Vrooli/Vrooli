@@ -4,7 +4,7 @@ import { tagValidation } from "./tag";
 
 const focusModeFilterType = enumToYup(FocusModeFilterType);
 
-export const focusModeFilterValidation: YupModel<true, false> = {
+export const focusModeFilterValidation: YupModel<["create"]> = {
     create: (d) => yupObj({
         id: req(id),
         filterType: req(focusModeFilterType),

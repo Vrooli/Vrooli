@@ -10,19 +10,20 @@ import { ResourceListModelInfo, ResourceListModelLogic } from "./types";
 
 const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
+    CodeVersion: "codeVersion",
     FocusMode: "focusMode",
-    Organization: "organization",
     Post: "post",
     ProjectVersion: "projectVersion",
     RoutineVersion: "routineVersion",
-    SmartContractVersion: "smartContractVersion",
     StandardVersion: "standardVersion",
+    Team: "team",
 };
 
 const __typename = "ResourceList" as const;
 export const ResourceListModel: ResourceListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.resource_list,
+    dbTable: "resource_list",
+    dbTranslationTable: "resource_list_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -35,12 +36,12 @@ export const ResourceListModel: ResourceListModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 [forMapper[data.listForType]]: { connect: { id: data.listForConnect } },
-                ...(await shapeHelper({ relation: "resources", relTypes: ["Create"], isOneToOne: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                resources: await shapeHelper({ relation: "resources", relTypes: ["Create"], isOneToOne: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await shapeHelper({ relation: "resources", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                resources: await shapeHelper({ relation: "resources", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Resource", parentRelationshipName: "list", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: resourceListValidation,
@@ -50,13 +51,13 @@ export const ResourceListModel: ResourceListModelLogic = ({
         sortBy: ResourceListSortBy,
         searchFields: {
             apiVersionId: true,
+            codeVersionId: true,
             createdTimeFrame: true,
-            organizationId: true,
             postId: true,
             projectVersionId: true,
             routineVersionId: true,
-            smartContractVersionId: true,
             standardVersionId: true,
+            teamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             focusModeId: true,

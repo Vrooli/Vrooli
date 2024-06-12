@@ -95,7 +95,7 @@ Beyond the primitive routines, Vrooli hosts various categories of routines suite
 
 - Thought Processes: Crafted for autonomous agents, these routines model decision-making and cognitive sequences, enabling AI to perform complex tasks.
 - Guides: Serve to direct and assist humans in tasks or decision-making, providing a step-by-step framework for completing operations within Vrooli or as documentation for external APIs. This often goes well with projects.
-- Business Processes: Automate and orchestrate enterprise-level workflows, streamlining the operating model and managerial functions of an organization.
+- Business Processes: Automate and orchestrate enterprise-level workflows, streamlining the operating model and managerial functions of a team.
 - Meta Routines: Integral to system evolution, these routines automate the generation, refinement, and organization of new routines, projects, standards, and more, accelerating platform development and enhancement.
 
 Together with primitive routines, these general routine types form the vast and varied repertoire of automation possibilities within Vrooli, pushing the boundaries of what can be achieved through intelligent collaboration between bots and human users.
@@ -130,7 +130,7 @@ Each routine has its version history, allowing developers and bots to:
 This process ensures that updates are deliberate and beneficial, while also maintaining a historical record of all changes for traceability and regression testing.
 
 ### Secure Voting System for Updates
-Looking forward, Vrooli plans to integrate a secure voting system into the routine update process. This addition will facilitate a democratic method for approving changes, particularly salient for organizations where decision-making is collaborative or consensus-driven. Such a system can revolutionize employee-run businesses and governmental processes, enabling a transparent and secure method for collective governance.
+Looking forward, Vrooli plans to integrate a secure voting system into the routine update process. This addition will facilitate a democratic method for approving changes, particularly salient for teams where decision-making is collaborative or consensus-driven. Such a system can revolutionize employee-run businesses and governmental processes, enabling a transparent and secure method for collective governance.
 
 By incorporating these version control and voting mechanisms, Vrooli positions itself as a powerful tool for both private enterprises and public institutions, fostering accountability, precision, and community involvement in the continual advancement of its automated processes.
 
@@ -184,7 +184,7 @@ Routines aren't solitary entities but are designed for teamwork. Vrooli allows m
   - Uses sandboxed JavaScript.
 
 ## Power of Combining Subroutines
-When used together, these subroutines can form powerful automated workflows that perform sophisticated and interlinked tasks, providing robust operational capabilities for any organization. By designing routines with a combination of these diverse nodes, we can automate complex, multi-stage processes that encompass data collection, manipulation, decision-making, and interactions with external systems.
+When used together, these subroutines can form powerful automated workflows that perform sophisticated and interlinked tasks, providing robust operational capabilities for any team. By designing routines with a combination of these diverse nodes, we can automate complex, multi-stage processes that encompass data collection, manipulation, decision-making, and interactions with external systems.
 
 Utilizing a strategically combined set of subroutines can transform a manual, labor-intensive task into an elegantly automated and adaptive system, increasing efficiency and freeing up human resources for higher-level strategic tasks.
 

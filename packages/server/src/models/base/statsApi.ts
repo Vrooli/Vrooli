@@ -8,7 +8,7 @@ import { ApiModelInfo, ApiModelLogic, StatsApiModelInfo, StatsApiModelLogic } fr
 const __typename = "StatsApi" as const;
 export const StatsApiModel: StatsApiModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.stats_api,
+    dbTable: "stats_api",
     display: () => ({
         label: {
             select: () => ({ id: true, api: { select: ModelMap.get<ApiModelLogic>("Api").display().label.select() } }),

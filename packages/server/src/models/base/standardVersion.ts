@@ -1,21 +1,23 @@
 import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
-import { randomString } from "../../auth/wallet";
+import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { StandardVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, StandardVersionModelLogic } from "./types";
 
-//     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+type StandardVersionPre = PreShapeVersionResult;
+
+//     // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
 //     // TODO when deleting, anonymize standards which are being used by inputs/outputs
-//     // const standard = await prisma.standard_version.findUnique({
+//     // const standard = await prismaInstance.standard_version.findUnique({
 //     //     where: { id },
 //     //     select: {
 //     //                 _count: {
@@ -31,15 +33,13 @@ import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, Standa
 const querier = () => ({
     /**
      * Checks for existing standards with the same shape. Useful to avoid duplicates
-     * @param prisma Prisma client
      * @param data StandardCreateData to check
      * @param userData The ID of the user creating the standard
-     * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
+     * @param uniqueToCreator Whether to check if the standard is unique to the user/team 
      * @param isInternal Used to determine if the standard should show up in search results
      * @returns data of matching standard, or null if no match
      */
     async findMatchingStandardVersion(
-        prisma: PrismaType,
         data: StandardCreateInput,
         userData: SessionUserToken,
         uniqueToCreator: boolean,
@@ -50,14 +50,14 @@ const querier = () => ({
         // const props = sortify(data.props, userData.languages);
         // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
         // // Find all standards that match the given standard
-        // const standards = await prisma.standard_version.findMany({
+        // const standards = await prismaInstance.standard_version.findMany({
         //     where: {
         //         root: {
         //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
         //             isDeleted: false,
         //             isPrivate: false,
-        //             createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
-        //             createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
+        //             createdByUserId: (uniqueToCreator && !data.createdByTeamId) ? userData.id : undefined,
+        //             createdByTeamId: (uniqueToCreator && data.createdByTeamId) ? data.createdByTeamId : undefined,
         //         },
         //         default: data.default ?? null,
         //         props: props,
@@ -73,13 +73,12 @@ const querier = () => ({
     },
     /**
      * Generates a name for a standard.
-     * @param prisma Prisma client
      * @param userId The user's ID
      * @param languages The user's preferred languages
      * @param data The standard create data
      * @returns A valid name for the standard
      */
-    async generateName(prisma: PrismaType, userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
+    async generateName(userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
         // First, check if name was already provided
         const translatedName = "";//bestTranslation(data.translationsCreate ?? [], 'name', languages)?.name ?? "";
         if (translatedName.length > 0) return translatedName;
@@ -92,7 +91,8 @@ const querier = () => ({
 const __typename = "StandardVersion" as const;
 export const StandardVersionModel: StandardVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.standard_version,
+    dbTable: "standard_version",
+    dbTranslationTable: "standard_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -117,13 +117,12 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
     format: StandardVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+            pre: async (params): Promise<StandardVersionPre> => {
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -132,9 +131,10 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardVersionPre;
                 // If jsonVariables defined, sort them. 
                 // This makes comparing standards a whole lot easier
-                const { translations } = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
                     translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
                         if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
@@ -152,15 +152,16 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest }),
                     translations,
                 };
             },
             update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as StandardVersionPre;
                 // If jsonVariables defined, sort them
-                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
                     translations.update = translations.update.map((t: { where: { id: string }, data: StandardVersionTranslationUpdateInput }) => {
                         if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable, rest.userData.languages);
@@ -183,9 +184,9 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest }),
+                    resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest }),
                     translations,
                 };
             },
@@ -206,13 +207,15 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             createdByIdRoot: true,
             createdTimeFrame: true,
             isCompleteWithRoot: true,
+            isInternalWithRoot: true,
+            isLatest: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationIdRoot: true,
+            ownedByTeamIdRoot: true,
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
@@ -231,16 +234,16 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             ],
         }),
         /**
-         * isInternal routines should never appear in the query, since they are 
+         * Internal standards should never appear in the query, since they are 
          * only meant for a single input/output
          */
-        customQueryData: () => ({ root: { isInternal: true } }),
+        customQueryData: () => ({ root: { isInternal: false } }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

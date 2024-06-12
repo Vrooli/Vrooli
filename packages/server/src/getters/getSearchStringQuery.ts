@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { isRelationshipObject } from "../builders/isRelationshipObject";
+import { isRelationshipObject } from "../builders/isOfType";
 import { ModelMap } from "../models/base";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
 import { SearchStringMap } from "../utils/searchStringMap";
@@ -7,7 +7,7 @@ import { SearchStringMap } from "../utils/searchStringMap";
 /**
  * @param queryParams Data required to replace keys
  * @param query The query object to convert
- * @returns Fully-converted Prisma query, ready to be passed into prisma.findMany()
+ * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
  */
 const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
     queryParams: SearchStringQueryParams,
@@ -52,9 +52,9 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
  * Converts a searchStringQuery object into a Prisma search query. 
  * This is accomplished by recursively converting any keys in the searchStringQuery object 
  * to their corresponding Prisma query (stored in SearchStringMap).
- * @returns Fully-converted Prisma query, ready to be passed into prisma.findMany()
+ * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
  */
-export function getSearchStringQuery<Where extends { [x: string]: any }>({
+export const getSearchStringQuery = <Where extends { [x: string]: any }>({
     languages,
     objectType,
     searchString,
@@ -62,10 +62,10 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
     languages?: string[] | undefined;
     objectType: `${GqlModelType}`;
     searchString: string;
-}): Where {
+}): Where => {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
     const { search } = ModelMap.getLogic(["search"], objectType);
     const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
-}
+};

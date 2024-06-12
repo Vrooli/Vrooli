@@ -1,111 +1,38 @@
+import { ListObject, getObjectUrl } from "@local/shared";
 import { FC, useCallback, useEffect, useRef } from "react";
-import { ListObject, getDisplay } from "utils/display/listTools";
-import { getObjectUrl } from "utils/navigation/openObject";
+import { getDisplay } from "utils/display/listTools";
+import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "utils/display/stringTools";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { TextInput } from "../TextInput/TextInput";
-import { RichInputMarkdownProps } from "../types";
+import { RichInputAction, RichInputMarkdownProps } from "../types";
 
-enum Headers {
-    H1 = "h1",
-    H2 = "h2",
-    H3 = "h3",
-    H4 = "h4",
-    H5 = "h5",
-    H6 = "h6",
-}
+type TextStyle = Extract<RichInputAction, "Bold" | "Code" | "Header1" | "Header2" | "Header3" | "Header4" | "Header5" | "Header6" | "Italic" | "Link" | "ListBullet" | "ListCheckbox" | "ListNumber" | "Quote" | "Spoiler" | "Strikethrough" | "Underline">;
 
-const headerMarkdowns = {
-    [Headers.H1]: "# ",
-    [Headers.H2]: "## ",
-    [Headers.H3]: "### ",
-    [Headers.H4]: "#### ",
-    [Headers.H5]: "##### ",
-    [Headers.H6]: "###### ",
-};
-
-/**
- * Determines start index of the current line.
- * @param text Text to search.
- * @param start Index of cursor or selection start.
- * @returns Index of start of current line.
- */
-const getLineStart = (text: string, start: number) => {
-    if (start < 0 || start > text.length) return 0;
-    return text.substring(0, start).lastIndexOf("\n") + 1;
-};
-
-/**
- * Determines end index of the current line.
- * @param text Text to search.
- * @param start Index of cursor or selection start.
- * @returns Index of end of current line.
- */
-const getLineEnd = (text: string, start: number) => {
-    if (start < 0 || start > text.length) return text.length;
-    return text.substring(start).indexOf("\n") + start;
-};
-
-/**
- * Finds the line the specified index is on.
- * @returns The line's text, as well as its start and end index
- */
-const getLineAtIndex = (text: string | null | undefined, index: number): [string, number, number] => {
-    if (!text || index < 0 || index > text.length) return ["", 0, 0];
-    const start = getLineStart(text, index);
-    const end = getLineEnd(text, index);
-    const line = text.substring(start, end);
-    return [line, start, end];
-};
-
-/**
- * Determines all lines the cursor or highlighted text is on
- * @param text The entire text
- * @param start The index of the cursor, or start of highlighted text
- * @param end The index of the end of highlighted text
- * @returns The lines the cursor is on (or null), as well as their start and end index
- */
-const getLinesAtRange = (text: string, start: number, end: number): [string[], number, number] => {
-    const lineStart = getLineStart(text, start);
-    const lineEnd = getLineEnd(text, end);
-    const lines = text.substring(lineStart, lineEnd).split("\n");
-    return [lines, lineStart, lineEnd];
-};
-
-/**
- * Replaces selected text with new text.
- * @param text Text to replace in.
- * @param newText Text to replace with.
- * @param start Index of cursor or selection start.
- * @param end Index of cursor or selection end.
- * @returns New text with selected text replaced.
- */
-const replaceText = (text: string, newText: string, start: number, end: number): string => {
-    return text.substring(0, start) + newText + text.substring(end);
-};
-
-/**
- * Uses element ID to get start, end, and element.
- * @param id The ID of the element to get the selection of
- * @returns Object containing start, end, and element
- */
-const getSelection = (id: string) => {
-    const textArea = document.getElementById(id);
-    if (!textArea || !(textArea instanceof HTMLTextAreaElement)) {
-        console.error(`Element not found: ${id}`);
-        return { start: 0, end: 0, selected: "", inputElement: null };
-    }
-    return {
-        start: textArea.selectionStart,
-        end: textArea.selectionEnd,
-        selected: textArea.value.substring(textArea.selectionStart, textArea.selectionEnd),
-        inputElement: textArea,
-    };
-};
+const styleMap = (common: [string, number, number]): Record<TextStyle, () => TextStyleResult> => ({
+    "Bold": () => padSelection("**", "**", ...common),
+    "Code": () => insertCode(...common),
+    "Header1": () => insertHeader(Headers.h1, ...common),
+    "Header2": () => insertHeader(Headers.h2, ...common),
+    "Header3": () => insertHeader(Headers.h3, ...common),
+    "Header4": () => insertHeader(Headers.h4, ...common),
+    "Header5": () => insertHeader(Headers.h5, ...common),
+    "Header6": () => insertHeader(Headers.h6, ...common),
+    "Italic": () => padSelection("*", "*", ...common),
+    "Link": () => insertLink(...common),
+    "ListBullet": () => insertBulletList(...common),
+    "ListCheckbox": () => insertCheckboxList(...common),
+    "ListNumber": () => insertNumberList(...common),
+    "Quote": () => insertQuote(...common),
+    "Spoiler": () => padSelection("||", "||", ...common),
+    "Strikethrough": () => padSelection("~~", "~~", ...common),
+    "Underline": () => padSelection("<u>", "</u>", ...common),
+});
 
 /** TextInput for entering markdown text */
 export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     autoFocus = false,
     disabled = false,
+    enterWillSubmit,
     error = false,
     getTaggableItems,
     id,
@@ -115,6 +42,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     onBlur,
     onFocus,
     onChange,
+    onSubmit,
     openAssistantDialog,
     placeholder = "",
     redo,
@@ -123,138 +51,49 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     toggleMarkdown,
     undo,
     value,
-    sx,
+    sxs,
 }: RichInputMarkdownProps) => {
+    const textAreaRef = useRef<HTMLElement>(null);
 
-    const textAreaRef = useRef<HTMLTextAreaElement>(null);
-
-    const insertHeader = useCallback((header: Headers) => {
+    const insertStyle = useCallback((style: TextStyle | `${TextStyle}`) => {
         if (disabled) return;
         // Find the current selection
-        const { start, inputElement } = getSelection(id);
+        const { start, end, inputElement } = getTextSelection(id);
         if (!inputElement) return;
-        // Find the start of the line which the select starts on
-        const startLine = getLineStart(inputElement.value, start);
-        // Determine header to insert
-        const headerText = headerMarkdowns[header];
-        // Check if the line already starts with the header
-        if (inputElement.value.substring(startLine, startLine + headerText.length) === headerText) {
-            // If so, remove the header
-            inputElement.value = replaceText(inputElement.value, "", startLine, startLine + headerText.length);
-        } else {
-            // If not, insert the header
-            inputElement.value = replaceText(inputElement.value, headerText, startLine, startLine);
-        }
-        onChange(inputElement.value);
-    }, [disabled, id, onChange]);
-
-    /**
-     * Pads selection with the given substring
-     * @param padStart The substring to add before the selection
-     * @param padEnd The substring to add after the selection
-     */
-    const padSelection = useCallback((padStart: string, padEnd: string) => {
-        if (disabled) return;
-        // Find the current selection
-        const { start, end, inputElement } = getSelection(id);
-        if (!inputElement) return;
-        // Insert pad around selection
-        inputElement.value = inputElement.value.substring(0, start) + padStart + inputElement.value.substring(start, end) + padEnd + inputElement.value.substring(end);
-        onChange(inputElement.value);
-        // Move cursor to end of selection (by default it would be at the end of the padEnd string, which is not desired)
-        inputElement.selectionStart = end + padStart.length;
-        inputElement.selectionEnd = inputElement.selectionStart;
-    }, [disabled, id, onChange]);
-
-    const strikethrough = useCallback(() => { if (!disabled) padSelection("~~", "~~"); }, [disabled, padSelection]);
-    const bold = useCallback(() => { if (!disabled) padSelection("**", "**"); }, [disabled, padSelection]);
-    const italic = useCallback(() => { if (!disabled) padSelection("*", "*"); }, [disabled, padSelection]);
-    const spoiler = useCallback(() => { if (!disabled) padSelection("||", "||"); }, [disabled, padSelection]);
-    const underline = useCallback(() => { if (!disabled) padSelection("<u>", "</u>"); }, [disabled, padSelection]);
-
-    const insertLink = useCallback(() => {
-        if (disabled) return;
-        // Find the current selection
-        const { start, end, inputElement } = getSelection(id);
-        if (!inputElement) return;
-        // If no selection, insert [link](url) at the cursor
-        if (start === end) {
-            inputElement.value = inputElement.value.substring(0, start) + "[display text](url)" + inputElement.value.substring(end);
-            onChange(inputElement.value);
+        // Modify text based on the style
+        const styleFuncs = styleMap([inputElement.value, start, end]);
+        if (!(style in styleFuncs)) {
+            console.error("Invalid style", style);
             return;
         }
-        // Otherwise, call padSelection
-        padSelection("[", "](url)");
-    }, [disabled, id, onChange, padSelection]);
-
-    const insertBulletList = useCallback(() => {
-        if (disabled) return;
-        const { start, end, inputElement } = getSelection(id);
-        if (!inputElement) return;
-        const [lines, linesStart, linesEnd] = (getLinesAtRange(inputElement.value, start, end) ?? []);
-        const newValue = replaceText(inputElement.value, lines.map(line => `* ${line}`).join("\n"), linesStart, linesEnd);
-        inputElement.value = newValue;
-        onChange(newValue);
+        const result = styleFuncs[style]();
+        // Set the new value and selection
+        inputElement.value = result.text;
+        inputElement.selectionStart = result.start;
+        inputElement.selectionEnd = result.end;
+        // Update parent component
+        onChange(result.text);
     }, [disabled, id, onChange]);
 
-    const insertNumberList = useCallback(() => {
+    const addTable = useCallback(({ rows, cols }: { rows: number, cols: number }) => {
         if (disabled) return;
-        const { start, end, inputElement } = getSelection(id);
+        const { start, end, inputElement } = getTextSelection(id);
         if (!inputElement) return;
-        const [lines, linesStart, linesEnd] = (getLinesAtRange(inputElement.value, start, end) ?? []);
-        const newValue = replaceText(inputElement.value, lines.map((line, i) => `${i + 1}. ${line}`).join("\n"), linesStart, linesEnd);
-        inputElement.value = newValue;
-        onChange(newValue);
+        const result = insertTable(rows, cols, inputElement.value, start, end);
+        // Set the new value and selection
+        inputElement.value = result.text;
+        inputElement.selectionStart = result.start;
+        inputElement.selectionEnd = result.end;
+        // Update parent component
+        onChange(result.text);
     }, [disabled, id, onChange]);
-
-    const insertCheckboxList = useCallback(() => {
-        if (disabled) return;
-        const { start, end, inputElement } = getSelection(id);
-        if (!inputElement) return;
-        const [lines, linesStart, linesEnd] = (getLinesAtRange(inputElement.value, start, end) ?? []);
-        const newValue = replaceText(inputElement.value, lines.map(line => `- [ ] ${line}`).join("\n"), linesStart, linesEnd);
-        inputElement.value = newValue;
-        onChange(newValue);
-    }, [disabled, id, onChange]);
-
-    const insertTable = useCallback(({ rows, cols }: { rows: number, cols: number }) => {
-        console.log("in insertTable", rows, cols);
-        if (disabled) return;
-        const { start, inputElement } = getSelection(id);
-        if (!inputElement) return;
-        // Generate table markdown based on rows and cols
-        let tableStr = "|";
-        for (let c = 0; c < cols; c++) {
-            tableStr += " Header |";
-        }
-        tableStr += "\n|";
-        for (let c = 0; c < cols; c++) {
-            tableStr += " ------- |";
-        }
-        for (let r = 0; r < rows; r++) {
-            tableStr += "\n|";
-            for (let c = 0; c < cols; c++) {
-                tableStr += "   |";
-            }
-        }
-        console.log("got tableStr", tableStr);
-        // Insert the generated table into the text
-        inputElement.value = replaceText(
-            inputElement.value,
-            tableStr + "\n", // Add an extra newline for separation
-            start,
-            start,
-        );
-        onChange(inputElement.value);
-    }, [disabled, id, onChange]);
-
 
     const tagData = useTagDropdown({ getTaggableItems });
     const selectDropdownItem = useCallback((item: ListObject) => {
         // Tagged item is inserted as a link
         const asLink = `[@${getDisplay(item).title}](${window.location.origin}${getObjectUrl(item)})`;
         // Insert the link, replacing the tag string and the "@" symbol
-        const { inputElement } = getSelection(id);
+        const { inputElement } = getTextSelection(id);
         if (!inputElement) return;
         inputElement.value = replaceText(
             inputElement.value,
@@ -270,19 +109,12 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     useEffect(() => {
         if (!setHandleAction) return;
         setHandleAction((action, data) => {
+            // Anything that isn't a style action goes in the actionMap
             const actionMap = {
-                "Assistant": () => openAssistantDialog(getSelection(id).selected),
-                "Bold": bold,
-                "Code": () => { }, //TODO
-                "Header1": () => insertHeader(Headers.H1),
-                "Header2": () => insertHeader(Headers.H2),
-                "Header3": () => insertHeader(Headers.H3),
-                "Italic": italic,
-                "Link": insertLink,
-                "ListBullet": insertBulletList,
-                "ListCheckbox": insertCheckboxList,
-                "ListNumber": insertNumberList,
-                "Quote": () => { }, //TODO
+                "Assistant": () => {
+                    const { selected, inputElement } = getTextSelection(id);
+                    openAssistantDialog(selected, inputElement?.value ?? "");
+                },
                 "Redo": redo,
                 "SetValue": () => {
                     if (typeof data !== "string") {
@@ -290,43 +122,48 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                         return;
                     }
                     // Set value without triggering onChange
-                    const { inputElement } = getSelection(id);
+                    const { inputElement } = getTextSelection(id);
                     if (!inputElement) return;
                     inputElement.value = data;
                 },
-                "Spoiler": spoiler,
-                "Strikethrough": strikethrough,
-                "Table": () => insertTable(data as { rows: number, cols: number }),
-                "Underline": underline,
+                "Table": () => addTable(data as { rows: number, cols: number }),
                 "Undo": undo,
             };
             const actionFunction = actionMap[action];
-            if (actionFunction) actionFunction();
+            if (actionFunction) {
+                actionFunction();
+            }
+            // Handle all style actions 
+            else {
+                insertStyle(action as TextStyle);
+            }
         });
-    }, [bold, id, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, insertTable, italic, openAssistantDialog, redo, setHandleAction, spoiler, strikethrough, underline, undo]);
+    }, [addTable, id, insertStyle, openAssistantDialog, redo, setHandleAction, undo]);
 
     // Listen for text input changes
     useEffect(() => {
         // Map keyboard shortcuts to their respective functions
         const keyMappings = {
-            "1": () => insertHeader(Headers.H1), // ALT + 1 - Insert header 1
-            "2": () => insertHeader(Headers.H2), // ALT + 2 - Insert header 2
-            "3": () => insertHeader(Headers.H3), // ALT + 3 - Insert header 3
-            "4": () => insertHeader(Headers.H4), // ALT + 4 - Insert header 4
-            "5": () => insertHeader(Headers.H5), // ALT + 5 - Insert header 5
-            "6": () => insertHeader(Headers.H6), // ALT + 6 - Insert header 6
-            "7": () => insertBulletList(), // ALT + 4 - Bullet list
-            "8": () => insertNumberList(), // ALT + 5 - Number list
-            "9": () => insertCheckboxList(), // ALT + 6 - Checklist
+            "1": () => insertStyle("Header1"), // ALT + 1 - Insert header 1
+            "2": () => insertStyle("Header2"), // ALT + 2 - Insert header 2
+            "3": () => insertStyle("Header3"), // ALT + 3 - Insert header 3
+            "4": () => insertStyle("Header4"), // ALT + 4 - Insert header 4
+            "5": () => insertStyle("Header5"), // ALT + 5 - Insert header 5
+            "6": () => insertStyle("Header6"), // ALT + 6 - Insert header 6
+            "7": () => insertStyle("ListBullet"), // ALT + 4 - Bullet list
+            "8": () => insertStyle("ListNumber"), // ALT + 5 - Number list
+            "9": () => insertStyle("ListCheckbox"), // ALT + 6 - Checklist
             "0": () => toggleMarkdown(), // ALT + 7 - Toggle preview
-            "b": () => bold(), // CTRL + B - Bold
-            "i": () => italic(), // CTRL + I - Italic
-            "k": () => insertLink(), // CTRL + K - Insert link
+            "b": () => insertStyle("Bold"), // CTRL + B - Bold
+            "i": () => insertStyle("Italic"), // CTRL + I - Italic
+            "k": () => insertStyle("Link"), // CTRL + K - Insert link
+            "e": () => insertStyle("Code"), // CTRL + E - Code
+            "Q": () => insertStyle("Quote"), // CTRL + SHIFT + Q - Quote
             "z": () => undo(), // CTRL + Z - Undo
             "Z": () => redo(), // CTRL + SHIFT + Z = Redo
-            "S": () => strikethrough(), // CTRL + SHIFT + S - Strikethrough
-            "l": () => spoiler(), // CTRL + L - Spoiler
-            "u": () => underline(), // CTRL + U - Underline
+            "S": () => insertStyle("Strikethrough"), // CTRL + SHIFT + S - Strikethrough
+            "l": () => insertStyle("Spoiler"), // CTRL + L - Spoiler
+            "u": () => insertStyle("Underline"), // CTRL + U - Underline
             "y": () => redo(), // CTRL + Y = Redo
         };
         // Handle key press events for textarea
@@ -392,7 +229,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             // On enter key press
             if (e.key === "Enter") {
                 // Find the line the start of the selection is on
-                const { start, end, inputElement } = getSelection(id);
+                const { start, end, inputElement } = getTextSelection(id);
                 let [trimmedLine] = getLineAtIndex(inputElement?.value, start);
                 trimmedLine = trimmedLine.trimStart();
                 console.log("enter key trimmed line", trimmedLine, value, start, end, Object.entries(e.target));
@@ -404,7 +241,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 // If the current line is a list
                 if (isNumberList || isCheckboxList || isBulletDashList || isBulletStarList) {
                     e.preventDefault();
-                    const { inputElement } = getSelection(id);
+                    const { inputElement } = getTextSelection(id);
                     if (!inputElement) return;
                     let textToInsert = "\n";
                     if (isNumberList) {
@@ -448,24 +285,27 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             textarea?.removeEventListener("keydown", handleTextareaKeyDown);
             fullComponent?.removeEventListener("keydown", handleFullComponentKeyDown);
         };
-    }, [bold, getTaggableItems, onChange, insertBulletList, insertCheckboxList, insertHeader, insertLink, insertNumberList, italic, name, redo, strikethrough, toggleMarkdown, undo, id, tagData, selectDropdownItem, value, spoiler, underline]);
+    }, [getTaggableItems, onChange, insertStyle, name, redo, toggleMarkdown, undo, id, tagData, selectDropdownItem, value]);
 
     return (
         <>
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
             <TextInput
                 id={id}
-                ref={textAreaRef as any}
+                ref={textAreaRef}
                 autoFocus={autoFocus}
                 disabled={disabled}
+                enterWillSubmit={enterWillSubmit}
+                maxRows={maxRows}
+                minRows={minRows}
                 multiline
                 name={name}
                 placeholder={placeholder}
-                rows={minRows}
                 value={value}
                 onBlur={onBlur}
                 onFocus={onFocus}
                 onChange={(e) => { onChange(e.target.value); }}
+                onSubmit={() => { onSubmit?.(value); }}
                 tabIndex={tabIndex}
                 spellCheck
                 sx={{
@@ -478,12 +318,12 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                         borderTop: "none",
                     },
                     "& .MuiInputBase-root": {
-                        minHeight: sx?.minHeight ?? "unset",
                         "& > textarea": {
-                            marginBottom: "auto",
+                            ...sxs?.inputRoot?.["& > textarea"],
+                            ...sxs?.textArea,
                         },
                     },
-                    ...sx,
+                    ...sxs?.inputRoot,
                 }}
             />
         </>

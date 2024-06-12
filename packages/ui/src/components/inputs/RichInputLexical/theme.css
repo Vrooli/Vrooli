@@ -1,3 +1,39 @@
+.RichInput__textCode {
+    background-color: rgb(240, 242, 245);
+    padding: 1px 0.25rem;
+    font-family: Menlo, Consolas, Monaco, monospace;
+    font-size: 94%;
+}
+
+.RichInput_highlight {
+    background-color: rgba(255, 212, 0, 0.14);
+    border-bottom: 2px solid rgba(255, 212, 0, 0.3);
+    padding-bottom: 2px;
+}
+
+.spoiler {
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.4s ease-in-out, background 0.4s ease-in-out;
+}
+
+.spoiler.hidden {
+    color: black;
+    background: black;
+    filter: blur(2px);
+    transition: filter 0.4s ease-in-out;
+
+    &:hover {
+        filter: blur(1px) brightness(1.1);
+    }
+}
+
+.spoiler.revealed {
+    color: inherit;
+    background: rgba(0, 0, 0, 0.3);
+    filter: none;
+}
+
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -35,17 +71,8 @@
     --lexical-indent-base-value: 40px;
 }
 
-.RichInput__textBold {
-    font-weight: bold;
-}
 
-.RichInput__textItalic {
-    font-style: italic;
-}
 
-.RichInput__textUnderline {
-    text-decoration: underline;
-}
 
 .RichInput__textStrikethrough {
     text-decoration: line-through;
@@ -65,32 +92,11 @@
     vertical-align: super;
 }
 
-.RichInput__textCode {
-    background-color: rgb(240, 242, 245);
-    padding: 1px 0.25rem;
-    font-family: Menlo, Consolas, Monaco, monospace;
-    font-size: 94%;
-}
+
 
 .RichInput__hashtag {
     background-color: rgba(88, 144, 255, 0.15);
     border-bottom: 1px solid rgba(88, 144, 255, 0.3);
-}
-
-.RichInput__code {
-    background-color: #23241f;
-    color: #f8f8f2;
-    padding: 1em;
-    font-family: Menlo, Consolas, Monaco, monospace;
-    display: block;
-    line-height: 1.53;
-    font-size: 13px;
-    margin: 0;
-    margin-top: 8px;
-    margin-bottom: 8px;
-    overflow-x: auto;
-    position: relative;
-    tab-size: 2;
 }
 
 .RichInput__table {
@@ -455,19 +461,4 @@
 
 .RichInput__embedBlockFocus {
     outline: 2px solid rgb(60, 132, 244);
-}
-
-.spoiler {
-    cursor: pointer;
-    transition: color 0.4s, background 0.4s;
-}
-
-.spoiler.revealed {
-    color: inherit;
-    background: rgba(0, 0, 0, 0.3);
-}
-
-.spoiler.hidden {
-    color: transparent;
-    background: black;
 }

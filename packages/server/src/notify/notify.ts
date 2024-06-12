@@ -1,29 +1,31 @@
-import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, SubscribableObject, Success } from "@local/shared";
-import { Prisma, ReportStatus } from "@prisma/client";
+import { GqlModelType, IssueStatus, LINKS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SubscribableObject, Success } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper } from "../builders/selectHelper";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
+import { GraphQLInfo, PartialGraphQLInfo, PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { subscribableMapper } from "../events/subscriber";
 import { ModelMap } from "../models/base";
 import { PushDeviceModel } from "../models/base/pushDevice";
-import { OrganizationModelLogic } from "../models/base/types";
+import { TeamModelLogic } from "../models/base/types";
 import { withRedis } from "../redisConn";
 import { sendMail } from "../tasks/email/queue";
 import { sendPush } from "../tasks/push/queue";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { batch } from "../utils/batch";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 
 export type NotificationUrgency = "low" | "normal" | "critical";
 
-export type NotificationCategory = "AccountCreditsOrApi" |
+export type NotificationCategory =
+    "AccountCreditsOrApi" |
     "Award" |
     "IssueStatus" |
     "Message" |
-    "NewObjectInOrganization" |
+    "NewObjectInTeam" |
     "NewObjectInProject" |
     "NewQuestionOrIssue" |
     "ObjectActivity" |
@@ -53,7 +55,6 @@ type PushParams = {
     bodyKey?: TransKey,
     category: NotificationCategory,
     link?: string,
-    prisma: PrismaType,
     titleKey?: TransKey,
     users: PushToUser[]
 }
@@ -64,7 +65,6 @@ type NotifyResultParams = {
     category: NotificationCategory,
     languages: string[],
     link?: string,
-    prisma: PrismaType,
     silent?: boolean,
     titleKey?: TransKey,
     titleVariables?: { [key: string]: string | number },
@@ -89,12 +89,11 @@ const push = async ({
     bodyKey,
     category,
     link,
-    prisma,
     titleKey,
     users,
 }: PushParams) => {
     // Find out which devices can receive this notification, and the daily limit
-    const devicesAndLimits = await findRecipientsAndLimit(category, prisma, users.map(u => u.userId));
+    const devicesAndLimits = await findRecipientsAndLimit(category, users.map(u => u.userId));
     // Find title and body for each user
     const userTitles: { [userId: string]: string } = {};
     const userBodies: { [userId: string]: string } = {};
@@ -121,8 +120,12 @@ const push = async ({
                     // Increment count in Redis for this user. If it is over the limit, make the notification silent
                     const count = await redisClient.incr(`notification:${users[i].userId}:${category}`);
                     if (dailyLimit && count > dailyLimit) currSilent = true;
-                    // Send the notification to each device, if not silent
+                    // Send the notification if not silent
                     if (!currSilent) {
+                        const payload = { body: currBody, icon, link, title: currTitle };
+                        // Send through socket to display on opened app TODO
+                        // emitSocketEvent("notification", fdasfsf, payload);
+                        // Send to each push device
                         for (const device of pushDevices) {
                             try {
                                 const subscription = {
@@ -132,17 +135,16 @@ const push = async ({
                                         auth: device.auth,
                                     },
                                 };
-                                const payload = { body: currBody, icon, link, title: currTitle };
                                 sendPush(subscription, payload, delay);
                             } catch (err) {
                                 logger.error("Error sending push notification", { trace: "0306" });
                             }
                         }
-                        // Send the notification to each email (ignore if no title)
+                        // Send to each email (ignore if no title)
                         if (emails.length && currTitle) {
                             sendMail(emails.map(e => e.emailAddress), currTitle, currBody, "", delay);
                         }
-                        // Send the notification to each phone number
+                        // Send to each phone number
                         // for (const phoneNumber of phoneNumbers) {
                         //     fdasfsd
                         // }
@@ -150,7 +152,7 @@ const push = async ({
                 }
             }
             // Store the notifications in the database
-            await prisma.notification.createMany({
+            await prismaInstance.notification.createMany({
                 data: users.map(({ userId }) => ({
                     category,
                     title: userTitles[userId],
@@ -183,10 +185,10 @@ const getEventStartLabel = (date: Date) => {
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<void>,
-    toOrganization: (organizationId: string, excludeUserId?: string | null | undefined) => Promise<void>,
-    toOwner: (owner: { __typename: "User" | "Organization", id: string }, excludeUserId?: string | null | undefined) => Promise<void>,
-    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludeUserId?: string | null | undefined) => Promise<void>,
-    toChatParticipants: (chatId: string, excludeUserId?: string | null | undefined) => Promise<void>,
+    toTeam: (teamId: string, excludedUsers?: string[] | string) => Promise<void>,
+    toOwner: (owner: { __typename: "User" | "Team", id: string }, excludedUsers?: string[] | string) => Promise<void>,
+    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<void>,
+    toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<void>,
 }
 
 /**
@@ -194,7 +196,6 @@ type NotifyResultType = {
  * @param bodyVariables The variables for the body
  * @param titleVariables The variables for the title
  * @param silent Whether the notification is silent
- * @param prisma Prisma client
  * @param languages Preferred languages for error messages
  * @param users List of userIds and their languages
  * @returns PushToUser list with the variables replaced
@@ -203,7 +204,6 @@ const replaceLabels = async (
     bodyVariables: { [key: string]: string | number } | undefined,
     titleVariables: { [key: string]: string | number } | undefined,
     silent: boolean | undefined,
-    prisma: PrismaType,
     languages: string[],
     users: Pick<PushToUser, "languages" | "userId" | "delays">[],
 ): Promise<PushToUser[]> => {
@@ -217,8 +217,8 @@ const replaceLabels = async (
     const findTranslations = async (objectType: `${GqlModelType}`, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
-        const { delegate, display } = ModelMap.getLogic(["delegate", "display"], objectType, true, "replaceLabels 1");
-        const labels = await delegate(prisma).findUnique({
+        const { dbTable, display } = ModelMap.getLogic(["dbTable", "display"], objectType, true, "replaceLabels 1");
+        const labels = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
             where: { id: objectId },
             select: display().label.select(),
         });
@@ -269,7 +269,7 @@ const replaceLabels = async (
 
 /**
  * Class returned by each notify function. Allows us to either
- * send the notification to one user, or to all admins of an organization
+ * send the notification to one user, or to all admins of a team
  */
 const NotifyResult = ({
     bodyKey,
@@ -277,7 +277,6 @@ const NotifyResult = ({
     category,
     languages,
     link,
-    prisma,
     silent,
     titleKey,
     titleVariables,
@@ -288,9 +287,9 @@ const NotifyResult = ({
      */
     toUser: async (userId) => {
         // Shape and translate the notification for the user
-        const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, [{ languages, userId }]);
+        const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, [{ languages, userId }]);
         // Send the notification
-        await push({ bodyKey, category, link, prisma, titleKey, users });
+        await push({ bodyKey, category, link, titleKey, users });
     },
     /**
      * Sends a notification to multiple users
@@ -302,7 +301,6 @@ const NotifyResult = ({
             bodyVariables,
             titleVariables,
             silent,
-            prisma,
             languages,
             userIds.map(data => ({
                 languages,
@@ -310,99 +308,112 @@ const NotifyResult = ({
                 delays: typeof data === "string" ? undefined : data.delays,
             })));
         // Send the notification to each user
-        await push({ bodyKey, category, link, prisma, titleKey, users });
+        await push({ bodyKey, category, link, titleKey, users });
     },
     /**
-     * Sends a notification to an organization
-     * @param organizationId The organization's id
-     * @param excludeUserId The user to exclude from the notification 
+     * Sends a notification to a team
+     * @param teamId The team's id
+     * @param excludedUsers IDs of users to exclude from the notification
      * (usually the user who triggered the notification)
      */
-    toOrganization: async (organizationId, excludeUserId) => {
-        // Find every admin of the organization, excluding the user who triggered the notification
-        const adminData = await ModelMap.get<OrganizationModelLogic>("Organization").query.findAdminInfo(prisma, organizationId, excludeUserId);
+    toTeam: async (teamId, excludedUsers) => {
+        // Find every admin of the team, excluding the user who triggered the notification
+        const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
         // Shape and translate the notification for each admin
-        const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, adminData.map(({ id, languages }) => ({
+        const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, adminData.map(({ id, languages }) => ({
             languages,
             userId: id,
         })));
         // Send the notification to each admin
-        await push({ bodyKey, category, link, prisma, titleKey, users });
+        await push({ bodyKey, category, link, titleKey, users });
     },
     /**
      * Sends a notification to an owner of an object
      * @param owner The owner's id and __typename
-     * @param excludeUserId A user to exclude from the notification
+     * @param excludedUsers IDs of users to exclude from the notification
      */
-    toOwner: async (owner, excludeUserId) => {
+    toOwner: async (owner, excludedUsers) => {
         if (owner.__typename === "User") {
-            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toUser(owner.id);
-        } else if (owner.__typename === "Organization") {
-            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toOrganization(owner.id, excludeUserId);
+            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toUser(owner.id);
+        } else if (owner.__typename === "Team") {
+            await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toTeam(owner.id, excludedUsers);
         }
     },
     /**
      * Sends a notification to all subscribers of an object
      * @param objectType The __typename of object
      * @param objectId The object's id
-     * @param excludeUserId The user to exclude from the notification
+     * @param excludedUsers IDs of users to exclude from the notification
      */
-    toSubscribers: async (objectType, objectId, excludeUserId) => {
-        await batch<Prisma.notification_subscriptionFindManyArgs>({
-            objectType: "NotificationSubscription",
-            processBatch: async (batch: { subscriberId: string, silent: boolean }[], prisma) => {
-                // Shape and translate the notification for each subscriber
-                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ subscriberId, silent }) => ({
-                    languages,
-                    silent,
-                    userId: subscriberId,
-                })));
-                // Send the notification to each subscriber
-                await push({ bodyKey, category, link, prisma, titleKey, users });
-            },
-            select: { subscriberId: true, silent: true },
-            trace: "0467",
-            where: {
-                AND: [
-                    { [subscribableMapper[objectType]]: { id: objectId } },
-                    { subscriberId: { not: excludeUserId ?? undefined } },
-                ],
-            },
-        });
+    toSubscribers: async (objectType, objectId, excludedUsers) => {
+        try {
+            await batch<Prisma.notification_subscriptionFindManyArgs>({
+                objectType: "NotificationSubscription",
+                processBatch: async (batch: { subscriberId: string, silent: boolean }[]) => {
+                    // Shape and translate the notification for each subscriber
+                    const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, batch.map(({ subscriberId, silent }) => ({
+                        languages,
+                        silent,
+                        userId: subscriberId,
+                    })));
+                    // Send the notification to each subscriber
+                    await push({ bodyKey, category, link, titleKey, users });
+                },
+                select: { subscriberId: true, silent: true },
+                where: {
+                    AND: [
+                        { [subscribableMapper[objectType]]: { id: objectId } },
+                        ...(typeof excludedUsers === "string" ?
+                            [{ subscriberId: { not: excludedUsers } }] :
+                            Array.isArray(excludedUsers) ?
+                                [{ subscriberId: { notIn: excludedUsers } }] :
+                                []
+                        ),
+                    ],
+                },
+            });
+        } catch (error) {
+            logger.error("Caught error in toSubscribers", { trace: "0467", error });
+        }
     },
     /**
      * Sends a notification to all participants of a chat
      * @param chatId The chat's id
-     * @param excludeUserId The user to exclude from the notification
+     * @param excludedUsers IDs of users to exclude from the notification
      */
-    toChatParticipants: async (chatId, excludeUserId) => {
-        await batch<Prisma.chat_participantsFindManyArgs>({
-            objectType: "ChatParticipant",
-            processBatch: async (batch: { user: { id: string } }[], prisma) => {
-                // Shape and translate the notification for each participant
-                const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ user }) => ({
-                    languages: ["en"], //TODO need to store user languages in db , then can update this
-                    userId: user.id,
-                })));
-                // Send the notification to each participant
-                await push({ bodyKey, category, link, prisma, titleKey, users });
-            },
-            select: { user: { select: { id: true } } },
-            trace: "0498",
-            where: {
-                ...(excludeUserId ? { AND: [{ chatId }, { userId: { not: excludeUserId } }] } : { chatId }),
-            },
-        });
+    toChatParticipants: async (chatId, excludedUsers) => {
+        try {
+            await batch<Prisma.chat_participantsFindManyArgs>({
+                objectType: "ChatParticipant",
+                processBatch: async (batch: { user: { id: string } }[]) => {
+                    // Shape and translate the notification for each participant
+                    const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, batch.map(({ user }) => ({
+                        languages: ["en"], //TODO need to store user languages in db , then can update this
+                        userId: user.id,
+                    })));
+                    // Send the notification to each participant
+                    await push({ bodyKey, category, link, titleKey, users });
+                },
+                select: { user: { select: { id: true } } },
+                where: typeof excludedUsers === "string"
+                    ? { AND: [{ chatId }, { userId: { not: excludedUsers } }] }
+                    : Array.isArray(excludedUsers)
+                        ? { AND: [{ chatId }, { userId: { notIn: excludedUsers } }] }
+                        : { chatId },
+            });
+        } catch (error) {
+            logger.error("Caught error in toChatParticipants", { trace: "0498", error });
+        }
     },
 });
 
 /**
- * Handles sending and registering notifications for a user or organization. 
- * Organization notifications are sent to every admin of the organization.
+ * Handles sending and registering notifications for a user or team. 
+ * Team notifications are sent to every admin of the team.
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
-export const Notify = (prisma: PrismaType, languages: string[]) => ({
+export const Notify = (languages: string[]) => ({
     /** Sets up a push device to receive notifications */
     registerPushDevice: async ({ endpoint, p256dh, auth, expires, userData, info }: {
         endpoint: string,
@@ -419,13 +430,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         try {
             select = selectHelper(partialInfo)?.select;
             // Check if the device is already registered
-            const device = await prisma.push_device.findUnique({
+            const device = await prismaInstance.push_device.findUnique({
                 where: { endpoint },
                 select: { id: true },
             });
             // If it is, update the auth and p256dh keys
             if (device) {
-                result = await prisma.push_device.update({
+                result = await prismaInstance.push_device.update({
                     where: { id: device.id },
                     data: { auth, p256dh, expires },
                     select,
@@ -433,7 +444,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
             }
             // If it isn't, create a new device
             else {
-                result = await prisma.push_device.create({
+                result = await prismaInstance.push_device.create({
                     data: {
                         endpoint,
                         auth,
@@ -456,14 +467,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
      */
     unregisterPushDevice: async (deviceId: string, userId: string): Promise<Success> => {
         // Check if the device is registered to the user
-        const device = await prisma.push_device.findUnique({
+        const device = await prismaInstance.push_device.findUnique({
             where: { id: deviceId },
             select: { userId: true },
         });
         if (!device || device.userId !== userId)
             throw new CustomError("0307", "PushDeviceNotFound", languages);
         // If it is, delete it  
-        const deletedDevice = await prisma.push_device.delete({ where: { id: deviceId } });
+        const deletedDevice = await prismaInstance.push_device.delete({ where: { id: deviceId } });
         return { __typename: "Success" as const, success: Boolean(deletedDevice) };
     },
     /**
@@ -471,13 +482,12 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
      * @param settings The new settings
      */
     updateSettings: async (settings: NotificationSettingsUpdateInput, userId: string) => {
-        await updateNotificationSettings(settings, prisma, userId);
+        await updateNotificationSettings(settings, userId);
     },
     pushApiOutOfCredits: (): NotifyResultType => NotifyResult({
         bodyKey: "ApiOutOfCreditsBody",
         category: "AccountCreditsOrApi",
         languages,
-        prisma,
         titleKey: "ApiOutOfCreditsTitle",
     }),
     pushAward: (awardName: string, awardDescription: string): NotifyResultType => NotifyResult({
@@ -486,8 +496,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "Award",
         languages,
         link: "/awards",
-        prisma,
         titleKey: "AwardEarnedTitle",
+    }),
+    pushFreeCreditsReceived: (): NotifyResultType => NotifyResult({
+        bodyKey: "FreeCreditsReceivedBody",
+        category: "AccountCreditsOrApi",
+        languages,
+        titleKey: "FreeCreditsReceivedTitle",
     }),
     pushIssueStatusChange: (
         issueId: string,
@@ -500,7 +515,6 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "IssueStatus",
         languages,
         link: `/issues/${issueId}`,
-        prisma,
         titleKey: `IssueStatus${status}Title`,
     }),
     pushMessageReceived: (messageId: string, senderId: string): NotifyResultType => NotifyResult({
@@ -509,21 +523,18 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "Message",
         languages,
         link: `/messages/${messageId}`,
-        prisma,
         titleKey: "MessageReceivedTitle",
     }),
     pushNewDeviceSignIn: (): NotifyResultType => NotifyResult({
         bodyKey: "NewDeviceBody",
         category: "Security",
         languages,
-        prisma,
         titleKey: "NewDeviceTitle",
     }),
     pushNewEmailVerification: (): NotifyResultType => NotifyResult({
         bodyKey: "NewEmailVerificationBody",
         category: "Security",
         languages,
-        prisma,
         titleKey: "NewEmailVerificationTitle",
     }),
     pushNewQuestionOnObject: (objectType: `${GqlModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
@@ -532,26 +543,23 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "NewQuestionOrIssue",
         languages,
         link: `/questions/${questionId}`,
-        prisma,
         titleKey: "NewQuestionOnObjectTitle",
     }),
-    pushNewObjectInOrganization: (objectType: `${GqlModelType}`, objectId: string, organizationId: string): NotifyResultType => NotifyResult({
-        bodyKey: "NewObjectInOrganizationBody",
-        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, organizationName: `<Label|Organization:${organizationId}>` },
-        category: "NewObjectInOrganization",
+    pushNewObjectInTeam: (objectType: `${GqlModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
+        bodyKey: "NewObjectInTeamBody",
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, teamName: `<Label|Team:${teamId}>` },
+        category: "NewObjectInTeam",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
-        titleKey: "NewObjectInOrganizationTitle",
-        titleVariables: { organizationName: `<Label|Organization:${organizationId}>` },
+        link: `/${LINKS[objectType]}/${objectId}`,
+        titleKey: "NewObjectInTeamTitle",
+        titleVariables: { teamName: `<Label|Team:${teamId}>` },
     }),
     pushNewObjectInProject: (objectType: `${GqlModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
         bodyKey: "NewObjectInProjectBody",
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, projectName: `<Label|Project:${projectId}>` },
         category: "NewObjectInProject",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}`,
         titleKey: "NewObjectInProjectTitle",
         titleVariables: { projectName: `<Label|Project:${projectId}>` },
     }),
@@ -560,8 +568,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
         category: "ObjectActivity",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}`,
         titleKey: "ObjectReceivedBookmarkTitle",
     }),
     pushObjectReceivedComment: (objectType: `${GqlModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
@@ -569,15 +576,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalComments },
         category: "ObjectActivity",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}?comments`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}?comments`,
         titleKey: "ObjectReceivedCommentTitle",
     }),
     pushObjectReceivedCopy: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         category: "ObjectActivity",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}`,
         titleKey: "ObjectReceivedCopyTitle",
         titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
     }),
@@ -586,8 +591,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
         category: "ObjectActivity",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}`,
         titleKey: "ObjectReceivedUpvoteTitle",
     }),
     /**
@@ -604,8 +608,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: "ReportStatus",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}/reports/${reportId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}/reports/${reportId}`,
         titleKey: `ReportStatus${status}Title`,
     }),
     pushPullRequestStatusChange: (
@@ -618,8 +621,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: "PullRequestStatus",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}/pulls/${reportId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}/pulls/${reportId}`,
         titleKey: `PullRequestStatus${status}Title`,
     }),
     pushQuestionActivity: (questionId: string): NotifyResultType => NotifyResult({
@@ -628,7 +630,6 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "QuestionActivity",
         languages,
         link: `/questions/${questionId}`,
-        prisma,
         titleKey: "QuestionActivityTitle",
     }),
     pushRunStartedAutomatically: (runId: string): NotifyResultType => NotifyResult({
@@ -637,7 +638,6 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "Run",
         languages,
         link: `/runs/${runId}`,
-        prisma,
         titleKey: "RunStartedAutomaticallyTitle",
     }),
     pushRunCompletedAutomatically: (runId: string): NotifyResultType => NotifyResult({
@@ -646,7 +646,6 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "Run",
         languages,
         link: `/runs/${runId}`,
-        prisma,
         titleKey: "RunCompletedAutomaticallyTitle",
     }),
     pushRunFailedAutomatically: (runId: string): NotifyResultType => NotifyResult({
@@ -655,7 +654,6 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "Run",
         languages,
         link: `/runs/${runId}`,
-        prisma,
         titleKey: "RunFailedAutomaticallyTitle",
     }),
     pushScheduleReminder: (scheduleForId: string, scheduleForType: GqlModelType, startTime: Date): NotifyResultType => NotifyResult({
@@ -664,20 +662,17 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         category: "Schedule",
         languages,
         link: scheduleForType === "Meeting" ? `/meeting/${scheduleForId}` : undefined,
-        prisma,
     }),
     pushStreakReminder: (timeToReset: Date): NotifyResultType => NotifyResult({
         bodyKey: "StreakReminderBody",
         bodyVariables: { endLabel: getEventStartLabel(timeToReset) },
         category: "Streak",
         languages,
-        prisma,
     }),
     pushStreakBroken: (): NotifyResultType => NotifyResult({
         bodyKey: "StreakBrokenBody",
         category: "Streak",
         languages,
-        prisma,
         titleKey: "StreakBrokenTitle",
     }),
     pushTransferRequestSend: (transferId: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
@@ -685,8 +680,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: "Transfer",
         languages,
-        link: `/${LINKS[objectType as any]}/transfers/${transferId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/transfers/${transferId}`,
         titleKey: "TransferRequestSendTitle",
     }),
     pushTransferRequestReceive: (transferId: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
@@ -694,8 +688,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: "Transfer",
         languages,
-        link: `/${LINKS[objectType as any]}/transfers/${transferId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/transfers/${transferId}`,
         titleKey: "TransferRequestReceiveTitle",
     }),
     pushTransferAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
@@ -703,8 +696,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: "Transfer",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}`,
         titleKey: "TransferAcceptedTitle",
     }),
     pushTransferRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
@@ -712,8 +704,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: "Transfer",
         languages,
-        link: `/${LINKS[objectType as any]}/${objectId}`,
-        prisma,
+        link: `/${LINKS[objectType]}/${objectId}`,
         titleKey: "TransferRejectedTitle",
     }),
     pushUserInvite: (friendUsername: string): NotifyResultType => NotifyResult({
@@ -721,6 +712,5 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         bodyVariables: { friendUsername },
         category: "UserInvite",
         languages,
-        prisma,
     }),
 });

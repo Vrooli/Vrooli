@@ -1,15 +1,15 @@
 import { MaxObjects, walletValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { WalletFormat } from "../formats";
-import { OrganizationModelLogic, WalletModelLogic } from "./types";
+import { TeamModelLogic, WalletModelLogic } from "./types";
 
 const __typename = "Wallet" as const;
 export const WalletModel: WalletModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.wallet,
+    dbTable: "wallet",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -19,19 +19,22 @@ export const WalletModel: WalletModelLogic = ({
     format: WalletFormat,
     mutate: {
         shape: {
-            pre: async ({ Delete, prisma, userData }) => {
+            pre: async ({ Delete, userData }) => {
                 // Prevent deleting wallets if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allWallets = await prisma.wallet.findMany({
+                    const allWallets = await prismaInstance.wallet.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedWalletsCount = allWallets.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedEmailsCount = await prisma.email.count({
+                    const verifiedPhonesCount = await prismaInstance.phone.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
-                        throw new CustomError("0049", "MustLeaveVerificationMethod", userData.languages);
+                    const verifiedEmailsCount = await prismaInstance.email.count({
+                        where: { user: { id: userData.id }, verified: true },
+                    });
+                    if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)
+                        throw new CustomError("0275", "MustLeaveVerificationMethod", userData.languages);
                 }
             },
             update: async ({ data }) => data,
@@ -44,26 +47,23 @@ export const WalletModel: WalletModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<Prisma.walletSelect>([
-            ["organization", "Organization"],
-            ["user", "User"],
-        ], ...rest),
+        isPublic: () => false, // Can make public in the future for donations, but for now keep private for security
         visibility: {
             private: {},
             public: {},
             owner: (userId) => ({
                 OR: [
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

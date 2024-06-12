@@ -9,7 +9,7 @@ import { ScheduleModelInfo, ScheduleModelLogic, ScheduleRecurrenceModelInfo, Sch
 const __typename = "ScheduleRecurrence" as const;
 export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.schedule_recurrence,
+    dbTable: "schedule_recurrence",
     display: () => ({
         label: {
             select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display().label.select() } }),
@@ -29,7 +29,7 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
                     duration: noNull(data.duration),
                     month: noNull(data.month),
                     endDate: noNull(data.endDate),
-                    ...(await shapeHelper({ relation: "schedule", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "recurrences", data, ...rest })),
+                    schedule: await shapeHelper({ relation: "schedule", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Schedule", parentRelationshipName: "recurrences", data, ...rest }),
                 };
             },
             update: async ({ data }) => {

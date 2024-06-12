@@ -10,6 +10,7 @@ export enum HttpStatus {
     Created = 201,
     Accepted = 202,
     NoContent = 204,
+    SeeOther = 303,
     BadRequest = 400,
     Unauthorized = 401,
     PaymentRequired = 402,
@@ -50,3 +51,22 @@ export enum HttpStatus {
     NotExtended = 510,
     NetworkAuthenticationRequired = 511
 }
+
+/**
+ * The multiplier to convert USD cents to API credits. 
+ * Allows us to track fractional cents without using floats.
+ */
+export const API_CREDITS_MULTIPLIER = BigInt(1_000_000);
+/**
+ * The number of API credits a user gets for free, 
+ * when they verify their phone number.
+ */
+export const API_CREDITS_FREE = BigInt(200) * API_CREDITS_MULTIPLIER;
+/**
+ * The number of API credits a user gets for a standard 
+ * premium subscription.
+ * 
+ * NOTE: This should ideally be less than the cost of a premium subscription, 
+ * so that we don't lose money. This is the main source of expenses for the app.
+ */
+export const API_CREDITS_PREMIUM = BigInt(1_500) * API_CREDITS_MULTIPLIER;

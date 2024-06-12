@@ -1,6 +1,6 @@
 import { id, message, opt, req, YupModel, yupObj } from "../utils";
 
-export const chatInviteValidation: YupModel = {
+export const chatInviteValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         message: opt(message),

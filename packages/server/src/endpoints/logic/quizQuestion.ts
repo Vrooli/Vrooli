@@ -13,13 +13,13 @@ export type EndpointsQuizQuestion = {
 const objectType = "QuizQuestion";
 export const QuizQuestionEndpoints: EndpointsQuizQuestion = {
     Query: {
-        quizQuestion: async (_, { input }, { prisma, req }, info) => {
+        quizQuestion: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        quizQuestions: async (_, { input }, { prisma, req }, info) => {
+        quizQuestions: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

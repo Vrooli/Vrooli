@@ -19,23 +19,23 @@ export type EndpointsQuizAttempt = {
 const objectType = "QuizAttempt";
 export const QuizAttemptEndpoints: EndpointsQuizAttempt = {
     Query: {
-        quizAttempt: async (_, { input }, { prisma, req }, info) => {
+        quizAttempt: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        quizAttempts: async (_, { input }, { prisma, req }, info) => {
+        quizAttempts: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        quizAttemptCreate: async (_, { input }, { prisma, req }, info) => {
+        quizAttemptCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        quizAttemptUpdate: async (_, { input }, { prisma, req }, info) => {
+        quizAttemptUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

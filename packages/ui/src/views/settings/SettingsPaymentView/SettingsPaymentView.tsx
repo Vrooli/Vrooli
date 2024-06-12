@@ -34,13 +34,13 @@ export const SettingsPaymentView = ({
             <Stack direction="row" mt={2} sx={{ paddingBottom: pagePaddingBottom }}>
                 <SettingsList />
                 <Box m="auto">
-                    <Typography variant="h6" textAlign="center">{t(currentUser.hasPremium ? "AlreadyHavePremium" : "DoNotHavePremium")}</Typography>
+                    <Typography variant="h6" textAlign="center">{t(currentUser.hasPremium ? "AlreadyHavePro" : "DoNotHavePro")}</Typography>
                     <Stack direction="column" spacing={2}>
                         <Button
                             color="secondary"
                             fullWidth
                             startIcon={<OpenInNewIcon />}
-                            onClick={() => openLink(setLocation, LINKS.Premium)}
+                            onClick={() => openLink(setLocation, LINKS.Pro)}
                             variant={!currentUser.hasPremium ? "outlined" : "contained"}
                             sx={{ marginTop: 2, marginBottom: 2 }}
                         >{t("ViewBenefits")}</Button>

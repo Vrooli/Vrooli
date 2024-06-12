@@ -13,13 +13,13 @@ export type EndpointsPayment = {
 const objectType = "Payment";
 export const PaymentEndpoints: EndpointsPayment = {
     Query: {
-        payment: async (_, { input }, { prisma, req }, info) => {
+        payment: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        payments: async (_, { input }, { prisma, req }, info) => {
+        payments: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

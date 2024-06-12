@@ -1,4 +1,5 @@
 export const routineVersion_create = {
+  "configCallData": true,
   "versionNotes": true,
   "apiVersion": {
     "pullRequest": {
@@ -34,6 +35,7 @@ export const routineVersion_create = {
       "__typename": "PullRequest"
     },
     "root": {
+      "versionsCount": true,
       "parent": {
         "id": true,
         "isLatest": true,
@@ -42,7 +44,8 @@ export const routineVersion_create = {
         "versionLabel": true,
         "root": {
           "id": true,
-          "isPrivate": true
+          "isPrivate": true,
+          "__typename": "Api"
         },
         "translations": {
           "id": true,
@@ -51,7 +54,7 @@ export const routineVersion_create = {
           "name": true,
           "summary": true
         },
-        "__typename": "Api"
+        "__typename": "ApiVersion"
       },
       "stats": {
         "id": true,
@@ -74,19 +77,7 @@ export const routineVersion_create = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -108,7 +99,19 @@ export const routineVersion_create = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -118,19 +121,7 @@ export const routineVersion_create = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -152,7 +143,19 @@ export const routineVersion_create = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -197,6 +200,7 @@ export const routineVersion_create = {
       "name": true,
       "summary": true
     },
+    "schemaText": true,
     "versionNotes": true,
     "id": true,
     "created_at": true,
@@ -221,12 +225,393 @@ export const routineVersion_create = {
     },
     "__typename": "ApiVersion"
   },
+  "codeVersion": {
+    "content": true,
+    "versionNotes": true,
+    "pullRequest": {
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      },
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "mergedOrRejectedAt": true,
+      "commentsCount": true,
+      "status": true,
+      "createdBy": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
+      },
+      "you": {
+        "canComment": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true
+      },
+      "__typename": "PullRequest"
+    },
+    "resourceList": {
+      "id": true,
+      "created_at": true,
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "name": true
+      },
+      "resources": {
+        "id": true,
+        "index": true,
+        "link": true,
+        "usedFor": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "name": true
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
+    },
+    "root": {
+      "versionsCount": true,
+      "parent": {
+        "id": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "root": {
+          "id": true,
+          "isPrivate": true,
+          "__typename": "Code"
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "jsonVariable": true,
+          "name": true
+        },
+        "__typename": "CodeVersion"
+      },
+      "stats": {
+        "id": true,
+        "periodStart": true,
+        "periodEnd": true,
+        "periodType": true,
+        "calls": true,
+        "routineVersions": true
+      },
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "isPrivate": true,
+      "issuesCount": true,
+      "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
+        "__typename": "Label"
+      },
+      "owner": {
+        "Team": {
+          "id": true,
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
+        }
+      },
+      "permissions": true,
+      "questionsCount": true,
+      "score": true,
+      "bookmarks": true,
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
+        "__typename": "Tag"
+      },
+      "transfersCount": true,
+      "views": true,
+      "you": {
+        "canDelete": true,
+        "canBookmark": true,
+        "canTransfer": true,
+        "canUpdate": true,
+        "canRead": true,
+        "canReact": true,
+        "isBookmarked": true,
+        "isViewed": true,
+        "reaction": true
+      },
+      "__typename": "Code"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "jsonVariable": true,
+      "name": true
+    },
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "isComplete": true,
+    "isDeleted": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "codeLanguage": true,
+    "codeType": true,
+    "default": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "calledByRoutineVersionsCount": true,
+    "commentsCount": true,
+    "directoryListingsCount": true,
+    "forksCount": true,
+    "reportsCount": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
+    "__typename": "CodeVersion"
+  },
   "inputs": {
     "id": true,
     "index": true,
     "isRequired": true,
     "name": true,
     "standardVersion": {
+      "root": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isPrivate": true,
+        "issuesCount": true,
+        "labels": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "color": true,
+          "label": true,
+          "owner": {
+            "Team": {
+              "id": true,
+              "bannerImage": true,
+              "handle": true,
+              "profileImage": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              },
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
+            }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          },
+          "__typename": "Label"
+        },
+        "owner": {
+          "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
+          }
+        },
+        "permissions": true,
+        "questionsCount": true,
+        "score": true,
+        "bookmarks": true,
+        "tags": {
+          "id": true,
+          "created_at": true,
+          "tag": true,
+          "bookmarks": true,
+          "translations": {
+            "id": true,
+            "language": true,
+            "description": true
+          },
+          "you": {
+            "isOwn": true,
+            "isBookmarked": true
+          },
+          "__typename": "Tag"
+        },
+        "transfersCount": true,
+        "views": true,
+        "you": {
+          "canDelete": true,
+          "canBookmark": true,
+          "canTransfer": true,
+          "canUpdate": true,
+          "canRead": true,
+          "canReact": true,
+          "isBookmarked": true,
+          "isViewed": true,
+          "reaction": true
+        },
+        "__typename": "Standard"
+      },
       "translations": {
         "id": true,
         "language": true,
@@ -362,6 +747,135 @@ export const routineVersion_create = {
     "index": true,
     "name": true,
     "standardVersion": {
+      "root": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isPrivate": true,
+        "issuesCount": true,
+        "labels": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "color": true,
+          "label": true,
+          "owner": {
+            "Team": {
+              "id": true,
+              "bannerImage": true,
+              "handle": true,
+              "profileImage": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              },
+              "__typename": "Team"
+            },
+            "User": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true,
+              "__typename": "User"
+            }
+          },
+          "you": {
+            "canDelete": true,
+            "canUpdate": true
+          },
+          "__typename": "Label"
+        },
+        "owner": {
+          "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
+          }
+        },
+        "permissions": true,
+        "questionsCount": true,
+        "score": true,
+        "bookmarks": true,
+        "tags": {
+          "id": true,
+          "created_at": true,
+          "tag": true,
+          "bookmarks": true,
+          "translations": {
+            "id": true,
+            "language": true,
+            "description": true
+          },
+          "you": {
+            "isOwn": true,
+            "isBookmarked": true
+          },
+          "__typename": "Tag"
+        },
+        "transfersCount": true,
+        "views": true,
+        "you": {
+          "canDelete": true,
+          "canBookmark": true,
+          "canTransfer": true,
+          "canUpdate": true,
+          "canRead": true,
+          "canReact": true,
+          "isBookmarked": true,
+          "isViewed": true,
+          "reaction": true
+        },
+        "__typename": "Standard"
+      },
       "translations": {
         "id": true,
         "language": true,
@@ -462,6 +976,7 @@ export const routineVersion_create = {
     "__typename": "ResourceList"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "complexity": true,
@@ -473,7 +988,8 @@ export const routineVersion_create = {
       "root": {
         "id": true,
         "isInternal": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Routine"
       },
       "translations": {
         "id": true,
@@ -484,7 +1000,7 @@ export const routineVersion_create = {
       },
       "versionIndex": true,
       "versionLabel": true,
-      "__typename": "Routine"
+      "__typename": "RoutineVersion"
     },
     "stats": {
       "id": true,
@@ -509,19 +1025,7 @@ export const routineVersion_create = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -543,7 +1047,19 @@ export const routineVersion_create = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -553,19 +1069,7 @@ export const routineVersion_create = {
       "__typename": "Label"
     },
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -587,7 +1091,19 @@ export const routineVersion_create = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "permissions": true,
@@ -624,252 +1140,6 @@ export const routineVersion_create = {
       "reaction": true
     },
     "__typename": "Routine"
-  },
-  "smartContractVersion": {
-    "versionNotes": true,
-    "pullRequest": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "mergedOrRejectedAt": true,
-      "commentsCount": true,
-      "status": true,
-      "createdBy": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "you": {
-        "canComment": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true
-      },
-      "__typename": "PullRequest"
-    },
-    "resourceList": {
-      "id": true,
-      "created_at": true,
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "name": true
-      },
-      "resources": {
-        "id": true,
-        "index": true,
-        "link": true,
-        "usedFor": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "name": true
-        }
-      }
-    },
-    "root": {
-      "parent": {
-        "id": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "root": {
-          "id": true,
-          "isPrivate": true
-        },
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "jsonVariable": true,
-          "name": true
-        },
-        "__typename": "SmartContract"
-      },
-      "stats": {
-        "id": true,
-        "periodStart": true,
-        "periodEnd": true,
-        "periodType": true,
-        "calls": true,
-        "routineVersions": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "isPrivate": true,
-      "issuesCount": true,
-      "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
-            "id": true,
-            "bannerImage": true,
-            "handle": true,
-            "profileImage": true,
-            "you": {
-              "canAddMembers": true,
-              "canDelete": true,
-              "canBookmark": true,
-              "canReport": true,
-              "canUpdate": true,
-              "canRead": true,
-              "isBookmarked": true,
-              "isViewed": true,
-              "yourMembership": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isAdmin": true,
-                "permissions": true
-              }
-            },
-            "__typename": "Organization"
-          }
-        },
-        "you": {
-          "canDelete": true,
-          "canUpdate": true
-        },
-        "__typename": "Label"
-      },
-      "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          },
-          "__typename": "Organization"
-        }
-      },
-      "permissions": true,
-      "questionsCount": true,
-      "score": true,
-      "bookmarks": true,
-      "tags": {
-        "id": true,
-        "created_at": true,
-        "tag": true,
-        "bookmarks": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true
-        },
-        "you": {
-          "isOwn": true,
-          "isBookmarked": true
-        },
-        "__typename": "Tag"
-      },
-      "transfersCount": true,
-      "views": true,
-      "you": {
-        "canDelete": true,
-        "canBookmark": true,
-        "canTransfer": true,
-        "canUpdate": true,
-        "canRead": true,
-        "canReact": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "reaction": true
-      },
-      "__typename": "SmartContract"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "jsonVariable": true,
-      "name": true
-    },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "isComplete": true,
-    "isDeleted": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "default": true,
-    "contractType": true,
-    "content": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "commentsCount": true,
-    "directoryListingsCount": true,
-    "forksCount": true,
-    "reportsCount": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
-    "__typename": "SmartContractVersion"
   },
   "suggestedNextByRoutineVersion": {
     "id": true,
@@ -912,11 +1182,10 @@ export const routineVersion_create = {
   "isDeleted": true,
   "isLatest": true,
   "isPrivate": true,
+  "routineType": true,
   "simplicity": true,
   "timesStarted": true,
   "timesCompleted": true,
-  "smartContractCallData": true,
-  "apiCallData": true,
   "versionIndex": true,
   "versionLabel": true,
   "commentsCount": true,

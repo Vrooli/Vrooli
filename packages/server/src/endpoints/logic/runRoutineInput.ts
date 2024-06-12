@@ -12,9 +12,9 @@ export type EndpointsRunRoutineInput = {
 const objectType = "RunRoutineInput";
 export const RunRoutineInputEndpoints: EndpointsRunRoutineInput = {
     Query: {
-        runRoutineInputs: async (_, { input }, { prisma, req }, info) => {
+        runRoutineInputs: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
 };

@@ -2,342 +2,346 @@ import { toMutation, toQuery, toSearch } from "./utils";
 
 export const endpoints = {
     api: async () => {
-        const { api: apiPartial } = await import("./partial/api");
+        const { api } = await import("./partial/api");
         return {
-            findOne: toQuery("api", "FindByIdInput", apiPartial, "full"),
-            findMany: toQuery("apis", "ApiSearchInput", ...(await toSearch(apiPartial))),
-            create: toMutation("apiCreate", "ApiCreateInput", apiPartial, "full"),
-            update: toMutation("apiUpdate", "ApiUpdateInput", apiPartial, "full"),
+            findOne: toQuery("api", "FindByIdInput", api, "full"),
+            findMany: toQuery("apis", "ApiSearchInput", ...(await toSearch(api))),
+            create: toMutation("apiCreate", "ApiCreateInput", api, "full"),
+            update: toMutation("apiUpdate", "ApiUpdateInput", api, "full"),
         };
     },
     apiKey: async () => {
-        const { apiKey: apiKeyPartial } = await import("./partial/apiKey");
-        const { success: successPartial } = await import("./partial/success");
+        const { apiKey } = await import("./partial/apiKey");
+        const { success } = await import("./partial/success");
         return {
-            create: toMutation("apiKeyCreate", "ApiKeyCreateInput", apiKeyPartial, "full"),
-            update: toMutation("apiKeyUpdate", "ApiKeyUpdateInput", apiKeyPartial, "full"),
-            deleteOne: toMutation("apiKeyDeleteOne", "ApiKeyDeleteOneInput", successPartial, "full"),
-            validate: toMutation("apiKeyValidate", "ApiKeyValidateInput", apiKeyPartial, "full"),
+            create: toMutation("apiKeyCreate", "ApiKeyCreateInput", apiKey, "full"),
+            update: toMutation("apiKeyUpdate", "ApiKeyUpdateInput", apiKey, "full"),
+            deleteOne: toMutation("apiKeyDeleteOne", "ApiKeyDeleteOneInput", success, "full"),
+            validate: toMutation("apiKeyValidate", "ApiKeyValidateInput", apiKey, "full"),
         };
     },
     apiVersion: async () => {
-        const { apiVersion: apiVersionPartial } = await import("./partial/apiVersion");
+        const { apiVersion } = await import("./partial/apiVersion");
         return {
-            findOne: toQuery("apiVersion", "FindVersionInput", apiVersionPartial, "full"),
-            findMany: toQuery("apiVersions", "ApiVersionSearchInput", ...(await toSearch(apiVersionPartial))),
-            create: toMutation("apiVersionCreate", "ApiVersionCreateInput", apiVersionPartial, "full"),
-            update: toMutation("apiVersionUpdate", "ApiVersionUpdateInput", apiVersionPartial, "full"),
+            findOne: toQuery("apiVersion", "FindVersionInput", apiVersion, "full"),
+            findMany: toQuery("apiVersions", "ApiVersionSearchInput", ...(await toSearch(apiVersion))),
+            create: toMutation("apiVersionCreate", "ApiVersionCreateInput", apiVersion, "full"),
+            update: toMutation("apiVersionUpdate", "ApiVersionUpdateInput", apiVersion, "full"),
         };
     },
     auth: async () => {
-        const { session: sessionPartial } = await import("./partial/session");
-        const { success: successPartial } = await import("./partial/success");
-        const { walletComplete: walletCompletePartial } = await import("./partial/walletComplete");
+        const { session } = await import("./partial/session");
+        const { success } = await import("./partial/success");
+        const { walletComplete } = await import("./partial/walletComplete");
         return {
-            emailLogIn: toMutation("emailLogIn", "EmailLogInInput", sessionPartial, "full"),
-            emailSignUp: toMutation("emailSignUp", "EmailSignUpInput", sessionPartial, "full"),
-            emailRequestPasswordChange: toMutation("emailRequestPasswordChange", "EmailRequestPasswordChangeInput", successPartial, "full"),
-            emailResetPassword: toMutation("emailResetPassword", "EmailResetPasswordInput", sessionPartial, "full"),
-            guestLogIn: toMutation("guestLogIn", null, sessionPartial, "full"),
-            logOut: toMutation("logOut", "LogOutInput", sessionPartial, "full"),
-            validateSession: toMutation("validateSession", "ValidateSessionInput", sessionPartial, "full"),
-            switchCurrentAccount: toMutation("switchCurrentAccount", "SwitchCurrentAccountInput", sessionPartial, "full"),
+            emailLogIn: toMutation("emailLogIn", "EmailLogInInput", session, "full"),
+            emailSignUp: toMutation("emailSignUp", "EmailSignUpInput", session, "full"),
+            emailRequestPasswordChange: toMutation("emailRequestPasswordChange", "EmailRequestPasswordChangeInput", success, "full"),
+            emailResetPassword: toMutation("emailResetPassword", "EmailResetPasswordInput", session, "full"),
+            guestLogIn: toMutation("guestLogIn", null, session, "full"),
+            logOut: toMutation("logOut", "LogOutInput", session, "full"),
+            validateSession: toMutation("validateSession", "ValidateSessionInput", session, "full"),
+            switchCurrentAccount: toMutation("switchCurrentAccount", "SwitchCurrentAccountInput", session, "full"),
             walletInit: toMutation("walletInit", "WalletInitInput"),
-            walletComplete: toMutation("walletComplete", "WalletCompleteInput", walletCompletePartial, "full"),
+            walletComplete: toMutation("walletComplete", "WalletCompleteInput", walletComplete, "full"),
         };
     },
     award: async () => {
-        const { award: awardPartial } = await import("./partial/award");
+        const { award } = await import("./partial/award");
         return {
-            findMany: toQuery("awards", "AwardSearchInput", ...(await toSearch(awardPartial))),
+            findMany: toQuery("awards", "AwardSearchInput", ...(await toSearch(award))),
         };
     },
     bookmark: async () => {
-        const { bookmark: bookmarkPartial } = await import("./partial/bookmark");
+        const { bookmark } = await import("./partial/bookmark");
         return {
-            findOne: toQuery("bookmark", "FindByIdInput", bookmarkPartial, "full"),
-            findMany: toQuery("bookmarks", "BookmarkSearchInput", ...(await toSearch(bookmarkPartial))),
-            create: toMutation("bookmarkCreate", "BookmarkCreateInput", bookmarkPartial, "full"),
-            update: toMutation("bookmarkUpdate", "BookmarkUpdateInput", bookmarkPartial, "full"),
+            findOne: toQuery("bookmark", "FindByIdInput", bookmark, "full"),
+            findMany: toQuery("bookmarks", "BookmarkSearchInput", ...(await toSearch(bookmark))),
+            create: toMutation("bookmarkCreate", "BookmarkCreateInput", bookmark, "full"),
+            update: toMutation("bookmarkUpdate", "BookmarkUpdateInput", bookmark, "full"),
         };
     },
     bookmarkList: async () => {
-        const { bookmarkList: bookmarkListPartial } = await import("./partial/bookmarkList");
+        const { bookmarkList } = await import("./partial/bookmarkList");
         return {
-            findOne: toQuery("bookmarkList", "FindByIdInput", bookmarkListPartial, "full"),
-            findMany: toQuery("bookmarkLists", "BookmarkListSearchInput", ...(await toSearch(bookmarkListPartial))),
-            create: toMutation("bookmarkListCreate", "BookmarkListCreateInput", bookmarkListPartial, "full"),
-            update: toMutation("bookmarkListUpdate", "BookmarkListUpdateInput", bookmarkListPartial, "full"),
+            findOne: toQuery("bookmarkList", "FindByIdInput", bookmarkList, "full"),
+            findMany: toQuery("bookmarkLists", "BookmarkListSearchInput", ...(await toSearch(bookmarkList))),
+            create: toMutation("bookmarkListCreate", "BookmarkListCreateInput", bookmarkList, "full"),
+            update: toMutation("bookmarkListUpdate", "BookmarkListUpdateInput", bookmarkList, "full"),
         };
     },
     chat: async () => {
-        const { chat: chatPartial } = await import("./partial/chat");
+        const { chat } = await import("./partial/chat");
         return {
-            findOne: toQuery("chat", "FindByIdInput", chatPartial, "full"),
-            findMany: toQuery("chats", "ChatSearchInput", ...(await toSearch(chatPartial))),
-            create: toMutation("chatCreate", "ChatCreateInput", chatPartial, "full"),
-            update: toMutation("chatUpdate", "ChatUpdateInput", chatPartial, "full"),
+            findOne: toQuery("chat", "FindByIdInput", chat, "full"),
+            findMany: toQuery("chats", "ChatSearchInput", ...(await toSearch(chat))),
+            create: toMutation("chatCreate", "ChatCreateInput", chat, "full"),
+            update: toMutation("chatUpdate", "ChatUpdateInput", chat, "full"),
         };
     },
     chatInvite: async () => {
-        const { chatInvite: chatInvitePartial } = await import("./partial/chatInvite");
+        const { chatInvite } = await import("./partial/chatInvite");
         return {
-            findOne: toQuery("chatInvite", "FindByIdInput", chatInvitePartial, "full"),
-            findMany: toQuery("chatInvites", "ChatInviteSearchInput", ...(await toSearch(chatInvitePartial))),
-            createOne: toMutation("chatInviteCreate", "ChatInviteCreateInput", chatInvitePartial, "full"),
-            createMany: toMutation("chatInvitesCreate", "[ChatInviteCreateInput!]", chatInvitePartial, "full"),
-            updateOne: toMutation("chatInviteUpdate", "ChatInviteUpdateInput", chatInvitePartial, "full"),
-            updateMany: toMutation("chatInvitesUpdate", "[ChatInviteUpdateInput!]", chatInvitePartial, "full"),
-            accept: toMutation("chatInviteAccept", "FindByIdInput", chatInvitePartial, "full"),
-            decline: toMutation("chatInviteDecline", "FindByIdInput", chatInvitePartial, "full"),
+            findOne: toQuery("chatInvite", "FindByIdInput", chatInvite, "full"),
+            findMany: toQuery("chatInvites", "ChatInviteSearchInput", ...(await toSearch(chatInvite))),
+            createOne: toMutation("chatInviteCreate", "ChatInviteCreateInput", chatInvite, "full"),
+            createMany: toMutation("chatInvitesCreate", "[ChatInviteCreateInput!]", chatInvite, "full"),
+            updateOne: toMutation("chatInviteUpdate", "ChatInviteUpdateInput", chatInvite, "full"),
+            updateMany: toMutation("chatInvitesUpdate", "[ChatInviteUpdateInput!]", chatInvite, "full"),
+            accept: toMutation("chatInviteAccept", "FindByIdInput", chatInvite, "full"),
+            decline: toMutation("chatInviteDecline", "FindByIdInput", chatInvite, "full"),
         };
     },
     chatMessage: async () => {
-        const { chatMessage: chatMessagePartial, chatMessageSearchTreeResult: chatMessageSearchTreeResultPartial } = await import("./partial/chatMessage");
+        const { chatMessage, chatMessageSearchTreeResult, autoFillResult, checkTaskStatusesResult } = await import("./partial/chatMessage");
+        const { success } = await import("./partial/success");
         return {
-            findOne: toQuery("chatMessage", "FindByIdInput", chatMessagePartial, "full"),
-            findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessagePartial))),
-            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResultPartial, "full"),
-            create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessagePartial, "full"),
-            update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessagePartial, "full"),
+            findOne: toQuery("chatMessage", "FindByIdInput", chatMessage, "full"),
+            findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessage))),
+            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResult, "full"),
+            create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessage, "full"),
+            update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessage, "full"),
+            regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", success, "full"),
+            autoFill: toMutation("autoFill", "AutoFillInput", autoFillResult, "full"),
+            startTask: toMutation("startTask", "StartTaskInput", success, "full"),
+            cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),
+            checkTaskStatuses: toMutation("checkTaskStatuses", "CheckTaskStatusesInput", checkTaskStatusesResult, "full"),
         };
     },
     chatParticipant: async () => {
-        const { chatParticipant: chatParticipantPartial } = await import("./partial/chatParticipant");
+        const { chatParticipant } = await import("./partial/chatParticipant");
         return {
-            findOne: toQuery("chatParticipant", "FindByIdInput", chatParticipantPartial, "full"),
-            findMany: toQuery("chatParticipants", "ChatParticipantSearchInput", ...(await toSearch(chatParticipantPartial))),
-            update: toMutation("chatParticipantUpdate", "ChatParticipantUpdateInput", chatParticipantPartial, "full"),
+            findOne: toQuery("chatParticipant", "FindByIdInput", chatParticipant, "full"),
+            findMany: toQuery("chatParticipants", "ChatParticipantSearchInput", ...(await toSearch(chatParticipant))),
+            update: toMutation("chatParticipantUpdate", "ChatParticipantUpdateInput", chatParticipant, "full"),
+        };
+    },
+    code: async () => {
+        const { code } = await import("./partial/code");
+        return {
+            findOne: toQuery("code", "FindByIdInput", code, "full"),
+            findMany: toQuery("codes", "CodeSearchInput", ...(await toSearch(code))),
+            create: toMutation("codeCreate", "CodeCreateInput", code, "full"),
+            update: toMutation("codeUpdate", "CodeUpdateInput", code, "full"),
+        };
+    },
+    codeVersion: async () => {
+        const { codeVersion } = await import("./partial/codeVersion");
+        return {
+            findOne: toQuery("codeVersion", "FindVersionInput", codeVersion, "full"),
+            findMany: toQuery("codeVersions", "CodeVersionSearchInput", ...(await toSearch(codeVersion))),
+            create: toMutation("codeVersionCreate", "CodeVersionCreateInput", codeVersion, "full"),
+            update: toMutation("codeVersionUpdate", "CodeVersionUpdateInput", codeVersion, "full"),
         };
     },
     comment: async () => {
-        const { comment: commentPartial, commentSearchResult: commentSearchResultPartial } = await import("./partial/comment");
+        const { comment, commentSearchResult } = await import("./partial/comment");
         return {
-            findOne: toQuery("comment", "FindByIdInput", commentPartial, "full"),
-            findMany: toQuery("comments", "CommentSearchInput", commentSearchResultPartial, "full"),
-            create: toMutation("commentCreate", "CommentCreateInput", commentPartial, "full"),
-            update: toMutation("commentUpdate", "CommentUpdateInput", commentPartial, "full"),
+            findOne: toQuery("comment", "FindByIdInput", comment, "full"),
+            findMany: toQuery("comments", "CommentSearchInput", commentSearchResult, "full"),
+            create: toMutation("commentCreate", "CommentCreateInput", comment, "full"),
+            update: toMutation("commentUpdate", "CommentUpdateInput", comment, "full"),
         };
     },
     copy: async () => {
-        const { copyResult: copyResultPartial } = await import("./partial/copyResult");
+        const { copyResult } = await import("./partial/copyResult");
         return {
-            copy: toMutation("copy", "CopyInput", copyResultPartial, "full"),
+            copy: toMutation("copy", "CopyInput", copyResult, "full"),
         };
     },
     deleteOneOrMany: async () => {
-        const { success: successPartial } = await import("./partial/success");
-        const { count: countPartial } = await import("./partial/count");
+        const { success } = await import("./partial/success");
+        const { count } = await import("./partial/count");
         return {
-            deleteOne: toMutation("deleteOne", "DeleteOneInput", successPartial, "full"),
-            deleteMany: toMutation("deleteMany", "DeleteManyInput", countPartial, "full"),
+            deleteOne: toMutation("deleteOne", "DeleteOneInput", success, "full"),
+            deleteMany: toMutation("deleteMany", "DeleteManyInput", count, "full"),
         };
     },
     email: async () => {
-        const { email: emailPartial } = await import("./partial/email");
-        const { success: successPartial } = await import("./partial/success");
+        const { email } = await import("./partial/email");
+        const { success } = await import("./partial/success");
         return {
-            create: toMutation("emailCreate", "EmailCreateInput", emailPartial, "full"),
-            verify: toMutation("sendVerificationEmail", "SendVerificationEmailInput", successPartial, "full"),
+            create: toMutation("emailCreate", "EmailCreateInput", email, "full"),
+            verify: toMutation("sendVerificationEmail", "SendVerificationEmailInput", success, "full"),
         };
     },
     feed: async () => {
-        const { homeResult: homeResultPartial } = await import("./partial/feed");
+        const { homeResult } = await import("./partial/feed");
         return {
-            home: toQuery("home", "HomeInput", homeResultPartial, "list"),
+            home: toQuery("home", "HomeInput", homeResult, "list"),
         };
     },
     issue: async () => {
-        const { issue: issuePartial } = await import("./partial/issue");
+        const { issue } = await import("./partial/issue");
         return {
-            findOne: toQuery("issue", "FindByIdInput", issuePartial, "full"),
-            findMany: toQuery("issues", "IssueSearchInput", ...(await toSearch(issuePartial))),
-            create: toMutation("issueCreate", "IssueCreateInput", issuePartial, "full"),
-            update: toMutation("issueUpdate", "IssueUpdateInput", issuePartial, "full"),
-            close: toMutation("issueClose", "IssueCloseInput", issuePartial, "full"),
+            findOne: toQuery("issue", "FindByIdInput", issue, "full"),
+            findMany: toQuery("issues", "IssueSearchInput", ...(await toSearch(issue))),
+            create: toMutation("issueCreate", "IssueCreateInput", issue, "full"),
+            update: toMutation("issueUpdate", "IssueUpdateInput", issue, "full"),
+            close: toMutation("issueClose", "IssueCloseInput", issue, "full"),
         };
     },
     focusMode: async () => {
-        const { activeFocusMode: activeFocusModePartial } = await import("./partial/activeFocusMode");
-        const { focusMode: focusModePartial } = await import("./partial/focusMode");
+        const { activeFocusMode } = await import("./partial/activeFocusMode");
+        const { focusMode } = await import("./partial/focusMode");
         return {
-            findOne: toQuery("focusMode", "FindByIdInput", focusModePartial, "full"),
-            findMany: toQuery("focusModes", "FocusModeSearchInput", ...(await toSearch(focusModePartial))),
-            create: toMutation("focusModeCreate", "FocusModeCreateInput", focusModePartial, "full"),
-            update: toMutation("focusModeUpdate", "FocusModeUpdateInput", focusModePartial, "full"),
-            setActive: toMutation("setActiveFocusMode", "SetActiveFocusModeInput", activeFocusModePartial, "full"),
+            findOne: toQuery("focusMode", "FindByIdInput", focusMode, "full"),
+            findMany: toQuery("focusModes", "FocusModeSearchInput", ...(await toSearch(focusMode))),
+            create: toMutation("focusModeCreate", "FocusModeCreateInput", focusMode, "full"),
+            update: toMutation("focusModeUpdate", "FocusModeUpdateInput", focusMode, "full"),
+            setActive: toMutation("setActiveFocusMode", "SetActiveFocusModeInput", activeFocusMode, "full"),
         };
     },
     label: async () => {
-        const { label: labelPartial } = await import("./partial/label");
+        const { label } = await import("./partial/label");
         return {
-            findOne: toQuery("label", "FindByIdInput", labelPartial, "full"),
-            findMany: toQuery("labels", "LabelSearchInput", ...(await toSearch(labelPartial))),
-            create: toMutation("labelCreate", "LabelCreateInput", labelPartial, "full"),
-            update: toMutation("labelUpdate", "LabelUpdateInput", labelPartial, "full"),
+            findOne: toQuery("label", "FindByIdInput", label, "full"),
+            findMany: toQuery("labels", "LabelSearchInput", ...(await toSearch(label))),
+            create: toMutation("labelCreate", "LabelCreateInput", label, "full"),
+            update: toMutation("labelUpdate", "LabelUpdateInput", label, "full"),
         };
     },
     meeting: async () => {
-        const { meeting: meetingPartial } = await import("./partial/meeting");
+        const { meeting } = await import("./partial/meeting");
         return {
-            findOne: toQuery("meeting", "FindByIdInput", meetingPartial, "full"),
-            findMany: toQuery("meetings", "MeetingSearchInput", ...(await toSearch(meetingPartial))),
-            create: toMutation("meetingCreate", "MeetingCreateInput", meetingPartial, "full"),
-            update: toMutation("meetingUpdate", "MeetingUpdateInput", meetingPartial, "full"),
+            findOne: toQuery("meeting", "FindByIdInput", meeting, "full"),
+            findMany: toQuery("meetings", "MeetingSearchInput", ...(await toSearch(meeting))),
+            create: toMutation("meetingCreate", "MeetingCreateInput", meeting, "full"),
+            update: toMutation("meetingUpdate", "MeetingUpdateInput", meeting, "full"),
         };
     },
     meetingInvite: async () => {
-        const { meetingInvite: meetingInvitePartial } = await import("./partial/meetingInvite");
+        const { meetingInvite } = await import("./partial/meetingInvite");
         return {
-            findOne: toQuery("meetingInvite", "FindByIdInput", meetingInvitePartial, "full"),
-            findMany: toQuery("meetingInvites", "MeetingInviteSearchInput", ...(await toSearch(meetingInvitePartial))),
-            createOne: toMutation("meetingInviteCreate", "MeetingInviteCreateInput", meetingInvitePartial, "full"),
-            createMany: toMutation("meetingInvitesCreate", "[MeetingInviteCreateInput!]", meetingInvitePartial, "full"),
-            updateOne: toMutation("meetingInviteUpdate", "MeetingInviteUpdateInput", meetingInvitePartial, "full"),
-            updateMany: toMutation("meetingInvitesUpdate", "[MeetingInviteUpdateInput!]", meetingInvitePartial, "full"),
-            accept: toMutation("meetingInviteAccept", "FindByIdInput", meetingInvitePartial, "full"),
-            decline: toMutation("meetingInviteDecline", "FindByIdInput", meetingInvitePartial, "full"),
+            findOne: toQuery("meetingInvite", "FindByIdInput", meetingInvite, "full"),
+            findMany: toQuery("meetingInvites", "MeetingInviteSearchInput", ...(await toSearch(meetingInvite))),
+            createOne: toMutation("meetingInviteCreate", "MeetingInviteCreateInput", meetingInvite, "full"),
+            createMany: toMutation("meetingInvitesCreate", "[MeetingInviteCreateInput!]", meetingInvite, "full"),
+            updateOne: toMutation("meetingInviteUpdate", "MeetingInviteUpdateInput", meetingInvite, "full"),
+            updateMany: toMutation("meetingInvitesUpdate", "[MeetingInviteUpdateInput!]", meetingInvite, "full"),
+            accept: toMutation("meetingInviteAccept", "FindByIdInput", meetingInvite, "full"),
+            decline: toMutation("meetingInviteDecline", "FindByIdInput", meetingInvite, "full"),
         };
     },
     member: async () => {
-        const { member: memberPartial } = await import("./partial/member");
+        const { member } = await import("./partial/member");
         return {
-            findOne: toQuery("member", "FindByIdInput", memberPartial, "full"),
-            findMany: toQuery("members", "MemberSearchInput", ...(await toSearch(memberPartial))),
-            update: toMutation("memberUpdate", "MemberUpdateInput", memberPartial, "full"),
+            findOne: toQuery("member", "FindByIdInput", member, "full"),
+            findMany: toQuery("members", "MemberSearchInput", ...(await toSearch(member))),
+            update: toMutation("memberUpdate", "MemberUpdateInput", member, "full"),
         };
     },
     memberInvite: async () => {
-        const { memberInvite: memberInvitePartial } = await import("./partial/memberInvite");
+        const { memberInvite } = await import("./partial/memberInvite");
         return {
-            findOne: toQuery("memberInvite", "FindByIdInput", memberInvitePartial, "full"),
-            findMany: toQuery("memberInvites", "MemberInviteSearchInput", ...(await toSearch(memberInvitePartial))),
-            createOne: toMutation("memberInviteCreate", "MemberInviteCreateInput", memberInvitePartial, "full"),
-            createMany: toMutation("memberInvitesCreate", "[MemberInviteCreateInput!]", memberInvitePartial, "full"),
-            updateOne: toMutation("memberInviteUpdate", "MemberInviteUpdateInput", memberInvitePartial, "full"),
-            updateMany: toMutation("memberInvitesUpdate", "[MemberInviteUpdateInput!]", memberInvitePartial, "full"),
-            accept: toMutation("memberInviteAccept", "FindByIdInput", memberInvitePartial, "full"),
-            decline: toMutation("memberInviteDecline", "FindByIdInput", memberInvitePartial, "full"),
+            findOne: toQuery("memberInvite", "FindByIdInput", memberInvite, "full"),
+            findMany: toQuery("memberInvites", "MemberInviteSearchInput", ...(await toSearch(memberInvite))),
+            createOne: toMutation("memberInviteCreate", "MemberInviteCreateInput", memberInvite, "full"),
+            createMany: toMutation("memberInvitesCreate", "[MemberInviteCreateInput!]", memberInvite, "full"),
+            updateOne: toMutation("memberInviteUpdate", "MemberInviteUpdateInput", memberInvite, "full"),
+            updateMany: toMutation("memberInvitesUpdate", "[MemberInviteUpdateInput!]", memberInvite, "full"),
+            accept: toMutation("memberInviteAccept", "FindByIdInput", memberInvite, "full"),
+            decline: toMutation("memberInviteDecline", "FindByIdInput", memberInvite, "full"),
         };
     },
     node: async () => {
-        const { node: nodePartial } = await import("./partial/node");
+        const { node } = await import("./partial/node");
         return {
-            create: toMutation("nodeCreate", "NodeCreateInput", nodePartial, "full"),
-            update: toMutation("nodeUpdate", "NodeUpdateInput", nodePartial, "full"),
+            create: toMutation("nodeCreate", "NodeCreateInput", node, "full"),
+            update: toMutation("nodeUpdate", "NodeUpdateInput", node, "full"),
         };
     },
     note: async () => {
-        const { note: notePartial } = await import("./partial/note");
+        const { note } = await import("./partial/note");
         return {
-            findOne: toQuery("note", "FindByIdInput", notePartial, "full"),
-            findMany: toQuery("notes", "NoteSearchInput", ...(await toSearch(notePartial))),
-            create: toMutation("noteCreate", "NoteCreateInput", notePartial, "full"),
-            update: toMutation("noteUpdate", "NoteUpdateInput", notePartial, "full"),
+            findOne: toQuery("note", "FindByIdInput", note, "full"),
+            findMany: toQuery("notes", "NoteSearchInput", ...(await toSearch(note))),
+            create: toMutation("noteCreate", "NoteCreateInput", note, "full"),
+            update: toMutation("noteUpdate", "NoteUpdateInput", note, "full"),
         };
     },
     noteVersion: async () => {
-        const { noteVersion: noteVersionPartial } = await import("./partial/noteVersion");
+        const { noteVersion } = await import("./partial/noteVersion");
         return {
-            findOne: toQuery("noteVersion", "FindVersionInput", noteVersionPartial, "full"),
-            findMany: toQuery("noteVersions", "NoteVersionSearchInput", ...(await toSearch(noteVersionPartial))),
-            create: toMutation("noteVersionCreate", "NoteVersionCreateInput", noteVersionPartial, "full"),
-            update: toMutation("noteVersionUpdate", "NoteVersionUpdateInput", noteVersionPartial, "full"),
+            findOne: toQuery("noteVersion", "FindVersionInput", noteVersion, "full"),
+            findMany: toQuery("noteVersions", "NoteVersionSearchInput", ...(await toSearch(noteVersion))),
+            create: toMutation("noteVersionCreate", "NoteVersionCreateInput", noteVersion, "full"),
+            update: toMutation("noteVersionUpdate", "NoteVersionUpdateInput", noteVersion, "full"),
         };
     },
     notification: async () => {
-        const { notification: notificationPartial, notificationSettings: notificationSettingsPartial } = await import("./partial/notification");
-        const { success: successPartial } = await import("./partial/success");
-        const { count: countPartial } = await import("./partial/count");
+        const { notification, notificationSettings } = await import("./partial/notification");
+        const { success } = await import("./partial/success");
+        const { count } = await import("./partial/count");
         return {
-            findOne: toQuery("notification", "FindByIdInput", notificationPartial, "full"),
-            findMany: toQuery("notifications", "NotificationSearchInput", ...(await toSearch(notificationPartial))),
-            settings: toQuery("notificationSettings", null, notificationSettingsPartial, "full"),
-            markAsRead: toMutation("notificationMarkAsRead", "FindByIdInput", successPartial, "full"),
-            markAllAsRead: toMutation("notificationMarkAllAsRead", null, countPartial, "full"),
-            update: toMutation("notificationMarkAllAsRead", null, countPartial, "full"),
-            settingsUpdate: toMutation("notificationSettingsUpdate", "NotificationSettingsUpdateInput", notificationSettingsPartial, "full"),
+            findOne: toQuery("notification", "FindByIdInput", notification, "full"),
+            findMany: toQuery("notifications", "NotificationSearchInput", ...(await toSearch(notification))),
+            settings: toQuery("notificationSettings", null, notificationSettings, "full"),
+            markAsRead: toMutation("notificationMarkAsRead", "FindByIdInput", success, "full"),
+            markAllAsRead: toMutation("notificationMarkAllAsRead", null, count, "full"),
+            update: toMutation("notificationMarkAllAsRead", null, count, "full"),
+            settingsUpdate: toMutation("notificationSettingsUpdate", "NotificationSettingsUpdateInput", notificationSettings, "full"),
         };
     },
     notificationSubscription: async () => {
-        const { notificationSubscription: notificationSubscriptionPartial } = await import("./partial/notificationSubscription");
+        const { notificationSubscription } = await import("./partial/notificationSubscription");
         return {
-            findOne: toQuery("notificationSubscription", "FindByIdInput", notificationSubscriptionPartial, "full"),
-            findMany: toQuery("notificationSubscriptions", "NotificationSubscriptionSearchInput", ...(await toSearch(notificationSubscriptionPartial))),
-            create: toMutation("notificationSubscriptionCreate", "NotificationSubscriptionCreateInput", notificationSubscriptionPartial, "full"),
-            update: toMutation("notificationSubscriptionUpdate", "NotificationSubscriptionUpdateInput", notificationSubscriptionPartial, "full"),
-        };
-    },
-    organization: async () => {
-        const { organization: organizationPartial } = await import("./partial/organization");
-        return {
-            findOne: toQuery("organization", "FindByIdOrHandleInput", organizationPartial, "full"),
-            findMany: toQuery("organizations", "OrganizationSearchInput", ...(await toSearch(organizationPartial))),
-            create: toMutation("organizationCreate", "OrganizationCreateInput", organizationPartial, "full"),
-            update: toMutation("organizationUpdate", "OrganizationUpdateInput", organizationPartial, "full"),
+            findOne: toQuery("notificationSubscription", "FindByIdInput", notificationSubscription, "full"),
+            findMany: toQuery("notificationSubscriptions", "NotificationSubscriptionSearchInput", ...(await toSearch(notificationSubscription))),
+            create: toMutation("notificationSubscriptionCreate", "NotificationSubscriptionCreateInput", notificationSubscription, "full"),
+            update: toMutation("notificationSubscriptionUpdate", "NotificationSubscriptionUpdateInput", notificationSubscription, "full"),
         };
     },
     phone: async () => {
-        const { phone: phonePartial } = await import("./partial/phone");
-        const { success: successPartial } = await import("./partial/success");
+        const { phone } = await import("./partial/phone");
+        const { success } = await import("./partial/success");
         return {
-            create: toMutation("phoneCreate", "PhoneCreateInput", phonePartial, "full"),
-            update: toMutation("sendVerificationText", "SendVerificationTextInput", successPartial, "full"),
+            create: toMutation("phoneCreate", "PhoneCreateInput", phone, "full"),
+            verify: toMutation("sendVerificationText", "SendVerificationTextInput", success, "full"),
+            validate: toMutation("validateVerificationText", "ValidateVerificationTextInput", success, "full"),
         };
     },
     popular: async () => {
-        const { popular: popularPartial } = await import("./partial/popular");
+        const { popular } = await import("./partial/popular");
         return {
-            findMany: toQuery("populars", "PopularSearchInput", ...(await toSearch(popularPartial, {
+            findMany: toQuery("populars", "PopularSearchInput", ...(await toSearch(popular, {
                 pageInfo: {
                     hasNextPage: true,
                     endCursorApi: true,
+                    endCursorCode: true,
                     endCursorNote: true,
-                    endCursorOrganization: true,
                     endCursorProject: true,
                     endCursorQuestion: true,
                     endCursorRoutine: true,
-                    endCursorSmartContract: true,
                     endCursorStandard: true,
+                    endCursorTeam: true,
                     endCursorUser: true,
                 },
             }))),
         };
     },
     post: async () => {
-        const { post: postPartial } = await import("./partial/post");
+        const { post } = await import("./partial/post");
         return {
-            findOne: toQuery("post", "FindByIdInput", postPartial, "full"),
-            findMany: toQuery("posts", "PostSearchInput", ...(await toSearch(postPartial))),
-            create: toMutation("postCreate", "PostCreateInput", postPartial, "full"),
-            update: toMutation("postUpdate", "PostUpdateInput", postPartial, "full"),
+            findOne: toQuery("post", "FindByIdInput", post, "full"),
+            findMany: toQuery("posts", "PostSearchInput", ...(await toSearch(post))),
+            create: toMutation("postCreate", "PostCreateInput", post, "full"),
+            update: toMutation("postUpdate", "PostUpdateInput", post, "full"),
         };
     },
     project: async () => {
-        const { project: projectPartial } = await import("./partial/project");
+        const { project } = await import("./partial/project");
         return {
-            findOne: toQuery("project", "FindByIdOrHandleInput", projectPartial, "full"),
-            findMany: toQuery("projects", "ProjectSearchInput", ...(await toSearch(projectPartial))),
-            create: toMutation("projectCreate", "ProjectCreateInput", projectPartial, "full"),
-            update: toMutation("projectUpdate", "ProjectUpdateInput", projectPartial, "full"),
-        };
-    },
-    projectOrOrganization: async () => {
-        const { projectOrOrganization: projectOrOrganizationPartial } = await import("./partial/projectOrOrganization");
-        return {
-            findMany: toQuery("projectOrOrganizations", "ProjectOrOrganizationSearchInput", ...(await toSearch(projectOrOrganizationPartial, {
-                pageInfo: {
-                    hasNextPage: true,
-                    endCursorProject: true,
-                    endCursorOrganization: true,
-                },
-            }))),
+            findOne: toQuery("project", "FindByIdOrHandleInput", project, "full"),
+            findMany: toQuery("projects", "ProjectSearchInput", ...(await toSearch(project))),
+            create: toMutation("projectCreate", "ProjectCreateInput", project, "full"),
+            update: toMutation("projectUpdate", "ProjectUpdateInput", project, "full"),
         };
     },
     projectOrRoutine: async () => {
-        const { projectOrRoutine: projectOrRoutinePartial } = await import("./partial/projectOrRoutine");
+        const { projectOrRoutine } = await import("./partial/projectOrRoutine");
         return {
-            findMany: toQuery("projectOrRoutines", "ProjectOrRoutineSearchInput", ...(await toSearch(projectOrRoutinePartial, {
+            findMany: toQuery("projectOrRoutines", "ProjectOrRoutineSearchInput", ...(await toSearch(projectOrRoutine, {
                 pageInfo: {
                     hasNextPage: true,
                     endCursorProject: true,
@@ -346,206 +350,221 @@ export const endpoints = {
             }))),
         };
     },
-    projectVersion: async () => {
-        const { projectVersion: projectVersionPartial } = await import("./partial/projectVersion");
+    projectOrTeam: async () => {
+        const { projectOrTeam } = await import("./partial/projectOrTeam");
         return {
-            findOne: toQuery("projectVersion", "FindVersionInput", projectVersionPartial, "full"),
-            findMany: toQuery("projectVersions", "ProjectVersionSearchInput", ...(await toSearch(projectVersionPartial))),
-            create: toMutation("projectVersionCreate", "ProjectVersionCreateInput", projectVersionPartial, "full"),
-            update: toMutation("projectVersionUpdate", "ProjectVersionUpdateInput", projectVersionPartial, "full"),
+            findMany: toQuery("projectOrTeams", "ProjectOrTeamSearchInput", ...(await toSearch(projectOrTeam, {
+                pageInfo: {
+                    hasNextPage: true,
+                    endCursorProject: true,
+                    endCursorTeam: true,
+                },
+            }))),
+        };
+    },
+    projectVersion: async () => {
+        const { projectVersion } = await import("./partial/projectVersion");
+        return {
+            findOne: toQuery("projectVersion", "FindVersionInput", projectVersion, "full"),
+            findMany: toQuery("projectVersions", "ProjectVersionSearchInput", ...(await toSearch(projectVersion))),
+            create: toMutation("projectVersionCreate", "ProjectVersionCreateInput", projectVersion, "full"),
+            update: toMutation("projectVersionUpdate", "ProjectVersionUpdateInput", projectVersion, "full"),
         };
     },
     projectVersionDirectory: async () => {
-        const { projectVersionDirectory: projectVersionDirectoryPartial } = await import("./partial/projectVersionDirectory");
+        const { projectVersionDirectory } = await import("./partial/projectVersionDirectory");
         return {
-            findMany: toQuery("projectVersionDirectories", "ProjectVersionDirectorySearchInput", ...(await toSearch(projectVersionDirectoryPartial))),
+            findOne: toQuery("projectVersionDirectory", "FindByIdInput", projectVersionDirectory, "full"),
+            findMany: toQuery("projectVersionDirectories", "ProjectVersionDirectorySearchInput", ...(await toSearch(projectVersionDirectory))),
+            create: toMutation("projectVersionDirectoryCreate", "ProjectVersionDirectoryCreateInput", projectVersionDirectory, "full"),
+            update: toMutation("projectVersionDirectoryUpdate", "ProjectVersionDirectoryUpdateInput", projectVersionDirectory, "full"),
         };
     },
     pullRequest: async () => {
-        const { pullRequest: pullRequestPartial } = await import("./partial/pullRequest");
+        const { pullRequest } = await import("./partial/pullRequest");
         return {
-            findOne: toQuery("pullRequest", "FindByIdInput", pullRequestPartial, "full"),
-            findMany: toQuery("pullRequests", "PullRequestSearchInput", ...(await toSearch(pullRequestPartial))),
-            create: toMutation("pullRequestCreate", "PullRequestCreateInput", pullRequestPartial, "full"),
-            update: toMutation("pullRequestUpdate", "PullRequestUpdateInput", pullRequestPartial, "full"),
-            accept: toMutation("pullRequestAcdept", "FindByIdInput", pullRequestPartial, "full"),
-            reject: toMutation("pullRequestReject", "FindByIdInput", pullRequestPartial, "full"),
+            findOne: toQuery("pullRequest", "FindByIdInput", pullRequest, "full"),
+            findMany: toQuery("pullRequests", "PullRequestSearchInput", ...(await toSearch(pullRequest))),
+            create: toMutation("pullRequestCreate", "PullRequestCreateInput", pullRequest, "full"),
+            update: toMutation("pullRequestUpdate", "PullRequestUpdateInput", pullRequest, "full"),
+            accept: toMutation("pullRequestAcdept", "FindByIdInput", pullRequest, "full"),
+            reject: toMutation("pullRequestReject", "FindByIdInput", pullRequest, "full"),
         };
     },
     pushDevice: async () => {
-        const { pushDevice: pushDevicePartial } = await import("./partial/pushDevice");
+        const { pushDevice } = await import("./partial/pushDevice");
         return {
-            findMany: toQuery("pushDevices", "PushDeviceSearchInput", ...(await toSearch(pushDevicePartial))),
-            create: toMutation("pushDeviceCreate", "PushDeviceCreateInput", pushDevicePartial, "full"),
-            update: toMutation("pushDeviceUpdate", "PushDeviceUpdateInput", pushDevicePartial, "full"),
+            findMany: toQuery("pushDevices", "PushDeviceSearchInput", ...(await toSearch(pushDevice))),
+            create: toMutation("pushDeviceCreate", "PushDeviceCreateInput", pushDevice, "full"),
+            update: toMutation("pushDeviceUpdate", "PushDeviceUpdateInput", pushDevice, "full"),
         };
     },
     question: async () => {
-        const { question: questionPartial } = await import("./partial/question");
+        const { question } = await import("./partial/question");
         return {
-            findOne: toQuery("question", "FindByIdInput", questionPartial, "full"),
-            findMany: toQuery("questions", "QuestionSearchInput", ...(await toSearch(questionPartial))),
-            create: toMutation("questionCreate", "QuestionCreateInput", questionPartial, "full"),
-            update: toMutation("questionUpdate", "QuestionUpdateInput", questionPartial, "full"),
+            findOne: toQuery("question", "FindByIdInput", question, "full"),
+            findMany: toQuery("questions", "QuestionSearchInput", ...(await toSearch(question))),
+            create: toMutation("questionCreate", "QuestionCreateInput", question, "full"),
+            update: toMutation("questionUpdate", "QuestionUpdateInput", question, "full"),
         };
     },
     questionAnswer: async () => {
-        const { questionAnswer: questionAnswerPartial } = await import("./partial/questionAnswer");
+        const { questionAnswer } = await import("./partial/questionAnswer");
         return {
-            findOne: toQuery("questionAnswer", "FindByIdInput", questionAnswerPartial, "full"),
-            findMany: toQuery("questionAnswers", "QuestionAnswerSearchInput", ...(await toSearch(questionAnswerPartial))),
-            create: toMutation("questionAnswerCreate", "QuestionAnswerCreateInput", questionAnswerPartial, "full"),
-            update: toMutation("questionAnswerUpdate", "QuestionAnswerUpdateInput", questionAnswerPartial, "full"),
-            accept: toMutation("questionAnswerMarkAsAccepted", "FindByIdInput", questionAnswerPartial, "full"),
+            findOne: toQuery("questionAnswer", "FindByIdInput", questionAnswer, "full"),
+            findMany: toQuery("questionAnswers", "QuestionAnswerSearchInput", ...(await toSearch(questionAnswer))),
+            create: toMutation("questionAnswerCreate", "QuestionAnswerCreateInput", questionAnswer, "full"),
+            update: toMutation("questionAnswerUpdate", "QuestionAnswerUpdateInput", questionAnswer, "full"),
+            accept: toMutation("questionAnswerMarkAsAccepted", "FindByIdInput", questionAnswer, "full"),
         };
     },
     quiz: async () => {
-        const { quiz: quizPartial } = await import("./partial/quiz");
+        const { quiz } = await import("./partial/quiz");
         return {
-            findOne: toQuery("quiz", "FindByIdInput", quizPartial, "full"),
-            findMany: toQuery("quizzes", "QuizSearchInput", ...(await toSearch(quizPartial))),
-            create: toMutation("quizCreate", "QuizCreateInput", quizPartial, "full"),
-            update: toMutation("quizUpdate", "QuizUpdateInput", quizPartial, "full"),
+            findOne: toQuery("quiz", "FindByIdInput", quiz, "full"),
+            findMany: toQuery("quizzes", "QuizSearchInput", ...(await toSearch(quiz))),
+            create: toMutation("quizCreate", "QuizCreateInput", quiz, "full"),
+            update: toMutation("quizUpdate", "QuizUpdateInput", quiz, "full"),
         };
     },
     quizAttempt: async () => {
-        const { quizAttempt: quizAttemptPartial } = await import("./partial/quizAttempt");
+        const { quizAttempt } = await import("./partial/quizAttempt");
         return {
-            findOne: toQuery("quizAttempt", "FindByIdInput", quizAttemptPartial, "full"),
-            findMany: toQuery("quizAttempts", "QuizAttemptSearchInput", ...(await toSearch(quizAttemptPartial))),
-            create: toMutation("quizAttemptCreate", "QuizAttemptCreateInput", quizAttemptPartial, "full"),
-            update: toMutation("quizAttemptUpdate", "QuizAttemptUpdateInput", quizAttemptPartial, "full"),
+            findOne: toQuery("quizAttempt", "FindByIdInput", quizAttempt, "full"),
+            findMany: toQuery("quizAttempts", "QuizAttemptSearchInput", ...(await toSearch(quizAttempt))),
+            create: toMutation("quizAttemptCreate", "QuizAttemptCreateInput", quizAttempt, "full"),
+            update: toMutation("quizAttemptUpdate", "QuizAttemptUpdateInput", quizAttempt, "full"),
         };
     },
     quizQuestion: async () => {
-        const { quizQuestion: quizQuestionPartial } = await import("./partial/quizQuestion");
+        const { quizQuestion } = await import("./partial/quizQuestion");
         return {
-            findOne: toQuery("quizQuestion", "FindByIdInput", quizQuestionPartial, "full"),
-            findMany: toQuery("quizQuestions", "QuizQuestionSearchInput", ...(await toSearch(quizQuestionPartial))),
+            findOne: toQuery("quizQuestion", "FindByIdInput", quizQuestion, "full"),
+            findMany: toQuery("quizQuestions", "QuizQuestionSearchInput", ...(await toSearch(quizQuestion))),
         };
     },
     quizQuestionResponse: async () => {
-        const { quizQuestionResponse: quizQuestionResponsePartial } = await import("./partial/quizQuestionResponse");
+        const { quizQuestionResponse } = await import("./partial/quizQuestionResponse");
         return {
-            findOne: toQuery("quizQuestionResponse", "FindByIdInput", quizQuestionResponsePartial, "full"),
-            findMany: toQuery("quizQuestionResponses", "QuizQuestionResponseSearchInput", ...(await toSearch(quizQuestionResponsePartial))),
-            create: toMutation("quizQuestionResponseCreate", "QuizQuestionResponseCreateInput", quizQuestionResponsePartial, "full"),
-            update: toMutation("quizQuestionResponseUpdate", "QuizQuestionResponseUpdateInput", quizQuestionResponsePartial, "full"),
+            findOne: toQuery("quizQuestionResponse", "FindByIdInput", quizQuestionResponse, "full"),
+            findMany: toQuery("quizQuestionResponses", "QuizQuestionResponseSearchInput", ...(await toSearch(quizQuestionResponse))),
+            create: toMutation("quizQuestionResponseCreate", "QuizQuestionResponseCreateInput", quizQuestionResponse, "full"),
+            update: toMutation("quizQuestionResponseUpdate", "QuizQuestionResponseUpdateInput", quizQuestionResponse, "full"),
         };
     },
     reaction: async () => {
-        const { reaction: reactionPartial } = await import("./partial/reaction");
-        const { success: successPartial } = await import("./partial/success");
+        const { reaction } = await import("./partial/reaction");
+        const { success } = await import("./partial/success");
         return {
-            findMany: toQuery("reactions", "ReactionSearchInput", ...(await toSearch(reactionPartial))),
-            react: toMutation("react", "ReactInput", successPartial, "full"),
+            findMany: toQuery("reactions", "ReactionSearchInput", ...(await toSearch(reaction))),
+            react: toMutation("react", "ReactInput", success, "full"),
         };
     },
     reminder: async () => {
-        const { reminder: reminderPartial } = await import("./partial/reminder");
+        const { reminder } = await import("./partial/reminder");
         return {
-            findOne: toQuery("reminder", "FindByIdInput", reminderPartial, "full"),
-            findMany: toQuery("reminders", "ReminderSearchInput", ...(await toSearch(reminderPartial))),
-            create: toMutation("reminderCreate", "ReminderCreateInput", reminderPartial, "full"),
-            update: toMutation("reminderUpdate", "ReminderUpdateInput", reminderPartial, "full"),
+            findOne: toQuery("reminder", "FindByIdInput", reminder, "full"),
+            findMany: toQuery("reminders", "ReminderSearchInput", ...(await toSearch(reminder))),
+            create: toMutation("reminderCreate", "ReminderCreateInput", reminder, "full"),
+            update: toMutation("reminderUpdate", "ReminderUpdateInput", reminder, "full"),
         };
     },
     reminderList: async () => {
-        const { reminderList: reminderListPartial } = await import("./partial/reminderList");
+        const { reminderList } = await import("./partial/reminderList");
         return {
-            findOne: toQuery("reminderList", "FindByIdInput", reminderListPartial, "full"),
-            findMany: toQuery("reminderLists", "ReminderListSearchInput", ...(await toSearch(reminderListPartial))),
-            create: toMutation("reminderListCreate", "ReminderListCreateInput", reminderListPartial, "full"),
-            update: toMutation("reminderListUpdate", "ReminderListUpdateInput", reminderListPartial, "full"),
+            findOne: toQuery("reminderList", "FindByIdInput", reminderList, "full"),
+            findMany: toQuery("reminderLists", "ReminderListSearchInput", ...(await toSearch(reminderList))),
+            create: toMutation("reminderListCreate", "ReminderListCreateInput", reminderList, "full"),
+            update: toMutation("reminderListUpdate", "ReminderListUpdateInput", reminderList, "full"),
         };
     },
     report: async () => {
-        const { report: reportPartial } = await import("./partial/report");
+        const { report } = await import("./partial/report");
         return {
-            findOne: toQuery("report", "FindByIdInput", reportPartial, "full"),
-            findMany: toQuery("reports", "ReportSearchInput", ...(await toSearch(reportPartial))),
-            create: toMutation("reportCreate", "ReportCreateInput", reportPartial, "full"),
-            update: toMutation("reportUpdate", "ReportUpdateInput", reportPartial, "full"),
+            findOne: toQuery("report", "FindByIdInput", report, "full"),
+            findMany: toQuery("reports", "ReportSearchInput", ...(await toSearch(report))),
+            create: toMutation("reportCreate", "ReportCreateInput", report, "full"),
+            update: toMutation("reportUpdate", "ReportUpdateInput", report, "full"),
         };
     },
     reportResponse: async () => {
-        const { reportResponse: reportResponsePartial } = await import("./partial/reportResponse");
+        const { reportResponse } = await import("./partial/reportResponse");
         return {
-            findOne: toQuery("reportResponse", "FindByIdInput", reportResponsePartial, "full"),
-            findMany: toQuery("reportResponses", "ReportResponseSearchInput", ...(await toSearch(reportResponsePartial))),
-            create: toMutation("reportResponseCreate", "ReportResponseCreateInput", reportResponsePartial, "full"),
-            update: toMutation("reportResponseUpdate", "ReportResponseUpdateInput", reportResponsePartial, "full"),
+            findOne: toQuery("reportResponse", "FindByIdInput", reportResponse, "full"),
+            findMany: toQuery("reportResponses", "ReportResponseSearchInput", ...(await toSearch(reportResponse))),
+            create: toMutation("reportResponseCreate", "ReportResponseCreateInput", reportResponse, "full"),
+            update: toMutation("reportResponseUpdate", "ReportResponseUpdateInput", reportResponse, "full"),
         };
     },
     reputationHistory: async () => {
-        const { reputationHistory: reputationHistoryPartial } = await import("./partial/reputationHistory");
+        const { reputationHistory } = await import("./partial/reputationHistory");
         return {
-            findOne: toQuery("reputationHistory", "FindByIdInput", reputationHistoryPartial, "full"),
-            findMany: toQuery("reputationHistories", "ReputationHistorySearchInput", ...(await toSearch(reputationHistoryPartial))),
+            findOne: toQuery("reputationHistory", "FindByIdInput", reputationHistory, "full"),
+            findMany: toQuery("reputationHistories", "ReputationHistorySearchInput", ...(await toSearch(reputationHistory))),
         };
     },
     resource: async () => {
-        const { resource: resourcePartial } = await import("./partial/resource");
+        const { resource } = await import("./partial/resource");
         return {
-            findOne: toQuery("resource", "FindByIdInput", resourcePartial, "full"),
-            findMany: toQuery("resources", "ResourceSearchInput", ...(await toSearch(resourcePartial))),
-            create: toMutation("resourceCreate", "ResourceCreateInput", resourcePartial, "full"),
-            update: toMutation("resourceUpdate", "ResourceUpdateInput", resourcePartial, "full"),
+            findOne: toQuery("resource", "FindByIdInput", resource, "full"),
+            findMany: toQuery("resources", "ResourceSearchInput", ...(await toSearch(resource))),
+            create: toMutation("resourceCreate", "ResourceCreateInput", resource, "full"),
+            update: toMutation("resourceUpdate", "ResourceUpdateInput", resource, "full"),
         };
     },
     resourceList: async () => {
-        const { resourceList: resourceListPartial } = await import("./partial/resourceList");
+        const { resourceList } = await import("./partial/resourceList");
         return {
-            findOne: toQuery("resourceList", "FindByIdInput", resourceListPartial, "full"),
-            findMany: toQuery("resourceLists", "ResourceListSearchInput", ...(await toSearch(resourceListPartial))),
-            create: toMutation("resourceListCreate", "ResourceListCreateInput", resourceListPartial, "full"),
-            update: toMutation("resourceListUpdate", "ResourceListUpdateInput", resourceListPartial, "full"),
+            findOne: toQuery("resourceList", "FindByIdInput", resourceList, "full"),
+            findMany: toQuery("resourceLists", "ResourceListSearchInput", ...(await toSearch(resourceList))),
+            create: toMutation("resourceListCreate", "ResourceListCreateInput", resourceList, "full"),
+            update: toMutation("resourceListUpdate", "ResourceListUpdateInput", resourceList, "full"),
         };
     },
     role: async () => {
-        const { role: rolePartial } = await import("./partial/role");
+        const { role } = await import("./partial/role");
         return {
-            findOne: toQuery("role", "FindByIdInput", rolePartial, "full"),
-            findMany: toQuery("roles", "RoleSearchInput", ...(await toSearch(rolePartial))),
-            create: toMutation("roleCreate", "RoleCreateInput", rolePartial, "full"),
-            update: toMutation("roleUpdate", "RoleUpdateInput", rolePartial, "full"),
+            findOne: toQuery("role", "FindByIdInput", role, "full"),
+            findMany: toQuery("roles", "RoleSearchInput", ...(await toSearch(role))),
+            create: toMutation("roleCreate", "RoleCreateInput", role, "full"),
+            update: toMutation("roleUpdate", "RoleUpdateInput", role, "full"),
         };
     },
     routine: async () => {
-        const { routine: routinePartial } = await import("./partial/routine");
+        const { routine } = await import("./partial/routine");
         return {
-            findOne: toQuery("routine", "FindByIdInput", routinePartial, "full"),
-            findMany: toQuery("routines", "RoutineSearchInput", ...(await toSearch(routinePartial))),
-            create: toMutation("routineCreate", "RoutineCreateInput", routinePartial, "full"),
-            update: toMutation("routineUpdate", "RoutineUpdateInput", routinePartial, "full"),
+            findOne: toQuery("routine", "FindByIdInput", routine, "full"),
+            findMany: toQuery("routines", "RoutineSearchInput", ...(await toSearch(routine))),
+            create: toMutation("routineCreate", "RoutineCreateInput", routine, "full"),
+            update: toMutation("routineUpdate", "RoutineUpdateInput", routine, "full"),
         };
     },
     routineVersion: async () => {
-        const { routineVersion: routineVersionPartial } = await import("./partial/routineVersion");
+        const { routineVersion } = await import("./partial/routineVersion");
         return {
-            findOne: toQuery("routineVersion", "FindVersionInput", routineVersionPartial, "full"),
-            findMany: toQuery("routineVersions", "RoutineVersionSearchInput", ...(await toSearch(routineVersionPartial))),
-            create: toMutation("routineVersionCreate", "RoutineVersionCreateInput", routineVersionPartial, "full"),
-            update: toMutation("routineVersionUpdate", "RoutineVersionUpdateInput", routineVersionPartial, "full"),
+            findOne: toQuery("routineVersion", "FindVersionInput", routineVersion, "full"),
+            findMany: toQuery("routineVersions", "RoutineVersionSearchInput", ...(await toSearch(routineVersion))),
+            create: toMutation("routineVersionCreate", "RoutineVersionCreateInput", routineVersion, "full"),
+            update: toMutation("routineVersionUpdate", "RoutineVersionUpdateInput", routineVersion, "full"),
         };
     },
     runProject: async () => {
-        const { runProject: runProjectPartial } = await import("./partial/runProject");
-        const { count: countPartial } = await import("./partial/count");
+        const { runProject } = await import("./partial/runProject");
+        const { count } = await import("./partial/count");
         return {
-            findOne: toQuery("runProject", "FindByIdInput", runProjectPartial, "full"),
-            findMany: toQuery("runProjects", "RunProjectSearchInput", ...(await toSearch(runProjectPartial))),
-            create: toMutation("runProjectCreate", "RunProjectCreateInput", runProjectPartial, "full"),
-            update: toMutation("runProjectUpdate", "RunProjectUpdateInput", runProjectPartial, "full"),
-            deleteAll: toMutation("runProjectDeleteAll", null, countPartial, "full"),
-            complete: toMutation("runProjectComplete", "RunProjectCompleteInput", runProjectPartial, "full"),
-            cancel: toMutation("runProjectCancel", "RunProjectCancelInput", runProjectPartial, "full"),
+            findOne: toQuery("runProject", "FindByIdInput", runProject, "full"),
+            findMany: toQuery("runProjects", "RunProjectSearchInput", ...(await toSearch(runProject))),
+            create: toMutation("runProjectCreate", "RunProjectCreateInput", runProject, "full"),
+            update: toMutation("runProjectUpdate", "RunProjectUpdateInput", runProject, "full"),
+            deleteAll: toMutation("runProjectDeleteAll", null, count, "full"),
+            complete: toMutation("runProjectComplete", "RunProjectCompleteInput", runProject, "full"),
+            cancel: toMutation("runProjectCancel", "RunProjectCancelInput", runProject, "full"),
         };
     },
     runProjectOrRunRoutine: async () => {
-        const { runProjectOrRunRoutine: runProjectOrRunRoutinePartial } = await import("./partial/runProjectOrRunRoutine");
+        const { runProjectOrRunRoutine } = await import("./partial/runProjectOrRunRoutine");
         return {
-            findMany: toQuery("runProjectOrRunRoutines", "RunProjectOrRunRoutineSearchInput", ...(await toSearch(runProjectOrRunRoutinePartial, {
+            findMany: toQuery("runProjectOrRunRoutines", "RunProjectOrRunRoutineSearchInput", ...(await toSearch(runProjectOrRunRoutine, {
                 pageInfo: {
                     hasNextPage: true,
                     endCursorRunProject: true,
@@ -555,194 +574,185 @@ export const endpoints = {
         };
     },
     runRoutine: async () => {
-        const { runRoutine: runRoutinePartial } = await import("./partial/runRoutine");
-        const { count: countPartial } = await import("./partial/count");
+        const { runRoutine } = await import("./partial/runRoutine");
+        const { count } = await import("./partial/count");
         return {
-            findOne: toQuery("runRoutine", "FindByIdInput", runRoutinePartial, "full"),
-            findMany: toQuery("runRoutines", "RunRoutineSearchInput", ...(await toSearch(runRoutinePartial))),
-            create: toMutation("runRoutineCreate", "RunRoutineCreateInput", runRoutinePartial, "full"),
-            update: toMutation("runRoutineUpdate", "RunRoutineUpdateInput", runRoutinePartial, "full"),
-            deleteAll: toMutation("runRoutineDeleteAll", null, countPartial, "full"),
-            complete: toMutation("runRoutineComplete", "RunRoutineCompleteInput", runRoutinePartial, "full"),
-            cancel: toMutation("runRoutineCancel", "RunRoutineCancelInput", runRoutinePartial, "full"),
+            findOne: toQuery("runRoutine", "FindByIdInput", runRoutine, "full"),
+            findMany: toQuery("runRoutines", "RunRoutineSearchInput", ...(await toSearch(runRoutine))),
+            create: toMutation("runRoutineCreate", "RunRoutineCreateInput", runRoutine, "full"),
+            update: toMutation("runRoutineUpdate", "RunRoutineUpdateInput", runRoutine, "full"),
+            deleteAll: toMutation("runRoutineDeleteAll", null, count, "full"),
+            complete: toMutation("runRoutineComplete", "RunRoutineCompleteInput", runRoutine, "full"),
+            cancel: toMutation("runRoutineCancel", "RunRoutineCancelInput", runRoutine, "full"),
         };
     },
     runRoutineInput: async () => {
-        const { runRoutineInput: runRoutineInputPartial } = await import("./partial/runRoutineInput");
+        const { runRoutineInput } = await import("./partial/runRoutineInput");
         return {
-            findMany: toQuery("runRoutineInputs", "RunRoutineInputSearchInput", ...(await toSearch(runRoutineInputPartial))),
+            findMany: toQuery("runRoutineInputs", "RunRoutineInputSearchInput", ...(await toSearch(runRoutineInput))),
         };
     },
     schedule: async () => {
-        const { schedule: schedulePartial } = await import("./partial/schedule");
+        const { schedule } = await import("./partial/schedule");
         return {
-            findOne: toQuery("schedule", "FindByIdInput", schedulePartial, "full"),
-            findMany: toQuery("schedules", "ScheduleSearchInput", ...(await toSearch(schedulePartial))),
-            create: toMutation("scheduleCreate", "ScheduleCreateInput", schedulePartial, "full"),
-            update: toMutation("scheduleUpdate", "ScheduleUpdateInput", schedulePartial, "full"),
+            findOne: toQuery("schedule", "FindByIdInput", schedule, "full"),
+            findMany: toQuery("schedules", "ScheduleSearchInput", ...(await toSearch(schedule))),
+            create: toMutation("scheduleCreate", "ScheduleCreateInput", schedule, "full"),
+            update: toMutation("scheduleUpdate", "ScheduleUpdateInput", schedule, "full"),
         };
     },
     scheduleException: async () => {
-        const { scheduleException: scheduleExceptionPartial } = await import("./partial/scheduleException");
+        const { scheduleException } = await import("./partial/scheduleException");
         return {
-            findOne: toQuery("scheduleException", "FindByIdInput", scheduleExceptionPartial, "full"),
-            findMany: toQuery("scheduleExceptions", "ScheduleExceptionSearchInput", ...(await toSearch(scheduleExceptionPartial))),
-            create: toMutation("scheduleExceptionCreate", "ScheduleExceptionCreateInput", scheduleExceptionPartial, "full"),
-            update: toMutation("scheduleExceptionUpdate", "ScheduleExceptionUpdateInput", scheduleExceptionPartial, "full"),
+            findOne: toQuery("scheduleException", "FindByIdInput", scheduleException, "full"),
+            findMany: toQuery("scheduleExceptions", "ScheduleExceptionSearchInput", ...(await toSearch(scheduleException))),
+            create: toMutation("scheduleExceptionCreate", "ScheduleExceptionCreateInput", scheduleException, "full"),
+            update: toMutation("scheduleExceptionUpdate", "ScheduleExceptionUpdateInput", scheduleException, "full"),
         };
     },
     scheduleRecurrence: async () => {
-        const { scheduleRecurrence: scheduleRecurrencePartial } = await import("./partial/scheduleRecurrence");
+        const { scheduleRecurrence } = await import("./partial/scheduleRecurrence");
         return {
-            findOne: toQuery("scheduleRecurrence", "FindByIdInput", scheduleRecurrencePartial, "full"),
-            findMany: toQuery("scheduleRecurrences", "ScheduleRecurrenceSearchInput", ...(await toSearch(scheduleRecurrencePartial))),
-            create: toMutation("scheduleRecurrenceCreate", "ScheduleRecurrenceCreateInput", scheduleRecurrencePartial, "full"),
-            update: toMutation("scheduleRecurrenceUpdate", "ScheduleRecurrenceUpdateInput", scheduleRecurrencePartial, "full"),
-        };
-    },
-    smartContract: async () => {
-        const { smartContract: smartContractPartial } = await import("./partial/smartContract");
-        return {
-            findOne: toQuery("smartContract", "FindByIdInput", smartContractPartial, "full"),
-            findMany: toQuery("smartContracts", "SmartContractSearchInput", ...(await toSearch(smartContractPartial))),
-            create: toMutation("smartContractCreate", "SmartContractCreateInput", smartContractPartial, "full"),
-            update: toMutation("smartContractUpdate", "SmartContractUpdateInput", smartContractPartial, "full"),
-        };
-    },
-    smartContractVersion: async () => {
-        const { smartContractVersion: smartContractVersionPartial } = await import("./partial/smartContractVersion");
-        return {
-            findOne: toQuery("smartContractVersion", "FindVersionInput", smartContractVersionPartial, "full"),
-            findMany: toQuery("smartContractVersions", "SmartContractVersionSearchInput", ...(await toSearch(smartContractVersionPartial))),
-            create: toMutation("smartContractVersionCreate", "SmartContractVersionCreateInput", smartContractVersionPartial, "full"),
-            update: toMutation("smartContractVersionUpdate", "SmartContractVersionUpdateInput", smartContractVersionPartial, "full"),
+            findOne: toQuery("scheduleRecurrence", "FindByIdInput", scheduleRecurrence, "full"),
+            findMany: toQuery("scheduleRecurrences", "ScheduleRecurrenceSearchInput", ...(await toSearch(scheduleRecurrence))),
+            create: toMutation("scheduleRecurrenceCreate", "ScheduleRecurrenceCreateInput", scheduleRecurrence, "full"),
+            update: toMutation("scheduleRecurrenceUpdate", "ScheduleRecurrenceUpdateInput", scheduleRecurrence, "full"),
         };
     },
     standard: async () => {
-        const { standard: standardPartial } = await import("./partial/standard");
+        const { standard } = await import("./partial/standard");
         return {
-            findOne: toQuery("standard", "FindByIdInput", standardPartial, "full"),
-            findMany: toQuery("standards", "StandardSearchInput", ...(await toSearch(standardPartial))),
-            create: toMutation("standardCreate", "StandardCreateInput", standardPartial, "full"),
-            update: toMutation("standardUpdate", "StandardUpdateInput", standardPartial, "full"),
+            findOne: toQuery("standard", "FindByIdInput", standard, "full"),
+            findMany: toQuery("standards", "StandardSearchInput", ...(await toSearch(standard))),
+            create: toMutation("standardCreate", "StandardCreateInput", standard, "full"),
+            update: toMutation("standardUpdate", "StandardUpdateInput", standard, "full"),
         };
     },
     standardVersion: async () => {
-        const { standardVersion: standardVersionPartial } = await import("./partial/standardVersion");
+        const { standardVersion } = await import("./partial/standardVersion");
         return {
-            findOne: toQuery("standardVersion", "FindVersionInput", standardVersionPartial, "full"),
-            findMany: toQuery("standardVersions", "StandardVersionSearchInput", ...(await toSearch(standardVersionPartial))),
-            create: toMutation("standardVersionCreate", "StandardVersionCreateInput", standardVersionPartial, "full"),
-            update: toMutation("standardVersionUpdate", "StandardVersionUpdateInput", standardVersionPartial, "full"),
+            findOne: toQuery("standardVersion", "FindVersionInput", standardVersion, "full"),
+            findMany: toQuery("standardVersions", "StandardVersionSearchInput", ...(await toSearch(standardVersion))),
+            create: toMutation("standardVersionCreate", "StandardVersionCreateInput", standardVersion, "full"),
+            update: toMutation("standardVersionUpdate", "StandardVersionUpdateInput", standardVersion, "full"),
         };
     },
     statsApi: async () => {
-        const { statsApi: statsApiPartial } = await import("./partial/statsApi");
+        const { statsApi } = await import("./partial/statsApi");
         return {
-            findMany: toQuery("statsApi", "StatsApiSearchInput", ...(await toSearch(statsApiPartial))),
+            findMany: toQuery("statsApi", "StatsApiSearchInput", ...(await toSearch(statsApi))),
         };
     },
-    statsOrganization: async () => {
-        const { statsOrganization: statsOrganizationPartial } = await import("./partial/statsOrganization");
+    statsCode: async () => {
+        const { statsCode } = await import("./partial/statsCode");
         return {
-            findMany: toQuery("statsOrganization", "StatsOrganizationSearchInput", ...(await toSearch(statsOrganizationPartial))),
+            findMany: toQuery("statsCode", "StatsCodeSearchInput", ...(await toSearch(statsCode))),
         };
     },
     statsProject: async () => {
-        const { statsProject: statsProjectPartial } = await import("./partial/statsProject");
+        const { statsProject } = await import("./partial/statsProject");
         return {
-            findMany: toQuery("statsProject", "StatsProjectSearchInput", ...(await toSearch(statsProjectPartial))),
+            findMany: toQuery("statsProject", "StatsProjectSearchInput", ...(await toSearch(statsProject))),
         };
     },
     statsQuiz: async () => {
-        const { statsQuiz: statsQuizPartial } = await import("./partial/statsQuiz");
+        const { statsQuiz } = await import("./partial/statsQuiz");
         return {
-            findMany: toQuery("statsQuiz", "StatsQuizSearchInput", ...(await toSearch(statsQuizPartial))),
+            findMany: toQuery("statsQuiz", "StatsQuizSearchInput", ...(await toSearch(statsQuiz))),
         };
     },
     statsRoutine: async () => {
-        const { statsRoutine: statsRoutinePartial } = await import("./partial/statsRoutine");
+        const { statsRoutine } = await import("./partial/statsRoutine");
         return {
-            findMany: toQuery("statsRoutine", "StatsRoutineSearchInput", ...(await toSearch(statsRoutinePartial))),
+            findMany: toQuery("statsRoutine", "StatsRoutineSearchInput", ...(await toSearch(statsRoutine))),
         };
     },
     statsSite: async () => {
-        const { statsSite: statsSitePartial } = await import("./partial/statsSite");
+        const { statsSite } = await import("./partial/statsSite");
         return {
-            findMany: toQuery("statsSite", "StatsSiteSearchInput", ...(await toSearch(statsSitePartial))),
-        };
-    },
-    statsSmartContract: async () => {
-        const { statsSmartContract: statsSmartContractPartial } = await import("./partial/statsSmartContract");
-        return {
-            findMany: toQuery("statsSmartContract", "StatsSmartContractSearchInput", ...(await toSearch(statsSmartContractPartial))),
+            findMany: toQuery("statsSite", "StatsSiteSearchInput", ...(await toSearch(statsSite))),
         };
     },
     statsStandard: async () => {
-        const { statsStandard: statsStandardPartial } = await import("./partial/statsStandard");
+        const { statsStandard } = await import("./partial/statsStandard");
         return {
-            findMany: toQuery("statsStandard", "StatsStandardSearchInput", ...(await toSearch(statsStandardPartial))),
+            findMany: toQuery("statsStandard", "StatsStandardSearchInput", ...(await toSearch(statsStandard))),
+        };
+    },
+    statsTeam: async () => {
+        const { statsTeam } = await import("./partial/statsTeam");
+        return {
+            findMany: toQuery("statsTeam", "StatsTeamSearchInput", ...(await toSearch(statsTeam))),
         };
     },
     statsUser: async () => {
-        const { statsUser: statsUserPartial } = await import("./partial/statsUser");
+        const { statsUser } = await import("./partial/statsUser");
         return {
-            findMany: toQuery("statsUser", "StatsUserSearchInput", ...(await toSearch(statsUserPartial))),
+            findMany: toQuery("statsUser", "StatsUserSearchInput", ...(await toSearch(statsUser))),
         };
     },
     tag: async () => {
-        const { tag: tagPartial } = await import("./partial/tag");
+        const { tag } = await import("./partial/tag");
         return {
-            findOne: toQuery("tag", "FindByIdInput", tagPartial, "full"),
-            findMany: toQuery("tags", "TagSearchInput", ...(await toSearch(tagPartial))),
-            create: toMutation("tagCreate", "TagCreateInput", tagPartial, "full"),
-            update: toMutation("tagUpdate", "TagUpdateInput", tagPartial, "full"),
+            findOne: toQuery("tag", "FindByIdInput", tag, "full"),
+            findMany: toQuery("tags", "TagSearchInput", ...(await toSearch(tag))),
+            create: toMutation("tagCreate", "TagCreateInput", tag, "full"),
+            update: toMutation("tagUpdate", "TagUpdateInput", tag, "full"),
+        };
+    },
+    team: async () => {
+        const { team } = await import("./partial/team");
+        return {
+            findOne: toQuery("team", "FindByIdOrHandleInput", team, "full"),
+            findMany: toQuery("teams", "TeamSearchInput", ...(await toSearch(team))),
+            create: toMutation("teamCreate", "TeamCreateInput", team, "full"),
+            update: toMutation("teamUpdate", "TeamUpdateInput", team, "full"),
         };
     },
     transfer: async () => {
-        const { transfer: transferPartial } = await import("./partial/transfer");
+        const { transfer } = await import("./partial/transfer");
         return {
-            findOne: toQuery("transfer", "FindByIdInput", transferPartial, "full"),
-            findMany: toQuery("transfers", "TransferSearchInput", ...(await toSearch(transferPartial))),
-            requestSend: toMutation("transferRequestSend", "TransferRequestSendInput", transferPartial, "full"),
-            requestReceive: toMutation("transferRequestReceive", "TransferRequestReceiveInput", transferPartial, "full"),
-            update: toMutation("transferUpdate", "TransferUpdateInput", transferPartial, "full"),
-            cancel: toMutation("transferCancel", "FindByIdInput", transferPartial, "full"),
-            accept: toMutation("transferAccept", "FindByIdInput", transferPartial, "full"),
-            deny: toMutation("transferDeny", "TransferDenyInput", transferPartial, "full"),
+            findOne: toQuery("transfer", "FindByIdInput", transfer, "full"),
+            findMany: toQuery("transfers", "TransferSearchInput", ...(await toSearch(transfer))),
+            requestSend: toMutation("transferRequestSend", "TransferRequestSendInput", transfer, "full"),
+            requestReceive: toMutation("transferRequestReceive", "TransferRequestReceiveInput", transfer, "full"),
+            update: toMutation("transferUpdate", "TransferUpdateInput", transfer, "full"),
+            cancel: toMutation("transferCancel", "FindByIdInput", transfer, "full"),
+            accept: toMutation("transferAccept", "FindByIdInput", transfer, "full"),
+            deny: toMutation("transferDeny", "TransferDenyInput", transfer, "full"),
         };
     },
     translate: async () => {
-        const { translate: translatePartial } = await import("./partial/translate");
+        const { translate } = await import("./partial/translate");
         return {
-            translate: toQuery("translate", "FindByIdInput", translatePartial, "full"),
+            translate: toQuery("translate", "FindByIdInput", translate, "full"),
         };
     },
     user: async () => {
-        const { user: userPartial, profile: profilePartial } = await import("./partial/user");
-        const { session: sessionPartial } = await import("./partial/session");
+        const { user, profile } = await import("./partial/user");
+        const { session } = await import("./partial/session");
         return {
-            profile: toQuery("profile", null, profilePartial, "full"),
-            findOne: toQuery("user", "FindByIdOrHandleInput", userPartial, "full"),
-            findMany: toQuery("users", "UserSearchInput", ...(await toSearch(userPartial))),
-            botCreate: toMutation("botCreate", "BotCreateInput", userPartial, "full"),
-            botUpdate: toMutation("botUpdate", "BotUpdateInput", userPartial, "full"),
-            profileUpdate: toMutation("profileUpdate", "ProfileUpdateInput", profilePartial, "full"),
-            profileEmailUpdate: toMutation("profileEmailUpdate", "ProfileEmailUpdateInput", profilePartial, "full"),
-            deleteOne: toMutation("userDeleteOne", "UserDeleteInput", sessionPartial, "full"),
+            profile: toQuery("profile", null, profile, "full"),
+            findOne: toQuery("user", "FindByIdOrHandleInput", user, "full"),
+            findMany: toQuery("users", "UserSearchInput", ...(await toSearch(user))),
+            botCreate: toMutation("botCreate", "BotCreateInput", user, "full"),
+            botUpdate: toMutation("botUpdate", "BotUpdateInput", user, "full"),
+            profileUpdate: toMutation("profileUpdate", "ProfileUpdateInput", profile, "full"),
+            profileEmailUpdate: toMutation("profileEmailUpdate", "ProfileEmailUpdateInput", profile, "full"),
+            deleteOne: toMutation("userDeleteOne", "UserDeleteInput", session, "full"),
             exportData: toMutation("exportData", null),
         };
     },
     view: async () => {
-        const { view: viewPartial } = await import("./partial/view");
+        const { view } = await import("./partial/view");
         return {
-            findMany: toQuery("views", "ViewSearchInput", ...(await toSearch(viewPartial))),
+            findMany: toQuery("views", "ViewSearchInput", ...(await toSearch(view))),
         };
     },
     wallet: async () => {
-        const { wallet: walletPartial } = await import("./partial/wallet");
+        const { wallet } = await import("./partial/wallet");
         return {
-            update: toMutation("walletUpdate", "WalletUpdateInput", walletPartial, "full"),
+            update: toMutation("walletUpdate", "WalletUpdateInput", wallet, "full"),
         };
     },
 };

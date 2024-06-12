@@ -100,7 +100,12 @@ export const user_deleteOne = {
             },
             "id": true,
             "name": true,
-            "description": true
+            "description": true,
+            "you": {
+              "canDelete": true,
+              "canRead": true,
+              "canUpdate": true
+            }
           }
         },
         "labels": {
@@ -180,7 +185,12 @@ export const user_deleteOne = {
         },
         "id": true,
         "name": true,
-        "description": true
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        }
       },
       "stopCondition": true,
       "stopTime": true
@@ -193,6 +203,7 @@ export const user_deleteOne = {
       "label": true,
       "bookmarksCount": true
     },
+    "codesCount": true,
     "focusModes": {
       "filters": {
         "id": true,
@@ -290,7 +301,12 @@ export const user_deleteOne = {
           },
           "id": true,
           "name": true,
-          "description": true
+          "description": true,
+          "you": {
+            "canDelete": true,
+            "canRead": true,
+            "canUpdate": true
+          }
         }
       },
       "labels": {
@@ -370,7 +386,12 @@ export const user_deleteOne = {
       },
       "id": true,
       "name": true,
-      "description": true
+      "description": true,
+      "you": {
+        "canDelete": true,
+        "canRead": true,
+        "canUpdate": true
+      }
     },
     "handle": true,
     "hasPremium": true,
@@ -382,7 +403,6 @@ export const user_deleteOne = {
     "projectsCount": true,
     "questionsAskedCount": true,
     "routinesCount": true,
-    "smartContractsCount": true,
     "standardsCount": true,
     "theme": true
   },

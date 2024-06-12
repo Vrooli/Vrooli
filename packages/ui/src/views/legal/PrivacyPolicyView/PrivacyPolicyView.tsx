@@ -1,34 +1,17 @@
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
-import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useMarkdown } from "hooks/useMarkdown";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { policyTabParams } from "utils/search/objectToSearch";
+import { PolicyTabsInfo, policyTabParams } from "utils/search/objectToSearch";
 import { convertToDot, valueFromDot } from "utils/shape/general";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { PrivacyPolicyViewProps } from "../types";
-
-const BUSINESS_DATA = {
-    BUSINESS_NAME: "Vrooli",
-    EMAIL: {
-        Label: "info@vrooli.com",
-        Link: "mailto:info@vrooli.com",
-    },
-    SUPPORT_EMAIL: {
-        Label: "support@vrooli.com",
-        Link: "mailto:support@vrooli.com",
-    },
-    SOCIALS: {
-        Discord: "https://discord.gg/VyrDFzbmmF",
-        GitHub: "https://github.com/MattHalloran/Vrooli",
-        X: "https://x.com/VrooliOfficial",
-    },
-    APP_URL: "https://vrooli.com",
-};
+import { BUSINESS_DATA } from "..";
 
 export enum PolicyTabOption {
     Privacy = "Privacy",
@@ -39,17 +22,22 @@ export const PrivacyPolicyView = ({
     display,
     onClose,
 }: PrivacyPolicyViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
     const privacy = useMarkdown(privacyMarkdown, (markdown) => {
         const business_fields = Object.keys(convertToDot(BUSINESS_DATA));
-        business_fields.forEach(f => markdown = markdown?.replaceAll(`<${f}>`, valueFromDot(BUSINESS_DATA, f) || "") ?? "");
+        business_fields.forEach(f => {
+            const regex = new RegExp(`<${f}>`, "g");
+            markdown = markdown?.replace(regex, valueFromDot(BUSINESS_DATA, f) || "") ?? "";
+        });
         return markdown;
     });
 
-    const { currTab, tabs } = useTabs<PolicyTabOption, false>({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabOption, false>) => {
+
+    const { currTab, tabs } = useTabs({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
@@ -68,7 +56,7 @@ export const PrivacyPolicyView = ({
                     tabs={tabs}
                 />}
             />
-            <Box m={2}>
+            <Box p={2} sx={{ background: palette.background.paper }}>
                 <MarkdownDisplay content={privacy} />
             </Box>
         </>

@@ -1,6 +1,6 @@
 # Payments With Stripe
 We use Stripe to process payments. This includes:  
-- Premium plans
+- Subscriptions
 - Donations
 - API credits
 
@@ -20,7 +20,7 @@ Stripe provides its own pages for checking out, managing payments, and more. The
 3. Look at all of the preview variations to make sure everything looks good.
 
 ## Create Products
-In both your test and production environment, you need to create Products and Prices. Currently, we offer a premium plan, which is a product with multiple prices (monthly and yearly). We also offer API credits, which is a product with a single price, and donations, which is also product with a single price.
+In both your test and production environment, you need to create Products and Prices. Currently, we offer one subscription, which is a product with multiple prices (monthly and yearly). We also offer API credits, which is a product with a single price, and donations, which is also product with a single price.
 
 Here is how to create a product:  
 1. In the Stripe dashboard, navigate to "Products" in the sidebar.
@@ -41,7 +41,7 @@ To enable the Customer Portal (do this for both test and production environments
     - Customer information, minus shipping address and tax ID
     - Payment methods
     - Cancellations, with "end of billing period" mode and all cancellation reasons enabled
-    - Subscriptions, with the product you created for the premium plan selected
+    - Subscriptions, with the product you created for the selected plan
 4. Copy the portal link and click "Save."
 5. Save the portal link in TODO
 
@@ -80,7 +80,7 @@ To simulate events for local testing, use the Stripe CLI. This forwards events f
 3. **Update .env:** Update `STRIPE_WEBHOOK_SECRET` in the `.env` file, then run `./scripts/setSecrets -e development`. **NOTE:** Comment out the existing key instead of deleting it, so you can switch back to it later. You probably won't be able to find that key again.
 4. **Fully restart the server:** In another shell, run `docker-compose down && docker-compose up -d` to fully restart the server. This is necessary to update the environment variables. Make sure that the Stripe CLI is still running in the other shell.
 3. **Trigger events:** You should test the following events using our app's UI:
-    - Buying every premium plan option, donating, and buying API credits
+    - Buying every subscription plan option, donating, and buying API credits
     - Switching plans (e.g. monthly -> yearly)
     - Cancelling your plan
 

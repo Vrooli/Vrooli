@@ -4,7 +4,7 @@ import { bool, description, id, maxStrErr, minNumErr, minStrErr, opt, req, YupMo
 const index = yup.number().integer().min(0, minNumErr);
 const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr);
 
-export const reminderItemValidation: YupModel = {
+export const reminderItemValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         description: opt(description),

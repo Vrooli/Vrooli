@@ -28,7 +28,7 @@ export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersion
         const prims = createPrims(d, "id", "isComplete", "isPrivate", "versionLabel", "versionNotes");
         return {
             ...prims,
-            ...createRel(d, "directories", ["Create"], "many", shapeProjectVersionDirectory),
+            ...createRel(d, "directories", ["Create"], "many", shapeProjectVersionDirectory, (r) => ({ ...r, projectVersion: { id: prims.id } })),
             ...createRel(d, "root", ["Connect", "Create"], "one", shapeProject, (r) => ({ ...r, isPrivate: prims.isPrivate })),
             ...createRel(d, "suggestedNextByProject", ["Connect"], "many"),
             ...createRel(d, "translations", ["Create"], "many", shapeProjectVersionTranslation),

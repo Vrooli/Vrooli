@@ -1,50 +1,11 @@
-import { Box, keyframes } from "@mui/material";
-import Blob1 from "assets/img/blob1.svg";
-import Blob2 from "assets/img/blob2.svg";
+import { useTheme } from "@mui/material";
+import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
+import { useWindowSize } from "hooks/useWindowSize";
 import { useEffect, useRef } from "react";
 import { SlideContainer } from "styles";
 import { SlideContainerNeonProps } from "../types";
 
 const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)";
-
-// Animation for blob1
-// Moves up and grows, then moves down to the right and shrinks.
-// Then it moves to the left - while continuing to shrink- until it reaches the starting position.
-const blob1Animation = keyframes`
-    0% {
-        transform: translateY(0) scale(0.5);
-        filter: hue-rotate(0deg) blur(150px);
-    }
-    33% {
-        transform: translateY(-160px) scale(0.9) rotate(-120deg);
-        filter: hue-rotate(30deg) blur(150px);
-    }
-    66% {
-        transform: translate(50px, 0px) scale(0.6) rotate(-200deg);
-        filter: hue-rotate(60deg) blur(150px);
-    }
-    100% {
-        transform: translate(0px, 0px) scale(0.5) rotate(0deg);
-        filter: hue-rotate(0deg) blur(150px);
-    }
-`;
-
-// Animation for blob2
-// Moves to the right and changes hue, then moves back to the left and turns its original color.
-const blob2Animation = keyframes`
-    0% {
-        transform: translateX(0) scale(1);
-        filter: hue-rotate(0deg) blur(50px);
-    }
-    50% {
-        transform: translateX(150px) scale(1.2);
-        filter: hue-rotate(-50deg) blur(50px);
-    }
-    100% {
-        transform: translateX(0) scale(1);
-        filter: hue-rotate(0deg) blur(50px);
-    }
-`;
 
 type Config = {
     X_CHUNK: number;
@@ -451,6 +412,8 @@ class ParticleCanvas {
     canvas: HTMLCanvasElement | null;
     ctx: CanvasRenderingContext2D | null;
     grid: Grid | undefined;
+    lastHeight: number;
+    lastWidth: number;
     simulator: Simulator | undefined;
     render: {
         draw: boolean;
@@ -472,6 +435,9 @@ class ParticleCanvas {
 
         this.grid = undefined; // chunk manager
         this.simulator = undefined;
+
+        this.lastWidth = window.innerWidth;
+        this.lastHeight = window.innerHeight;
 
         this.registerListener();
 
@@ -510,13 +476,29 @@ class ParticleCanvas {
     }
 
     registerListener() {
+        const resizeThreshold = 50; // Threshold for resize to trigger a reset
+
         this.resizeListener = () => {
-            if (this.tid) this.cancelTimerOrAnimationFrame(this.tid);
-            this.updateCanvasSize();
-            this.resetRenderInfo();
-            this.render.draw = true;
-            this.pendingRender();
+            // Get the current width and height
+            const currentWidth = window.innerWidth;
+            const currentHeight = window.innerHeight;
+
+            // Check if the change in size is greater than the threshold
+            if (Math.abs(currentWidth - this.lastWidth) > resizeThreshold ||
+                Math.abs(currentHeight - this.lastHeight) > resizeThreshold) {
+
+                if (this.tid) this.cancelTimerOrAnimationFrame(this.tid);
+                this.updateCanvasSize();
+                this.resetRenderInfo();
+                this.render.draw = true;
+                this.pendingRender();
+
+                // Update the last width and height
+                this.lastWidth = currentWidth;
+                this.lastHeight = currentHeight;
+            }
         };
+
         window.addEventListener("resize", this.resizeListener);
     }
 
@@ -587,6 +569,8 @@ export const SlideContainerNeon = ({
     sx,
 }: SlideContainerNeonProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     useEffect(() => {
         const canvasInstance = new ParticleCanvas(canvasRef.current);
@@ -608,52 +592,7 @@ export const SlideContainerNeon = ({
             }}
         >
             <canvas ref={canvasRef} />
-            {/* Blob 1 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                bottom: -300,
-                left: -175,
-                width: "100%",
-                height: "100%",
-                zIndex: 2,
-                opacity: show === false ? 0 : 0.5,
-                transition: "opacity 1s ease-in-out",
-            }}>
-                <Box
-                    component="img"
-                    src={Blob1}
-                    alt="Blob 1"
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        animation: `${blob1Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
-            {/* Blob 2 */}
-            <Box sx={{
-                position: "fixed",
-                pointerEvents: "none",
-                top: -154,
-                right: -175,
-                width: "100%",
-                height: "100%",
-                zIndex: 2,
-                opacity: show === false ? 0 : 0.5,
-                transition: "opacity 1s ease-in-out",
-            }}>
-                <Box
-                    component="img"
-                    src={Blob2}
-                    alt="Blob 2"
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        animation: `${blob2Animation} 20s linear infinite`,
-                    }}
-                />
-            </Box>
+            <RandomBlobs numberOfBlobs={isMobile ? 5 : 8} />
             {children}
         </SlideContainer>
     );

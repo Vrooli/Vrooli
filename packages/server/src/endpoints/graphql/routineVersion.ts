@@ -1,8 +1,19 @@
-import { RoutineVersionSortBy } from "@local/shared";
+import { RoutineType, RoutineVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic/routineVersion";
 
 export const typeDef = gql`
+    enum RoutineType {
+        Action
+        Api
+        Code
+        Data
+        Generate
+        Informational
+        MultiStep
+        SmartContract
+    }
+
     enum RoutineVersionSortBy {
         CommentsAsc
         CommentsDesc
@@ -26,14 +37,15 @@ export const typeDef = gql`
 
     input RoutineVersionCreateInput {
         id: ID!
-        apiCallData: String
+        configCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean!
+        routineType: RoutineType!
         versionLabel: String!
         versionNotes: String
-        smartContractCallData: String
         apiVersionConnect: ID
+        codeVersionConnect: ID
         directoryListingsConnect: [ID!]
         inputsCreate: [RoutineVersionInputCreateInput!]
         nodesCreate: [NodeCreateInput!]
@@ -42,21 +54,21 @@ export const typeDef = gql`
         resourceListCreate: ResourceListCreateInput
         rootConnect: ID
         rootCreate: RoutineCreateInput
-        smartContractVersionConnect: ID
         suggestedNextByRoutineVersionConnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
     }
     input RoutineVersionUpdateInput {
         id: ID!
-        apiCallData: String
+        configCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean
         versionLabel: String
         versionNotes: String
-        smartContractCallData: String
         apiVersionConnect: ID
         apiVersionDisconnect: Boolean
+        codeVersionConnect: ID
+        codeVersionDisconnect: Boolean
         directoryListingsConnect: [ID!]
         directoryListingsDisconnect: [ID!]
         inputsCreate: [RoutineVersionInputCreateInput!]
@@ -74,8 +86,6 @@ export const typeDef = gql`
         resourceListCreate: ResourceListCreateInput
         resourceListUpdate: ResourceListUpdateInput
         rootUpdate: RoutineUpdateInput
-        smartContractVersionConnect: ID
-        smartContractVersionDisconnect: Boolean
         suggestedNextByRoutineVersionConnect: [ID!]
         suggestedNextByRoutineVersionDisconnect: [ID!]
         translationsCreate: [RoutineVersionTranslationCreateInput!]
@@ -84,6 +94,7 @@ export const typeDef = gql`
     }
     type RoutineVersion {
         id: ID!
+        configCallData: String
         completedAt: Date
         complexity: Int!
         created_at: Date!
@@ -94,14 +105,14 @@ export const typeDef = gql`
         isLatest: Boolean!
         isPrivate: Boolean!
         simplicity: Int!
+        routineType: RoutineType!
         timesStarted: Int!
         timesCompleted: Int!
-        smartContractCallData: String
-        apiCallData: String
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         apiVersion: ApiVersion
+        codeVersion: CodeVersion
         comments: [Comment!]!
         commentsCount: Int!
         directoryListings: [ProjectVersionDirectory!]!
@@ -121,7 +132,6 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         root: Routine!
-        smartContractVersion: SmartContractVersion
         suggestedNextByRoutineVersion: [RoutineVersion!]!
         suggestedNextByRoutineVersionCount: Int!
         translations: [RoutineVersionTranslation!]!
@@ -166,18 +176,19 @@ export const typeDef = gql`
 
     input RoutineVersionSearchInput {
         after: String
+        codeVersionId: ID
         createdByIdRoot: ID
         createdTimeFrame: TimeFrame
         directoryListingsId: ID
         excludeIds: [ID!]
         ids: [ID!]
         isCompleteWithRoot: Boolean
-        isCompleteWithRootExcludeOwnedByOrganizationId: ID
+        isCompleteWithRootExcludeOwnedByTeamId: ID
         isCompleteWithRootExcludeOwnedByUserId: ID
         isInternalWithRoot: Boolean
-        isInternalWithRootExcludeOwnedByOrganizationId: ID
+        isInternalWithRootExcludeOwnedByTeamId: ID
         isInternalWithRootExcludeOwnedByUserId: ID
-        isExternalWithRootExcludeOwnedByOrganizationId: ID
+        isExternalWithRootExcludeOwnedByTeamId: ID
         isExternalWithRootExcludeOwnedByUserId: ID
         isLatest: Boolean
         minComplexity: Int
@@ -192,10 +203,11 @@ export const typeDef = gql`
         minBookmarksRoot: Int
         minScoreRoot: Int
         minViewsRoot: Int
+        ownedByTeamIdRoot: ID
         ownedByUserIdRoot: ID
-        ownedByOrganizationIdRoot: ID
         reportId: ID
         rootId: ID
+        routineType: RoutineType
         searchString: String
         sortBy: RoutineVersionSortBy
         tagsRoot: [String!]
@@ -227,10 +239,12 @@ export const typeDef = gql`
 `;
 
 export const resolvers: {
+    RoutineType: typeof RoutineType;
     RoutineVersionSortBy: typeof RoutineVersionSortBy;
     Query: EndpointsRoutineVersion["Query"];
     Mutation: EndpointsRoutineVersion["Mutation"];
 } = {
+    RoutineType,
     RoutineVersionSortBy,
     ...RoutineVersionEndpoints,
 };

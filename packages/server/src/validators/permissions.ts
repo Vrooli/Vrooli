@@ -1,48 +1,50 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
+import { PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { InputsById, QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
 
 /**
- * Handles setting and interpreting permission policies for organizations and their objects. Permissions are stored as stringified JSON 
+ * Handles setting and interpreting permission policies for teams and their objects. Permissions are stored as stringified JSON 
  * in the database (in case we change the structure later), which means we must query for permissions ahead of a crud operation, and then validate the
  * permissions against the operation.
  * 
- * NOTE: When an object is owned by a user instead of an organization, there is no permissioning required. The user is the owner, and can do whatever they want.
+ * NOTE: When an object is owned by a user instead of a team, there is no permissioning required. The user is the owner, and can do whatever they want.
  * 
  * Objects which have permissions are: 
- * - Organization
- * - Member (of an organization)
- * - Role (of an organization)
+ * - Team
+ * - Member (of a team)
+ * - Role (of a team)
  * - Project
  * - Routine
- * - Smart Contract
+ * - Code
  * - Standard
  * 
  * Multiple permissions must be checked, depending on the object type and its relationship to the user. Permissions can also override each other. 
  * Here is every object type and its permissions hierarchy (from most important to least important):
- * - Organization -> Organization
- * - Member -> Organization
- * - Role -> Organization
- * - Project -> Member, Role, Project, Organization
- * - Routine -> Member, Role, Routine, Organization
- * - Smart Contract -> Member, Role, Smart Contract, Organization
- * - Standard -> Member, Role, Standard, Organization
+ * - Team -> Team
+ * - Member -> Team
+ * - Role -> Team
+ * - Project -> Member, Role, Project, Team
+ * - Routine -> Member, Role, Routine, Team
+ * - Code -> Member, Role, Code, Team
+ * - Standard -> Member, Role, Standard, Team
  * 
- * Example: You try to update a project which belongs to an organization. First we check if the organization permits this (is not deleted, not locked, etc). 
- * Then we check if you have a role in the organization, and if that role allows you to update projects. Then we check if you have a membership in the organization 
+ * Example: You try to update a project which belongs to a team. First we check if the team permits this (is not deleted, not locked, etc). 
+ * Then we check if you have a role in the team, and if that role allows you to update projects. Then we check if you have a membership in the team 
  * and if that membership explicitly excludes you from updating projects. Then we check if the project itself allows you to update it (is not deleted, not locked, etc). 
  * It's a lot of checks, but it's necessary to ensure that permissions are enforced correctly.
  */
 export type PermissionType = "Create" | "Read" | "Update" | "Delete" | "Fork" | "Report" | "Run";
 
 /**
- * Permissions policy fields which are common to all policies in an organization. All related to how and how often the policy can be updated.
+ * Permissions policy fields which are common to all policies in a team. All related to how and how often the policy can be updated.
  */
 export type PolicyPart = {
     /**
@@ -63,7 +65,31 @@ export type PolicyPart = {
      * Specifies timeout length after which this policy can be updated again. Used in conjunction with lockedUntil.
      */
     timeout?: number;
-}
+};
+
+/**
+ * Permissions policy fields which are common to all nested policies in a team.
+ */
+export type NestedPolicyPart = PolicyPart & {
+    /**
+     * Custom maximum number allowed. Still have to obey maximum specified globally, which is determined by your premium status
+     */
+    maxAmount?: number;
+    whoCanAdd?: MemberRolePolicy;
+    whoCanDelete?: MemberRolePolicy;
+    whoCanUpdate?: MemberRolePolicy;
+    whoCanChangePolicy?: MemberRolePolicy;
+};
+
+/**
+ * Permissions policy for a specific code of a team. Useful to lock down a code's permissions
+ */
+export type CodePolicy = {
+    version: number;
+    whoCanAdd?: MemberRolePolicy;
+    whoCanDelete?: MemberRolePolicy;
+    whoCanUpdate?: MemberRolePolicy;
+};
 
 /**
  * Permissions policy fields to specify which members/roles are allowed to perform a certain action. 
@@ -81,54 +107,98 @@ export type MemberRolePolicy = {
     */
     rolesAllow?: string[];
     rolesDeny?: string[];
+};
+
+/**
+ * Permissions policy for a specific member of a team. Useful to lock down a member's permissions, or to
+ * give them special permissions.
+ */
+export type MemberPolicy = {
+    version: number;
+    /**
+     * Gives admin privileges. Admins can do anything, including change the team's policy.
+     */
+    isAdmin?: boolean;
+    isLocked?: boolean;
+    lockedUntil?: Date;
 }
 
 /**
- * Permissions policy fields which are common to all nested policies in an organization.
+ * Permissions policy for a specific role of a team. Useful to lock down a role's permissions, or to
+ * give them special permissions.
  */
-export type NestedPolicyPart = PolicyPart & {
+export type RolePolicy = {
+    version: number;
     /**
-     * Custom maximum number allowed. Still have to obey maximum specified globally, which is determined by your premium status
+     * Gives admin privileges. Admins can do anything, including change the team's policy.
      */
-    maxAmount?: number;
+    isAdmin?: boolean;
+    isLocked?: boolean;
+    lockedUntil?: Date;
+}
+
+/**
+ * Permissions policy for a specific project of a team. Useful to lock down a project's permissions
+ */
+export type ProjectPolicy = {
+    version: number;
     whoCanAdd?: MemberRolePolicy;
     whoCanDelete?: MemberRolePolicy;
     whoCanUpdate?: MemberRolePolicy;
-    whoCanChangePolicy?: MemberRolePolicy;
 }
 
 /**
- * Permissions policy for entire organization. Organization itself can have same fields in OrganizationPolicyPart, but can also 
- * specify more specific permissions that apply to parts of the organization.
+ * Permissions policy for a specific routine of a team. Useful to lock down a routine's permissions
  */
-export type OrganizationPolicy = PolicyPart & {
+export type RoutinePolicy = {
+    version: number;
+    whoCanAdd?: MemberRolePolicy;
+    whoCanDelete?: MemberRolePolicy;
+    whoCanUpdate?: MemberRolePolicy;
+}
+
+/**
+ * Permissions policy for a specific standard of a team. Useful to lock down a standard's permissions
+ */
+export type StandardPolicy = {
+    version: number;
+    whoCanAdd?: MemberRolePolicy;
+    whoCanDelete?: MemberRolePolicy;
+    whoCanUpdate?: MemberRolePolicy;
+};
+
+/**
+ * Permissions policy for entire team. Team itself can have same fields in TeamPolicyPart, but can also 
+ * specify more specific permissions that apply to parts of the team.
+ */
+export type TeamPolicy = PolicyPart & {
     /**
      * Policy schema version. Used to help us read JSON properly and migrate policy shapes in the future, if necessary.
      */
     version: number;
     members?: NestedPolicyPart & {
         /**
-         * One or more routines which a user must complete before they can be added to the organization.
+         * One or more routines which a user must complete before they can be added to the team.
          */
         onboardingRoutineVersionIds?: string[];
         /**
-         * One or more projects which a user must complete before they can be added to the organization.
+         * One or more projects which a user must complete before they can be added to the team.
          */
         onboardingProjectIds?: string[];
         /**
-         * One or more quizzes which a user must complete before they can be added to the organization.
+         * One or more quizzes which a user must complete before they can be added to the team.
          */
         onboardingQuizIds?: string[];
     };
     roles?: NestedPolicyPart;
     info?: NestedPolicyPart;
+    codes?: NestedPolicyPart;
     issues?: NestedPolicyPart;
     notes?: NestedPolicyPart;
     projects?: NestedPolicyPart;
     questions?: NestedPolicyPart;
     quizzes?: NestedPolicyPart;
     routines?: NestedPolicyPart;
-    smartContracts?: NestedPolicyPart;
     standards?: NestedPolicyPart;
     voting?: NestedPolicyPart & {
         /**
@@ -148,75 +218,7 @@ export type OrganizationPolicy = PolicyPart & {
     treasury?: NestedPolicyPart & {
         // TODO add policies to specify how treasury is managed
     };
-}
-
-/**
- * Permissions policy for a specific member of an organization. Useful to lock down a member's permissions, or to
- * give them special permissions.
- */
-export type MemberPolicy = {
-    version: number;
-    /**
-     * Gives admin privileges. Admins can do anything, including change the organization's policy.
-     */
-    isAdmin?: boolean;
-    isLocked?: boolean;
-    lockedUntil?: Date;
-}
-
-/**
- * Permissions policy for a specific role of an organization. Useful to lock down a role's permissions, or to
- * give them special permissions.
- */
-export type RolePolicy = {
-    version: number;
-    /**
-     * Gives admin privileges. Admins can do anything, including change the organization's policy.
-     */
-    isAdmin?: boolean;
-    isLocked?: boolean;
-    lockedUntil?: Date;
-}
-
-/**
- * Permissions policy for a specific project of an organization. Useful to lock down a project's permissions
- */
-export type ProjectPolicy = {
-    version: number;
-    whoCanAdd?: MemberRolePolicy;
-    whoCanDelete?: MemberRolePolicy;
-    whoCanUpdate?: MemberRolePolicy;
-}
-
-/**
- * Permissions policy for a specific routine of an organization. Useful to lock down a routine's permissions
- */
-export type RoutinePolicy = {
-    version: number;
-    whoCanAdd?: MemberRolePolicy;
-    whoCanDelete?: MemberRolePolicy;
-    whoCanUpdate?: MemberRolePolicy;
-}
-
-/**
- * Permissions policy for a specific smart contract of an organization. Useful to lock down a smart contract's permissions
- */
-export type SmartContractPolicy = {
-    version: number;
-    whoCanAdd?: MemberRolePolicy;
-    whoCanDelete?: MemberRolePolicy;
-    whoCanUpdate?: MemberRolePolicy;
-}
-
-/**
- * Permissions policy for a specific standard of an organization. Useful to lock down a standard's permissions
- */
-export type StandardPolicy = {
-    version: number;
-    whoCanAdd?: MemberRolePolicy;
-    whoCanDelete?: MemberRolePolicy;
-    whoCanUpdate?: MemberRolePolicy;
-}
+};
 
 /**
  * Using queried permissions data, calculates permissions for multiple objects. These are used to let a user know ahead of time if they're allowed to 
@@ -256,7 +258,6 @@ export async function getMultiTypePermissions(
  * Using object type and ids, calculate permissions for one object type
  * @param type Object type
  * @param ids IDs of objects to calculate permissions for
- * @param prisma Prisma client
  * @param userData Data about the user performing the action
  * @returns Permissions object, where each field is a permission and each value is an array
  * of that permission's value for each object (in the same order as the IDs)
@@ -264,20 +265,19 @@ export async function getMultiTypePermissions(
 export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
     type: `${GqlModelType}`,
     ids: string[],
-    prisma: PrismaType,
     userData: SessionUserToken | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
-    const delegator = ModelMap.get(type).delegate(prisma);
-    const validator = ModelMap.get(type).validate();
+    const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], type);
+    const validator = validate();
     // Get auth data for all objects
     let select: any;
     let dataById: Record<string, object>;
     try {
         select = permissionsSelectHelper(validator.permissionsSelect, userData?.id ?? null, userData?.languages ?? ["en"]);
-        const authData = await delegator.findMany({
+        const authData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: ids } },
             select,
         });
@@ -340,7 +340,7 @@ export async function permissionsCheck(
             const permissions = permissionsById[id];
             // If permissions doesn't exist, something went wrong.
             if (!permissions) {
-                throw new CustomError("0390", "InternalError", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {

@@ -29,7 +29,7 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
         canReact: true,
     },
     full: {
-        runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "routineVersion" }),
+        runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "input.routineVersion" }),
     },
 };
 
@@ -45,11 +45,10 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
+        routineType: true,
         simplicity: true,
         timesStarted: true,
         timesCompleted: true,
-        smartContractCallData: true,
-        apiCallData: true,
         versionIndex: true,
         versionLabel: true,
         commentsCount: true,
@@ -65,6 +64,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
     full: {
         __define: {
             0: async () => rel((await import("./apiVersion")).apiVersion, "full"),
+            8: async () => rel((await import("./codeVersion")).codeVersion, "full"),
             1: async () => rel((await import("./routineVersionInput")).routineVersionInput, "full"),
             2: async () => rel((await import("./node")).node, "full", { omit: "routineVersion" }),
             3: async () => rel((await import("./nodeLink")).nodeLink, "full"),
@@ -72,11 +72,12 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
             5: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
             6: async () => rel((await import("./resourceList")).resourceList, "full"),
             7: async () => rel((await import("./routine")).routine, "full", { omit: "versions" }),
-            8: async () => rel((await import("./smartContractVersion")).smartContractVersion, "full"),
             9: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
         },
+        configCallData: true,
         versionNotes: true,
         apiVersion: { __use: 0 },
+        codeVersion: { __use: 8 },
         inputs: { __use: 1 },
         nodes: { __use: 2 },
         nodeLinks: { __use: 3 },
@@ -84,11 +85,11 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         pullRequest: { __use: 5 },
         resourceList: { __use: 6 },
         root: { __use: 7 },
-        smartContractVersion: { __use: 8 },
         suggestedNextByRoutineVersion: { __use: 9 },
         translations: () => rel(routineVersionTranslation, "full"),
     },
     list: {
+        root: async () => rel((await import("./routine")).routine, "list", { omit: "versions" }),
         translations: () => rel(routineVersionTranslation, "list"),
     },
     nav: {
@@ -99,7 +100,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        root: async () => rel((await import("./routine")).routine, "nav"),
+        root: async () => rel((await import("./routine")).routine, "nav", { omit: "versions" }),
         translations: () => rel(routineVersionTranslation, "list"),
         versionIndex: true,
         versionLabel: true,

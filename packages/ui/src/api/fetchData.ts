@@ -1,21 +1,21 @@
-import { Method, ServerResponse } from "api";
-import { stringifySearchParams } from "route";
+import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
+import { Method, ServerResponseWithTimestamp } from "api";
 
 // Determine origin of API server
-const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.0.") || window.location.host.includes("127.0.0.1");
-const serverUrlProvided: boolean = import.meta.env.VITE_SERVER_URL && import.meta.env.VITE_SERVER_URL.length > 0;
-const portServer: string = import.meta.env.VITE_PORT_SERVER ?? "5329";
+const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
+const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
+const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
 export const urlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}/api` :
     serverUrlProvided ?
-        `${import.meta.env.VITE_SERVER_URL}` :
-        `http://${import.meta.env.VITE_SITE_IP}:${portServer}/api`;
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
 export const restBase = "/v2/rest";
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :
     serverUrlProvided ?
-        `${import.meta.env.VITE_SERVER_URL}` :
-        `http://${import.meta.env.VITE_SITE_IP}:${portServer}`;
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}`;
 
 type FetchDataProps<Input extends object | undefined> = {
     endpoint: string;
@@ -50,7 +50,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     inputs,
     options,
     omitRestBase = false,
-}: FetchDataProps<Input>): Promise<ServerResponse<Output>> => {
+}: FetchDataProps<Input>): Promise<ServerResponseWithTimestamp<Output>> => {
 
     // Replace variables in the endpoint with their values from inputs.
     if (inputs !== undefined) {
@@ -67,7 +67,7 @@ export const fetchData = async <Input extends object | undefined, Output>({
     // GET requests should have their inputs converted to query parameters.
     if (method === "GET") {
         if (inputs !== undefined && Object.keys(inputs).length !== 0) {
-            url += `${stringifySearchParams(inputs)}`;
+            url += `${stringifySearchParams(inputs as ParseSearchParamsResult)}`;
         }
     }
     // Other requests should have their inputs converted to JSON and sent in the body.
@@ -91,5 +91,12 @@ export const fetchData = async <Input extends object | undefined, Output>({
         credentials: "include",
     };
 
-    return fetch(url, finalOptions).then(response => response.json()) as Promise<ServerResponse<Output>>;
+    // Capture the current date and time, which can be useful to determine the order of events. 
+    // For example, if you switch quickly between search types, you want to make sure that the 
+    // displayed results are from the fetch that was CALLED last, and not the fetch that was RESOLVED last.
+    const __fetchTimestamp = Date.now();
+
+    return fetch(url, finalOptions)
+        .then(response => response.json())
+        .then(data => ({ ...data, __fetchTimestamp }));
 };

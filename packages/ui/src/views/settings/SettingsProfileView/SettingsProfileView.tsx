@@ -4,8 +4,8 @@ import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -45,8 +45,7 @@ const SettingsProfileForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["bio"],
-        validationSchema: userTranslationValidation.update({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: userTranslationValidation.update({ env: process.env.NODE_ENV }),
     });
 
     return (
@@ -177,7 +176,7 @@ export const SettingsProfileView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
+                        validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
                     >
                         {(formik) => <SettingsProfileForm
                             display={display}

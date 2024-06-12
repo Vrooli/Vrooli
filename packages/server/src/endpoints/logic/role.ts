@@ -1,4 +1,4 @@
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizUpdateInput } from "@local/shared";
+import { FindByIdInput, Role, RoleCreateInput, RoleSearchInput, RoleUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -7,35 +7,35 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 
 export type EndpointsRole = {
     Query: {
-        role: GQLEndpoint<FindByIdInput, FindOneResult<Quiz>>;
-        roles: GQLEndpoint<QuizSearchInput, FindManyResult<Quiz>>;
+        role: GQLEndpoint<FindByIdInput, FindOneResult<Role>>;
+        roles: GQLEndpoint<RoleSearchInput, FindManyResult<Role>>;
     },
     Mutation: {
-        roleCreate: GQLEndpoint<QuizCreateInput, CreateOneResult<Quiz>>;
-        roleUpdate: GQLEndpoint<QuizUpdateInput, UpdateOneResult<Quiz>>;
+        roleCreate: GQLEndpoint<RoleCreateInput, CreateOneResult<Role>>;
+        roleUpdate: GQLEndpoint<RoleUpdateInput, UpdateOneResult<Role>>;
     }
 }
 
 const objectType = "Role";
 export const RoleEndpoints: EndpointsRole = {
     Query: {
-        role: async (_, { input }, { prisma, req }, info) => {
+        role: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        roles: async (_, { input }, { prisma, req }, info) => {
+        roles: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        roleCreate: async (_, { input }, { prisma, req }, info) => {
+        roleCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        roleUpdate: async (_, { input }, { prisma, req }, info) => {
+        roleUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

@@ -3,7 +3,7 @@ import { Box, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
+import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
@@ -25,7 +25,7 @@ const transformChatInviteValues = (values: ChatInviteShape[], existing: ChatInvi
 
 const validateChatInviteValues = async (values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) => {
     const transformedValues = transformChatInviteValues(values, existing, isCreate);
-    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" });
+    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
 
     // Filter and combine the result into one object with only error results
@@ -165,7 +165,7 @@ const ChatInvitesForm = ({
                             },
                             topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            textArea: {
+                            inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
                             },

@@ -1,5 +1,5 @@
 /**
- * Displays all search options for an organization
+ * Displays all search options for a team
  */
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
@@ -78,8 +78,10 @@ export const SelectBookmarkListDialog = ({
         const deletedBookmarks = data?.edges.filter(e => !selectedLists.some(sl => sl.id === e.node.list.id));
         if (deletedBookmarks) {
             await deleteMutation({
-                ids: deletedBookmarks.map(e => e.node.id),
-                objectType: DeleteType.Bookmark,
+                objects: deletedBookmarks.map(e => ({
+                    id: e.node.id,
+                    objectType: DeleteType.Bookmark,
+                })),
             });
         }
         onClose(selectedLists.length > 0);

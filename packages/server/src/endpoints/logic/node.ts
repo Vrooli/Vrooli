@@ -14,13 +14,13 @@ export type EndpointsNode = {
 const objectType = "Node";
 export const NodeEndpoints: EndpointsNode = {
     Mutation: {
-        nodeCreate: async (_, { input }, { prisma, req }, info) => {
+        nodeCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 2000, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        nodeUpdate: async (_, { input }, { prisma, req }, info) => {
+        nodeUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 2000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

@@ -3,7 +3,7 @@ import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
 import { TransferModel } from "../../models/base/transfer";
 import { PreMap } from "../../models/types";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.trigger.onCommon of version objects. Has two purposes:
@@ -11,12 +11,11 @@ import { PrismaType, SessionUserToken } from "../../types";
  * because we might need to update additional versions not specified in the mutation
  * 2. Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, preMap, prisma, updatedIds, userData }: {
+export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, preMap, updatedIds, userData }: {
     createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     preMap: PreMap,
-    prisma: PrismaType,
     updatedIds: string[]
     userData: SessionUserToken,
 }) => {
@@ -30,7 +29,7 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
             owner,
         } = preMap[objectType].triggerMap[objectId];
         // Trigger objectCreated
-        await Trigger(prisma, userData.languages).objectCreated({
+        await Trigger(userData.languages).objectCreated({
             createdById: userData.id,
             hasCompleteAndPublic,
             hasParent,
@@ -44,10 +43,10 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
         const requiresTransfer = preMap[objectType].transferMap[objectId];
         if (requiresTransfer) {
             // Create transfer
-            await TransferModel.transfer(prisma).requestSend({
+            await TransferModel.transfer().requestSend({
                 objectConnect: objectId,
                 objectType,
-                toOrganizationConnect: owner.__typename === "Organization" ? owner.id : undefined,
+                toTeamConnect: owner.__typename === "Team" ? owner.id : undefined,
                 toUserConnect: owner.__typename === "User" ? owner.id : undefined,
             }, userData);
         }
@@ -63,7 +62,7 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
             wasCompleteAndPublic,
         } = preMap[objectType].triggerMap[objectId];
         // Trigger objectUpdated
-        await Trigger(prisma, userData.languages).objectUpdated({
+        await Trigger(userData.languages).objectUpdated({
             updatedById: userData.id,
             hasCompleteAndPublic,
             hasParent,
@@ -79,10 +78,10 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
         const requiresTransfer = preMap[objectType].transferMap[objectId];
         if (requiresTransfer) {
             // Create transfer
-            await TransferModel.transfer(prisma).requestSend({
+            await TransferModel.transfer().requestSend({
                 objectConnect: objectId,
                 objectType,
-                toOrganizationConnect: owner.__typename === "Organization" ? owner.id : undefined,
+                toTeamConnect: owner.__typename === "Team" ? owner.id : undefined,
                 toUserConnect: owner.__typename === "User" ? owner.id : undefined,
             }, userData);
         }
@@ -97,7 +96,7 @@ export const afterMutationsRoot = async ({ createdIds, deletedIds, objectType, p
         }
         const { hasBeenTransferred, hasParent, wasCompleteAndPublic } = preData.triggerMap[objectId];
         // Trigger objectDeleted
-        await Trigger(prisma, userData.languages).objectDeleted({
+        await Trigger(userData.languages).objectDeleted({
             deletedById: userData.id,
             hasBeenTransferred,
             hasParent,

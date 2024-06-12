@@ -17,9 +17,9 @@ Prisma can sometimes delete comments in the schema.prisma file, so this document
 API keys for accessing Vrooli's API. Not to be confused with the api table, which specifies information about external APIs listed on Vrooli.
 
 ## comment
-Comments can be submitted by either a user or an organization. They can be associated with a project, routine, or standard.  
+Comments can be submitted by either a user or a team. They can be associated with a project, routine, or standard.  
 - `userId` - Comment posted BY a user
-- `organizationId` - Comment posted BY an organization
+- `teamId` - Comment posted BY a team
 - `projectId` - Comment posted TO a project
 - `routineId` - Comment posted TO a routine
 - `standardId` - Comment posted TO a standard
@@ -46,12 +46,8 @@ Links two nodes together. Any nodes that are not linked can still be associated 
 A specific condition for a link to be available. If all links fail their conditions, then the user cannot proceed.
 
 
-## organization
-An organization is any group of one or more users that work together to accomplish a common goal/goals. In the crypto world, these are preferably Decentralized Autonomous Organizations (DAOs). But any organization can use this platform.
-- `isOpenToNewMembers` - True if looking for open-source contributors or team members, paid or unpaid  
-
 ## project
-A project is "owned" by an organization and/or user.
+A project is "owned" by a team and/or user.
 
 
 ## resource
@@ -67,7 +63,7 @@ A resource can be of the following types:
 ## routine
 The most important object in the system. A routine is a way to describe the process for completing some task. It may consist of subroutines, which are themselves routines.    
 
-A routine is owned by either a user or organization. It can be transferred to another user or organization.
+A routine is owned by either a user or team. It can be transferred to another user or team.
 
 - `complexity` - complexity = 1 + (complexity of each subroutine) along the longest path
 - `isAutomatable` - Indicates if the routine can be run automatically, if all conditions are met
@@ -112,7 +108,7 @@ Can be triggered based on time or conditions.
 ## standard
 Data standard for a routine input or output
 
-A user or organization cannot update a standard once it has been published (except for its description and tags). Therefore, they must create the standard with a new version number.
+A user or team cannot update a standard once it has been published (except for its description and tags). Therefore, they must create the standard with a new version number.
 
 NOTE: standard name is not translated because it is used as a unique identifier. Think of standard names like CIP proposals. There isn't a translation for CIP-0030 - that's just its name
 
@@ -122,10 +118,15 @@ NOTE: standard name is not translated because it is used as a unique identifier.
 - `jsonVariable` - If standard is a JSON type, then it may contain variables that have labels and helper text
 
 
-## bookmark
-Objects can only be bookmarked by a user, not an organization.
+## team
+A team is any group of one or more users that work together to accomplish a common goal/goals. In the crypto world, these are preferably Decentralized Autonomous Organizations (DAOs). But any team can use this platform.
+- `isOpenToNewMembers` - True if looking for open-source contributors or team members, paid or unpaid  
 
-Bookmarks can be applied to organizations, projects, routines, standards, tags, and users
+
+## bookmark
+Objects can only be bookmarked by a user, not a team.
+
+Bookmarks can be applied to teams, projects, routines, standards, tags, and users
 
 
 ## tag

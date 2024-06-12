@@ -1,4 +1,4 @@
-import { endpointGetFeedPopular, PopularSearchInput, PopularSearchResult } from "@local/shared";
+import { AutocompleteOption, endpointGetFeedPopular, getObjectUrl, PopularSearchInput, PopularSearchResult, ShortcutOption } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -9,10 +9,8 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { AutocompleteOption, ShortcutOption } from "types";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 
@@ -27,22 +25,22 @@ export const CommandPalette = () => {
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>("");
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue); }, []);
+    const updateSearch = useCallback((newValue: string) => { setSearchString(newValue); }, []);
 
     const [open, setOpen] = useState(false);
     const close = useCallback(() => setOpen(false), []);
 
     useEffect(() => {
-        const dialogSub = PubSub.get().subscribe("commandPalette", () => {
+        const unsubscribe = PubSub.get().subscribe("commandPalette", () => {
             setOpen(o => !o);
             setSearchString("");
         });
-        return () => { PubSub.get().unsubscribe(dialogSub); };
+        return unsubscribe;
     }, []);
 
     const [refetch, { data, loading }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({
         ...endpointGetFeedPopular,
-        inputs: { searchString: searchString.replaceAll(/![^\s]{1,}/g, "") },
+        inputs: { searchString: searchString.replace(/![^\s]{1,}/g, "") },
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);
 
@@ -63,7 +61,7 @@ export const CommandPalette = () => {
             //     id: LINKS.Tutorial,
             // });
         }
-        const queryItems = listToAutocomplete(parseData(data, "Popular"), languages);
+        const queryItems = listToAutocomplete(parseData(data), languages);
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [t, searchString, data, languages, shortcutsItems]);
 

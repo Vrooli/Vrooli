@@ -33,7 +33,7 @@ export const comment: GqlPartial<Comment> = {
     __typename: "Comment",
     common: {
         __define: {
-            0: async () => rel((await import("./organization")).organization, "nav"),
+            0: async () => rel((await import("./team")).team, "nav"),
             1: async () => rel((await import("./user")).user, "nav"),
         },
         id: true,
@@ -41,7 +41,7 @@ export const comment: GqlPartial<Comment> = {
         updated_at: true,
         owner: {
             __union: {
-                Organization: 0,
+                Team: 0,
                 User: 1,
             },
         },
@@ -61,14 +61,15 @@ export const comment: GqlPartial<Comment> = {
             6: async () => rel((await import("./question")).question, "nav"),
             7: async () => rel((await import("./questionAnswer")).questionAnswer, "nav"),
             8: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
-            9: async () => rel((await import("./smartContractVersion")).smartContractVersion, "nav"),
+            9: async () => rel((await import("./codeVersion")).codeVersion, "nav"),
             10: async () => rel((await import("./standardVersion")).standardVersion, "nav"),
-            11: async () => rel((await import("./organization")).organization, "nav"),
+            11: async () => rel((await import("./team")).team, "nav"),
             12: async () => rel((await import("./user")).user, "nav"),
         },
         commentedOn: {
             __union: {
                 ApiVersion: 0,
+                CodeVersion: 9,
                 Issue: 1,
                 NoteVersion: 2,
                 Post: 3,
@@ -77,7 +78,6 @@ export const comment: GqlPartial<Comment> = {
                 Question: 6,
                 QuestionAnswer: 7,
                 RoutineVersion: 8,
-                SmartContractVersion: 9,
                 StandardVersion: 10,
             },
         },

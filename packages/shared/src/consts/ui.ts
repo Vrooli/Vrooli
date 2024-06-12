@@ -7,6 +7,7 @@ export const LINKS = {
     BookmarkList: "/bookmarks",
     Calendar: "/calendar",
     Chat: "/chat",
+    Code: "/code",
     Comment: "/comment",
     Create: "/create",
     Example: "/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9", // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
@@ -17,8 +18,7 @@ export const LINKS = {
     Login: "/auth/login",
     MyStuff: "/my",
     Note: "/note",
-    Organization: "/team",
-    Premium: "/premium",
+    Pro: "/pro",
     Privacy: "/privacy", // Privacy policy
     Profile: "/profile",
     Project: "/project",
@@ -29,6 +29,7 @@ export const LINKS = {
     Routine: "/routine",
     ResetPassword: "/auth/password-reset",
     Search: "/search",
+    SearchVersion: "/search/version",
     Settings: "/settings",
     SettingsApi: "/settings/api",
     SettingsAuthentication: "/settings/auth",
@@ -44,6 +45,7 @@ export const LINKS = {
     Standard: "/standard",
     Stats: "/stats", // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Tag: "/tag",
+    Team: "/team",
     Terms: "/terms", // Terms and conditions
     User: "/profile",
 } as const;

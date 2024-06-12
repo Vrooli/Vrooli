@@ -3,22 +3,23 @@ import { PageContainer } from "components/containers/PageContainer/PageContainer
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, OrganizationIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon } from "icons";
-import { useCallback } from "react";
+import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SvgComponent } from "types";
+import { CreateType, getCookie, setCookie } from "utils/cookies";
 import { CreateViewProps } from "../types";
 
-type CreateType = "Api" | "Bot" | "Chat" | "Note" | "Organization" | "Project" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Standard";
 type CreateInfo = {
     objectType: CreateType;
     description: CommonKey,
     Icon: SvgComponent,
     id: string,
+    incomplete?: boolean;
 }
 
-const createCards: CreateInfo[] = [
+export const createCards: CreateInfo[] = [
     {
         objectType: "Reminder",
         description: "CreateReminderDescription",
@@ -44,10 +45,10 @@ const createCards: CreateInfo[] = [
         id: "create-project-card",
     },
     {
-        objectType: "Organization",
-        description: "CreateOrganizationDescription",
-        Icon: OrganizationIcon,
-        id: "create-organization-card",
+        objectType: "Team",
+        description: "CreateTeamDescription",
+        Icon: TeamIcon,
+        id: "create-team-card",
     },
     {
         objectType: "Bot",
@@ -66,6 +67,7 @@ const createCards: CreateInfo[] = [
         description: "CreateQuestionDescription",
         Icon: HelpIcon,
         id: "create-question-card",
+        incomplete: true,
     },
     {
         objectType: "Standard",
@@ -74,18 +76,37 @@ const createCards: CreateInfo[] = [
         id: "create-standard-card",
     },
     {
+        objectType: "Code",
+        description: "CreateCodeDescription",
+        Icon: TerminalIcon,
+        id: "create-code-card",
+    },
+    {
         objectType: "SmartContract",
         description: "CreateSmartContractDescription",
         Icon: SmartContractIcon,
         id: "create-smart-contract-card",
+        incomplete: true,
     },
     {
         objectType: "Api",
         description: "CreateApiDescription",
         Icon: ApiIcon,
         id: "create-api-card",
+        incomplete: true,
     },
-];
+] as const;
+
+const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
+    const history = getCookie("CreateOrder");
+    cards.sort((a, b) => {
+        const aIndex = history.indexOf(a.id);
+        const bIndex = history.indexOf(b.id);
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+    });
+};
 
 export const CreateView = ({
     display,
@@ -94,8 +115,25 @@ export const CreateView = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const onSelect = useCallback((objectType: CreateType) => {
+    const sortedCards = useMemo(() => {
+        const cardsCopy = [...createCards];
+        sortCardsByUsageHistory(cardsCopy);
+        return cardsCopy;
+    }, []);
+
+    const onSelect = useCallback((id: typeof createCards[number]["id"]) => {
+        const { objectType } = createCards.find(card => card.id === id) ?? {};
+        if (!objectType) return;
+        // Update location
         setLocation(`${LINKS[objectType === "Bot" ? "User" : objectType]}/add`);
+        // Update usage history
+        const history = getCookie("CreateOrder");
+        const index = history.indexOf(id);
+        if (index !== -1) {
+            history.splice(index, 1);
+        }
+        history.unshift(id);
+        setCookie("CreateOrder", history);
     }, [setLocation]);
 
     return (
@@ -106,15 +144,16 @@ export const CreateView = ({
                 title={t("Create")}
             />
             <CardGrid minWidth={300}>
-                {createCards.map(({ objectType, description, Icon, id }, index) => (
+                {sortedCards.map(({ objectType, description, Icon, id, incomplete }, index) => (
                     <TIDCard
                         buttonText={t("Create")}
                         description={t(description)}
                         Icon={Icon}
                         id={id}
                         key={index}
-                        onClick={() => onSelect(objectType)}
+                        onClick={() => onSelect(id)}
                         title={t(objectType, { count: 1 })}
+                        warning={incomplete ? "Coming soon" : undefined}
                     />
                 ))}
             </CardGrid>

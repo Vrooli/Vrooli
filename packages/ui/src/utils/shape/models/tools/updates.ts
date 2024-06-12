@@ -5,7 +5,7 @@ import { hasObjectChanged } from "utils/shape/general";
 import { createOwner, createRel, shouldConnect } from "./creates";
 
 type OwnerPrefix = "" | "ownedBy";
-type OwnerType = "User" | "Organization";
+type OwnerType = "User" | "Team";
 
 type RelationshipType = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 
@@ -79,29 +79,40 @@ export const updateVersion = <
 ): ({ versionsCreate?: VersionCreateInput[], versionsUpdate?: VersionUpdateInput[] }) => {
     // Return empty object if no updated version data. We don't handle deletes here
     if (!updatedRoot.versions) return {};
+    const originalVersions = originalRoot.versions ?? [];
     // Find every version in the updated root that is not in the original root (using the version's id)
-    const newVersions = updatedRoot.versions.filter((v) => !originalRoot.versions?.find((ov) => ov.id === v.id));
-    // Every other version in the updated root is an update
-    const updatedVersions = updatedRoot.versions.filter((v) => !newVersions.find((nv) => nv.id === v.id));
+    const newVersions = updatedRoot.versions.filter((v) => !originalVersions.find((ov) => ov.id === v.id));
+    // Versions in the originalRoot and the updatedRoot, which are different from each other, are updates
+    const updatedVersions = updatedRoot.versions.filter((v) => originalVersions.some((ov) => ov.id === v.id && JSON.stringify(ov) !== JSON.stringify(v)));
     // Shape and return version data
-    return {
-        versionsCreate: newVersions.map((version) => shape.create({
+    let result: { versionsCreate?: VersionCreateInput[], versionsUpdate?: VersionUpdateInput[] } = {};
+    if (newVersions.length > 0) {
+        result.versionsCreate = newVersions.map((version) => shape.create({
             ...version,
             root: { id: originalRoot.id },
-        })) as VersionCreateInput[],
-        versionsUpdate: updatedVersions.map((version) => shape.update(originalRoot.versions?.find((ov) => ov.id === version.id), {
+        })) as VersionCreateInput[];
+    }
+    if (updatedVersions.length > 0) {
+        result.versionsUpdate = updatedVersions.map((version) => shape.update(originalRoot.versions?.find((ov) => ov.id === version.id), {
             ...version,
             root: { id: originalRoot.id },
-        })) as VersionUpdateInput[],
-    };
+        })) as VersionUpdateInput[];
+    }
+    return result;
 };
+
+type UpdatePrimsResult<T, K extends keyof T, PK extends keyof T> = ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] });
 
 /**
  * Helper function for setting a list of primitive fields of an update 
  * shape. If updated is different from original, return updated,
- * otherwise return undefined
+ * otherwise return just the primary key
  * 
- * NOTE: Due to TypeScript limitations, return type assumes that every field 
+ * NOTE 1: We return the primary key because this is used in conjunction with updateRel. 
+ * If there are no primitive field updates, but there are relationship updates, then 
+ * we need to have the ID to properly update the object.
+ * 
+ * NOTE 2: Due to TypeScript limitations, return type assumes that every field 
  * will be defined, even if it's undefined
  * @param original The original object
  * @param updated The updated object
@@ -113,34 +124,41 @@ export const updatePrims = <T, K extends keyof T, PK extends keyof T>(
     updated: T | null | undefined,
     primary: PK | null,
     ...fields: (K | [K, (val: any) => any])[]
-): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] }) => {
-    // If no original or updated, return undefined for all fields
-    if (!updated || !original) {
-        return fields.reduce((acc, field) => {
-            const key = Array.isArray(field) ? field[0] : field;
-            return { ...acc, [key]: undefined };
-        }, {}) as any;
+): UpdatePrimsResult<T, K, PK> => {
+    const getPrimaryValue = (): string | undefined => {
+        if (!primary) return undefined;
+        let primaryValue = (original?.[primary] ?? updated?.[primary]) as string | undefined;
+        if (primaryValue === DUMMY_ID) primaryValue = uuid();
+        return primaryValue;
+    }
+    const primaryValue = getPrimaryValue();
+
+    // If no updated, return just the primary key (if it exists)
+    if (!updated) {
+        if (primary && primaryValue) return { [primary]: primaryValue } as UpdatePrimsResult<T, K, PK>;
+        return {} as UpdatePrimsResult<T, K, PK>;
     }
 
-    // Create prims
+    // Find changed fields
     const changedFields = fields.reduce((acc, field) => {
         const key = Array.isArray(field) ? field[0] : field;
         const value = Array.isArray(field) ? field[1](updated[key]) : updated[key];
-        return { ...acc, [key]: value !== original[key] ? value : undefined };
+        const isDifferent = !original ? true : JSON.stringify(value) !== JSON.stringify(original[key]);
+        if (isDifferent && value !== undefined) return { ...acc, [key]: value };
+        return acc;
     }, {});
 
-    // If no primary key, return changed fields
-    if (!primary) return changedFields as any;
-
-    // If primary key is not an ID, return changed fields with primary key
-    if (primary !== "id") return { ...changedFields, [primary]: original[primary] } as any;
-
-    // If primary key is an ID, return changed fields with primary key, and make sure it's not DUMMY_ID
-    return { ...changedFields, [primary]: original[primary] === DUMMY_ID ? uuid() : original[primary] } as any;
+    // If no primary, return changed fields
+    if (!primary || !primaryValue) return changedFields as UpdatePrimsResult<T, K, PK>;
+    // Return changed fields with primary key
+    return { ...changedFields, [primary]: primaryValue } as UpdatePrimsResult<T, K, PK>;
 };
 
+type UpdateTranslationPrimsResult<T, K extends keyof T, PK extends keyof T> = ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] } & { language: string });
+
 /**
- * Like updatePrims, but forces "language" field to be included in the return type
+ * Like updatePrims, but forces "language" field to be included in the return type 
+ * (unless the result is empty)
  * @param original The original object
  * @param updated The updated object
  * @param primary The primary key of the object, which is always returned
@@ -150,10 +168,15 @@ export const updateTranslationPrims = <T extends { language: string }, K extends
     original: T | null | undefined,
     updated: T | null | undefined,
     primary: PK | null,
-    ...fields: K[]
-): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] } & { language: string }) => {
+    ...fields: (K | [K, (val: any) => any])[]
+): UpdateTranslationPrimsResult<T, K, PK> => {
     const updatePrimsResult = updatePrims(original, updated, primary, ...fields);
-    return { ...updatePrimsResult, language: original?.language ?? updated?.language } as any;
+    // If the result is empty or only has the primary key, return empty object
+    if (Object.keys(updatePrimsResult).length <= 1) return {} as UpdateTranslationPrimsResult<T, K, PK>;
+    return {
+        ...updatePrimsResult,
+        language: original?.language ?? updated?.language ?? "en",
+    } as UpdateTranslationPrimsResult<T, K, PK>;
 };
 
 /**
@@ -226,7 +249,7 @@ export const updateRel = <
         return createRel(
             updated,
             relation,
-            relTypes.filter(x => ["Create", "Connect"].includes(x)) as any[],
+            relTypes.filter(x => ["Create", "Connect"].includes(x)) as any[], // Only allow create/connect, since other types don't make sense without an original
             isOneToOne,
             shape as any,
         ) as UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName>;
@@ -241,20 +264,23 @@ export const updateRel = <
     const updatedRelation = asArray(updated[relation] as any);
     const idField = shape?.idField ?? "id";
     const preShaper = preShape ?? ((x) => x);
-    // Check connect before create, so that we can exclude items in the create array which are being connected
+    // Check connect
     if (filteredRelTypes.includes("Connect")) {
         const shaped: string[] = [];
         for (const updatedItem of (updatedRelation as { id?: string }[])) {
-            // Can only connect items that exist and have an ID. 
-            // We must use "id" and not the idField, because custom unique fields don't have an equivalent to 
-            // DUMMY_ID to indicate that they are for creating instead of connecting
-            if (!updatedItem || !updatedItem.id) continue;
-            // Check if an item with the same ID exists in the original array
-            const originalItem = (originalRelation as { id?: string }[]).find(item => item.id === updatedItem.id);
+            // Can only connect items that exist and have an ID
+            if (!updatedItem || !updatedItem[idField]) continue;
+            // Can only connect items that are not in the original array (otherwise, they should be updated or noop)
+            const originalItem = (originalRelation as { id?: string }[]).find(item => item[idField] === updatedItem[idField]);
+            if (originalItem) continue;
+            // Can only connect if the item is not new (i.e. ID is not DUMMY_ID), AND it's not going to be created instead
             // If not, we can connect it if the ID is not DUMMY_ID
-            if (!originalItem && updatedItem.id !== DUMMY_ID) shaped.push(updatedItem.id);
+            const canConnect = updatedItem.id !== DUMMY_ID && (!filteredRelTypes.includes("Create") || shouldConnect(updatedItem));
+            if (canConnect) shaped.push(updatedItem[idField]);
         }
-        result[`${relation}Connect` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        if (shaped.length > 0) {
+            result[`${relation}Connect` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        }
     }
     // Check create
     if (filteredRelTypes.includes("Create")) {
@@ -262,7 +288,7 @@ export const updateRel = <
         let shaped: any[] = [];
         for (const updatedItem of updatedRelation.map(data => preShaper(data, updated))) {
             if (!updatedItem || !updatedItem[idField]) continue;
-            const oi = originalRelation.find(item => item[idField] === updatedItem[idField]);
+            const oi = originalRelation.find(item => item?.[idField] === updatedItem[idField]);
             // Add if not found in original, and not a connect-only item
             if (!oi && !shouldConnect(updatedItem)) {
                 shaped.push((shape as ShapeModel<object, object, object | null>).create(updatedItem));
@@ -280,16 +306,18 @@ export const updateRel = <
         // Any item that exists in the original array, but not in the updated array, should be disconnected
         for (const originalItem of originalRelation) {
             if (!originalItem || !originalItem[idField]) continue;
-            const updatedItem = updatedRelation.find(item => item[idField] === originalItem[idField]);
+            const updatedItem = updatedRelation.find(item => item?.[idField] === originalItem[idField]);
             if (!updatedItem) shaped.push(originalItem[idField as string]);
         }
-        // Logic is different for one-to-one disconnects, since it expects a boolean instead of an ID. 
-        // And if we already have a connect, we can exclude the disconnect altogether
-        if (isOneToOne === "one") {
-            const hasConnect = typeof result[`${relation}Connect`] === "string";
-            if (!hasConnect) result[`${relation}Disconnect` as string] = shaped && shaped[0] ? true : undefined;
-        } else {
-            result[`${relation}Disconnect` as string] = shaped;
+        if (shaped.length > 0) {
+            // Logic is different for one-to-one disconnects, since it expects a boolean instead of an ID. 
+            // And if we already have a connect, we can exclude the disconnect altogether
+            if (isOneToOne === "one") {
+                const hasConnect = typeof result[`${relation}Connect`] === "string";
+                if (!hasConnect && shaped && shaped[0]) result[`${relation}Disconnect` as string] = true;
+            } else {
+                result[`${relation}Disconnect` as string] = shaped;
+            }
         }
     }
     // Check delete
@@ -298,28 +326,38 @@ export const updateRel = <
         // Any item that exists in the original array, but not in the updated array, should be deleted
         for (const originalItem of originalRelation) {
             if (!originalItem || !originalItem[idField]) continue;
-            const updatedItem = updatedRelation.find(item => item[idField] === originalItem[idField]);
+            const updatedItem = updatedRelation.find(item => item?.[idField] === originalItem[idField]);
             if (!updatedItem) shaped.push(originalItem[idField as string]);
         }
         // Filter out items which are already disconnected
         if (shaped.length > 0) {
             shaped = shaped?.filter((x) => !asArray(result[`${relation}Disconnect` as string]).includes(x));
-            result[`${relation}Delete` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        }
+        if (shaped.length > 0) {
+            // Logic is different for one-to-one deletes, since it expects a boolean instead of an ID.
+            if (isOneToOne === "one") {
+                result[`${relation}Delete` as string] = true;
+            } else {
+                result[`${relation}Delete` as string] = shaped;
+            }
         }
     }
     // Check update
     if (filteredRelTypes.includes("Update")) {
-        if (!shape || !(shape as ShapeModel<object, object | null, object>).update) throw new Error(`shape.create is required for create: ${relation}`);
+        if (!shape || !(shape as ShapeModel<object, object | null, object>).update) throw new Error(`shape.update is required for update: ${relation}`);
         const originalDataArray = originalRelation.map(data => preShaper(data, originalRelation));
         const shaped: any[] = [];
         for (const updatedItem of updatedRelation.map(data => preShaper(data, updatedRelation))) {
             if (!updatedItem || !updatedItem[idField]) continue;
-            const oi = originalDataArray.find(item => item && item[idField] && item[idField] === updatedItem[idField]);
+            const oi = originalDataArray.find(item => item?.[idField] === updatedItem[idField]);
             if (oi && ((shape as ShapeModel<object, object | null, object>).hasObjectChanged ?? hasObjectChanged)(oi, updatedItem)) {
-                shaped.push((shape as ShapeModel<object, object | null, object>).update(oi, updatedItem));
+                const update = (shape as ShapeModel<object, object | null, object>).update(oi, updatedItem);
+                if (typeof update === "object" && Object.keys(update).length > 0) shaped.push(update);
             }
         }
-        result[`${relation}Update` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        if (shaped.length > 0) {
+            result[`${relation}Update` as string] = isOneToOne === "one" ? shaped && shaped[0] : shaped;
+        }
     }
     // Return result
     return result;

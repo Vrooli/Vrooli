@@ -2,7 +2,7 @@ import { Box, Button, IconButton, keyframes, Link, Stack, styled, Tooltip, Typog
 import MattProfilePic from "assets/img/profile-matt.jpg";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useWindowSize } from "hooks/useWindowSize";
-import { GitHubIcon, OrganizationIcon, WebsiteIcon, XIcon } from "icons";
+import { GitHubIcon, TeamIcon, WebsiteIcon, XIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { pagePaddingBottom, slideTitle, textPop } from "styles";
@@ -107,7 +107,7 @@ export const AboutView = ({
                         Streamlining Organizational Processes
                     </Typography>
                     <Typography variant="body1">
-                        Leveraging advanced language models, Vrooli will soon be able to generate standards and routines that automate intra- and inter-organizational processes. We stand out from traditional automation tools by allowing processes to be built hierarchically, reducing the complexity of automating a business. For instance, a routine could be created to handle customer support inquiries, which then branches out into subroutines for processing refunds, answering frequently asked questions, or escalating issues to the right team members. With our program, you can group these processes into an organization, making it easy to create your own business by simply copying an organization template and accessing its internal processes.
+                        Leveraging advanced language models, Vrooli will soon be able to generate standards and routines that automate intra- and inter-organizational processes. We stand out from traditional automation tools by allowing processes to be built hierarchically, reducing the complexity of automating a business. For instance, a routine could be created to handle customer support inquiries, which then branches out into subroutines for processing refunds, answering frequently asked questions, or escalating issues to the right team members. With our program, you can group these processes into a team, making it easy to create your own business by simply copying a team template and accessing its internal processes.
                     </Typography>
                 </Box>
                 <Box>
@@ -115,7 +115,7 @@ export const AboutView = ({
                         Integrating Human and Bot Employees
                     </Typography>
                     <Typography variant="body1">
-                        Vrooli's platform is designed with both human and bot employees in mind, ensuring seamless integration within an organization. We're excited to be launching a messaging feature later this year that allows users to interact with bots for guidance, feedback, and task assignments within your organization. This feature will promote better communication and collaboration between human employees and bots, leading to a more efficient and cohesive work environment.
+                        Vrooli's platform is designed with both human and bot employees in mind, ensuring seamless integration within a team. We're excited to be launching a messaging feature later this year that allows users to interact with bots for guidance, feedback, and task assignments within your team. This feature will promote better communication and collaboration between human employees and bots, leading to a more efficient and cohesive work environment.
                     </Typography>
                 </Box>
                 <Box>
@@ -123,7 +123,7 @@ export const AboutView = ({
                         Reducing Costs
                     </Typography>
                     <Typography variant="body1">
-                        Starting and maintaining an organization can be expensive, but Vrooli has a solution. Since the hypergraph is publicly defined and shared, humans and bots can collaborate to improve all organizations simultaneously. As organizations become more automated, the cost of running businesses that don't rely heavily on physical labor will drop significantly. These savings can benefit consumers, support business growth and development, or even enhance employee benefits. The upcoming adoption of humanoid robots and autonomous vehicles will further unlock the potential of this system and increase individual productivity.
+                        Starting and maintaining an organization can be expensive, but Vrooli has a solution. Since the hypergraph is publicly defined and shared, humans and bots can collaborate to improve all teams simultaneously. As teams become more automated, the cost of running businesses that don't rely heavily on physical labor will drop significantly. These savings can benefit consumers, support business growth and development, or even enhance employee benefits. The upcoming adoption of humanoid robots and autonomous vehicles will further unlock the potential of this system and increase individual productivity.
                     </Typography>
                 </Box>
                 <Box>
@@ -210,7 +210,7 @@ export const AboutView = ({
                             openLink(setLocation, joinTeamLink);
                         }}
                         variant="outlined"
-                        startIcon={<OrganizationIcon />}
+                        startIcon={<TeamIcon />}
                     >Join the Team</Button>
                 </Stack>
             </Stack>

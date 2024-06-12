@@ -3,16 +3,19 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { NoteModelInfo, NoteModelLogic, NoteVersionModelInfo, NoteVersionModelLogic } from "./types";
 
+type NoteVersionPre = PreShapeVersionResult;
+
 const __typename = "NoteVersion" as const;
 export const NoteVersionModel: NoteVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.note_version,
+    dbTable: "note_version",
+    dbTranslationTable: "note_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -37,13 +40,12 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
     format: NoteVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+            pre: async (params): Promise<NoteVersionPre> => {
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -52,11 +54,12 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 return { ...maps };
             },
             create: async ({ data, ...rest }) => {
-                const { translations } = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const preData = rest.preMap[__typename] as NoteVersionPre;
+                const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
-                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                    pages: await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest }),
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
                 return {
@@ -67,17 +70,18 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                     translations: {
                         create: translationCreates,
                     },
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childNoteVersions", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest }),
                 };
             },
             update: async ({ data, ...rest }) => {
                 // Translated pages require custom logic
-                const { translations } = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest });
+                const preData = rest.preMap[__typename] as NoteVersionPre;
+                const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 const translationCreatesPromises = translations?.create?.map(async (translation) => ({
                     ...translation,
                     pagesCreate: undefined,
-                    ...(await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest })),
+                    pages: await shapeHelper({ relation: "pages", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation, ...rest }),
                 }));
                 const translationUpdatesPromises = translations?.update?.map(async (translation) => ({
                     where: translation.where,
@@ -86,7 +90,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                         pagesCreate: undefined,
                         pagesUpdate: undefined,
                         pagesDelete: undefined,
-                        ...(await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest })),
+                        pages: await shapeHelper({ relation: "pages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersionPage" as any, parentRelationshipName: "translations", data: translation.data, ...rest }),
                     },
                 }));
                 const translationCreates = await Promise.all(translationCreatesPromises ?? []);
@@ -101,8 +105,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                         update: translationUpdates,
                         delete: translationDeletes,
                     },
-                    ...(await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest })),
-                    ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest })),
+                    directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childApiVersions", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Note", parentRelationshipName: "versions", data, ...rest }),
                 };
             },
         },
@@ -119,13 +123,14 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
         searchFields: {
             createdByIdRoot: true,
             createdTimeFrame: true,
+            isLatest: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,
             maxViewsRoot: true,
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationIdRoot: true,
+            ownedByTeamIdRoot: true,
             ownedByUserIdRoot: true,
             tagsRoot: true,
             translationLanguages: true,
@@ -141,10 +146,10 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

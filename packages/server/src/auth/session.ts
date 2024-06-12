@@ -1,8 +1,9 @@
-import { ActiveFocusMode, FocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
+import { ActiveFocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
 import { Request } from "express";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe } from "../events/schedule";
-import { PrismaType, SessionData, SessionUserToken } from "../types";
+import { SessionData, SessionUserToken } from "../types";
 import { getUser } from "./request";
 
 export const focusModeSelect = (startDate: Date, endDate: Date) => ({
@@ -133,10 +134,9 @@ export const focusModeSelect = (startDate: Date, endDate: Date) => ({
 /**
  * Creates SessionUser object from user.
  * @param user User object
- * @param prisma Prisma type
  * @param req Express request object
  */
-export const toSessionUser = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<SessionUser> => {
+export const toSessionUser = async (user: { id: string }, req: Partial<Request>): Promise<SessionUser> => {
     if (!user.id)
         throw new CustomError("0064", "NotFound", req.session?.languages ?? ["en"]);
     // Create time frame to find schedule data for. 
@@ -144,7 +144,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     const startDate = now;
     const endDate = new Date(now.setDate(now.getDate() + 7));
     // Query for user data
-    const userData = await prisma.user.findUnique({
+    const userData = await prismaInstance.user.findUnique({
         where: { id: user.id },
         select: {
             id: true,
@@ -172,12 +172,12 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             _count: {
                 select: {
                     apis: true,
+                    codes: true,
                     notes: true,
                     memberships: true,
                     projects: true,
                     questionsAsked: true,
                     routines: true,
-                    smartContracts: true,
                     standards: true,
                 },
             },
@@ -186,14 +186,23 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     if (!userData)
         throw new CustomError("0510", "NotFound", req.session?.languages ?? ["en"]);
     // Find active focus mode
+    const focusModesWithSupp = (userData.focusModes as object[])?.map((fm: any) => ({
+        ...fm,
+        you: {
+            __typename: "FocusModeYou" as const,
+            canDelete: true,
+            canRead: true,
+            canUpdate: true,
+        },
+    })) as SessionUser["focusModes"];
     const currentActiveFocusMode = getUser(req.session as SessionData)?.activeFocusMode;
-    const currentModeData = (userData.focusModes as any).find((fm: any) => fm.id === currentActiveFocusMode?.mode?.id);
-    const activeFocusMode = getActiveFocusMode(
+    const currentModeData = focusModesWithSupp.find((fm) => fm.id === currentActiveFocusMode?.mode?.id);
+    const activeFocusMode = await getActiveFocusMode(
         currentModeData ? {
             ...currentActiveFocusMode,
             mode: currentModeData,
         } as ActiveFocusMode : undefined,
-        (userData.focusModes as unknown as FocusMode[]) ?? [],
+        focusModesWithSupp ?? [],
     );
     // Calculate langugages, by combining user's languages with languages 
     // in request. Make sure to remove duplicates
@@ -209,8 +218,9 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
             ...rest,
             bookmarksCount: _count?.bookmarks ?? 0,
         })) as SessionUser["bookmarkLists"],
-        credits: userData.premium?.credits ?? 0,
-        focusModes: userData.focusModes as unknown as SessionUser["focusModes"],
+        codesCount: userData._count?.codes ?? 0,
+        credits: (userData.premium?.credits ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
+        focusModes: focusModesWithSupp,
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,
@@ -222,7 +232,6 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
         projectsCount: userData._count?.projects ?? 0,
         questionsAskedCount: userData._count?.questionsAsked ?? 0,
         routinesCount: userData._count?.routines ?? 0,
-        smartContractsCount: userData._count?.smartContracts ?? 0,
         standardsCount: userData._count?.standards ?? 0,
         theme: userData.theme,
         updated_at: userData.updated_at,
@@ -240,13 +249,13 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
     __typename: "SessionUser" as const,
     apisCount: 0,
     bookmarkLists: [],
+    codesCount: 0,
     focusModes: [],
     membershipsCount: 0,
     notesCount: 0,
     projectsCount: 0,
     questionsAskedCount: 0,
     routinesCount: 0,
-    smartContractsCount: 0,
     standardsCount: 0,
     ...user,
     activeFocusMode: user.activeFocusMode ? {
@@ -260,9 +269,18 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
             description: undefined,
             filters: [],
             labels: [],
-            reminderList: undefined,
+            reminderList: user.activeFocusMode?.mode?.reminderList ? {
+                __typename: "ReminderList" as const,
+                ...user.activeFocusMode.mode.reminderList,
+            } as any : undefined,
             resourceList: undefined,
             schedule: undefined,
+            you: {
+                __typename: "FocusModeYou" as const,
+                canDelete: true,
+                canRead: true,
+                canUpdate: true,
+            },
             ...user.activeFocusMode.mode,
         },
     } : undefined,
@@ -271,12 +289,11 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
 /**
  * Creates session object from user and existing session data
  * @param user User object
- * @param prisma 
  * @param req Express request object (with current session data)
  * @returns Updated session object, with user data added to the START of the users array
  */
-export const toSession = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<Session> => {
-    const sessionUser = await toSessionUser(user, prisma, req);
+export const toSession = async (user: { id: string }, req: Partial<Request>): Promise<Session> => {
+    const sessionUser = await toSessionUser(user, req);
     return {
         __typename: "Session" as const,
         isLoggedIn: true,

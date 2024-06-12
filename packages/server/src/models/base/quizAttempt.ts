@@ -11,7 +11,7 @@ import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLo
 const __typename = "QuizAttempt" as const;
 export const QuizAttemptModel: QuizAttemptModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.quiz_attempt,
+    dbTable: "quiz_attempt",
     display: () => ({
         label: {
             select: () => ({
@@ -36,13 +36,13 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
                 timeTaken: noNull(data.timeTaken),
                 language: data.language,
                 user: { connect: { id: rest.userData.id } },
-                ...(await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, objectType: "Quiz", parentRelationshipName: "attempts", data, ...rest })),
-                ...(await shapeHelper({ relation: "responses", relTypes: ["Create"], isOneToOne: false, objectType: "QuizQuestionResponse", parentRelationshipName: "quizAttempt", data, ...rest })),
+                quiz: await shapeHelper({ relation: "quiz", relTypes: ["Connect"], isOneToOne: true, objectType: "Quiz", parentRelationshipName: "attempts", data, ...rest }),
+                responses: await shapeHelper({ relation: "responses", relTypes: ["Create"], isOneToOne: false, objectType: "QuizQuestionResponse", parentRelationshipName: "quizAttempt", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 contextSwitches: noNull(data.contextSwitches),
                 timeTaken: noNull(data.timeTaken),
-                ...(await shapeHelper({ relation: "responses", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "QuizQuestionResponse", parentRelationshipName: "quizAttempt", data, ...rest })),
+                responses: await shapeHelper({ relation: "responses", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "QuizQuestionResponse", parentRelationshipName: "quizAttempt", data, ...rest }),
             }),
         },
         yup: quizAttemptValidation,
@@ -63,10 +63,10 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
         searchStringQuery: () => ({}), // No strings to search
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

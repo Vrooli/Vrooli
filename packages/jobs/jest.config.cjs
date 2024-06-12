@@ -3,6 +3,6 @@ module.exports = {
     preset: "ts-jest",
     testEnvironment: "node",
     roots: ["<rootDir>/src"],
-    testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/"],
-    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/"],
+    testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
+    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
 };

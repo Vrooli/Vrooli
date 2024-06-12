@@ -3,7 +3,7 @@ import { bool, enumToYup, id, opt, req, YupModel, yupObj } from "../utils";
 
 const subscribableObject = enumToYup(SubscribableObject);
 
-export const notificationSubscriptionValidation: YupModel = {
+export const notificationSubscriptionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         silent: opt(bool),

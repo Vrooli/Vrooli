@@ -1,5 +1,55 @@
+import winston from "winston";
+import { ConsoleTransportInstance, FileTransportInstance } from "winston/lib/winston/transports";
+
+const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
+const MAX_LOG_SIZE = 5_242_880; // 5MB
+
 /**
- * Preferred logging method for dev logs. Allows you to specify 
+ * @returns Array of transports to use for logging, depending on environment
+ */
+const getTransports = () => {
+
+    const transports: (FileTransportInstance | ConsoleTransportInstance)[] = []
+    const isTest = process.env.JEST_WORKER_ID !== undefined;
+
+    // Add file transports when in development or production
+    if (!isTest) {
+        transports.push(
+            new winston.transports.File({
+                filename: `${LOG_DIR}/error.log`,
+                level: "error",
+                maxsize: MAX_LOG_SIZE,
+            }),
+            new winston.transports.File({
+                filename: `${LOG_DIR}/combined.log`,
+                maxsize: MAX_LOG_SIZE,
+            })
+        );
+    }
+
+    // Add console transports for development
+    if (!(process.env.NODE_ENV || "").startsWith("prod") && !isTest) {
+        transports.push(
+            new winston.transports.Console({
+                format: winston.format.simple(),
+            })
+        );
+    }
+
+    // Add stub placeholder for testing, which will not log anything
+    if (isTest) {
+        transports.push(
+            new winston.transports.Console({
+                silent: true,
+            })
+        );
+    }
+
+    return transports;
+};
+
+/**
+ * Preferred logging method. Allows you to specify 
  * the level and output location(s). Includes timestamp 
  * with each log.
  * 
@@ -9,10 +59,6 @@
  * Example logger output: 
  * {"trace":"0000-cKST", "error: "Some error message", "level":"error","message":"Detailed message","service":"express-server","timestamp":"2022-04-23 16:08:55"}
  */
-import winston from "winston";
-
-const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
-
 export const logger = winston.createLogger({
     levels: winston.config.syslog.levels,
     format: winston.format.combine(
@@ -20,27 +66,5 @@ export const logger = winston.createLogger({
         winston.format.json(),
     ),
     defaultMeta: { service: "express-server" },
-    transports: [
-        // Errors are not only included in the combined log file, but also in their own file
-        new winston.transports.File({
-            filename: `${LOG_DIR}/error.log`,
-            level: "error",
-            maxsize: 5242880, // 5MB
-        }),
-        new winston.transports.File({
-            filename: `${LOG_DIR}/combined.log`,
-            maxsize: 5242880, // 5MB
-        }),
-    ],
+    transports: getTransports(),
 });
-
-/**
- * Logs to the console if not in production. 
- * Format: `${info.level}: ${info.message} JSON.stringify({ ...rest }) `.
- * Be careful not to add any data with circular references, as this will break JSON.stringify.
- */
-if (process.env.NODE_ENV === "development") {
-    logger.add(new winston.transports.Console({
-        format: winston.format.simple(),
-    }));
-}

@@ -10,7 +10,7 @@ export const scheduleException_findMany = {
           "color": true,
           "label": true,
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -105,7 +105,12 @@ export const scheduleException_findMany = {
           },
           "id": true,
           "name": true,
-          "description": true
+          "description": true,
+          "you": {
+            "canDelete": true,
+            "canRead": true,
+            "canUpdate": true
+          }
         },
         "meetings": {
           "labels": {
@@ -115,7 +120,7 @@ export const scheduleException_findMany = {
             "color": true,
             "label": true,
             "owner": {
-              "Organization": {
+              "Team": {
                 "id": true,
                 "bannerImage": true,
                 "handle": true,
@@ -166,8 +171,8 @@ export const scheduleException_findMany = {
           "created_at": true,
           "updated_at": true,
           "openToAnyoneWithInvite": true,
-          "showOnOrganizationProfile": true,
-          "organization": {
+          "showOnTeamProfile": true,
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -204,7 +209,7 @@ export const scheduleException_findMany = {
                 "name": true,
                 "permissions": true,
                 "membersCount": true,
-                "organization": {
+                "team": {
                   "id": true,
                   "bannerImage": true,
                   "handle": true,
@@ -244,7 +249,7 @@ export const scheduleException_findMany = {
             "name": true,
             "permissions": true,
             "membersCount": true,
-            "organization": {
+            "team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -310,7 +315,7 @@ export const scheduleException_findMany = {
           "name": true,
           "status": true,
           "stepsCount": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -386,7 +391,7 @@ export const scheduleException_findMany = {
           "stepsCount": true,
           "inputsCount": true,
           "wasRunAutomatically": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,

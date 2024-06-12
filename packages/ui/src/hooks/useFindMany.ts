@@ -1,10 +1,9 @@
-import { deepClone, exists, lowercaseFirstLetter, TimeFrame } from "@local/shared";
+import { AutocompleteOption, ListObject, TimeFrame, deepClone, exists, lowercaseFirstLetter, parseSearchParams } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { addSearchParams, parseSearchParams, useLocation } from "route";
-import { AutocompleteOption } from "types";
-import { ListObject, listToAutocomplete } from "utils/display/listTools";
+import { SetLocation, addSearchParams, useLocation } from "route";
+import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
@@ -17,9 +16,31 @@ type UseFindManyProps = {
     canSearch?: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated
     controlsUrl?: boolean; // If true, URL search params update to reflect search state
     searchType: SearchType | `${SearchType}`;
-    resolve?: (data: any, searchType: SearchType | `${SearchType}`) => any;
+    resolve?: (data: any) => any;
     take?: number;
     where?: Record<string, any>;
+}
+
+export type UseFindManyResult<DataType extends Record<string, any>> = {
+    advancedSearchParams: object | null;
+    advancedSearchSchema: any;
+    allData: DataType[];
+    autocompleteOptions: AutocompleteOption[];
+    defaultSortBy: string;
+    loading: boolean;
+    loadMore: () => void;
+    removeItem: (id: string, idField?: string) => void;
+    searchString: string;
+    searchType: SearchType | `${SearchType}`;
+    setAdvancedSearchParams: (advancedSearchParams: object | null) => void;
+    setAllData: React.Dispatch<React.SetStateAction<DataType[]>>;
+    setSortBy: (sortBy: string) => void;
+    setSearchString: (searchString: string) => void;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    sortBy: string;
+    sortByOptions: Record<string, string>;
+    timeFrame: TimeFrame | undefined;
+    updateItem: (item: DataType, idField?: string) => void;
 }
 
 type FullSearchParams = Partial<SearchParams> & {
@@ -33,33 +54,36 @@ type FullSearchParams = Partial<SearchParams> & {
     where: Record<string, any>;
 }
 
+type GetUrlSearchParamsResult = {
+    searchString: string;
+    sortBy: string;
+    timeFrame: TimeFrame | undefined;
+}
+
 /**
  * Helper method for converting fetched data to an array of object data
  * @param data data returned from a findMany query
  * @param resolve function for resolving the data
+ * @returns List of objects from the data, without any pagination information
  */
 export const parseData = (
-    data: any,
-    searchType: SearchType | `${SearchType}`,
-    resolve?: (data: any, searchType: SearchType | `${SearchType}`) => object[],
+    data: object | undefined,
+    resolve?: (data: any) => object[],
 ) => {
-    if (!data) return [];
-    // query result is always returned as an object with a single key (the endpoint name), where 
-    // the value is the actual data. If this is not the case, then (hopefully) it was already 
-    // deconstructed earlier in the chain
-    const queryData: any = (Object.keys(data).length === 1 && !["success", "count"].includes(Object.keys(data)[0])) ? Object.values(data)[0] : data;
+    // Ensure data is properly formatted
+    if (!data || typeof data !== "object") return [];
     // If there is a custom resolver, use it
-    if (resolve) return resolve(queryData, searchType);
+    if (resolve) return resolve(data);
     // Otherwise, treat as typically-shaped paginated data
-    if (!queryData || !queryData.edges) return [];
-    return queryData.edges.map((edge: any) => edge.node);
+    if (!Array.isArray((data as { edges?: unknown }).edges)) return [];
+    return (data as { edges: any[] }).edges.map((edge) => edge.node);
 };
 
 /**
  * Finds updated value for sortBy
  * @returns the sortBy param if it's valid, or searchParams.defaultSortBy if it's not
  */
-const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "sortByOptions">, sortBy: string) => {
+export const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "sortByOptions">, sortBy: string) => {
     if (typeof sortBy === "string") {
         if (exists(searchParams.sortByOptions) && sortBy in searchParams.sortByOptions) {
             return sortBy;
@@ -71,15 +95,90 @@ const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "so
 
 /**
  * Determines if we have sufficient search params to perform a search
- * @param canSearch function for determining if we can search
  * @param params search params
  */
-const readyToSearch = (params: FullSearchParams) => {
-    return params.canSearch &&
-        !params.loading &&
-        params.hasMore &&
-        params.findManyEndpoint && params.findManyEndpoint.length > 0 &&
-        params.sortBy && params.sortBy.length > 0;
+export const readyToSearch = ({ canSearch, findManyEndpoint, hasMore, loading, sortBy }: FullSearchParams) => {
+    return Boolean(
+        canSearch &&
+        !loading &&
+        hasMore &&
+        findManyEndpoint && findManyEndpoint.length > 0 &&
+        sortBy && sortBy.length > 0
+    );
+};
+
+/**
+ * Extracts and returns basic search-related parameters from the URL, if we're currently
+ * controlling the URL. This is the case when the search results are the main focus of the page, 
+ * and this is not in a modal or other secondary context.
+ *
+ * @param controlsUrl Indicates whether the URL is currently under control, which 
+ * impacts whether search parameters should be read from the URL.
+ * @param searchType Specifies the type of search, which is used to determine 
+ * how the 'sort' parameter is validated and processed.
+ *
+ * @returns An object containing the extracted search parameters:
+ *         - searchString: Extracted search string; defaults to an empty string if not specified.
+ *         - sortBy: Validated sorting parameter based on the search type; defaults to an empty string.
+ *         - timeFrame: Optional object containing 'after' and/or 'before' date limits; included if either
+ *                      date is validly specified in the URL.
+ */
+export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): GetUrlSearchParamsResult => {
+    const result: GetUrlSearchParamsResult = {
+        searchString: "",
+        sortBy: "",
+        timeFrame: undefined,
+    };
+    if (!controlsUrl) return result;
+    const searchParams = parseSearchParams();
+    // Find searchString
+    if (typeof searchParams.search === "string") result.searchString = searchParams.search;
+    // Find sortBy
+    const searchParamsConfig = searchTypeToParams[searchType];
+    if (typeof searchParamsConfig === 'function') {
+        result.sortBy = updateSortBy(searchParamsConfig(), typeof searchParams.sort === "string" ? searchParams.sort : "");
+    } else {
+        console.warn(`Invalid search type provided: ${searchType}`);
+    }
+    // Find timeFrame
+    if (typeof searchParams.time === "object" && !Array.isArray(searchParams.time)) {
+        let timeFrame: TimeFrame = {};
+        if (Object.prototype.hasOwnProperty.call(searchParams.time, "after")) {
+            timeFrame.after = new Date((searchParams.time as { after: string }).after);
+        }
+        if (Object.prototype.hasOwnProperty.call(searchParams.time, "before")) {
+            timeFrame.before = new Date((searchParams.time as { before: string }).before);
+        }
+        if (Object.keys(timeFrame).length > 0) {
+            result.timeFrame = timeFrame;
+        }
+    }
+    return result;
+};
+
+/**
+ * The opposite of getUrlSearchParams. Updates the URL with the current search parameters.
+ * @param controlsUrl Indicates whether the URL is currently under control, which
+ * impacts whether search parameters should be written to the URL.
+ * @param searchString The current search string.
+ * @param sortBy The current sorting parameter.
+ * @param timeFrame The current time frame.
+ * @param setLocation Function for updating the URL.
+ */
+export const updateSearchUrl = (
+    controlsUrl: boolean,
+    { searchString, sortBy, timeFrame }: FullSearchParams,
+    setLocation: SetLocation,
+) => {
+    if (!controlsUrl) return;
+    addSearchParams(setLocation, {
+        search: searchString.length > 0 ? searchString : undefined,
+        sort: sortBy,
+        time: timeFrame ? {
+            after: timeFrame.after?.toISOString() ?? "",
+            before: timeFrame.before?.toISOString() ?? "",
+        } : undefined,
+    });
 };
 
 /**
@@ -92,7 +191,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
     resolve,
     take = 20,
     where,
-}: UseFindManyProps) => {
+}: UseFindManyProps): UseFindManyResult<DataType> => {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
@@ -100,40 +199,8 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const stableCanSearch = useStableCallback(canSearch);
     const stableResolve = useStableCallback(resolve);
     const stableWhere = useStableObject(where);
-
-    const getUrlParams = useCallback(() => {
-        const result: { searchString?: string, sortBy?: string, timeFrame?: TimeFrame } = {};
-        if (!controlsUrl) return {};
-        const searchParams = parseSearchParams();
-        if (typeof searchParams.search === "string") result.searchString = searchParams.search;
-        if (typeof searchParams.sort === "string") {
-            result.sortBy = updateSortBy(searchTypeToParams[searchType](), searchParams.sort);
-        }
-        if (typeof searchParams.time === "object" &&
-            !Array.isArray(searchParams.time) &&
-            Object.prototype.hasOwnProperty.call(searchParams.time, "after") &&
-            Object.prototype.hasOwnProperty.call(searchParams.time, "before")) {
-            result.timeFrame = {
-                after: new Date((searchParams.time as any).after),
-                before: new Date((searchParams.time as any).before),
-            };
-        }
-        return result;
-    }, [controlsUrl, searchType]);
-
-    // Handle URL search params
-    const updateUrl = useCallback(() => {
-        if (!controlsUrl) return;
-        const { searchString, sortBy, timeFrame } = params.current;
-        addSearchParams(setLocation, {
-            search: searchString.length > 0 ? searchString : undefined,
-            sort: sortBy,
-            time: timeFrame ? {
-                after: timeFrame.after?.toISOString() ?? "",
-                before: timeFrame.before?.toISOString() ?? "",
-            } : undefined,
-        });
-    }, [controlsUrl, setLocation]);
+    const controlsUrlRef = useRef(controlsUrl);
+    controlsUrlRef.current = controlsUrl;
 
     // Store search params
     const params = useRef<FullSearchParams>({
@@ -142,9 +209,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         findManyEndpoint: "",
         hasMore: true,
         loading: false,
-        searchString: getUrlParams().searchString ?? "",
-        sortBy: getUrlParams().sortBy ?? "",
-        timeFrame: getUrlParams().timeFrame,
+        ...getUrlSearchParams(controlsUrlRef.current, searchType),
         where: stableWhere ?? {},
     });
     // Store params for the last search
@@ -165,18 +230,6 @@ export const useFindMany = <DataType extends Record<string, any>>({
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
         lastParams.current = deepClone(params.current);
-        console.log("fetching data", params.current.findManyEndpoint, {
-            take,
-            sortBy: params.current.sortBy,
-            searchString: params.current.searchString,
-            createdTimeFrame: (params.current.timeFrame && Object.keys(params.current.timeFrame).length > 0) ? {
-                after: params.current.timeFrame.after?.toISOString(),
-                before: params.current.timeFrame.before?.toISOString(),
-            } : undefined,
-            ...after.current,
-            ...params.current.where,
-            ...params.current.advancedSearchParams,
-        });
         // params.current.loading = true;
         getPageData({
             take,
@@ -224,12 +277,12 @@ export const useFindMany = <DataType extends Record<string, any>>({
         after.current = {};
         params.current.hasMore = true;
         // Update the URL
-        updateUrl();
+        updateSearchUrl(controlsUrlRef.current, params.current, setLocation);
         // Fetch new data
         getData();
         // Update state
         setSearchParams(advancedSearchParams);
-    }, [getData, updateUrl]);
+    }, [getData, setLocation]);
 
     /**
      * Update params when search conditions change
@@ -246,9 +299,9 @@ export const useFindMany = <DataType extends Record<string, any>>({
             hasMore: true,
         };
         setAllData([]);
-        updateUrl();
+        updateSearchUrl(controlsUrlRef.current, params.current, setLocation);
         getData();
-    }, [updateUrl, searchType, getData]);
+    }, [searchType, getData, setLocation]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -292,7 +345,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
             return;
         }
         // Parse data
-        const parsedData = parseData(pageData, searchType, stableResolve);
+        const parsedData = parseData(pageData, stableResolve);
         if (!parsedData) {
             setAllData([]);
             return;
@@ -320,7 +373,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         else {
             setAllData(parsedData);
         }
-    }, [getData, pageData, searchType, stableResolve]);
+    }, [getData, pageData, stableResolve]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => listToAutocomplete(allData as unknown as ListObject[], getUserLanguages(session)), [allData, session]);
 
@@ -329,25 +382,24 @@ export const useFindMany = <DataType extends Record<string, any>>({
         if (newSortBy === params.current.sortBy) return;
         params.current.sortBy = newSortBy;
         setAllData([]);
-        updateUrl();
+        updateSearchUrl(controlsUrlRef.current, params.current, setLocation);
         getData();
-    }, [getData, updateUrl]);
+    }, [getData, setLocation]);
 
     const setSearchString = useCallback((searchString: string) => {
         if (searchString === params.current.searchString) return;
         params.current.searchString = searchString;
         setAllData([]);
-        updateUrl();
+        updateSearchUrl(controlsUrlRef.current, params.current, setLocation);
         getData();
-    }, [getData, updateUrl]);
+    }, [getData, setLocation]);
 
     const setTimeFrame = useCallback((timeFrame: TimeFrame | undefined) => {
         if (timeFrame === params.current.timeFrame) return;
         params.current.timeFrame = timeFrame;
         setAllData([]);
-        updateUrl();
         getData();
-    }, [getData, updateUrl]);
+    }, [getData]);
 
     return {
         advancedSearchParams,
@@ -359,6 +411,7 @@ export const useFindMany = <DataType extends Record<string, any>>({
         loadMore,
         removeItem,
         searchString: params?.current?.searchString,
+        searchType,
         setAdvancedSearchParams,
         setAllData,
         setSortBy,

@@ -1,56 +1,42 @@
-import { logger, ModelMap, PrismaType, withPrisma } from "@local/server";
-import { UI_URL_REMOTE } from "@local/server/src/server";
-import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent } from "@local/shared";
+import { logger, ModelMap, PrismaDelegate, prismaInstance, UI_URL_REMOTE } from "@local/server";
+import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent, uuidToBase36 } from "@local/shared";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import zlib from "zlib";
 
-const sitemapObjectTypes = ["ApiVersion", "NoteVersion", "Organization", "ProjectVersion", "Question", "RoutineVersion", "SmartContractVersion", "StandardVersion", "User"] as const;
+const sitemapObjectTypes = [
+    "ApiVersion",
+    "CodeVersion",
+    "NoteVersion",
+    "ProjectVersion",
+    "Question",
+    "RoutineVersion",
+    "StandardVersion",
+    "Team",
+    "User",
+] as const;
 
 /**
  * Maps object types to their url base
  */
 const Links: Record<typeof sitemapObjectTypes[number], string> = {
     ApiVersion: LINKS.Api,
+    CodeVersion: LINKS.Code,
     NoteVersion: LINKS.Note,
-    Organization: LINKS.Organization,
     ProjectVersion: LINKS.Project,
     Question: LINKS.Question,
     RoutineVersion: LINKS.Routine,
-    SmartContractVersion: LINKS.SmartContract,
     StandardVersion: LINKS.Standard,
+    Team: LINKS.Team,
     User: LINKS.User,
 };
 
 // Where to save the sitemap index and files
-const sitemapIndexDir = "../../packages/ui/dist";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const sitemapIndexDir = path.resolve(__dirname, "../../../ui/dist");
 const sitemapDir = `${sitemapIndexDir}/sitemaps`;
-
-/**
- * Converts a string to a BigInt
- * @param value String to convert
- * @param radix Radix (base) to use
- * @returns 
- */
-function toBigInt(value: string, radix: number) {
-    return [...value.toString()]
-        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
-}
-
-/**
- * Converts a UUID into a shorter, base 36 string without dashes. 
- * Useful for displaying UUIDs in a more compact format, such as in a URL.
- * @param uuid v4 UUID to convert
- * @returns base 36 string without dashes
- */
-const uuidToBase36 = (uuid: string): string => {
-    try {
-        const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
-        return base36 === "0" ? "" : base36;
-    } catch (error) {
-        return uuid;
-    }
-};
-
 
 /**
  * Generates and saves one or more sitemap files for an object
@@ -58,14 +44,13 @@ const uuidToBase36 = (uuid: string): string => {
  * @returns Names of the files that were generated
  */
 const genSitemapForObject = async (
-    prisma: PrismaType,
     objectType: typeof sitemapObjectTypes[number],
 ): Promise<string[]> => {
     logger.info(`Generating sitemap for ${objectType}`);
     // Initialize return value
     const sitemapFileNames: string[] = [];
     // For objects that support handles, we prioritize those urls over the id urls
-    const supportsHandles = ["Organization", "ProjectVersion", "User"].includes(objectType);
+    const supportsHandles = ["Team", "ProjectVersion", "User"].includes(objectType);
     // For versioned objects, we also need to collect the root Id/handle
     const isVersioned = objectType.endsWith("Version");
     // If object can be private (in which case we don't want to include it in the sitemap)
@@ -81,8 +66,8 @@ const genSitemapForObject = async (
         let estimatedFileSize = 0;
         do {
             // Find all public objects
-            const { delegate, validate } = ModelMap.getLogic(["delegate", "validate"], objectType);
-            const batch = await delegate(prisma).findMany({
+            const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], objectType);
+            const batch = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
                 where: {
                     ...validate().visibility.public,
                 },
@@ -165,26 +150,26 @@ export const genSitemap = async (): Promise<void> => {
     // Check if sitemap file for main route exists
     const routeSitemapFileName = "sitemap-routes.xml";
     if (!fs.existsSync(`${sitemapDir}/${routeSitemapFileName}`)) {
-        logger.warning("Sitemap file for main routes does not exist");
+        logger.warning("Sitemap file for main routes does not exist", { trace: "0591", routeSitemapFileName, sitemapDir });
     }
-    const success = await withPrisma({
-        process: async (prisma) => {
-            const sitemapFileNames: string[] = [];
-            // Generate sitemap for each object type
-            for (const objectType of sitemapObjectTypes) {
-                const sitemapFileNamesForObject = await genSitemapForObject(prisma, objectType);
-                // Add sitemap file names to array
-                sitemapFileNames.push(...sitemapFileNamesForObject);
-            }
-            // Generate sitemap index file
-            const sitemapIndex = generateSitemapIndex(`${UI_URL_REMOTE}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
-            // Write sitemap index file
-            fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
-        },
-        trace: "0463",
-        traceObject: { routeSitemapFileName, sitemapDir },
-    });
-    if (success) logger.info("✅ Sitemap generated successfully");
+    // Initialize ModelMap, which is needed later
+    await ModelMap.init();
+    try {
+        const sitemapFileNames: string[] = [];
+        // Generate sitemap for each object type
+        for (const objectType of sitemapObjectTypes) {
+            const sitemapFileNamesForObject = await genSitemapForObject(objectType);
+            // Add sitemap file names to array
+            sitemapFileNames.push(...sitemapFileNamesForObject);
+        }
+        // Generate sitemap index file
+        const sitemapIndex = generateSitemapIndex(`${UI_URL_REMOTE}/sitemaps`, [routeSitemapFileName, ...sitemapFileNames]);
+        // Write sitemap index file
+        fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
+        logger.info("✅ Sitemap generated successfully");
+    } catch (error) {
+        logger.error("genSitemap caught error", { error, trace: "0463", routeSitemapFileName, sitemapDir });
+    }
 };
 
 export const isSitemapMissing = async (): Promise<boolean> => {

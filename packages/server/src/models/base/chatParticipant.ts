@@ -7,7 +7,7 @@ import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo
 const __typename = "ChatParticipant" as const;
 export const ChatParticipantModel: ChatParticipantModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.chat_participants,
+    dbTable: "chat_participants",
     display: () => ({
         // Label is the user's label
         label: {
@@ -44,7 +44,7 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: (data?.chat as ChatModelInfo["PrismaModel"])?.organization,
+            Team: (data?.chat as ChatModelInfo["PrismaModel"])?.team,
             User: (data?.chat as ChatModelInfo["PrismaModel"])?.creator,
         }),
         permissionResolvers: defaultPermissions,

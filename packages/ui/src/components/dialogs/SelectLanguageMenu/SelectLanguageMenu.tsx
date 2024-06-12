@@ -102,7 +102,7 @@ export const SelectLanguageMenu = ({
         // Convert to list menu item data
         return autoTranslateLanguagesFiltered.map(l => ({ label: AllLanguages[l], value: l }));
     }, [languages]);
-    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<any>(null);
+    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<HTMLElement | null>(null);
     const openTranslateSource = useCallback((ev: React.MouseEvent<any>, targetLanguage: string) => {
         // Stop propagation so that the list item is not selected
         ev.stopPropagation();

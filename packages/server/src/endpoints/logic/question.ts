@@ -19,23 +19,23 @@ export type EndpointsQuestion = {
 const objectType = "Question";
 export const QuestionEndpoints: EndpointsQuestion = {
     Query: {
-        question: async (_, { input }, { prisma, req }, info) => {
+        question: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        questions: async (_, { input }, { prisma, req }, info) => {
+        questions: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        questionCreate: async (_, { input }, { prisma, req }, info) => {
+        questionCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        questionUpdate: async (_, { input }, { prisma, req }, info) => {
+        questionUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

@@ -1,24 +1,26 @@
+import { ListObject, uuidValidate } from "@local/shared";
 import { Checkbox, FormControlLabel, Stack } from "@mui/material";
+import { PageTabs } from "components/PageTabs/PageTabs";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field } from "formik";
+import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { useCallback, useEffect, useState } from "react";
-import { MemberManagePageTabOption, memberTabParams } from "utils/search/objectToSearch";
+import { memberTabParams } from "utils/search/objectToSearch";
 import { MemberManageViewProps } from "../types";
 
 /**
- * View members and invited members of an organization
+ * View members and invited members of a team
  */
 export const MemberManageView = ({
     display,
     onClose,
-    organization,
     isOpen,
+    team,
 }: MemberManageViewProps) => {
-    console.log("in MemberManageView", organization);
+    console.log("in MemberManageView", team);
 
     const {
         currTab,
@@ -26,27 +28,35 @@ export const MemberManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<MemberManagePageTabOption>({ id: "member-manage-tabs", tabParams: memberTabParams, display });
+    } = useTabs({ id: "member-manage-tabs", tabParams: memberTabParams, display });
+
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(team.id),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where({ teamId: team.id }),
+    });
 
     //    // Handle add/update invite dialog
     //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
     //    const handleInvitesUpdate = useCallback(() => {
-    //        if (currTab.tabType !== ParticipantManagePageTabOption.MemberInvite) return;
+    //        if (currTab.key !== ParticipantManagePageTabOption.MemberInvite) return;
     //        setInvitesToUpsert(selectedData as MemberInviteShape[]);
-    //    }, [currTab.tabType, selectedData]);
+    //    }, [currTab.key, selectedData]);
     //    const handleInvitesCreate = useCallback(() => {
-    //        if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
+    //        if (currTab.key !== ParticipantManagePageTabOption.Add) return;
     //        const asInvites: MemberInviteShape[] = (selectedData as User[]).map(user => ({
     //            __typename: "MemberInvite",
     //            id: DUMMY_ID,
     //            created_at: new Date().toISOString(),
     //            updated_at: new Date().toISOString(),
     //            status: MemberInviteStatus.Pending,
-    //            organization: { __typename: "Organization", id: organization.id },
+    //            team: { __typename: "Team", id: team.id },
     //            user,
     //        } as const));
     //        setInvitesToUpsert(asInvites);
-    //    }, [organization.id, currTab.tabType, selectedData]);
+    //    }, [team.id, currTab.key, selectedData]);
     //    const onInviteCompleted = () => {
     //        // TODO Handle any post-completion tasks here, if necessary
     //        setInvitesToUpsert([]);
@@ -107,12 +117,10 @@ export const MemberManageView = ({
                 />
             </Stack >
             {searchType && <SearchList
+                {...findManyData}
                 id="member-manage-list"
                 display={display}
                 dummyLength={display === "page" ? 5 : 3}
-                take={20}
-                searchType={searchType}
-                where={where(organization.id)}
                 sxs={showSearchFilters ? {
                     search: { marginTop: 2 },
                     listContainer: { borderRadius: 0 },

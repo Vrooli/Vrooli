@@ -1,6 +1,5 @@
 import { JoinMap } from "../models/types";
-import { isRelationshipArray } from "./isRelationshipArray";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipArray, isRelationshipObject } from "./isOfType";
 import { PartialGraphQLInfo } from "./types";
 
 /**

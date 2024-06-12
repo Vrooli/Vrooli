@@ -1,6 +1,6 @@
-import { CommonKey } from "@local/shared";
+import { AutocompleteOption, CommonKey } from "@local/shared";
 import { InputProps } from "@mui/material";
-import { AutocompleteOption, SxType } from "types";
+import { SxType } from "types";
 import { SearchItem } from "utils/search/siteToSearch";
 
 export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> & {

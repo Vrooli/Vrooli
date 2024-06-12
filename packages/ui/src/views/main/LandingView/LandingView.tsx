@@ -14,7 +14,6 @@ import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlidePage, SlideText, greenNeonText, textPop } from "styles";
 import { SvgComponent } from "types";
-import { Forms } from "utils/consts";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -22,7 +21,7 @@ import { LandingViewProps } from "../types";
 const slide1Id = "revolutionize-workflow";
 const slide2Id = "chats";
 const slide3Id = "routines";
-const slide4Id = "organizations";
+const slide4Id = "teams";
 const slide5Id = "sky-is-limit";
 const slide6Id = "get-started";
 
@@ -169,7 +168,7 @@ export const LandingView = ({
                                 autoFocus
                                 variant="outlined"
                                 color="secondary"
-                                onClick={() => openLink(setLocation, LINKS.Signup, { form: Forms.SignUp })}
+                                onClick={() => openLink(setLocation, LINKS.Signup)}
                                 startIcon={<PlayIcon fill='white' />}
                                 sx={{
                                     fontSize: isMobile ? "1.3rem" : "1.8rem",
@@ -244,7 +243,7 @@ export const LandingView = ({
                     </SlideContent>
                     <SlideContent id={slide4Id}>
                         <SlideBox>
-                            <SlideTitle variant='h2'>Manage Organizations</SlideTitle>
+                            <SlideTitle variant='h2'>Manage Teams</SlideTitle>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6} margin="auto">
                                     <SlideText>
@@ -254,7 +253,7 @@ export const LandingView = ({
                                 <Grid item xs={12} sm={6}>
                                     <SlideImageContainer>
                                         <SlideImage
-                                            alt="The page for an organization, showing the organization's name, bio, picture, and members."
+                                            alt="The page for a team, showing the team's name, bio, picture, and members."
                                             src={OrganizationalManagement}
                                         />
                                     </SlideImageContainer>
@@ -306,7 +305,7 @@ export const LandingView = ({
                     <SlideContent id={slide5Id}>
                         <SlideTitle variant='h2' mb={4} sx={{ zIndex: 6 }}>The Sky is the Limit</SlideTitle>
                         <SlideText sx={{ zIndex: 6 }}>
-                            By combining bots, routines, and organizations, we're paving the way for an automated and transparent economy - accessible to all.
+                            By combining bots, routines, and teams, we're paving the way for an automated and transparent economy - accessible to all.
                         </SlideText>
                     </SlideContent>
                     <SlideContent id={slide6Id}>

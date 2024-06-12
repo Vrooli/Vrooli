@@ -1,7 +1,7 @@
 import { id, nodeOperation, opt, req, YupModel, yupObj } from "../utils";
 import { nodeLinkWhenValidation } from "./nodeLinkWhen";
 
-export const nodeLinkValidation: YupModel = {
+export const nodeLinkValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         operation: opt(nodeOperation),

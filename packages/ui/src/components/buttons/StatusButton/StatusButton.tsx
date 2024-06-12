@@ -3,8 +3,9 @@
  */
 import { Stack, Tooltip, Typography } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { usePopover } from "hooks/usePopover";
 import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "icons";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { noSelect } from "styles";
 import { Status } from "utils/consts";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
@@ -29,35 +30,32 @@ const STATUS_ICON = {
     [Status.Valid]: RoutineValidIcon,
 };
 
+/**
+ * Converts status messages to markdown display
+ * @param messages List of status message strings 
+ * @returns Indicator for no errors detected if no messages, just the error 
+ * if one message, or a list of errors if multiple
+ */
+export const formatStatusMessages = (messages: string[]) => {
+    if (!Array.isArray(messages) || messages.length === 0) return "No errors detected.";
+    if (messages.length === 1) return messages[0];
+    return messages.map(message => `* ${message}`).join("\n");
+};
+
 export const StatusButton = ({
     status,
     messages,
     sx,
 }: StatusButtonProps) => {
-    /**
-     * List of status messages converted to markdown. 
-     * If one message, no bullet points. If multiple, bullet points.
-     */
-    const statusMarkdown = useMemo(() => {
-        if (messages.length === 0) return "No errors detected.";
-        if (messages.length === 1) {
-            return messages[0];
-        }
-        return messages.map((s) => {
-            return `* ${s}`;
-        }).join("\n");
-    }, [messages]);
+
+    const statusMarkdown = useMemo(() => formatStatusMessages(messages), [messages]);
 
     const StatusIcon = useMemo(() => STATUS_ICON[status], [status]);
 
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const openPopover = useCallback((event: any) => {
-        console.log("openPopover anchor", event.currentTarget);
-        if (!anchorEl) setAnchorEl(event.currentTarget);
-    }, [anchorEl]);
-    const closePopover = () => {
-        setAnchorEl(null);
-    };
+    const [anchorEl, open, close] = usePopover();
+    const openPopover = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        if (!anchorEl) open(event);
+    }, [anchorEl, open]);
 
     return (
         <>
@@ -90,7 +88,7 @@ export const StatusButton = ({
             </Tooltip>
             <PopoverWithArrow
                 anchorEl={anchorEl}
-                handleClose={closePopover}
+                handleClose={close}
                 sxs={{
                     root: {
                         // Remove horizontal spacing for list items

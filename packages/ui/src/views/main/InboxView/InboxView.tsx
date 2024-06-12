@@ -1,4 +1,4 @@
-import { Chat, endpointPutNotificationsMarkAllAsRead, Notification, Success, uuidValidate } from "@local/shared";
+import { Chat, endpointPutNotificationsMarkAllAsRead, getObjectUrlBase, ListObject, Notification, Success } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -7,23 +7,20 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { SessionContext } from "contexts/SessionContext";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { ListObject } from "utils/display/listTools";
-import { getObjectUrlBase } from "utils/navigation/openObject";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
-import { getCurrentUser } from "utils/authentication/session";
 
 type InboxObject = Chat | Notification;
 
@@ -32,8 +29,6 @@ export const InboxView = ({
     isOpen,
     onClose,
 }: InboxViewProps) => {
-    const session = useContext(SessionContext);
-    const user = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -44,7 +39,7 @@ export const InboxView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<InboxPageTabOption>({ id: "inbox-tabs", tabParams: inboxTabParams, display });
+    } = useTabs({ id: "inbox-tabs", tabParams: inboxTabParams, display });
 
     const {
         allData,
@@ -54,33 +49,21 @@ export const InboxView = ({
         setAllData,
         updateItem,
     } = useFindMany<InboxObject>({
-        canSearch: () => uuidValidate(user.id ?? ""),
         searchType,
-        where: where(user.id ?? ""),
+        where: where(),
     });
 
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [selectedData, setSelectedData] = useState<InboxObject[]>([]);
-    const handleToggleSelecting = useCallback(() => {
-        if (isSelecting) { setSelectedData([]); }
-        setIsSelecting(is => !is);
-    }, [isSelecting]);
-    const handleToggleSelect = useCallback((item: ListObject) => {
-        setSelectedData(items => {
-            const newItems = [...items];
-            const index = newItems.findIndex(i => i.id === item.id);
-            if (index === -1) {
-                newItems.push(item as InboxObject);
-            } else {
-                newItems.splice(index, 1);
-            }
-            return newItems;
-        });
-    }, []);
+    const {
+        isSelecting,
+        handleToggleSelecting,
+        handleToggleSelect,
+        selectedData,
+        setIsSelecting,
+        setSelectedData,
+    } = useSelectableList<InboxObject>();
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<InboxObject>({
         allData,
         selectedData,
-        objectType: searchType as InboxObject["__typename"],
         setAllData,
         setSelectedData: (data) => {
             setSelectedData(data);
@@ -107,11 +90,11 @@ export const InboxView = ({
     }, [setLocation]);
 
     const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
-        if (currTab.tabType === InboxPageTabOption.Notification) {
+        if (currTab.key === InboxPageTabOption.Notification) {
             return [onMarkAllAsRead, CompleteIcon, "MarkAllAsRead"] as const;
         }
         return [openCreateChat, AddIcon, "CreateChat"] as const;
-    }, [currTab.tabType, onMarkAllAsRead, openCreateChat]);
+    }, [currTab.key, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
         switch (action) {

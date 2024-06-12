@@ -1,12 +1,12 @@
 import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { PrismaType, SessionData, SessionUserToken } from "../types";
+import { SessionData, SessionUserToken } from "../types";
+import { EmbeddableType } from "../utils/embeddings/types";
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
     objectType: `${GqlModelType}`;
-    prisma: PrismaType;
     req: { session: SessionData };
     where?: { [x: string]: any };
     visibility?: VisibilityType;
@@ -16,7 +16,6 @@ export type CreateOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
     objectType: `${GqlModelType}`;
-    prisma: PrismaType;
     req: { session: SessionData };
 }
 
@@ -26,15 +25,11 @@ export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
 
 export type DeleteManyHelperProps = {
     input: DeleteManyInput;
-    objectType: `${GqlModelType}`;
-    prisma: PrismaType;
     req: { session: SessionData };
 }
 
 export type DeleteOneHelperProps = {
-    input: Pick<DeleteOneInput, "id">;
-    objectType: `${GqlModelType}`;
-    prisma: PrismaType;
+    input: DeleteOneInput;
     req: { session: SessionData };
 }
 
@@ -42,7 +37,6 @@ export type CopyHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo,
     input: CopyInput,
     objectType: `${GqlModelType}`,
-    prisma: PrismaType,
     req: { session: SessionData },
 }
 
@@ -51,7 +45,7 @@ export type ReadManyHelperProps<
 > = {
     additionalQueries?: { [x: string]: any };
     /**
-     * Decides if queried data should be called. Defaults to true. 
+     * Decides if supplemental data (e.g. if you've bookmarked an item) should be called. Defaults to true. 
      * You may want to set this to false if you are calling readManyHelper multiple times, so you can do this 
      * later in one call
      */
@@ -59,10 +53,21 @@ export type ReadManyHelperProps<
     info: GraphQLInfo | PartialGraphQLInfo;
     input: Input;
     objectType: `${GqlModelType}`;
-    prisma: PrismaType;
     req: { session: { languages: string[], users?: SessionUserToken[] } };
     visibility?: VisibilityType;
 }
+
+export type ReadManyWithEmbeddingsHelperProps<
+    Input extends { [x: string]: any }
+> = Pick<ReadManyHelperProps<Input>, "info" | "input" | "req" | "visibility"> & {
+    /**
+     * If you want just the IDs of the results, the results without supplemental fields 
+     * (i.e. what would be returned from readManyHelper with "addSupplemental" set to false), 
+     * or the full results with supplemental fields.
+     */
+    fetchMode?: "ids" | "noSupplemental" | "full";
+    objectType: EmbeddableType;
+};
 
 type FindUniqueInput = {
     id?: string | null | undefined;
@@ -74,7 +79,6 @@ export type ReadOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: FindUniqueInput;
     objectType: `${GqlModelType}`;
-    prisma: PrismaType;
     req: { session: { languages: string[], users?: SessionUserToken[] } };
 }
 
@@ -91,7 +95,6 @@ export type RelBuilderHelperProps<
     isRequired: IsRequired,
     linkVersion?: boolean,
     objectType: `${GqlModelType}`,
-    prisma: PrismaType,
     relationshipName: RelName,
     userData: SessionUserToken,
 }
@@ -100,7 +103,6 @@ export type UpdateOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
     objectType: GqlModelType | `${GqlModelType}`;
-    prisma: PrismaType;
     req: Request;
 }
 

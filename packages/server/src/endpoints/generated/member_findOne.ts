@@ -1,5 +1,5 @@
 export const member_findOne = {
-  "organization": {
+  "team": {
     "roles": {
       "members": {
         "id": true,
@@ -14,7 +14,7 @@ export const member_findOne = {
           "name": true,
           "permissions": true,
           "membersCount": true,
-          "organization": {
+          "team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -36,7 +36,7 @@ export const member_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
           },
           "translations": {
             "id": true,
@@ -115,7 +115,7 @@ export const member_findOne = {
         "permissions": true
       }
     },
-    "__typename": "Organization"
+    "__typename": "Team"
   },
   "user": {
     "botSettings": true,
@@ -156,7 +156,7 @@ export const member_findOne = {
     "name": true,
     "permissions": true,
     "membersCount": true,
-    "organization": {
+    "team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -178,7 +178,7 @@ export const member_findOne = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
+      "__typename": "Team"
     },
     "translations": {
       "id": true,

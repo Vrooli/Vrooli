@@ -1,5 +1,6 @@
 import moment from "moment";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api";
+import { HOURS_2_MS } from "../consts";
 import { uuid } from "../id";
 import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules";
 
@@ -43,8 +44,8 @@ describe("validateTimeFrame", () => {
     });
 });
 
-type CalculateOccurrenceFn = (currentDate: Date, recurrence: ScheduleRecurrence, timeZone?: string) => Date;
-const testRecurrence = ({
+type CalculateOccurrenceFn = (currentDate: Date, recurrence: ScheduleRecurrence, timeZone?: string) => Promise<Date>;
+const testRecurrence = async ({
     currentDate,
     expected,
     func,
@@ -56,16 +57,16 @@ const testRecurrence = ({
     func: CalculateOccurrenceFn,
     recurrence: ScheduleRecurrence,
     timeZone?: string,
-}): void => {
+}): Promise<void> => {
     const current = new Date(currentDate);
-    const result = func(current, recurrence, timeZone);
+    const result = await func(current, recurrence, timeZone);
     const expectedResult = moment.tz(expected, timeZone ?? "UTC").toDate();
     expect(result.toISOString()).toBe(expectedResult.toISOString());
 };
 
 describe("calculateNextDailyOccurrence", () => {
-    it("should return the next occurrence for a 1-day interval", () => {
-        testRecurrence({
+    it("should return the next occurrence for a 1-day interval", async () => {
+        await testRecurrence({
             currentDate: "2023-01-01T00:02:00Z",
             expected: "2023-01-02T00:02:00Z",
             func: calculateNextDailyOccurrence,
@@ -77,8 +78,8 @@ describe("calculateNextDailyOccurrence", () => {
         });
     });
 
-    it("should return the next occurrence for a 3-day interval", () => {
-        testRecurrence({
+    it("should return the next occurrence for a 3-day interval", async () => {
+        await testRecurrence({
             currentDate: "2023-03-10T00:00:00Z",
             expected: "2023-03-13T00:00:00Z",
             func: calculateNextDailyOccurrence,
@@ -90,8 +91,8 @@ describe("calculateNextDailyOccurrence", () => {
         });
     });
 
-    it("should handle leap years correctly", () => {
-        testRecurrence({
+    it("should handle leap years correctly", async () => {
+        await testRecurrence({
             currentDate: "2024-02-28T00:30:02Z",
             expected: "2024-02-29T00:30:02Z",
             func: calculateNextDailyOccurrence,
@@ -103,8 +104,8 @@ describe("calculateNextDailyOccurrence", () => {
         });
     });
 
-    it("should handle end of month correctly", () => {
-        testRecurrence({
+    it("should handle end of month correctly", async () => {
+        await testRecurrence({
             currentDate: "2023-04-30T00:00:00Z",
             expected: "2023-05-01T00:00:00Z",
             func: calculateNextDailyOccurrence,
@@ -119,8 +120,8 @@ describe("calculateNextDailyOccurrence", () => {
 
 describe("calculateNextWeeklyOccurrence", () => {
 
-    test("next occurrence without specified dayOfWeek", () => {
-        testRecurrence({
+    test("next occurrence without specified dayOfWeek", async () => {
+        await testRecurrence({
             currentDate: "2023-10-31T12:01:01Z",
             expected: "2023-11-07T12:01:01Z",
             func: calculateNextWeeklyOccurrence,
@@ -132,8 +133,8 @@ describe("calculateNextWeeklyOccurrence", () => {
         });
     });
 
-    test("next occurrence with specified dayOfWeek that is in the future of the current week", () => {
-        testRecurrence({
+    test("next occurrence with specified dayOfWeek that is in the future of the current week", async () => {
+        await testRecurrence({
             currentDate: "2023-10-31T12:00:00Z", // Tuesday
             expected: "2023-11-02T12:00:00Z",
             func: calculateNextWeeklyOccurrence,
@@ -146,8 +147,8 @@ describe("calculateNextWeeklyOccurrence", () => {
         });
     });
 
-    test("next occurrence with specified dayOfWeek that has already passed in the current week", () => {
-        testRecurrence({
+    test("next occurrence with specified dayOfWeek that has already passed in the current week", async () => {
+        await testRecurrence({
             currentDate: "2023-10-31T12:00:00Z", // Tuesday
             expected: "2023-11-06T12:00:00Z",
             func: calculateNextWeeklyOccurrence,
@@ -160,8 +161,8 @@ describe("calculateNextWeeklyOccurrence", () => {
         });
     });
 
-    test("next occurrence with dayOfWeek same as current day", () => {
-        testRecurrence({
+    test("next occurrence with dayOfWeek same as current day", async () => {
+        await testRecurrence({
             currentDate: "2023-10-31T12:00:00Z", // Tuesday
             expected: "2023-11-07T12:00:00Z",
             func: calculateNextWeeklyOccurrence,
@@ -174,8 +175,8 @@ describe("calculateNextWeeklyOccurrence", () => {
         });
     });
 
-    test("next occurrence with interval greater than 1 and no dayOfWeek", () => {
-        testRecurrence({
+    test("next occurrence with interval greater than 1 and no dayOfWeek", async () => {
+        await testRecurrence({
             currentDate: "2023-10-31T12:00:00Z",
             expected: "2023-11-21T12:00:00Z",
             func: calculateNextWeeklyOccurrence,
@@ -187,8 +188,8 @@ describe("calculateNextWeeklyOccurrence", () => {
         });
     });
 
-    test("next occurrence with interval greater than 1 and dayOfWeek", () => {
-        testRecurrence({
+    test("next occurrence with interval greater than 1 and dayOfWeek", async () => {
+        await testRecurrence({
             currentDate: "2023-10-31T12:00:00Z", // Tuesday
             expected: "2023-11-02T12:00:00Z",
             func: calculateNextWeeklyOccurrence,
@@ -204,8 +205,8 @@ describe("calculateNextWeeklyOccurrence", () => {
 });
 
 describe("calculateNextMonthlyOccurrence", () => {
-    test("should calculate the next occurrence in the current month, when the day hasn't happened yet", () => {
-        testRecurrence({
+    test("should calculate the next occurrence in the current month, when the day hasn't happened yet", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:00:00Z",
             expected: "2023-01-20T00:00:00Z",
             func: calculateNextMonthlyOccurrence,
@@ -217,8 +218,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should calculate the next occurrence in the next month, when the day has already passed", () => {
-        testRecurrence({
+    test("should calculate the next occurrence in the next month, when the day has already passed", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:08:09Z",
             expected: "2023-02-10T00:08:09Z",
             func: calculateNextMonthlyOccurrence,
@@ -231,8 +232,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should calculate the next occurrence for the same day when dayOfMonth is not set", () => {
-        testRecurrence({
+    test("should calculate the next occurrence for the same day when dayOfMonth is not set", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T01:00:00Z",
             expected: "2023-02-15T01:00:00Z",
             func: calculateNextMonthlyOccurrence,
@@ -244,8 +245,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should handle the case where the dayOfMonth exceeds the number of days in the month", () => {
-        testRecurrence({
+    test("should handle the case where the dayOfMonth exceeds the number of days in the month", async () => {
+        await testRecurrence({
             currentDate: "2023-02-15T08:32:00Z",
             expected: "2023-02-28T08:32:00Z",
             func: calculateNextMonthlyOccurrence,
@@ -258,8 +259,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should find the event later this month, even with the interval of 2", () => {
-        testRecurrence({
+    test("should find the event later this month, even with the interval of 2", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:16:00Z",
             expected: "2023-01-20T00:16:00Z",
             func: calculateNextMonthlyOccurrence,
@@ -272,8 +273,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should find the event 2 months from now, since the dayOfMonth has passed", () => {
-        testRecurrence({
+    test("should find the event 2 months from now, since the dayOfMonth has passed", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:00:00Z",
             expected: "2023-03-10T00:00:00Z",
             func: calculateNextMonthlyOccurrence,
@@ -286,8 +287,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should calculate the next occurrence 4 months later when dayOfMonth is not set", () => {
-        testRecurrence({
+    test("should calculate the next occurrence 4 months later when dayOfMonth is not set", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:00:07Z",
             expected: "2023-05-15T00:00:07Z",
             func: calculateNextMonthlyOccurrence,
@@ -299,8 +300,8 @@ describe("calculateNextMonthlyOccurrence", () => {
         });
     });
 
-    test("should calculate the next occurrence 4 months later with dayOfMonth set", () => {
-        testRecurrence({
+    test("should calculate the next occurrence 4 months later with dayOfMonth set", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:00:07Z",
             expected: "2023-05-14T00:00:07Z",
             func: calculateNextMonthlyOccurrence,
@@ -315,8 +316,8 @@ describe("calculateNextMonthlyOccurrence", () => {
 });
 
 describe("calculateNextYearlyOccurrence", () => {
-    test("should calculate the next occurrence for a specific month and day of the month", () => {
-        testRecurrence({
+    test("should calculate the next occurrence for a specific month and day of the month", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:00:00Z",
             expected: "2023-06-20T00:00:00Z",
             func: calculateNextYearlyOccurrence,
@@ -330,8 +331,8 @@ describe("calculateNextYearlyOccurrence", () => {
         });
     });
 
-    test("should work with february 29th on leap years", () => {
-        testRecurrence({
+    test("should work with february 29th on leap years", async () => {
+        await testRecurrence({
             currentDate: "2024-02-29T00:00:00Z",
             expected: "2028-02-29T00:00:00Z",
             func: calculateNextYearlyOccurrence,
@@ -345,8 +346,8 @@ describe("calculateNextYearlyOccurrence", () => {
         });
     });
 
-    test("should handle the case where the dayOfMonth exceeds the number of days in the month", () => {
-        testRecurrence({
+    test("should handle the case where the dayOfMonth exceeds the number of days in the month", async () => {
+        await testRecurrence({
             currentDate: "2023-02-15T08:32:00Z",
             expected: "2023-02-28T08:32:00Z",
             func: calculateNextYearlyOccurrence,
@@ -359,8 +360,8 @@ describe("calculateNextYearlyOccurrence", () => {
         });
     });
 
-    test("should handle fall DST transition properly", () => {
-        testRecurrence({
+    test("should handle fall DST transition properly", async () => {
+        await testRecurrence({
             currentDate: "2023-11-06T00:05:50Z", // After DST ends
             expected: "2024-11-03T00:05:50Z", // Should be just before the DST end date
             func: calculateNextYearlyOccurrence,
@@ -374,8 +375,8 @@ describe("calculateNextYearlyOccurrence", () => {
         });
     });
 
-    test("should calculate the next occurrence for the same day and month when month and dayOfMonth are not set", () => {
-        testRecurrence({
+    test("should calculate the next occurrence for the same day and month when month and dayOfMonth are not set", async () => {
+        await testRecurrence({
             currentDate: "2023-01-15T00:05:00Z",
             expected: "2024-01-15T00:05:00Z",
             func: calculateNextYearlyOccurrence,
@@ -387,8 +388,8 @@ describe("calculateNextYearlyOccurrence", () => {
         });
     });
 
-    test("should handle the case where the specified date is already passed in the current year", () => {
-        testRecurrence({
+    test("should handle the case where the specified date is already passed in the current year", async () => {
+        await testRecurrence({
             currentDate: "2023-07-15T00:00:10Z",
             expected: "2024-06-20T00:00:10Z",
             func: calculateNextYearlyOccurrence,
@@ -403,8 +404,8 @@ describe("calculateNextYearlyOccurrence", () => {
     });
 });
 
-type JumpFn = (scheduleStart: Date, recurrence: ScheduleRecurrence, timeframeStart: Date, timeZone?: string) => Date;
-const testJump = ({
+type JumpFn = (scheduleStart: Date, recurrence: ScheduleRecurrence, timeframeStart: Date, timeZone?: string) => Promise<Date>;
+const testJump = async ({
     scheduleStart,
     timeframeStart,
     expected,
@@ -418,10 +419,10 @@ const testJump = ({
     func: JumpFn,
     recurrence: ScheduleRecurrence,
     timeZone?: string,
-}): void => {
+}): Promise<void> => {
     const start = new Date(scheduleStart);
     const timeframe = new Date(timeframeStart);
-    const result = func(start, recurrence, timeframe, timeZone);
+    const result = await func(start, recurrence, timeframe, timeZone);
     const expectedResult = new Date(expected);
     expect(result.toISOString()).toBe(expectedResult.toISOString());
 };
@@ -436,8 +437,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         jest.restoreAllMocks();
     });
 
-    it("should jump to the first relevant daily occurrence", () => {
-        testJump({
+    it("should jump to the first relevant daily occurrence", async () => {
+        await testJump({
             scheduleStart: "2000-01-01T00:00:00Z",
             timeframeStart: "2023-01-03T00:00:00Z",
             recurrence: {
@@ -450,8 +451,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         });
     });
 
-    it("should respect timezone differences", () => {
-        testJump({
+    it("should respect timezone differences", async () => {
+        await testJump({
             scheduleStart: "2000-01-01T13:00:00Z",
             timeframeStart: "2023-01-03T12:00:00Z", // Adjust for time zone difference
             recurrence: {
@@ -464,8 +465,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         });
     });
 
-    it("should handle the schedule start being the same as the time frame start", () => {
-        testJump({
+    it("should handle the schedule start being the same as the time frame start", async () => {
+        await testJump({
             scheduleStart: "2023-01-01T01:02:03Z",
             timeframeStart: "2023-01-01T00:00:00Z",
             recurrence: {
@@ -478,8 +479,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         });
     });
 
-    it("should use the schedule start when the time frame is before the schedule", () => {
-        testJump({
+    it("should use the schedule start when the time frame is before the schedule", async () => {
+        await testJump({
             scheduleStart: "2023-01-10T00:00:00Z",
             timeframeStart: "2023-01-03T00:00:00Z",
             recurrence: {
@@ -490,7 +491,7 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
             timeZone: "UTC",
             func: jumpToFirstRelevantDailyOccurrence,
         });
-        testJump({
+        await testJump({
             scheduleStart: "2023-01-10T00:00:00Z",
             timeframeStart: "2023-01-03T00:00:00Z",
             recurrence: {
@@ -503,8 +504,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         });
     });
 
-    it("should work with different intervals", () => {
-        testJump({
+    it("should work with different intervals", async () => {
+        await testJump({
             scheduleStart: "2000-01-01T00:00:00Z",
             timeframeStart: "2023-01-02T00:00:00Z",
             recurrence: {
@@ -515,7 +516,7 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
             timeZone: "UTC",
             func: jumpToFirstRelevantDailyOccurrence,
         });
-        testJump({
+        await testJump({
             scheduleStart: "2000-01-01T00:00:00Z",
             timeframeStart: "2023-01-01T00:00:00Z", // Day before the previous timeframe start
             recurrence: {
@@ -528,8 +529,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         });
     });
 
-    it("should handle daylight savings changes", () => {
-        testJump({
+    it("should handle daylight savings changes", async () => {
+        await testJump({
             scheduleStart: "2023-03-01T00:00:00Z",
             timeframeStart: "2023-03-14T00:00:00Z", // After daylight savings time starts
             recurrence: {
@@ -542,8 +543,8 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         });
     });
 
-    it("should handle leap years correctly", () => {
-        testJump({
+    it("should handle leap years correctly", async () => {
+        await testJump({
             scheduleStart: "2020-02-24T00:00:00Z",
             timeframeStart: "2024-02-29T00:00:00Z", // Leap day
             recurrence: {
@@ -566,8 +567,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         jest.restoreAllMocks();
     });
 
-    it("should jump to the first relevant weekly occurrence", () => {
-        testJump({
+    it("should jump to the first relevant weekly occurrence", async () => {
+        await testJump({
             scheduleStart: "0000-01-01T00:00:00Z",
             timeframeStart: "2023-01-03T00:00:00Z", // Tuesday
             recurrence: {
@@ -581,8 +582,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         });
     });
 
-    it("should respect timezone differences", () => {
-        testJump({
+    it("should respect timezone differences", async () => {
+        await testJump({
             scheduleStart: "2000-01-01T13:00:00Z",
             timeframeStart: "2023-01-03T13:00:00Z", // Tuesday
             recurrence: {
@@ -596,8 +597,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         });
     });
 
-    it("should handle the schedule start being the same as the time frame start", () => {
-        testJump({
+    it("should handle the schedule start being the same as the time frame start", async () => {
+        await testJump({
             scheduleStart: "2023-01-01T00:04:20Z",
             timeframeStart: "2023-01-01T00:04:20Z",
             recurrence: {
@@ -611,8 +612,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         });
     });
 
-    it("should return the schedule start when the time frame is before the schedule", () => {
-        testJump({
+    it("should return the schedule start when the time frame is before the schedule", async () => {
+        await testJump({
             scheduleStart: "2023-01-10T00:00:00Z",
             timeframeStart: "2023-01-03T00:00:00Z",
             recurrence: {
@@ -625,8 +626,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         });
     });
 
-    it("should work with different intervals", () => {
-        testJump({
+    it("should work with different intervals", async () => {
+        await testJump({
             scheduleStart: "2000-01-01T00:00:00Z", // Sunday
             timeframeStart: "2023-01-05T00:00:00Z", // Thursday
             recurrence: {
@@ -638,7 +639,7 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
             timeZone: "UTC",
             func: jumpToFirstRelevantWeeklyOccurrence,
         });
-        testJump({
+        await testJump({
             scheduleStart: "2000-01-01T00:00:00Z", // Same as above
             timeframeStart: "2023-01-12T00:00:00Z", // Later Thursday
             recurrence: {
@@ -652,8 +653,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         });
     });
 
-    it("should handle daylight savings", () => {
-        testJump({
+    it("should handle daylight savings", async () => {
+        await testJump({
             scheduleStart: "2023-03-01T00:00:00Z",
             timeframeStart: "2023-03-14T00:00:00Z", // After daylight savings time starts
             recurrence: {
@@ -667,8 +668,8 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         });
     });
 
-    it("should handle leap years", () => {
-        testJump({
+    it("should handle leap years", async () => {
+        await testJump({
             scheduleStart: "2020-02-24T00:00:00Z", // A leap year Monday
             timeframeStart: "2024-02-29T00:00:00Z", // Leap day on Friday
             recurrence: {
@@ -693,8 +694,8 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
         jest.restoreAllMocks();
     });
 
-    it("should jump to the first relevant monthly occurrence", () => {
-        testJump({
+    it("should jump to the first relevant monthly occurrence", async () => {
+        await testJump({
             scheduleStart: "2000-01-01T10:02:03Z",
             timeframeStart: "2023-01-15T00:00:00Z",
             recurrence: {
@@ -708,8 +709,8 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
         });
     });
 
-    it("should handle monthly intervals correctly", () => {
-        testJump({
+    it("should handle monthly intervals correctly", async () => {
+        await testJump({
             scheduleStart: "2020-01-15T00:00:00Z",
             timeframeStart: "2023-04-10T00:00:00Z",
             recurrence: {
@@ -721,7 +722,7 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
             timeZone: "UTC",
             func: jumpToFirstRelevantMonthlyOccurrence,
         });
-        testJump({
+        await testJump({
             scheduleStart: "2020-01-15T00:00:00Z",
             timeframeStart: "2023-03-10T00:00:00Z", // The same as the previous test, but one month earlier
             recurrence: {
@@ -735,8 +736,8 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
         });
     });
 
-    it("should handle end of month dates correctly", () => {
-        testJump({
+    it("should handle end of month dates correctly", async () => {
+        await testJump({
             scheduleStart: "2020-01-31T00:00:00Z",
             timeframeStart: "2023-02-15T00:00:00Z",
             recurrence: {
@@ -750,8 +751,8 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
         });
     });
 
-    it("should use the schedule start when the timeframe is before the schedule for monthly recurrence", () => {
-        testJump({
+    it("should use the schedule start when the timeframe is before the schedule for monthly recurrence", async () => {
+        await testJump({
             scheduleStart: "2023-01-15T00:00:00Z",
             timeframeStart: "2022-01-10T00:00:00Z",
             recurrence: {
@@ -776,8 +777,8 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
         jest.restoreAllMocks();
     });
 
-    it("should jump to the first relevant yearly occurrence", () => {
-        testJump({
+    it("should jump to the first relevant yearly occurrence", async () => {
+        await testJump({
             scheduleStart: "2010-04-15T00:00:00Z",
             timeframeStart: "2023-01-01T00:00:00Z",
             recurrence: {
@@ -792,8 +793,8 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
         });
     });
 
-    it("should handle leap years correctly", () => {
-        testJump({
+    it("should handle leap years correctly", async () => {
+        await testJump({
             scheduleStart: "2016-02-29T00:00:00Z",
             timeframeStart: "2023-01-01T00:00:00Z",
             recurrence: {
@@ -806,7 +807,7 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
             timeZone: "UTC",
             func: jumpToFirstRelevantYearlyOccurrence,
         });
-        testJump({
+        await testJump({
             scheduleStart: "2016-02-29T00:00:00Z",
             timeframeStart: "2024-01-01T00:00:00Z",
             recurrence: {
@@ -821,8 +822,8 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
         });
     });
 
-    it("should respect multi-year intervals", () => {
-        testJump({
+    it("should respect multi-year intervals", async () => {
+        await testJump({
             scheduleStart: "0010-01-01T23:00:06Z",
             timeframeStart: "2023-01-01T00:00:00Z",
             recurrence: {
@@ -837,8 +838,8 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
         });
     });
 
-    it("should handle end of month dates correctly", () => {
-        testJump({
+    it("should handle end of month dates correctly", async () => {
+        await testJump({
             scheduleStart: "1492-01-31T00:00:00Z",
             timeframeStart: "2023-02-15T00:00:00Z",
             recurrence: {
@@ -853,8 +854,8 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
         });
     });
 
-    it("should use the schedule start when the timeframe is before the schedule for yearly recurrence", () => {
-        testJump({
+    it("should use the schedule start when the timeframe is before the schedule for yearly recurrence", async () => {
+        await testJump({
             scheduleStart: "2023-04-15T01:04:20Z",
             timeframeStart: "1874-01-01T00:00:00Z",
             recurrence: {
@@ -1009,7 +1010,6 @@ describe("applyExceptions", () => {
 
     it("should return the end time using duration if no explicit end time was set", () => {
         const exceptionStartTime = new Date("2024-01-01T00:00:11Z").toISOString();
-        const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
         schedule.exceptions.push({
             originalStartTime: exceptionStartTime,
             newStartTime: exceptionStartTime,
@@ -1018,11 +1018,11 @@ describe("applyExceptions", () => {
         testApplyException({
             currentStartTime: "2024-01-01T00:00:00Z",
             schedule,
-            duration: TWO_HOURS_IN_MS,
+            duration: HOURS_2_MS,
             timeZone: "Europe/Zurich",
             expected: {
                 start: "2024-01-01T00:00:11Z",
-                end: new Date(new Date(exceptionStartTime).getTime() + TWO_HOURS_IN_MS).toISOString(),
+                end: new Date(new Date(exceptionStartTime).getTime() + HOURS_2_MS).toISOString(),
             },
         });
     });
@@ -1123,7 +1123,7 @@ type OccurrenceTestParams = {
     timeZone: string;
 };
 
-const testCalculateOccurrences = ({
+const testCalculateOccurrences = async ({
     startTime,
     endTime,
     recurrences,
@@ -1132,7 +1132,7 @@ const testCalculateOccurrences = ({
     timeframeEnd,
     expectedOccurrences,
     timeZone,
-}: OccurrenceTestParams): void => {
+}: OccurrenceTestParams): Promise<void> => {
     // Create a full Schedule object with provided partial data and defaults
     const schedule: Schedule = {
         __typename: "Schedule",
@@ -1155,7 +1155,7 @@ const testCalculateOccurrences = ({
     const end = new Date(timeframeEnd);
 
     // Call the calculateOccurrences function
-    const occurrences = calculateOccurrences(schedule, start, end);
+    const occurrences = await calculateOccurrences(schedule, start, end);
 
     // Check if the number of occurrences is as expected
     expect(occurrences).toHaveLength(expectedOccurrences.length);
@@ -1180,8 +1180,8 @@ describe("calculateOccurrences", () => {
         jest.restoreAllMocks();
     });
 
-    it("calculates daily occurrence", () => {
-        testCalculateOccurrences({
+    it("calculates daily occurrence", async () => {
+        await testCalculateOccurrences({
             // The schedule is very long
             startTime: "2023-04-20T12:12:12Z",
             endTime: "9999-01-01T00:00:00Z",
@@ -1202,8 +1202,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("calculates weekly occurrences", () => {
-        testCalculateOccurrences({
+    it("calculates weekly occurrences", async () => {
+        await testCalculateOccurrences({
             // The schedule is very long
             startTime: "0720-01-01T00:00:00Z",
             endTime: "2040-01-01T00:00:00Z",
@@ -1226,8 +1226,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("calculates multiple weekly occurrences", () => {
-        testCalculateOccurrences({
+    it("calculates multiple weekly occurrences", async () => {
+        await testCalculateOccurrences({
             startTime: "2023-01-01T00:00:10Z",
             endTime: "2023-12-31T00:00:00Z",
             recurrences: [{
@@ -1250,8 +1250,8 @@ describe("calculateOccurrences", () => {
     });
 
 
-    it("calculates monthly occurrences", () => {
-        testCalculateOccurrences({
+    it("calculates monthly occurrences", async () => {
+        await testCalculateOccurrences({
             startTime: "2023-01-01T00:00:00Z",
             endTime: "2023-12-31T00:00:00Z",
             recurrences: [{
@@ -1272,8 +1272,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("calculates yearly occurrences", () => {
-        testCalculateOccurrences({
+    it("calculates yearly occurrences", async () => {
+        await testCalculateOccurrences({
             startTime: "2023-01-01T00:14:00Z",
             endTime: "2023-12-31T00:00:00Z",
             recurrences: [{
@@ -1292,8 +1292,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("calculates an occurrence which starts exactly at the timeframe start", () => {
-        testCalculateOccurrences({
+    it("calculates an occurrence which starts exactly at the timeframe start", async () => {
+        await testCalculateOccurrences({
             startTime: "2023-01-01T00:00:00Z",
             endTime: "2023-06-01T00:00:00Z", // Schedule ends on June 1st, 2023
             recurrences: [{
@@ -1318,8 +1318,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("calculates an occurrence which starts exactly at the timeframe end", () => {
-        testCalculateOccurrences({
+    it("calculates an occurrence which starts exactly at the timeframe end", async () => {
+        await testCalculateOccurrences({
             startTime: "2023-01-01T13:00:00Z",
             endTime: "2023-06-02T13:00:00Z",
             recurrences: [{
@@ -1339,9 +1339,9 @@ describe("calculateOccurrences", () => {
 
     });
 
-    it("Returns no occurrences for a schedule with no applicable recurrences", () => {
+    it("Returns no occurrences for a schedule with no applicable recurrences", async () => {
         // Same as previous test, but the recurrence ends just before the occurrence would start
-        testCalculateOccurrences({
+        await testCalculateOccurrences({
             startTime: "1923-01-01T13:00:00Z",
             endTime: "2023-06-02T13:00:00Z",
             recurrences: [{
@@ -1358,8 +1358,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("Returns no occurrences for a schedule with no recurrences", () => {
-        testCalculateOccurrences({
+    it("Returns no occurrences for a schedule with no recurrences", async () => {
+        await testCalculateOccurrences({
             startTime: "2023-01-01T13:00:00Z",
             endTime: "2023-06-02T13:00:00Z",
             recurrences: [],
@@ -1370,8 +1370,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("Returns no occurrences for a schedule with an applicable recurrence, but an exception which cancels it out", () => {
-        testCalculateOccurrences({
+    it("Returns no occurrences for a schedule with an applicable recurrence, but an exception which cancels it out", async () => {
+        await testCalculateOccurrences({
             startTime: "1920-01-01T00:00:12Z",
             endTime: "2040-12-21T00:00:00Z",
             recurrences: [{
@@ -1392,8 +1392,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("Exceptions reschedule correctly using newEndTime", () => {
-        testCalculateOccurrences({
+    it("Exceptions reschedule correctly using newEndTime", async () => {
+        await testCalculateOccurrences({
             startTime: "1920-01-01T00:00:12Z",
             endTime: "2040-12-21T00:00:00Z",
             recurrences: [{
@@ -1416,8 +1416,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("Exceptions reschedule correctly using recurrence duration", () => {
-        testCalculateOccurrences({
+    it("Exceptions reschedule correctly using recurrence duration", async () => {
+        await testCalculateOccurrences({
             startTime: "1920-01-01T00:00:12Z",
             endTime: "2040-12-21T00:00:00Z",
             recurrences: [{
@@ -1440,8 +1440,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("No occurrences are returned if the time frame is longer than a year", () => {
-        testCalculateOccurrences({
+    it("No occurrences are returned if the time frame is longer than a year", async () => {
+        await testCalculateOccurrences({
             startTime: "0001-01-01T00:00:00Z",
             endTime: "9999-01-01T00:00:00Z",
             recurrences: [{
@@ -1456,8 +1456,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("No occurrences are returned if the time frame start is after the time frame end", () => {
-        testCalculateOccurrences({
+    it("No occurrences are returned if the time frame start is after the time frame end", async () => {
+        await testCalculateOccurrences({
             startTime: "0001-01-01T00:00:00Z",
             endTime: "9999-01-01T00:00:00Z",
             recurrences: [{
@@ -1472,8 +1472,8 @@ describe("calculateOccurrences", () => {
         });
     });
 
-    it("Ensures that we handle leap years correctly", () => {
-        testCalculateOccurrences({
+    it("Ensures that we handle leap years correctly", async () => {
+        await testCalculateOccurrences({
             startTime: "2020-02-29T10:00:10Z",
             endTime: "2029-02-29T00:00:00Z",
             recurrences: [{

@@ -5,9 +5,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { CancelIcon, DeleteIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { pagePaddingBottom } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { BulkDeleteDialogProps } from "../types";
+import { useWindowSize } from "hooks/useWindowSize";
 
 // Delete confirmation prompt is 2 random bunny words
 const BUNNY_WORDS = ["bunny", "rabbit", "boop", "binky", "zoom", "ears", "fluffy", "hop", "tail", "whiskers", "burrow", "nose", "grass", "meadow"];
@@ -21,8 +23,9 @@ export const BulkDeleteDialog = ({
     isOpen,
     selectedData,
 }: BulkDeleteDialogProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const [selectedItems, setSelectedItems] = useState(selectedData);
     const [confirmationInput, setConfirmationInput] = useState("");
@@ -66,7 +69,7 @@ export const BulkDeleteDialog = ({
                 onClose={onCancel}
                 title={t("DeleteBulkConfirm")}
             />
-            <DialogContent>
+            <DialogContent sx={{ paddingBottom: isMobile ? pagePaddingBottom : 0, marginBottom: 2 }}>
                 <Typography variant="body2" color="error" mb={2}>{t("DeleteBulkWarning")}</Typography>
                 <FormControlLabel
                     control={

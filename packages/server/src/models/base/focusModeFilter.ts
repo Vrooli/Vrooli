@@ -8,7 +8,7 @@ import { FocusModeFilterModelLogic, FocusModeModelInfo, FocusModeModelLogic, Tag
 const __typename = "FocusModeFilter" as const;
 export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.focus_mode_filter,
+    dbTable: "focus_mode_filter",
     display: () => ({
         label: {
             select: () => ({ id: true, tag: { select: ModelMap.get<TagModelLogic>("Tag").display().label.select() } }),
@@ -23,7 +23,7 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
                 filterType: data.filterType,
                 // ...(await shapeHelper({ relation: "focusMode", relTypes: ['Connect'], isOneToOne: true,   objectType: 'FocusMode', parentRelationshipName: 'filters', data, ...rest })),
                 // Can't use tagShapeHelper because in this case there isn't a join table between them
-                ...(await shapeHelper({ relation: "tag", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Tag", parentRelationshipName: "scheduleFilters", data, ...rest })),
+                tag: await shapeHelper({ relation: "tag", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Tag", parentRelationshipName: "scheduleFilters", data, ...rest }),
             }) as any,
         },
         yup: focusModeFilterValidation,

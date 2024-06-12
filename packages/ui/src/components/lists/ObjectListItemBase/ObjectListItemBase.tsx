@@ -1,14 +1,14 @@
-import { Chat, ChatInvite, ChatParticipant, isOfType, Meeting, Member, MemberInvite, ReactionFor, uuid } from "@local/shared";
+import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
 import { Avatar, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import usePress from "hooks/usePress";
-import { BotIcon, EditIcon, OrganizationIcon, UserIcon } from "icons";
+import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -17,10 +17,10 @@ import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getBookmarkFor, getCounts, getDisplay, getYou, ListObject, placeholderColor } from "utils/display/listTools";
+import { getBookmarkFor, getCounts, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectEditUrl, getObjectUrl } from "utils/navigation/openObject";
+import { getObjectEditUrl } from "utils/navigation/openObject";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
 import { ObjectListItemProps } from "../types";
@@ -129,14 +129,14 @@ export function ObjectListItemBase<T extends ListObject>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        // Show icons for organizations, users, and objects with display organizations/users
-        if (isOfType(object, "Organization", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
-            type OrgOrUser = { __typename: "Organization" | "User", profileImage: string, updated_at: string, isBot?: boolean };
+        // Show icons for teams, users, and objects with display teams/users
+        if (isOfType(object, "Team", "User", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) {
+            type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updated_at: string, isBot?: boolean };
             const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
             const isBot = orgOrUser.isBot;
             let Icon: SvgComponent;
-            if (object.__typename === "Organization") {
-                Icon = OrganizationIcon;
+            if (object.__typename === "Team") {
+                Icon = TeamIcon;
             } else if (isBot) {
                 Icon = BotIcon;
             } else {
@@ -188,6 +188,10 @@ export function ObjectListItemBase<T extends ListObject>({
             }
             // Otherwise, show a group
             return <ProfileGroup users={attendeesOrParticipants.map((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Chat["participants"][0])?.user ?? p as Meeting["attendees"][0])} />;
+        }
+        // Other custom object icons
+        if (isOfType(object, "BookmarkList")) {
+            return <BookmarkFilledIcon fill="#cbae30" width={isMobile ? "40px" : "50px"} height={isMobile ? "40px" : "50px"} />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -245,7 +249,6 @@ export function ObjectListItemBase<T extends ListObject>({
                 {/* Add upvote/downvote if mobile */}
                 {isMobile && canReact && object && (
                     <VoteButton
-                        direction='row'
                         disabled={!canReact}
                         emoji={reaction}
                         objectId={object?.id ?? ""}
@@ -333,8 +336,8 @@ export function ObjectListItemBase<T extends ListObject>({
                                 pointerEvents: "none",
                             }}>
                                 <ListItemText primary={titleOverride ?? title} sx={{ display: "contents" }} />
-                                {adornments.map((Adornment) => (
-                                    <Box sx={{
+                                {adornments.map(({ Adornment, key }) => (
+                                    <Box key={key} sx={{
                                         width: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
                                         height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
                                     }}>

@@ -26,6 +26,7 @@ export const typeDef = gql`
         documentationLink: String
         isPrivate: Boolean!
         isComplete: Boolean
+        schemaText: String
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -40,6 +41,7 @@ export const typeDef = gql`
         documentationLink: String
         isPrivate: Boolean
         isComplete: Boolean
+        schemaText: String
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -61,6 +63,7 @@ export const typeDef = gql`
         isPrivate: Boolean!
         isComplete: Boolean!
         resourceList: ResourceList
+        schemaText: String
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
@@ -113,8 +116,8 @@ export const typeDef = gql`
         minScoreRoot: Int
         minViewsRoot: Int
         createdByIdRoot: ID
+        ownedByTeamIdRoot: ID
         ownedByUserIdRoot: ID
-        ownedByOrganizationIdRoot: ID
         searchString: String
         sortBy: ApiVersionSortBy
         tagsRoot: [String!]

@@ -6,7 +6,7 @@ import { useBookmarker } from "hooks/useBookmarker";
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ObjectActionComplete } from "utils/actions/objectActions";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { BookmarkButtonProps } from "../types";
@@ -35,7 +35,7 @@ export const BookmarkButton = ({
     const openSelect = useCallback(() => { setIsSelectOpen(true); }, []);
     const closeSelect = useCallback(() => { setIsSelectOpen(false); }, []);
 
-    const onActionComplete = useCallback((action: ObjectActionComplete | `${ObjectActionComplete}`, data: any) => {
+    const onActionComplete = useCallback(<T extends keyof ActionCompletePayloads>(action: T, data: ActionCompletePayloads[T]) => {
         switch (action) {
             // When a bookmark is created, we assign a list automatically. 
             // So we must show a snackbar to inform the user that the bookmark was created, 

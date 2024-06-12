@@ -79,7 +79,7 @@ export const LinkInput = ({
                         fullWidth
                         autoFocus={autoFocus}
                         name={name}
-                        label={label ?? t("Link")}
+                        label={label ?? t("Link", { count: 1 })}
                         as={TextInput}
                         placeholder={"https://example.com"}
                         tabIndex={tabIndex}

@@ -1,13 +1,15 @@
 import { exists, GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { ModelMap } from "../../models/base";
 import { transfer } from "../../models/base/transfer";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
     completedAt: Date | null,
-}
+};
 
 type ObjectTriggerData = {
     hasCompleteAndPublic: boolean,
@@ -16,15 +18,63 @@ type ObjectTriggerData = {
     hasParent: boolean,
     owner: {
         id: string,
-        __typename: "User" | "Organization",
+        __typename: "User" | "Team",
     }
-}
+};
+
+type PreShapeRootParams = {
+    Create: {
+        input: {
+            id: string,
+            isPrivate?: boolean | null | undefined,
+            ownedByTeamConnect?: string | null | undefined,
+            ownedByUserConnect?: string | null | undefined,
+            parentConnect?: string | null | undefined,
+            versionsCreate?: {
+                id: string,
+                isComplete?: boolean | null | undefined,
+                isPrivate?: boolean | null | undefined,
+            }[] | null | undefined,
+        }
+    }[],
+    Update: {
+        input: {
+            id: string,
+            isPrivate?: boolean | null | undefined,
+            ownedByTeamConnect?: string | null | undefined,
+            ownedByUserConnect?: string | null | undefined,
+            parentConnect?: string | null | undefined,
+            versionsCreate?: {
+                id: string,
+                isComplete?: boolean | null | undefined,
+                isPrivate?: boolean | null | undefined,
+            }[] | null | undefined,
+            versionsUpdate?: {
+                id: string,
+                isComplete?: boolean | null | undefined,
+                isPrivate?: boolean | null | undefined,
+            }[] | null | undefined,
+            versionsDelete?: string[] | null | undefined,
+        }
+    }[],
+    Delete: {
+        input: string;
+    }[],
+    objectType: GqlModelType | `${GqlModelType}`,
+    userData: SessionUserToken,
+};
+
+export type PreShapeRootResult = {
+    versionMap: Record<string, HasCompleteVersionData>,
+    triggerMap: Record<string, { hasCompleteAndPublic: boolean, wasCompleteAndPublic: boolean }>,
+    transferMap: Record<string, boolean>,
+};
 
 const originalDataSelect = {
     id: true,
     hasBeenTransferred: true,
     isPrivate: true,
-    ownedByOrganization: { select: { id: true } },
+    ownedByTeam: { select: { id: true } },
     ownedByUser: { select: { id: true } },
     parent: { select: { id: true } },
     versions: {
@@ -48,56 +98,10 @@ export const preShapeRoot = async ({
     Update,
     Delete,
     objectType,
-    prisma,
     userData,
-}: {
-    Create: {
-        input: {
-            id: string,
-            isPrivate?: boolean | null | undefined,
-            ownedByUserConnect?: string | null | undefined,
-            ownedByOrganizationConnect?: string | null | undefined,
-            parentConnect?: string | null | undefined,
-            versionsCreate?: {
-                id: string,
-                isComplete?: boolean | null | undefined,
-                isPrivate?: boolean | null | undefined,
-            }[] | null | undefined,
-        }
-    }[],
-    Update: {
-        input: {
-            id: string,
-            isPrivate?: boolean | null | undefined,
-            ownedByUserConnect?: string | null | undefined,
-            ownedByOrganizationConnect?: string | null | undefined,
-            parentConnect?: string | null | undefined,
-            versionsCreate?: {
-                id: string,
-                isComplete?: boolean | null | undefined,
-                isPrivate?: boolean | null | undefined,
-            }[] | null | undefined,
-            versionsUpdate?: {
-                id: string,
-                isComplete?: boolean | null | undefined,
-                isPrivate?: boolean | null | undefined,
-            }[] | null | undefined,
-            versionsDelete?: string[] | null | undefined,
-        }
-    }[],
-    Delete: {
-        input: string;
-    }[],
-    objectType: GqlModelType | `${GqlModelType}`,
-    prisma: PrismaType,
-    userData: SessionUserToken,
-}): Promise<{
-    versionMap: Record<string, HasCompleteVersionData>,
-    triggerMap: Record<string, { hasCompleteAndPublic: boolean, wasCompleteAndPublic: boolean }>,
-    transferMap: Record<string, boolean>,
-}> => {
-    // Get prisma delegate
-    const { delegate } = ModelMap.getLogic(["delegate"], objectType);
+}: PreShapeRootParams): Promise<PreShapeRootResult> => {
+    // Get db table
+    const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};
@@ -115,15 +119,15 @@ export const preShapeRoot = async ({
             hasBeenTransferred: false, // Doesn't matter
             hasParent: typeof input.parentConnect === "string",
             owner: {
-                id: (input.ownedByUserConnect ?? input.ownedByOrganizationConnect) as string,
-                __typename: input.ownedByUserConnect ? "User" : "Organization",
+                id: (input.ownedByUserConnect ?? input.ownedByTeamConnect) as string,
+                __typename: input.ownedByUserConnect ? "User" : "Team",
             },
         };
     }
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
-        const originalData = await delegate(prisma).findMany({
+        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
@@ -161,8 +165,8 @@ export const preShapeRoot = async ({
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
                 owner: {
-                    id: original.ownedByUser?.id ?? original.ownedByOrganization?.id,
-                    __typename: original.ownedByUser ? "User" : "Organization",
+                    id: original.ownedByUser?.id ?? original.ownedByTeam?.id,
+                    __typename: original.ownedByUser ? "User" : "Team",
                 },
             };
         }
@@ -170,7 +174,7 @@ export const preShapeRoot = async ({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
-        const originalData = await delegate(prisma).findMany({
+        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });
@@ -187,8 +191,8 @@ export const preShapeRoot = async ({
                 // TODO owner might be changed here depending on how triggers are implemented.
                 // For now, using original owner
                 owner: {
-                    id: original.ownedByUser?.id ?? original.ownedByOrganization?.id,
-                    __typename: original.ownedByUser ? "User" : "Organization",
+                    id: original.ownedByUser?.id ?? original.ownedByTeam?.id,
+                    __typename: original.ownedByUser ? "User" : "Team",
                 },
             };
         }
@@ -199,7 +203,7 @@ export const preShapeRoot = async ({
         .filter(([id]) => !Delete.some(d => d.input === id))
         .map(([id, data]) => [id, data.owner]);
     const ownersMap = Object.fromEntries(ownersEntries);
-    const requireTransfers = await transfer(prisma).checkTransferRequests(Object.values(ownersMap), userData);
+    const requireTransfers = await transfer().checkTransferRequests(Object.values(ownersMap), userData);
     for (let i = 0; i < requireTransfers.length; i++) {
         const id = Object.keys(ownersMap)[i];
         transferMap[id] = requireTransfers[i];

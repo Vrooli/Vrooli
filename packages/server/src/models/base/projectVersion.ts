@@ -7,17 +7,21 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
+import { prismaInstance } from "../../db/instance";
 import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
+import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ProjectVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
 import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic, RunProjectModelLogic } from "./types";
 
+type ProjectVersionPre = PreShapeVersionResult;
+
 const __typename = "ProjectVersion" as const;
 export const ProjectVersionModel: ProjectVersionModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.project_version,
+    dbTable: "project_version",
+    dbTranslationTable: "project_version_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -42,13 +46,12 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     format: ProjectVersionFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
-                const { Create, Update, Delete, prisma, userData } = params;
+            pre: async (params): Promise<ProjectVersionPre> => {
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
-                    prisma,
                     Update,
                     userData,
                 });
@@ -56,26 +59,32 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: data.isPrivate,
-                isComplete: noNull(data.isComplete),
-                versionLabel: data.versionLabel,
-                versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
-                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                versionLabel: noNull(data.versionLabel),
-                versionNotes: noNull(data.versionNotes),
-                ...(await shapeHelper({ relation: "directories", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest })),
-                ...(await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest })),
-                // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: rest.preMap[__typename].embeddingNeedsUpdateMap[data.id], data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as ProjectVersionPre;
+                return {
+                    id: data.id,
+                    isPrivate: data.isPrivate,
+                    isComplete: noNull(data.isComplete),
+                    versionLabel: data.versionLabel,
+                    versionNotes: noNull(data.versionNotes),
+                    directories: await shapeHelper({ relation: "directories", relTypes: ["Create"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
+                    // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), //TODO needs join table
+                    translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as ProjectVersionPre;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    versionLabel: noNull(data.versionLabel),
+                    versionNotes: noNull(data.versionNotes),
+                    directories: await shapeHelper({ relation: "directories", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "projectVersion", data, ...rest }),
+                    root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
+                    // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), needs join table
+                    translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {
@@ -89,7 +98,6 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //      * Custom search query for querying items in a project version
     //      */
     //     async searchContents(
-    //         prisma: PrismaType,
     //         req: Request,
     //         input: ProjectVersionContentsSearchInput,
     //         info: GraphQLInfo | PartialGraphQLInfo,
@@ -125,7 +133,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined
     //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
     //         // Find requested search array
-    //         const searchResults = await prisma.comment.findMany({
+    //         const searchResults = await prismaInstance.comment.findMany({
     //             where,
     //             orderBy,
     //             take: input.take ?? 10,
@@ -142,13 +150,13 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             threads: [],
     //         }
     //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-    //         const totalInThread = input.after ? undefined : await prisma.comment.count({
+    //         const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
     //             where: { ...where }
     //         });
     //         // Calculate end cursor
     //         const endCursor = searchResults[searchResults.length - 1].id;
     //         // If not as nestLimit, recurse with all result IDs
-    //         const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
+    //         const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req.session), {
     //             ids: searchResults.map(r => r.id),
     //             take: input.take ?? 10,
     //             sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -165,7 +173,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
     //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-    //         comments = await addSupplementalFields(prisma, getUser(req.session), comments, partialInfo);
+    //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
     //         const shapeThreads = (threads: CommentThread[]) => {
@@ -204,8 +212,9 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             createdTimeFrame: true,
             directoryListingsId: true,
             isCompleteWithRoot: true,
-            isCompleteWithRootExcludeOwnedByOrganizationId: true,
+            isCompleteWithRootExcludeOwnedByTeamId: true,
             isCompleteWithRootExcludeOwnedByUserId: true,
+            isLatest: true,
             maxComplexity: true,
             maxSimplicity: true,
             maxTimesCompleted: true,
@@ -218,7 +227,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             minBookmarksRoot: true,
             minScoreRoot: true,
             minViewsRoot: true,
-            ownedByOrganizationIdRoot: true,
+            ownedByTeamIdRoot: true,
             ownedByUserIdRoot: true,
             rootId: true,
             tagsRoot: true,
@@ -235,7 +244,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
+            toGraphQL: async ({ ids, objects, partial, userData }) => {
                 const runs = async () => {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 
@@ -245,7 +254,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                         projectVersionId: true,
                     };
                     // Query runs made by user
-                    let runs: any[] = await prisma.run_project.findMany({
+                    let runs: any[] = await prismaInstance.run_project.findMany({
                         where: {
                             AND: [
                                 { projectVersion: { root: { id: { in: ids } } } },
@@ -257,14 +266,14 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     // Format runs to GraphQL
                     runs = runs.map(r => modelToGql(r, runPartial));
                     // Add supplemental fields
-                    runs = await addSupplementalFields(prisma, userData, runs, runPartial);
+                    runs = await addSupplementalFields(userData, runs, runPartial);
                     // Split runs by id
                     const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
                     return projectRuns;
                 };
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                         runs: await runs(),
                     },
                 };

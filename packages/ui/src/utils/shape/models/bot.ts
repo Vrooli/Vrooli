@@ -1,9 +1,10 @@
 import { BotCreateInput, BotUpdateInput, User } from "@local/shared";
 import { ShapeModel } from "types";
+import { LlmModel } from "utils/botUtils";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 import { shapeUserTranslation } from "./user";
 
-/** Translation for bot-specific properties (which are stringified and stored in `isBot` field) */
+/** Translation for bot-specific properties (which are stringified and stored in `botSettings` field) */
 export type BotTranslationShape = {
     id: string;
     language: string;
@@ -13,7 +14,7 @@ export type BotTranslationShape = {
     keyPhrases?: string | null;
     occupation?: string | null;
     persona?: string | null;
-    startMessage?: string | null;
+    startingMessage?: string | null;
     tone?: string | null;
 }
 
@@ -22,19 +23,20 @@ export type BotShape = Pick<User, "id" | "handle" | "isBotDepictingPerson" | "is
     bannerImage?: string | File | null;
     creativity?: number | null;
     isBot?: true;
+    model: LlmModel["value"],
     profileImage?: string | File | null;
     translations?: BotTranslationShape[] | null;
     verbosity?: number | null;
 }
 
 export const shapeBotTranslation: ShapeModel<BotTranslationShape, Record<string, string | number>, Record<string, string | number>> = {
-    create: (d) => createPrims(d, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
+    create: (d) => createPrims(d, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startingMessage", "tone"),
     /** 
      * Unlike typical updates, we want to include every field so that 
      * we can stringify the entire object and store it in the `botSettings` field. 
      * This means we'll use `createPrims` again.
      **/
-    update: (_, u) => createPrims(u, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startMessage", "tone"),
+    update: (_, u) => createPrims(u, "language", "bias", "domainKnowledge", "keyPhrases", "occupation", "persona", "startingMessage", "tone"),
 };
 
 export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
@@ -47,6 +49,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
             isBot: true,
             botSettings: JSON.stringify({
                 translations: textSettings,
+                model: d.model,
                 creativity: d.creativity ?? undefined,
                 verbosity: d.verbosity ?? undefined,
             }),
@@ -58,7 +61,6 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         // Extract bot settings from translations. 
         // NOTE: We're using createRel again because we want to include every field
         const textData = createRel(u, "translations", ["Create"], "many", shapeBotTranslation);
-        console.log("SHAPE BOT GOT TEXT DATA", textData, o, u);
         // Convert created to object, where keys are language codes and values are the bot settings
         const textSettings = Object.fromEntries(textData.translationsCreate?.map(({ language, ...rest }) => [language, rest]) ?? []);
         // Since we set the original to empty array, we need to manually remove the deleted translations (i.e. translations in the original but not in the update)
@@ -69,6 +71,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
         return shapeUpdate(u, {
             botSettings: JSON.stringify({
                 translations: textSettings,
+                model: u.model,
                 creativity: u.creativity ?? undefined,
                 verbosity: u.verbosity ?? undefined,
             }),

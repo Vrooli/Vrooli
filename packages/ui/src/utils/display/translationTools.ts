@@ -1,13 +1,15 @@
 import { CommonKey, ErrorKey, Session, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
+import { FormErrors } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { ObjectSchema, ValidationError } from "yup";
 
+type NestedString = string | string[] | { [key: string]: NestedString };
 export type TranslationObject = {
     id: string,
     language: string,
-    [key: string]: any,
+    [key: string]: NestedString,
 }
 
 /**
@@ -349,6 +351,10 @@ type LocaleLoader = () => Promise<{ default: Locale }>;
  * Maps date-fns locale codes to their corresponding loader functions. 
  * It would be nice if we could import like import('date-fns/locale/${locale}), 
  * but that doesn't work for some reason.
+ * 
+ * NOTE: Each language with region variants should contain an entry without 
+ * the region code, which we can fallback to if the requested region is 
+ * unavailable.
  */
 const localeLoaders: Record<string, LocaleLoader> = {
     "af": () => import("date-fns/locale/af"),
@@ -379,11 +385,13 @@ const localeLoaders: Record<string, LocaleLoader> = {
     "en-NZ": () => import("date-fns/locale/en-NZ"),
     "en-US": () => import("date-fns/locale/en-US"),
     "en-ZA": () => import("date-fns/locale/en-ZA"),
+    "en": () => import("date-fns/locale/en-US"),
     "eo": () => import("date-fns/locale/eo"),
     "es": () => import("date-fns/locale/es"),
     "et": () => import("date-fns/locale/et"),
     "eu": () => import("date-fns/locale/eu"),
     "fa-IR": () => import("date-fns/locale/fa-IR"),
+    "fa": () => import("date-fns/locale/fa-IR"),
     "fi": () => import("date-fns/locale/fi"),
     "fr-CA": () => import("date-fns/locale/fr-CA"),
     "fr-CH": () => import("date-fns/locale/fr-CH"),
@@ -444,10 +452,11 @@ const localeLoaders: Record<string, LocaleLoader> = {
     "zh-CN": () => import("date-fns/locale/zh-CN"),
     "zh-HK": () => import("date-fns/locale/zh-HK"),
     "zh-TW": () => import("date-fns/locale/zh-TW"),
+    "zh": () => import("date-fns/locale/zh-HK"),
 };
 
 export const loadLocale = async (locale: string): Promise<Locale> => {
-    const loader = localeLoaders[locale] || localeLoaders["en-US"];
+    const loader = localeLoaders[locale] ?? localeLoaders[getLanguageSubtag(locale)] ?? localeLoaders["en-US"];
     const module = await loader();
     return module.default;
 };
@@ -461,17 +470,24 @@ export const loadLocale = async (locale: string): Promise<Locale> => {
  */
 export const getTranslation = <
     Translation extends { language: string },
->(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny = true): Partial<Translation> => {
-    if (!obj || !obj.translations) return {};
-    // Loop through translations
-    for (const translation of obj.translations) {
-        // If this translation is one of the languages we're looking for
-        if (languages.includes(translation.language)) {
-            return translation;
+>(
+    obj: { translations?: Translation[] | null | undefined } | null | undefined,
+    languages: readonly string[],
+    showAny = true,
+): Partial<Translation> => {
+    if (!obj || !Array.isArray(obj.translations)) return {};
+    // Convert user languages to lowercase for case-insensitive comparison
+    const lowerCaseLanguages = languages.map(lang => lang.toLowerCase());
+    // Loop through user's preferred languages first
+    for (const preferredLanguage of lowerCaseLanguages) {
+        const foundTranslation = obj.translations.find(translation => translation.language.toLowerCase() === preferredLanguage);
+        if (foundTranslation) {
+            return foundTranslation;
         }
     }
+    // If showAny is true and there's at least one translation, return the first one
     if (showAny && obj.translations.length > 0) return obj.translations[0];
-    // If we didn't find a translation, return an empty object
+    // If no translation matches the user's preferences, return an empty object
     return {};
 };
 
@@ -531,17 +547,25 @@ export const updateTranslation = <
     Translation extends { id: string, language: string },
     Obj extends { translations: Translation[] }
 >(objectWithTranslation: Obj, translation: Translation): Translation[] => {
-    if (!objectWithTranslation.translations) return [];
-    let translationFound = false;
-    const translations: Translation[] = [];
-    for (const existingTranslation of objectWithTranslation.translations) {
-        if (existingTranslation.language === translation.language) {
-            translations.push({ ...translation });
-            translationFound = true;
-        } else {
-            translations.push(existingTranslation);
-        }
+    // Check for valid objectWithTranslation and its translations
+    if (!objectWithTranslation?.translations) return [];
+
+    // Check if the translation object is complete with necessary properties
+    if (!translation.id || !translation.language) {
+        // Return the original translations if the provided translation is incomplete
+        return objectWithTranslation.translations;
     }
+
+    let translationFound = false;
+    const translations: Translation[] = objectWithTranslation.translations.map(existingTranslation => {
+        if (existingTranslation.language === translation.language) {
+            translationFound = true;
+            return { ...translation };
+        } else {
+            return existingTranslation;
+        }
+    });
+
     if (!translationFound) {
         translations.push(translation);
     }
@@ -549,14 +573,14 @@ export const updateTranslation = <
 };
 
 /**
- * Strips a language IETF code down to the subtag (e.g. en-US becomes en)
+ * Strips a language IETF code down to its lowercase subtag (e.g. EN-US becomes en)
  * @param language IETF language code
  * @returns Subtag of language code
  */
 export const getLanguageSubtag = (language: string): string => {
-    if (!language) return "";
+    if (typeof language !== "string" || language.length === 0) return "";
     const parts = language.split("-");
-    return parts[0];
+    return parts[0].trim().toLowerCase(); // Lowercased for comparisons
 };
 
 /**
@@ -611,9 +635,13 @@ export const getUserLocale = (session: Session | null | undefined): string => {
     );
 
     return (
+        // Most preferred language is one in both the navigator (i.e. browser/system) and user languages (i.e session data)
         findMatchingLocale(navLanguagesInUserLanguages) ||
+        // Next best language is one in the user languages
         findMatchingLocale(userLanguages) ||
+        // Next best language is one in the navigator languages
         findMatchingLocale(navigatorLanguages) ||
+        // Default to American English
         "en-US"
     );
 };
@@ -625,6 +653,14 @@ export const getUserLocale = (session: Session | null | undefined): string => {
  * @returns The most preferred language
  */
 export const getPreferredLanguage = (availableLanguages: string[], userLanguages: string[]): string => {
+    if (!Array.isArray(availableLanguages) || availableLanguages.length === 0) {
+        // If no available languages, return first user language or "en"
+        return Array.isArray(userLanguages) && userLanguages.length > 0 ? userLanguages[0] : "en";
+    }
+    if (!Array.isArray(userLanguages) || userLanguages.length === 0) {
+        // If no user languages, return the first available language
+        return availableLanguages[0];
+    }
     // Loop through user languages
     for (const userLanguage of userLanguages) {
         // If this language is available, return it
@@ -639,6 +675,10 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
  * @param label The label to shorten
  */
 export const getShortenedLabel = (label: string) => {
+    // Verify that the input is a string.
+    if (typeof label !== "string" || label.length === 0) {
+        return "";
+    }
     // Check if the label contains at least one Han (Chinese) character.
     const hasHan = /[\u4e00-\u9fff]/.test(label);
     if (hasHan) {
@@ -658,7 +698,7 @@ export const getShortenedLabel = (label: string) => {
 export const getTranslationData = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(field: FieldInputProps<unknown>, meta: FieldMetaProps<unknown>, language: string): {
+>(field: FieldInputProps<TranslationObject[]>, meta: FieldMetaProps<unknown>, language: string): {
     error: { [key in keyof Values[KeyField][0]]: string } | undefined,
     index: number,
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
@@ -673,31 +713,12 @@ export const getTranslationData = <
 };
 
 /**
- * Handles onBlurs for translation fields in a formik object
- */
-export const handleTranslationBlur = (
-    field: FieldInputProps<object>,
-    meta: FieldMetaProps<object>,
-    event: { target: { name: string } },
-    language: string,
-) => {
-    // Get field name from event
-    const { name: blurredField } = event.target;
-    // Check if field has already been touched
-    const touched = meta.touched as any;
-    // If not, set touched to true using dot notation
-    if (!touched || !touched[blurredField]) {
-        field.onBlur({ ...event, target: { ...event.target, name: `${field.name}.${language}.${blurredField}` } });
-    }
-};
-
-/**
  * Handles onChange for translation fields in a formik object
  */
 export const handleTranslationChange = (
-    field: FieldInputProps<[]>,
-    meta: FieldMetaProps<any>,
-    helpers: FieldHelperProps<any>,
+    field: FieldInputProps<Array<TranslationObject>>,
+    meta: FieldMetaProps<unknown>,
+    helpers: FieldHelperProps<unknown>,
     event: { target: { name: string, value: string } },
     language: string,
 ) => {
@@ -710,6 +731,11 @@ export const handleTranslationChange = (
         ...currentValue,
         [changedField]: event.target.value,
     };
+    // Ensure field.value is an array before attempting to map
+    if (!Array.isArray(field.value)) {
+        helpers.setValue([]);
+        return;
+    }
     // Update the array with the new translation object
     const newTranslations = field.value.map((translation, idx) => idx === index ? newValue : translation);
     // Set the updated translations array
@@ -721,16 +747,15 @@ export const handleTranslationChange = (
  * @returns An error object
  */
 export const getFormikErrorsWithTranslations = (
-    field: FieldInputProps<any>,
-    meta: FieldMetaProps<any>,
-    validationSchema: ObjectSchema<any> | undefined,
+    field: FieldInputProps<TranslationObject[]>,
+    validationSchema: ObjectSchema<any>,
 ): { [key: string]: string | string[] } => {
     // Initialize errors object
     const errors: { [key: string]: string | string[] } = {};
-    if (!validationSchema) return errors;
+    if (!validationSchema || !Array.isArray(field.value)) return errors;
     // Find translation errors. Since the given errors don't have the language subtag, we need to loop through all languages
     // and manually validate each field
-    for (const translation of field.value as any) {
+    for (const translation of field.value) {
         const subtag = translation.language;
         // Get full name of language
         const language = AllLanguages[subtag] ?? subtag;
@@ -746,6 +771,8 @@ export const getFormikErrorsWithTranslations = (
                     // Add error to errors object
                     errors[key] = innerError.errors;
                 }
+            } else {
+                console.error("Unexpected validation error:", error);
             }
         }
     }
@@ -761,28 +788,33 @@ export const getFormikErrorsWithTranslations = (
  * @returns The combined errors object
  */
 export const combineErrorsWithTranslations = (
-    errors: { [key: string]: any },
-    translationErrors: { [key: string]: any },
-): { [key: string]: any } => {
-    // Combine errors objects
-    const combinedErrors = { ...errors, ...translationErrors };
-    // Filter out any errors that start with "translations"
-    const filteredErrors = Object.fromEntries(Object.entries(combinedErrors).filter(([key]) => !key.startsWith("translations")));
-    // Return filtered errors
-    return filteredErrors;
+    errors: FormErrors | null | undefined,
+    translationErrors: FormErrors | null | undefined,
+): FormErrors => {
+    // If both are null or undefined, return null
+    if (!errors && !translationErrors) {
+        return {};
+    }
+
+    // Filter out any errors from `errors` start with "translations", since these should be handled by `translationErrors`
+    const filteredErrors = !translationErrors ? errors : Object.fromEntries(
+        Object.entries((errors ?? {}) as object).filter(([key]) => !key.startsWith("translations")),
+    );
+    // Combine errors into a single object
+    return { ...filteredErrors, ...translationErrors };
 };
 
 /**
- * Adds a new, empty translation object (all fields '') to a formik translation field
+ * Adds a new, empty translation object (all fields "") to a formik translation field
  */
 export const addEmptyTranslation = (
-    field: FieldInputProps<any>,
-    meta: FieldMetaProps<any>,
+    field: FieldInputProps<TranslationObject[]>,
+    meta: FieldMetaProps<unknown>,
     helpers: FieldHelperProps<object>,
     language: string,
 ) => {
-    // Get copy of current translations
-    const translations = [...(field.value as any)];
+    // Ensure field.value is an array before proceeding, default to empty array if not
+    const translations = Array.isArray(field.value) ? [...field.value] : [];
     // Determine fields in translation object (even if no translations exist yet). 
     // We can accomplish this through the initial values
     const initialTranslations = Array.isArray(meta.initialValue) ? meta.initialValue : [];
@@ -807,24 +839,33 @@ export const addEmptyTranslation = (
  * Removes a translation object from a formik translation field
  */
 export const removeTranslation = (
-    field: FieldInputProps<any>,
-    meta: FieldMetaProps<any>,
+    field: FieldInputProps<TranslationObject[]>,
+    meta: FieldMetaProps<unknown>,
     helpers: FieldHelperProps<object>,
     language: string,
 ) => {
+    // Ensure field.value is an array before proceeding
+    if (!Array.isArray(field.value)) {
+        helpers.setValue([]);
+        return;
+    }
     // Get copy of current translations
-    const translations = [...(field.value as any)];
+    const translations = [...field.value];
     // Get index of translation object
     const { index } = getTranslationData(field, meta, language);
-    // Remove translation object from translations
-    translations.splice(index, 1);
-    // Set new translations
-    helpers.setValue(translations);
+    // Check if a valid index is found before removing translation object
+    if (index >= 0 && index < translations.length) {
+        translations.splice(index, 1);
+        // Set new translations
+        helpers.setValue(translations);
+    } else {
+        // If no valid index is found, don't modify the translations
+        helpers.setValue(field.value);
+    }
 };
 
 /**
  * Converts a snack message code into a snack message and details. 
- * For now, details are only used for some errors
  * @param key The key to convert
  * @param variables The variables to use for translation
  * @returns Object with message and details
@@ -832,12 +873,13 @@ export const removeTranslation = (
 export const translateSnackMessage = (
     key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
+    namespace?: string,
 ): { message: string, details: string | undefined } => {
-    const messageAsError = i18next.t(key as ErrorKey, { ...variables, defaultValue: key, ns: "error" });
-    const messageAsCommon = i18next.t(key as CommonKey, { ...variables, defaultValue: key, ns: "common" });
-    if (messageAsError.length > 0 && messageAsError !== key) {
-        const details = i18next.t(`${key}Details` as ErrorKey, { ns: "error" });
-        return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
-    }
-    return { message: messageAsCommon, details: undefined };
+    // Prefix the key with the namespace if provided
+    const namespacedKey = namespace ? `${namespace}:${key}` : key;
+    const namespacedKeyDetails = namespace ? `${namespace}:${key}Details` : `${key}Details`;
+
+    const message = i18next.t(namespacedKey, { ...variables, defaultValue: key }) ?? key;
+    const details = i18next.t(namespacedKeyDetails, { ...variables, defaultValue: `${key}Details` }) ?? `${key}Details`;
+    return { message, details: details !== `${key}Details` ? details : undefined };
 };

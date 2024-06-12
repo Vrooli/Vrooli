@@ -67,4 +67,6 @@ export type GqlPartial<
      */
     nav?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
 
-}
+};
+
+export type SelectionType = "common" | "full" | "list" | "nav";

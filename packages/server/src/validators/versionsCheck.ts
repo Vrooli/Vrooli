@@ -1,7 +1,9 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 
 const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
 
@@ -15,15 +17,19 @@ const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, G
  * This helps ensure that public data is immutable, while owners have full control over private data
  */
 export const versionsCheck = async ({
-    prisma,
     objectType,
     Create,
     Update,
     Delete,
     userData,
 }: {
-    prisma: PrismaType,
-    objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
+    objectType: `${GqlModelType.ApiVersion
+    | GqlModelType.CodeVersion
+    | GqlModelType.NoteVersion
+    | GqlModelType.ProjectVersion
+    | GqlModelType.RoutineVersion
+    | GqlModelType.StandardVersion
+    }`,
     Create: {
         input: {
             id: string,
@@ -44,14 +50,18 @@ export const versionsCheck = async ({
     userData: SessionUserToken,
 }) => {
     // Filter unchanged versions from create and update data
-    const create = Create.filter(x => x.input.versionLabel).map(x => ({
-        id: x.input.id,
-        rootId: x.input.rootConnect || x.input.rootCreate?.id as string,
-        versionLabel: x.input.versionLabel,
-    }));
-    const update = Update.filter(x => x.input.versionLabel).map(x => ({
-        id: x.input.id,
-        versionLabel: x.input.versionLabel,
+    const create = Create.filter(x => x.input.versionLabel).map(({ input }) => {
+        const rootData = input.rootCreate ?? input.rootConnect;
+        const rootId = typeof rootData === "string" ? rootData : rootData?.id as string;
+        return {
+            id: input.id,
+            rootId,
+            versionLabel: input.versionLabel,
+        };
+    });
+    const update = Update.filter(x => x.input.versionLabel).map(({ input }) => ({
+        id: input.id,
+        versionLabel: input.versionLabel,
     }));
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId);
@@ -62,7 +72,7 @@ export const versionsCheck = async ({
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     // Query the database for existing data (by root)
     const rootType = objectType.replace("Version", "") as GqlModelType;
-    const delegate = ModelMap.get(rootType).delegate;
+    const dbTable = ModelMap.get(rootType).dbTable;
     let existingRoots: any[];
     let where: { [key: string]: any } = {};
     let select: { [key: string]: any } = {};
@@ -90,7 +100,7 @@ export const versionsCheck = async ({
                 },
             },
         };
-        existingRoots = await delegate(prisma).findMany({
+        existingRoots = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
             where,
             select,
         });

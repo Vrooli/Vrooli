@@ -47,14 +47,14 @@ export async function subscribeUserToPush() {
     }
     try {
         const registration = await navigator.serviceWorker.register(
-            `${import.meta.env.BASE_URL}service-worker.js`,
-            { scope: import.meta.env.BASE_URL },
+            `${process.env.BASE_URL}service-worker.js`,
+            { scope: process.env.BASE_URL },
         );
-        console.log("getting subscribeoptions", import.meta.env);
+        console.log("getting subscribeoptions", process.env);
         const subscribeOptions = {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(
-                import.meta.env.VITE_VAPID_PUBLIC_KEY,
+                process.env.VITE_VAPID_PUBLIC_KEY,
             ),
         };
         console.log("push notification subscribeOptions: ", subscribeOptions);
@@ -80,10 +80,10 @@ const isLocalhost = Boolean(
 
 export function register(config) {
     console.log("register 1", config, "serviceWorker" in navigator);
-    if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    if (process.env.PROD && "serviceWorker" in navigator) {
         console.log("register 2");
         // The URL constructor is available in all browsers that support SW.
-        const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href);
+        const publicUrl = new URL(process.env.BASE_URL, window.location.href);
         console.log("register 3", publicUrl, "window.location.origin: ", window.location.origin);
         if (publicUrl.origin !== window.location.origin) {
             console.log("register 4 - bad origin");

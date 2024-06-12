@@ -1,14 +1,12 @@
 import { isOfType } from "@local/shared";
 import { Typography, useTheme } from "@mui/material";
-import { RichInput } from "components/inputs/RichInput/RichInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { RichInput, TranslatedRichInput } from "components/inputs/RichInput/RichInput";
+import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
 import { linkColors } from "styles";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
-import { EditableTextCollapseProps, EditTextComponent, PropsByComponentType } from "../types";
+import { EditTextComponent, EditableTextCollapseProps, PropsByComponentType } from "../types";
 
 /**
  * A text collapse that supports editing mode, either with 

@@ -16,6 +16,7 @@ export const ListContainer = forwardRef<HTMLDivElement, ListContainerProps>(({
     return (
         <Box id={id} ref={ref} sx={{
             maxWidth: "1000px",
+            width: "100%",
             marginLeft: "auto",
             marginRight: "auto",
             ...(isEmpty ? {} : {

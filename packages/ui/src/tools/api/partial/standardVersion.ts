@@ -46,6 +46,7 @@ export const standardVersion: GqlPartial<StandardVersion> = {
         translations: () => rel(standardVersionTranslation, "full"),
     },
     list: {
+        root: async () => rel((await import("./standard")).standard, "list", { omit: "versions" }),
         translations: () => rel(standardVersionTranslation, "list"),
     },
     nav: {
@@ -54,7 +55,7 @@ export const standardVersion: GqlPartial<StandardVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./standard")).standard, "nav"),
+        root: async () => rel((await import("./standard")).standard, "nav", { omit: "versions" }),
         translations: () => rel(standardVersionTranslation, "list"),
     },
 };

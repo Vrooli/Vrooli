@@ -5,9 +5,9 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EllipsisActionButtonProps } from "../types";
 
-export function EllipsisActionButton({
+export const EllipsisActionButton = ({
     children,
-}: EllipsisActionButtonProps) {
+}: EllipsisActionButtonProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const isLeftHanded = useIsLeftHanded();

@@ -49,19 +49,7 @@ export const transfer_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -83,7 +71,19 @@ export const transfer_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -93,19 +93,7 @@ export const transfer_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -127,7 +115,19 @@ export const transfer_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -164,6 +164,171 @@ export const transfer_findOne = {
         "reaction": true
       },
       "__typename": "Api"
+    },
+    "Code": {
+      "versions": {
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "jsonVariable": true,
+          "name": true
+        },
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isComplete": true,
+        "isDeleted": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "codeLanguage": true,
+        "codeType": true,
+        "default": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "calledByRoutineVersionsCount": true,
+        "commentsCount": true,
+        "directoryListingsCount": true,
+        "forksCount": true,
+        "reportsCount": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
+        "__typename": "NoteVersion"
+      },
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "isPrivate": true,
+      "issuesCount": true,
+      "labels": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "color": true,
+        "label": true,
+        "owner": {
+          "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+              "canAddMembers": true,
+              "canDelete": true,
+              "canBookmark": true,
+              "canReport": true,
+              "canUpdate": true,
+              "canRead": true,
+              "isBookmarked": true,
+              "isViewed": true,
+              "yourMembership": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
+              }
+            },
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
+          }
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true
+        },
+        "__typename": "Label"
+      },
+      "owner": {
+        "Team": {
+          "id": true,
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
+        }
+      },
+      "permissions": true,
+      "questionsCount": true,
+      "score": true,
+      "bookmarks": true,
+      "tags": {
+        "id": true,
+        "created_at": true,
+        "tag": true,
+        "bookmarks": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true
+        },
+        "you": {
+          "isOwn": true,
+          "isBookmarked": true
+        },
+        "__typename": "Tag"
+      },
+      "transfersCount": true,
+      "views": true,
+      "you": {
+        "canDelete": true,
+        "canBookmark": true,
+        "canTransfer": true,
+        "canUpdate": true,
+        "canRead": true,
+        "canReact": true,
+        "isBookmarked": true,
+        "isViewed": true,
+        "reaction": true
+      },
+      "__typename": "Code"
     },
     "Note": {
       "versions": {
@@ -209,19 +374,7 @@ export const transfer_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -243,7 +396,19 @@ export const transfer_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -253,19 +418,7 @@ export const transfer_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -287,7 +440,19 @@ export const transfer_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -358,19 +523,7 @@ export const transfer_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -392,7 +545,19 @@ export const transfer_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -402,19 +567,7 @@ export const transfer_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -436,7 +589,19 @@ export const transfer_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -492,11 +657,10 @@ export const transfer_findOne = {
         "isDeleted": true,
         "isLatest": true,
         "isPrivate": true,
+        "routineType": true,
         "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
-        "smartContractCallData": true,
-        "apiCallData": true,
         "versionIndex": true,
         "versionLabel": true,
         "commentsCount": true,
@@ -522,19 +686,7 @@ export const transfer_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -556,7 +708,19 @@ export const transfer_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -566,19 +730,7 @@ export const transfer_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -600,7 +752,19 @@ export const transfer_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,
@@ -637,170 +801,6 @@ export const transfer_findOne = {
         "reaction": true
       },
       "__typename": "Routine"
-    },
-    "SmartContract": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "jsonVariable": true,
-          "name": true
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isComplete": true,
-        "isDeleted": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "default": true,
-        "contractType": true,
-        "content": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "commentsCount": true,
-        "directoryListingsCount": true,
-        "forksCount": true,
-        "reportsCount": true,
-        "you": {
-          "canComment": true,
-          "canCopy": true,
-          "canDelete": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canUse": true,
-          "canRead": true
-        },
-        "__typename": "NoteVersion"
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "isPrivate": true,
-      "issuesCount": true,
-      "labels": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "color": true,
-        "label": true,
-        "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
-            "id": true,
-            "bannerImage": true,
-            "handle": true,
-            "profileImage": true,
-            "you": {
-              "canAddMembers": true,
-              "canDelete": true,
-              "canBookmark": true,
-              "canReport": true,
-              "canUpdate": true,
-              "canRead": true,
-              "isBookmarked": true,
-              "isViewed": true,
-              "yourMembership": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isAdmin": true,
-                "permissions": true
-              }
-            },
-            "__typename": "Organization"
-          }
-        },
-        "you": {
-          "canDelete": true,
-          "canUpdate": true
-        },
-        "__typename": "Label"
-      },
-      "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          },
-          "__typename": "Organization"
-        }
-      },
-      "permissions": true,
-      "questionsCount": true,
-      "score": true,
-      "bookmarks": true,
-      "tags": {
-        "id": true,
-        "created_at": true,
-        "tag": true,
-        "bookmarks": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true
-        },
-        "you": {
-          "isOwn": true,
-          "isBookmarked": true
-        },
-        "__typename": "Tag"
-      },
-      "transfersCount": true,
-      "views": true,
-      "you": {
-        "canDelete": true,
-        "canBookmark": true,
-        "canTransfer": true,
-        "canUpdate": true,
-        "canRead": true,
-        "canReact": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "reaction": true
-      },
-      "__typename": "SmartContract"
     },
     "Standard": {
       "versions": {
@@ -851,19 +851,7 @@ export const transfer_findOne = {
         "color": true,
         "label": true,
         "owner": {
-          "User": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "bannerImage": true,
-            "handle": true,
-            "isBot": true,
-            "isBotDepictingPerson": true,
-            "name": true,
-            "profileImage": true,
-            "__typename": "User"
-          },
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -885,7 +873,19 @@ export const transfer_findOne = {
                 "permissions": true
               }
             },
-            "__typename": "Organization"
+            "__typename": "Team"
+          },
+          "User": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true,
+            "__typename": "User"
           }
         },
         "you": {
@@ -895,19 +895,7 @@ export const transfer_findOne = {
         "__typename": "Label"
       },
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -929,7 +917,19 @@ export const transfer_findOne = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "permissions": true,

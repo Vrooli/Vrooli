@@ -20,6 +20,8 @@ export const typeDef = gql`
         ChatMessage
         ChatMessageSearchTreeResult
         ChatParticipant
+        Code
+        CodeVersion
         Comment
         Copy
         Email
@@ -46,7 +48,6 @@ export const typeDef = gql`
         NoteVersion
         Notification
         NotificationSubscription
-        Organization
         Payment
         Phone
         PopularResult
@@ -57,7 +58,7 @@ export const typeDef = gql`
         ProjectVersionContentsSearchResult
         ProjectVersionDirectory
         ProjectOrRoutineSearchResult
-        ProjectOrOrganizationSearchResult
+        ProjectOrTeamSearchResult
         PullRequest
         PushDevice
         Question
@@ -92,20 +93,19 @@ export const typeDef = gql`
         ScheduleRecurrence
         Session
         SessionUser
-        SmartContract
-        SmartContractVersion
         Standard
         StandardVersion
         StatsApi
-        StatsOrganization
+        StatsCode
         StatsProject
         StatsQuiz
         StatsRoutine
         StatsSite
-        StatsSmartContract
         StatsStandard
+        StatsTeam
         StatsUser
         Tag
+        Team
         Transfer
         User
         View
@@ -121,10 +121,11 @@ export const typeDef = gql`
 
     scalar Date
     scalar Upload
+    scalar JSON
 
     # Used for Projects, Standards, and Routines, since they can be owned
-    # by either a User or an Organization.
-    union Owner = User | Organization
+    # by either a User or an Team.
+    union Owner = User | Team
 
     # Used for filtering by date created/updated, as well as fetching metrics (e.g. monthly active users)
     input TimeFrame {
@@ -205,11 +206,6 @@ export const typeDef = gql`
         handleRoot: String # Not always applicable
     }
 
-    # Input for deleting multiple objects
-    input DeleteManyInput {
-        ids: [ID!]!
-    }
-
     # Input for an exception to a search query parameter
     input SearchException {
         field: String!
@@ -234,6 +230,7 @@ export const resolvers: {
     VisibilityType: typeof VisibilityType;
     Upload: typeof GraphQLUpload;
     Date: GraphQLScalarType;
+    JSON: GraphQLScalarType;
     Owner: UnionResolver;
     Query: EndpointsRoot["Query"];
     Mutation: EndpointsRoot["Mutation"];
@@ -254,6 +251,27 @@ export const resolvers: {
         },
         parseLiteral(ast: any) {
             return new Date(ast).toDateString(); // ast value is always in string format
+        },
+    }),
+    JSON: new GraphQLScalarType({
+        name: "JSONObject",
+        description: "Arbitrary JSON object",
+        // Serialize data sent to the client
+        serialize(value) {
+            // Assuming value is already a JSON object
+            return value; // No transformation needed
+        },
+        // Parse data from the client
+        parseValue(value) {
+            return typeof value === "string" ? JSON.parse(value) : value; // Convert JSON string to object
+        },
+        parseLiteral(ast: any) {
+            try {
+                // Assuming ast.value is a JSON string for simplicity; you might need to handle different AST types
+                return JSON.parse(ast.value);
+            } catch (error) {
+                throw new Error(`JSONObject cannot represent non-JSON value: ${ast.value}`);
+            }
         },
     }),
     Owner: { __resolveType(obj) { return resolveUnion(obj); } },

@@ -12,12 +12,19 @@ import { ReportsViewProps } from "../types";
  * Maps object types to the correct id fields
  */
 const objectTypeToIdField = {
+    "Api": "apiVersionId",
+    "ChatMessage": "chatMessageId",
+    "Code": "codeVersionId",
     "Comment": "commentId",
-    "Organization": "organizationId",
-    "Project": "projectId",
-    "Routine": "routineId",
-    "Standard": "standardId",
+    "Issue": "issueId",
+    "Note": "noteVersionId",
+    "Post": "postId",
+    "Project": "projectVersionId",
+    "Question": "questionId",
+    "Routine": "routineVersionId",
+    "Standard": "standardVersionId",
     "Tag": "tagId",
+    "Team": "teamId",
     "User": "userId",
 };
 
@@ -49,9 +56,9 @@ export const ReportsView = ({
                 onClose={onClose}
                 title={t("Report", { count: 2 })}
             />
-            {reports.map((report, i) => {
+            {reports.map((report) => {
                 return <Box
-                    key={i}
+                    key={report.id}
                     sx={{
                         background: palette.background.paper,
                         color: palette.background.textPrimary,

@@ -3,7 +3,7 @@ import { id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "
 
 const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
 
-export const questionAnswerTranslationValidation: YupModel = transRel({
+export const questionAnswerTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         text: req(text),
     }),
@@ -12,7 +12,7 @@ export const questionAnswerTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const questionAnswerValidation: YupModel = {
+export const questionAnswerValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
     }, [

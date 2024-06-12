@@ -9,7 +9,7 @@ import { NodeModelInfo, NodeModelLogic, NodeRoutineListModelInfo, NodeRoutineLis
 const __typename = "NodeRoutineList" as const;
 export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_routine_list,
+    dbTable: "node_routine_list",
     display: () => ({
         label: {
             select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),
@@ -23,13 +23,13 @@ export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
                 id: data.id,
                 isOrdered: noNull(data.isOrdered),
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "node", data, ...rest })),
-                ...(await shapeHelper({ relation: "items", relTypes: ["Create"], isOneToOne: false, objectType: "NodeRoutineListItem", parentRelationshipName: "list", data, ...rest })),
+                node: await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "node", data, ...rest }),
+                items: await shapeHelper({ relation: "items", relTypes: ["Create"], isOneToOne: false, objectType: "NodeRoutineListItem", parentRelationshipName: "list", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 isOrdered: noNull(data.isOrdered),
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: "items", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeRoutineListItem", parentRelationshipName: "list", data, ...rest })),
+                items: await shapeHelper({ relation: "items", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeRoutineListItem", parentRelationshipName: "list", data, ...rest }),
             }),
         },
         yup: nodeRoutineListValidation,

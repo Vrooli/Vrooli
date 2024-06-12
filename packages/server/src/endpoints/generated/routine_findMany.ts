@@ -19,11 +19,10 @@ export const routine_findMany = {
         "isDeleted": true,
         "isLatest": true,
         "isPrivate": true,
+        "routineType": true,
         "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
-        "smartContractCallData": true,
-        "apiCallData": true,
         "versionIndex": true,
         "versionLabel": true,
         "commentsCount": true,
@@ -48,7 +47,7 @@ export const routine_findMany = {
         "color": true,
         "label": true,
         "owner": {
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -89,7 +88,7 @@ export const routine_findMany = {
         }
       },
       "owner": {
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,

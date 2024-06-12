@@ -13,7 +13,7 @@ export const comment_findMany = {
           "created_at": true,
           "updated_at": true,
           "owner": {
-            "Organization": {
+            "Team": {
               "id": true,
               "bannerImage": true,
               "handle": true,
@@ -75,7 +75,7 @@ export const comment_findMany = {
         "created_at": true,
         "updated_at": true,
         "owner": {
-          "Organization": {
+          "Team": {
             "id": true,
             "bannerImage": true,
             "handle": true,
@@ -137,7 +137,7 @@ export const comment_findMany = {
       "created_at": true,
       "updated_at": true,
       "owner": {
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,

@@ -6,7 +6,7 @@ cd "${HERE}/../packages/shared"
 
 header 'Converting shared typescript to javascript'
 # Type check, then convert shared packages to javascript
-yarn swc src -d dist
+yarn build
 if [ $? -ne 0 ]; then
     error "Failed to convert shared typescript to javascript"
     exit 1
@@ -18,5 +18,5 @@ cp -r src/translations/locales dist/translations
 info 'Adding import assertions for JSON files'
 find dist -type f -name '*.js' -exec sed -i'' -e 's/from "\(.*\.json\)";/from "\1" assert { type: "json" };/g' {} +
 
-cd ../../scripts
+cd "${HERE}"
 success "Finished converting shared typescript to javascript"

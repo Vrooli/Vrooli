@@ -11,18 +11,18 @@
 
 # [<img align="top" alt="YouTube" width="50px" src="./assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
 
-Vrooli is a collaborative and self-improving automation platform, aiming to automate entire organizations. When complete, here's how it will work:  
+Vrooli is a collaborative and self-improving automation platform, aiming to automate entire teams. When complete, here's how it will work:  
 - Users create bots, which you can chat with and ask to complete tasks for you.
 - Tasks are completed with routines, which are reusable building blocks that can combine standards, APIs, smart contracts, and more.
 - Routines can be built for any purpose, including cognitive architectures for the bots themselves.
 - Bots use cognitive routines to build and improve routines, notes, and other components.
-- Routines, bots, and other components can be combined together to create an organization, where each bot takes on various roles.
+- Routines, bots, and other components can be combined together to create a team, where each bot takes on various roles.
 
 ## 🤔 Why use Vrooli?
 Vrooli keeps you organized and focused on your personal and professional goals. Here's how it differs from other projects:
 - Routines can be shared and improved by anyone, and can be combined together to create new routines.
 - The output of a routine can change drastically depending on the bot running it. An Edgar Allan Pot bot would complete a "Write a Book" routine differently than a Stephen King bot, for example.
-- Anyone can copy a public organization, meaning they have access to business processes and on-demand employees for any purpose, for free.
+- Anyone can copy a public team, meaning they have access to business processes and on-demand employees for any purpose, for free.
 - Standards can be created to define prompts, which allow you to quickly structure chat messages to bots.
 - You can chat with multiple bots in the same conversation, as well as humans, and they can all work together to complete tasks.
 - You can schedule routines to run at specific times, or when certain conditions are met.
@@ -63,7 +63,7 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
 ## ⁉️ What's next?
 - Push notification support
 - Transfer objects
-- Invite members to your organization
+- Invite members to your team
 - Schedule routines
 - Run routines automatically
 - Pull request functionality for improving routines

@@ -3,7 +3,7 @@ import { CanConnect, ShapeModel } from "types";
 import { NoteShape, shapeNote } from "./note";
 import { ProjectVersionDirectoryShape } from "./projectVersionDirectory";
 import { ResourceListShape } from "./resourceList";
-import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type NotePageShape = Pick<NotePage, "id" | "pageIndex" | "text"> & {
     __typename: "NotePage";
@@ -33,7 +33,7 @@ export const shapeNoteVersionTranslation: ShapeModel<NoteVersionTranslationShape
         ...createRel(d, "pages", ["Create"], "many", shapeNotePage),
     }),
     update: (o, u, a) => shapeUpdate(u, ({
-        ...updateTranslationPrims(o, u, "id", "language", "description", "name"),
+        ...updatePrims(o, u, "id", "language", "description", "name"),
         ...updateRel(o, u, "pages", ["Create", "Update", "Delete"], "many", shapeNotePage),
     }), a),
 };

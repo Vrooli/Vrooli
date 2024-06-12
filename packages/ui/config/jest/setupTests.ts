@@ -15,3 +15,8 @@ Object.defineProperty(URL, "createObjectURL", {
     writable: true,
     value: jest.fn(),
 });
+
+if (typeof setImmediate === "undefined") {
+    global.setImmediate = setTimeout as any;
+    global.clearImmediate = clearTimeout as any;
+}

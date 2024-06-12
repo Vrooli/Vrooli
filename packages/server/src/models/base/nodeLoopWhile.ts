@@ -10,7 +10,8 @@ import { NodeLoopModelInfo, NodeLoopModelLogic, NodeLoopWhileModelInfo, NodeLoop
 const __typename = "NodeLoopWhile" as const;
 export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_loop_while,
+    dbTable: "node_loop_while",
+    dbTranslationTable: "node_loop_while_translation",
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {
@@ -24,13 +25,13 @@ export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 condition: data.condition,
-                ...(await shapeHelper({ relation: "loop", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLoop", parentRelationshipName: "whiles", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                loop: await shapeHelper({ relation: "loop", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLoop", parentRelationshipName: "whiles", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
 
             }),
             update: async ({ data, ...rest }) => ({
                 condition: noNull(data.condition),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: nodeLoopWhileValidation,

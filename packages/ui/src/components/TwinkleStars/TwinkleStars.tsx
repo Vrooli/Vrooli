@@ -31,7 +31,7 @@ export const TwinkleStars = ({
         const starSpeed = Math.max(Math.random() * speed, 1);
         return (
             <Box
-                key={i}
+                key={`star-${i}`} // Using the index as key is not recommended, but it's fine here
                 sx={{
                     position: "absolute",
                     top: `${Math.random() * 100}%`,

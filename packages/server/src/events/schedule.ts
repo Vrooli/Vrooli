@@ -37,5 +37,9 @@ export const scheduleRecurrencesWhereInTimeframe = (
     startDate: Date,
     endDate: Date,
 ) => ({
-    endDate: { gte: new Date(startDate).toISOString() },
+    // We only have endDate in the schema
+    endDate: {
+        gte: new Date(startDate).toISOString(),
+        lt: new Date(endDate).toISOString(),
+    },
 });

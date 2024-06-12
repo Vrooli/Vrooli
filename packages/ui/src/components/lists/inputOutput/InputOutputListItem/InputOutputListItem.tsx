@@ -1,7 +1,7 @@
-import { StandardVersion } from "@local/shared";
+import { InputType, StandardVersion } from "@local/shared";
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { EditableText } from "components/containers/EditableText/EditableText";
-import { StandardVersionSelectSwitch } from "components/inputs/StandardVersionSelectSwitch/StandardVersionSelectSwitch";
+import { ObjectVersionSelectSwitch } from "components/inputs/ObjectVersionSelectSwitch/ObjectVersionSelectSwitch";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { routineVersionIOInitialValues, transformRoutineVersionIOValues, validateRoutineVersionIOValues } from "forms/RoutineVersionIOForm/RoutineVersionIOForm";
@@ -14,6 +14,24 @@ import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput
 import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { standardInitialValues } from "views/objects/standard";
 import { InputOutputListItemProps } from "../types";
+
+type InputTypeSelect = {
+    icon: React.ReactNode,
+    label: string
+    type: InputType | "Connect",
+};
+
+// const inputTypes: InputTypeSelect[] = [
+//     { type: InputType.Text, icon: <BoldIcon />, label: "Text" },
+//     { type: InputType.JSON, icon: <ObjectIcon />, label: "JSON (structured text)" },
+//     { type: InputType.Dropzone, icon: <UploadIcon />, label: "Dropzone (file upload)" },
+//     { type: InputType.Checkbox, icon: <BoldIcon />, label: "Checkbox (Select multiple from list)" },
+//     { type: InputType.Radio, icon: <WarningIcon />, label: "Radio (Select one from list)" },
+//     { type: InputType.Selector, icon: <QuoteIcon />, label: "Selector (Select one from list)" },
+//     { type: InputType.Switch, icon: <TerminalIcon />, label: "Switch (Toggle on/off or true/false)" },
+//     { type: InputType.IntegerInput, icon: <UnderlineIcon />, label: "Number" },
+//     { type: InputType.Slider, icon: <TerminalIcon />, label: "Slider (Select a number from a range)" },
+// ];
 
 //TODO handle language change somehow
 export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
@@ -47,6 +65,7 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
         if (s && s.root.isInternal === false) {
             setStandardVersion(s as any);
         } else {
+            console.log("setting standard version in inputoutputlistitem", standardInitialValues(session, item.standardVersion as any));
             setStandardVersion(standardInitialValues(session, item.standardVersion as any));
         }
     }, [item, session]);
@@ -207,13 +226,16 @@ export const InputOutputListItem = forwardRef<any, InputOutputListItemProps>(({
                         </Grid>}
                         {/* Select standard */}
                         <Grid item xs={12}>
-                            <StandardVersionSelectSwitch
-                                canUpdateStandardVersion={canUpdateStandardVersion}
+                            <ObjectVersionSelectSwitch
+                                canUpdate={canUpdateStandardVersion}
                                 disabled={!isEditing}
                                 selected={!canUpdateStandardVersion ? {
                                     translations: standardVersion.translations ?? [{ __typename: "StandardVersionTranslation" as const, language: getUserLanguages(session)[0], name: "" }],
                                 } as any : null}
+                                objectType="StandardVersion"
                                 onChange={onSwitchChange}
+                                label="Use standard"
+                                tooltip="Should this be in a specific format?"
                             />
                         </Grid>
                     </Grid>

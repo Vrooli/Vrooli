@@ -1,20 +1,22 @@
 /**
  * This file handles checking if a cud action violates any max object limits. 
- * Limits are defined both on the user and organizational level, and can be raised 
+ * Limits are defined for both users and teams, and can be raised 
  * by the standard premium subscription, or a custom subscription.
  * 
  * The general idea is that users can have a limited number of private objects, and
- * a larger number of public objects. Organizations can have even more private objects, and 
+ * a larger number of public objects. Teams can have even more private objects, and 
  * even more public objects. The limits should be just low enough to encourage people to make public 
- * objects and transfer them to organizations, but not so low that it's impossible to use the platform.
+ * objects and transfer them to teams, but not so low that it's impossible to use the platform.
  * 
- * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
- * the organization's governance structure.
+ * We want objects to be owned by teams rather than users, as this means the objects are tied to 
+ * the team's governance structure.
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType, SessionUserToken } from "../types";
+import { SessionUserToken } from "../types";
 import { authDataWithInput } from "../utils/authDataWithInput";
 import { AuthDataById } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
@@ -68,11 +70,11 @@ const checkObjectLimitPrivacy = (
 };
 
 /**
- * Helper function to check if a count exceeds an Organization/User limit
+ * Helper function to check if a count exceeds an Team/User limit
  */
 const checkObjectLimitOwner = (
     count: number,
-    ownerType: "User" | "Organization",
+    ownerType: "User" | "Team",
     hasPremium: boolean,
     isPrivate: boolean,
     limit: ObjectLimitOwner,
@@ -84,16 +86,16 @@ const checkObjectLimitOwner = (
         else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.User as ObjectLimitPrivacy, languages);
     }
     else {
-        if (typeof limit.Organization === "number") checkObjectLimitNumber(count, limit.Organization, languages);
-        else if (typeof (limit.Organization as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Organization as ObjectLimitPremium, languages);
-        else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.Organization as ObjectLimitPrivacy, languages);
+        if (typeof limit.Team === "number") checkObjectLimitNumber(count, limit.Team, languages);
+        else if (typeof (limit.Team as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Team as ObjectLimitPremium, languages);
+        else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.Team as ObjectLimitPrivacy, languages);
     }
 };
 
 /**
  * Helper function to check if a count exceeds the limit
  * @param count The count
- * @param ownerType User or Organization
+ * @param ownerType User or Team
  * @param hasPremium Whether the user has a premium subscription
  * @param isPrivate Whether to check limit for private or public objects
  * @param limit The limit object. Can be a number, or object with different 
@@ -102,7 +104,7 @@ const checkObjectLimitOwner = (
  */
 const checkObjectLimit = (
     count: number,
-    ownerType: "User" | "Organization",
+    ownerType: "User" | "Team",
     hasPremium: boolean,
     isPrivate: boolean,
     limit: ObjectLimit,
@@ -118,7 +120,7 @@ const checkObjectLimit = (
 // For example, we could limit the versions on a root object
 /**
  * Validates that the user will not exceed any maximum object limits after the given action. Checks both 
- * for personal limits and organizational limits, factoring in the user or organization's premium status. 
+ * for personal limits and team limits, factoring in the user or team's premium status. 
  * Throws an error if a limit will be exceeded.
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
  * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
@@ -129,10 +131,9 @@ export async function maxObjectsCheck(
     inputsById: InputsById,
     authDataById: AuthDataById,
     idsByAction: { [key in QueryAction]?: string[] },
-    prisma: PrismaType,
     userData: SessionUserToken,
 ) {
-    // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
+    // Initialize counts. This is used to count how many objects a user or team will have after every action is applied.
     const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
@@ -146,7 +147,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(combinedData, userData.id);
             // Increment count for owner. We can assume we're the owner if no owner was provided
-            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id ?? userData.id;
+            const ownerId: string | undefined = owners.Team?.id ?? owners.User?.id ?? userData.id;
             // Initialize shape of counts for this owner
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
@@ -167,7 +168,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(authData, userData.id);
             // Decrement count for owner
-            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
+            const ownerId: string | undefined = owners.Team?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError("0311", "InternalError", userData.languages);
             // Initialize shape of counts for this owner
             counts[authData.__typename] = counts[authData.__typename] || {};
@@ -182,7 +183,7 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const delegator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").delegate(prisma);
+        const delegator = prismaInstance[ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
         const validator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 4").validate();
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
@@ -194,7 +195,7 @@ export async function maxObjectsCheck(
             currCountPublic += counts[objectType]![ownerId].public;
             // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
             const maxObjects = validator.maxObjects;
-            const ownerType = userData.id === ownerId ? "User" : "Organization";
+            const ownerType = userData.id === ownerId ? "User" : "Team";
             const hasPremium = userData.hasPremium;
             checkObjectLimit(currCountPrivate, ownerType, hasPremium, true, maxObjects, userData.languages);
             checkObjectLimit(currCountPublic, ownerType, hasPremium, false, maxObjects, userData.languages);

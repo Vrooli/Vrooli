@@ -1,7 +1,6 @@
-import { OrArray, RoutineVersion } from "@local/shared";
+import { ListObject, OrArray } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
-import { ListObject } from "utils/display/listTools";
 import { ChatShape } from "utils/shape/models/chat";
 import { MemberInviteShape } from "utils/shape/models/memberInvite";
 
@@ -56,7 +55,7 @@ export type ForgotPasswordViewProps = ViewProps
 export type HistorySearchViewProps = ViewProps
 export type LoginViewProps = ViewProps
 export type MemberManageViewProps = ViewProps & {
-    organization: MemberInviteShape["organization"];
+    team: MemberInviteShape["team"];
 }
 export type ParticipantManageViewProps = ViewProps & {
     chat: ChatShape;
@@ -64,6 +63,7 @@ export type ParticipantManageViewProps = ViewProps & {
 export type PremiumViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps
 export type SearchViewProps = ViewProps
+export type SearchVersionViewProps = ViewProps
 export type SignupViewProps = ViewProps
 export type StatsSiteViewProps = ViewProps
 export type StatsObjectViewProps<T extends ListObject> = ViewProps & {
@@ -71,20 +71,6 @@ export type StatsObjectViewProps<T extends ListObject> = ViewProps & {
     object: T | null | undefined;
 }
 export type ReportsViewProps = ViewProps
-export type BuildViewProps = ViewProps & {
-    handleCancel: () => unknown;
-    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => unknown;
-    isEditing: boolean;
-    loading: boolean;
-    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
-    translationData: {
-        language: string;
-        setLanguage: (language: string) => unknown;
-        handleAddLanguage: (language: string) => unknown;
-        handleDeleteLanguage: (language: string) => unknown;
-        languages: string[];
-    };
-}
 export interface ErrorBoundaryProps {
     children: ReactNode;
 }

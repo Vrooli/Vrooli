@@ -3,13 +3,13 @@ import { combineQueries } from "./combineQueries";
 import { VisibilityBuilderProps } from "./types";
 
 /**
- * Assembles visibility query
+ * Assembles visibility query for Prisma read operations
  */
-export function visibilityBuilder({
+export const visibilityBuilderPrisma = ({
     objectType,
     userData,
     visibility,
-}: VisibilityBuilderProps): { [x: string]: any } {
+}: VisibilityBuilderProps): { [x: string]: any } => {
     // Get validator for object type
     const validator = ModelMap.get(objectType).validate();
     // If visibility is set to public or not defined, 
@@ -36,4 +36,4 @@ export function visibilityBuilder({
             ],
         }]);
     }
-}
+};

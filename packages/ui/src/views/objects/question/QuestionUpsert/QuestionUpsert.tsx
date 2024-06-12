@@ -4,9 +4,9 @@ import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
@@ -20,7 +20,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 import { validateFormValues } from "utils/validateFormValues";
@@ -79,11 +78,10 @@ const QuestionForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: questionTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: questionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Question>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Question>({
         display,
         isCreate,
         objectId: values.id,
@@ -100,7 +98,7 @@ const QuestionForm = ({
         endpointCreate: endpointPostQuestion,
         endpointUpdate: endpointPutQuestion,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Question" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Question" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -146,15 +144,17 @@ const QuestionForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
+                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
                             name="name"
+                            placeholder={t("NamePlaceholder")}
                         />
                         <TranslatedRichInput
                             language={language}
                             name="description"
-                            placeholder={t("Description")}
+                            placeholder={t("DescriptionPlaceholder")}
                             maxChars={16384}
                             minRows={3}
                             sxs={{
@@ -196,14 +196,13 @@ export const QuestionUpsert = ({
 }: QuestionUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
         ...endpointGetQuestion,
         isCreate,
         objectType: "Question",
         overrideObject,
         transform: (existing) => questionInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -216,7 +215,7 @@ export const QuestionUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation)}
         >
             {(formik) => <QuestionForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

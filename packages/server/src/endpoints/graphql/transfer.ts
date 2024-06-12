@@ -15,10 +15,10 @@ export const typeDef = gql`
 
     enum TransferObjectType {
         Api
+        Code
         Note
         Project
         Routine
-        SmartContract
         Standard
     }
 
@@ -28,19 +28,19 @@ export const typeDef = gql`
         Pending
     }
 
-    union TransferObject = Api | Note | Project | Routine | SmartContract | Standard
+    union TransferObject = Api | Code | Note | Project | Routine | Standard
 
     input TransferRequestSendInput {
         objectType: TransferObjectType!
         objectConnect: ID!
-        toOrganizationConnect: ID
+        toTeamConnect: ID
         toUserConnect: ID
         message: String
     }
     input TransferRequestReceiveInput {
         objectType: TransferObjectType!
         objectConnect: ID!
-        toOrganizationConnect: ID # If not set, uses your userId
+        toTeamConnect: ID # If not set, uses your userId
         message: String
     }
     input TransferUpdateInput {
@@ -67,19 +67,19 @@ export const typeDef = gql`
     input TransferSearchInput {
         after: String
         apiId: ID
+        codeId: ID
         createdTimeFrame: TimeFrame
-        fromOrganizationId: ID # If not set, uses your userId
+        fromTeamId: ID # If not set, uses your userId
         ids: [ID!]
         noteId: ID
         projectId: ID
         routineId: ID
         searchString: String
-        smartContractId: ID
         sortBy: TransferSortBy
         standardId: ID
         status: TransferStatus
         take: Int
-        toOrganizationId: ID
+        toTeamId: ID
         toUserId: ID
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

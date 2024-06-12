@@ -11,26 +11,27 @@ import { PullRequestModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
+    CodeVersion: "fromCodeVersion",
     NoteVersion: "fromNoteVersion",
     ProjectVersion: "fromProjectVersion",
     RoutineVersion: "fromRoutineVersion",
-    SmartContractVersion: "fromSmartContractVersion",
     StandardVersion: "fromStandardVersion",
 };
 
 const toMapper: { [key in PullRequestToObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     Api: "toApi",
+    Code: "toCode",
     Note: "toNote",
     Project: "toProject",
     Routine: "toRoutine",
-    SmartContract: "toSmartContract",
     Standard: "toStandard",
 };
 
 const __typename = "PullRequest" as const;
 export const PullRequestModel: PullRequestModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.pull_request,
+    dbTable: "pull_request",
+    dbTranslationTable: "pull_request_translation",
     display: () => ({
         label: {
             select: () => ({
@@ -67,14 +68,14 @@ export const PullRequestModel: PullRequestModelLogic = ({
                 createdBy: { connect: { id: rest.userData.id } },
                 [fromMapper[data.fromObjectType]]: { connect: { id: data.fromConnect } },
                 [toMapper[data.toObjectType]]: { connect: { id: data.toConnect } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             // NOTE: Pull request creator can only set status to 'Canceled'. 
             // Owner of object that pull request is on can set status to anything but 'Canceled'
             // TODO need to update params for shape to account for this (probably). Then need to update this function
             update: async ({ data, ...rest }) => ({
                 status: noNull(data.status),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: pullRequestValidation,
@@ -99,10 +100,10 @@ export const PullRequestModel: PullRequestModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },
                 };
             },

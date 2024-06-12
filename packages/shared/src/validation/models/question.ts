@@ -5,7 +5,7 @@ import { bool, enumToYup, id, name, opt, referencing, req, transRel, YupModel, y
 const forObjectType = enumToYup(QuestionForType);
 const description = yup.string().trim().removeEmptyString().min(1, minStrErr).max(16384, maxStrErr);
 
-export const questionTranslationValidation: YupModel = transRel({
+export const questionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -16,7 +16,7 @@ export const questionTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const questionValidation: YupModel = {
+export const questionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),

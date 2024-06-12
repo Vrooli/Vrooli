@@ -30,7 +30,7 @@ export const runProject_findMany = {
       "name": true,
       "status": true,
       "stepsCount": true,
-      "organization": {
+      "team": {
         "id": true,
         "bannerImage": true,
         "handle": true,

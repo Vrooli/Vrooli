@@ -3,7 +3,7 @@ import { description, id, index, name, opt, req, YupModel, yupObj } from "../uti
 import { reminderItemValidation } from "./reminderItem";
 import { reminderListValidation } from "./reminderList";
 
-export const reminderValidation: YupModel = {
+export const reminderValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         name: req(name),
@@ -11,9 +11,9 @@ export const reminderValidation: YupModel = {
         dueDate: opt(yup.date()),
         index: opt(index),
     }, [
-        ["reminderList", ["Connect", "Create"], "one", "req", reminderListValidation, ["reminders"]],
+        ["reminderList", ["Connect", "Create"], "one", "opt", reminderListValidation, ["reminders"]],
         ["reminderItems", ["Create"], "many", "opt", reminderItemValidation],
-    ], [["reminderListConnect", "reminderListCreate"]], d),
+    ], [["reminderListConnect", "reminderListCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         name: opt(name),

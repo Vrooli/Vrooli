@@ -1,8 +1,8 @@
 import { errorToMessage, fetchData, Method, ServerResponse } from "api";
+import { LazyRequestWithResult } from "api/types";
 import { useCallback, useEffect, useState } from "react";
 import { PubSub } from "utils/pubsub";
 import { useDebounce } from "./useDebounce";
-import { MakeLazyRequest } from "./useLazyFetch";
 
 type RequestState<TData> = {
     loading: boolean;
@@ -54,7 +54,7 @@ export function useFetch<TInput extends Record<string, any> | undefined, TData>(
         }
     };
 
-    const refetch = useCallback<MakeLazyRequest<TInput, TData>>(async (input, inputOptions) => {
+    const refetch = useCallback<LazyRequestWithResult<TInput, TData>>(async (input, inputOptions) => {
         if (!endpoint && !inputOptions?.endpointOverride) {
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);

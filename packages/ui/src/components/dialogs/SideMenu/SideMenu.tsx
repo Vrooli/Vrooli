@@ -1,5 +1,5 @@
-import { endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, LINKS, LogOutInput, noop, ProfileUpdateInput, profileValidation, Session, SessionUser, SwitchCurrentAccountInput, User } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { API_CREDITS_MULTIPLIER, ActionOption, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation } from "@local/shared";
+import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
@@ -19,13 +19,13 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { noSelect } from "styles";
-import { ActionOption, SvgComponent } from "types";
+import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
-import { Cookies } from "utils/cookies";
+import { removeCookie } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { openObject } from "utils/navigation/openObject";
 import { Actions, performAction, toActionOption } from "utils/navigation/quickActions";
-import { getUserActions, NAV_ACTION_TAGS, NavAction } from "utils/navigation/userActions";
+import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
 import { shapeProfile } from "utils/shape/models/profile";
@@ -91,7 +91,7 @@ export const SideMenu = () => {
             theme: getCurrentUser(session).theme ?? "light",
         },
         enableReinitialize: true,
-        validationSchema: profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: profileValidation.update({ env: process.env.NODE_ENV }),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {
@@ -164,7 +164,7 @@ export const SideMenu = () => {
             inputs: { id: user.id },
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => {
-                localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                removeCookie("FormData"); // Clear old form data cache
                 PubSub.get().publish("session", data);
                 PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
             },
@@ -207,7 +207,9 @@ export const SideMenu = () => {
             </Avatar>
             <ListItemText
                 primary={account.name ?? account.handle}
-                secondary={`${t("Credit", { count: 2 })}: ${account.credits ?? 0}`}
+                // Credits are calculated in cents * 1 million. 
+                // We'll convert it to dollars
+                secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}`}
             />
         </ListItem>
     ), [accounts, handleUserClick]);
@@ -305,17 +307,28 @@ export const SideMenu = () => {
                     {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
                 </Stack>
                 <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
-                    <Stack id="side-menu-display-settings" direction="column" spacing={2} sx={{
-                        minWidth: "fit-content",
-                        height: "fit-content",
-                        padding: 1,
-                    }}>
-                        <ThemeSwitch />
+                    <Box
+                        id="side-menu-display-settings"
+                        sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                            minWidth: "fit-content",
+                            height: "fit-content",
+                            padding: 1,
+                        }}>
+                        <ThemeSwitch updateServer sx={{ justifyContent: "flex-start" }} />
                         <TextSizeButtons />
-                        <LeftHandedCheckbox />
+                        <LeftHandedCheckbox sx={{ justifyContent: "flex-start" }} />
                         <LanguageSelector />
                         <FocusModeSelector />
-                    </Stack>
+                    </Box>
+                    <Link
+                        href={LINKS.SettingsDisplay}
+                        sx={{ textAlign: "right" }}
+                    >
+                        <Typography variant="body2" sx={{ marginRight: "12px", marginBottom: 1 }}>{t("SeeAll")}</Typography>
+                    </Link>
                 </Collapse>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* List of quick links */}
@@ -335,7 +348,7 @@ export const SideMenu = () => {
                     <NavListItem label={t("View", { count: 2 })} Icon={HistoryIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.Viewed}`)} palette={palette} />
                     <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`)} palette={palette} />
                     <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
-                    <NavListItem label={t("Premium")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Premium)} palette={palette} />
+                    <NavListItem label={t("Pro")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Pro)} palette={palette} />
                     <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
                     <NavListItem label={t("Tutorial")} Icon={HelpIcon} onClick={(event) => handleAction(event, toActionOption(Actions.tutorial))} palette={palette} />
                 </List>

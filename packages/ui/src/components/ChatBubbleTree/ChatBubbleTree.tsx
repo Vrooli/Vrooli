@@ -1,12 +1,14 @@
-import { Box, Typography } from "@mui/material";
+import { ChatSocketEventPayloads, ListObject, LlmTaskInfo, noop } from "@local/shared";
+import { Box, IconButton, Typography, useTheme } from "@mui/material";
 import { ChatBubble } from "components/ChatBubble/ChatBubble";
+import { Dimensions } from "components/graphs/types";
 import { SessionContext } from "contexts/SessionContext";
-import { useDimensions } from "hooks/useDimensions";
-import { MessageNode, MessageTree } from "hooks/useMessageTree";
-import React, { Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
+import { MessageTree } from "hooks/useMessageTree";
+import { ArrowDownIcon } from "icons";
+import { Dispatch, RefObject, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { BranchMap } from "utils/cookies";
-import { ListObject, getDisplay } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
@@ -63,69 +65,211 @@ export const TypingIndicator = ({
     );
 };
 
+export const ScrollToBottomButton = ({
+    containerRef,
+}: {
+    containerRef: RefObject<HTMLElement>,
+}) => {
+    const { palette } = useTheme();
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        const checkScrollPosition = () => {
+            const scroll = containerRef.current;
+            if (!scroll) return;
+
+            // Threshold to determine "close to the bottom"
+            // Adjust this value based on your needs
+            const threshold = 100;
+            const isCloseToBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < threshold;
+
+            setIsVisible(!isCloseToBottom);
+        };
+
+        const scroll = containerRef.current;
+        scroll?.addEventListener("scroll", checkScrollPosition);
+        setTimeout(checkScrollPosition, 2000);
+        return () => {
+            scroll?.removeEventListener("scroll", checkScrollPosition);
+        };
+    }, [containerRef]); // Re-run effect if containerRef changes
+
+    const scrollToBottom = () => {
+        const scroll = containerRef.current;
+        if (!scroll) return;
+        const lastMessage = scroll.lastElementChild;
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: "smooth" });
+        } else {
+            scroll.scrollTop = scroll.scrollHeight;
+        }
+    };
+
+    return (
+        <IconButton
+            onClick={scrollToBottom}
+            size="small"
+            sx={{
+                background: palette.background.paper,
+                position: "absolute",
+                bottom: 8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                opacity: isVisible ? 0.8 : 0,
+                transition: "opacity 0.2s ease-in-out !important",
+            }}
+        >
+            <ArrowDownIcon fill={palette.background.textSecondary} />
+        </IconButton>
+    );
+};
+
+type MessageRenderData = {
+    activeIndex: number;
+    key: string;
+    numSiblings: number;
+    onActiveIndexChange: (newIndex: number) => unknown;
+    onDeleted: (message: ChatMessageShape) => unknown;
+    message: ChatMessageShape;
+    isLastMessage: boolean;
+    isOwn: boolean;
+}
+
+type ChatBubbleTreeProps = {
+    branches: BranchMap,
+    dimensions: Dimensions,
+    dimRef: RefObject<HTMLElement>,
+    editMessage: (updatedMessage: ChatMessageShape) => unknown,
+    handleReply: (message: ChatMessageShape) => unknown,
+    handleRetry: (message: ChatMessageShape) => unknown,
+    handleTaskClick: (task: LlmTaskInfo) => unknown,
+    isBotOnlyChat: boolean,
+    messageStream: ChatSocketEventPayloads["responseStream"] | null,
+    messageTasks: Record<string, LlmTaskInfo[]>,
+    removeMessages: (messageIds: string[]) => unknown,
+    setBranches: Dispatch<SetStateAction<BranchMap>>,
+    tree: MessageTree<ChatMessageShape>,
+};
+
 export const ChatBubbleTree = ({
     branches,
+    dimensions,
+    dimRef,
     editMessage,
     handleReply,
     handleRetry,
+    handleTaskClick,
+    isBotOnlyChat,
+    messageStream,
+    messageTasks,
     removeMessages,
     setBranches,
     tree,
-}: {
-    branches: BranchMap,
-    editMessage: (updatedMessage: ChatMessageShape) => unknown;
-    handleReply: (message: ChatMessageShape) => unknown;
-    handleRetry: (message: ChatMessageShape) => unknown;
-    removeMessages: (messageIds: string[]) => unknown;
-    setBranches: Dispatch<SetStateAction<BranchMap>>;
-    tree: MessageTree<ChatMessageShape>;
-}) => {
+}: ChatBubbleTreeProps) => {
     const session = useContext(SessionContext);
-    const { dimensions, ref: dimRef } = useDimensions();
 
-    const messageList = useMemo(() => {
-        const renderMessage = (withSiblings: MessageNode<ChatMessageShape>[], activeIndex: number) => {
-            const activeParent = activeIndex >= 0 && activeIndex < withSiblings.length ? withSiblings[activeIndex] : null;
-            const activeChildId = activeParent ? branches[activeParent.message.id] : null;
-            const activeChildIndex = (activeParent && activeChildId) ?
-                activeParent.children.findIndex(child => child.message.id === activeChildId) :
-                0;
-            const isOwn = activeParent?.message.user?.id === getCurrentUser(session).id;
+    const messageData = useMemo<MessageRenderData[]>(() => {
+        const renderMessage = (withSiblings: string[], activeIndex: number): MessageRenderData[] => {
+            // Find information for current message
+            const siblingId = withSiblings[activeIndex];
+            const sibling = siblingId ? tree.map.get(siblingId) : null;
+            if (!sibling) return [];
+            const isOwn = sibling.message.user?.id === getCurrentUser(session).id;
 
-            if (!activeParent) return null;
-            return (
-                <React.Fragment key={activeParent.message.id} >
-                    <ChatBubble
-                        activeIndex={activeIndex}
-                        chatWidth={dimensions.width}
-                        messagesCount={withSiblings.length}
-                        onActiveIndexChange={(newIndex) => {
-                            const childId = newIndex >= 0 && newIndex < activeParent.children.length ?
-                                activeParent.children[newIndex].message.id :
-                                null;
-                            if (!childId) return;
-                            setBranches(prevBranches => ({
-                                ...prevBranches,
-                                [activeParent.message.id]: childId,
-                            }));
-                        }}
-                        onDeleted={(message) => { removeMessages([message.id]); }}
-                        onReply={handleReply}
-                        onRetry={handleRetry}
-                        onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
-                        message={activeParent.message}
-                        isOwn={isOwn}
-                    />
-                    {renderMessage(activeParent.children, activeChildIndex)}
-                </React.Fragment>
-            );
+            // Find information for next message
+            // Check the stored branch data first
+            let childId = branches[siblingId];
+            // Fallback to first child if no branch data is found
+            if (!childId) childId = sibling.children[0];
+            const activeChildIndex = Math.max(sibling.children.findIndex(id => id === childId), 0);
+            const isLastMessage = sibling.children.length === 0;
+
+            if (!sibling) return [];
+            return [
+                {
+                    activeIndex,
+                    key: sibling.message.id,
+                    numSiblings: withSiblings.length,
+                    onActiveIndexChange: (newIndex) => {
+                        const siblingId = withSiblings[newIndex];
+                        const parentId = sibling.message.parent?.id;
+                        if (!siblingId) return;
+                        if (!parentId) return; // TODO if root message, should reorder root
+                        setBranches(prev => ({
+                            ...prev,
+                            [parentId]: siblingId,
+                        }));
+                    },
+                    onDeleted: (message) => { removeMessages([message.id]); },
+                    message: sibling.message,
+                    isOwn,
+                    isLastMessage,
+                },
+                ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
+            ];
         };
         return renderMessage(tree.roots, 0);
-    }, [branches, dimensions.width, editMessage, handleReply, handleRetry, removeMessages, session, setBranches, tree.roots]);
+    }, [branches, removeMessages, session, setBranches, tree.map, tree.roots]);
 
     return (
-        <Box ref={dimRef} sx={{ minHeight: "min(400px, 33vh)" }}>
-            {messageList}
+        <Box ref={dimRef} sx={{
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "auto",
+            height: "auto",
+        }}>
+            {messageData.map((data) => (
+                <ChatBubble
+                    key={data.key}
+                    activeIndex={data.activeIndex}
+                    chatWidth={dimensions.width}
+                    isBotOnlyChat={isBotOnlyChat}
+                    isLastMessage={!messageStream && data.isLastMessage}
+                    numSiblings={data.numSiblings}
+                    onActiveIndexChange={data.onActiveIndexChange}
+                    onDeleted={data.onDeleted}
+                    onReply={handleReply}
+                    onRetry={handleRetry}
+                    onTaskClick={handleTaskClick}
+                    onUpdated={(updatedMessage) => { editMessage(updatedMessage); }}
+                    message={data.message}
+                    isOwn={data.isOwn}
+                    tasks={(messageTasks[data.message.id] || []).filter(task => task.task)}
+                />
+            ))}
+            {messageStream && (
+                <ChatBubble
+                    key="streamingMessage"
+                    activeIndex={0}
+                    chatWidth={dimensions.width}
+                    isBotOnlyChat={isBotOnlyChat}
+                    isLastMessage={true}
+                    numSiblings={1}
+                    onActiveIndexChange={noop}
+                    onDeleted={noop}
+                    onReply={noop}
+                    onRetry={noop}
+                    onTaskClick={noop}
+                    onUpdated={noop}
+                    message={{
+                        id: "streamingMessage",
+                        reactionSummaries: [],
+                        status: messageStream.__type === "error" ? "failed" : "sending",
+                        translations: [{
+                            language: "en",
+                            text: messageStream.message,
+                        }],
+                        user: messageStream.botId && {
+                            id: messageStream.botId,
+                            isBot: true,
+                        },
+                        versionIndex: 0,
+                    } as unknown as ChatMessageShape}
+                    isOwn={false}
+                    tasks={[]}
+                />
+            )}
         </Box>
     );
 };

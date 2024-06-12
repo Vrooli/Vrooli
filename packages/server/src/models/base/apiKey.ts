@@ -1,15 +1,15 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
 import { ModelMap } from ".";
-import { randomString } from "../../auth/wallet";
+import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { defaultPermissions } from "../../utils";
 import { ApiKeyFormat } from "../formats";
-import { ApiKeyModelLogic, OrganizationModelLogic } from "./types";
+import { ApiKeyModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.api_key,
+    dbTable: "api_key",
     display: () => ({
         label: {
             select: () => ({ id: true, key: true }),
@@ -31,8 +31,8 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
                 creditsUsedBeforeLimit: data.creditsUsedBeforeLimit,
                 stopAtLimit: data.stopAtLimit,
                 absoluteMax: data.absoluteMax,
-                user: data.organizationConnect ? undefined : { connect: { id: userData.id } },
-                organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
+                team: data.teamConnect ? { connect: { id: data.teamConnect } } : undefined,
+                user: data.teamConnect ? undefined : { connect: { id: userData.id } },
 
             }),
             update: async ({ data }) => ({
@@ -50,13 +50,13 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.organization,
+            Team: data?.team,
             User: data?.user,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
-            organization: "Organization",
+            team: "Team",
             user: "User",
         }),
         visibility: {
@@ -65,7 +65,7 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },
-                    { organization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
+                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                 ],
             }),
         },

@@ -4,7 +4,7 @@ import { CloseIcon, LargeCookieIcon } from "icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
-import { CookiePreferences, setCookiePreferences } from "utils/cookies";
+import { CookiePreferences, setCookie } from "utils/cookies";
 import { CookiesSnackProps } from "../types";
 
 /**
@@ -26,20 +26,18 @@ export const CookiesSnack = ({
             targeting: true,
         };
         // Set preference in local storage
-        setCookiePreferences(preferences);
+        setCookie("Preferences", preferences);
         // Close dialog
         setIsCustomizeOpen(false);
         handleClose();
     };
 
     const handleCustomizeCookies = (preferences?: CookiePreferences) => {
-        if (preferences) {
-            // Set preference in local storage
-            setCookiePreferences(preferences);
-        }
-        // Close dialog
         setIsCustomizeOpen(false);
-        handleClose();
+        if (preferences) {
+            setCookie("Preferences", preferences);
+            handleClose();
+        }
     };
 
     return (

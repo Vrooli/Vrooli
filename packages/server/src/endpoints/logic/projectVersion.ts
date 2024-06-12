@@ -21,28 +21,28 @@ export type EndpointsProjectVersion = {
 const objectType = "ProjectVersion";
 export const ProjectVersionEndpoints: EndpointsProjectVersion = {
     Query: {
-        projectVersion: async (_, { input }, { prisma, req }, info) => {
+        projectVersion: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        projectVersions: async (_, { input }, { prisma, req }, info) => {
+        projectVersions: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
-        projectVersionContents: async (_, { input }, { prisma, req }, info) => {
+        projectVersionContents: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
             throw new CustomError("0000", "NotImplemented", ["en"]);
-            // return ProjectVersionModel.query.searchContents(prisma, req, input, info);
+            // return ProjectVersionModel.query.searchContents(req, input, info);
         },
     },
     Mutation: {
-        projectVersionCreate: async (_, { input }, { prisma, req }, info) => {
+        projectVersionCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        projectVersionUpdate: async (_, { input }, { prisma, req }, info) => {
+        projectVersionUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

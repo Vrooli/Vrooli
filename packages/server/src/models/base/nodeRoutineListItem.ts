@@ -10,7 +10,8 @@ import { NodeRoutineListItemModelInfo, NodeRoutineListItemModelLogic, NodeRoutin
 const __typename = "NodeRoutineListItem" as const;
 export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_routine_list_item,
+    dbTable: "node_routine_list_item",
+    dbTranslationTable: "node_routine_list_item_translation",
     display: () => ({
         label: {
             select: () => ({
@@ -33,15 +34,15 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
                 id: data.id,
                 index: data.index,
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: "list", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeRoutineList", parentRelationshipName: "list", data, ...rest })),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "nodeLists", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                list: await shapeHelper({ relation: "list", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeRoutineList", parentRelationshipName: "list", data, ...rest }),
+                routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "nodeLists", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 index: noNull(data.index),
                 isOptional: noNull(data.isOptional),
-                ...(await shapeHelper({ relation: "routineVersion", relTypes: ["Update"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "nodeLists", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                routineVersion: await shapeHelper({ relation: "routineVersion", relTypes: ["Update"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "nodeLists", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: nodeRoutineListItemValidation,

@@ -1,13 +1,13 @@
-import { BookmarkFor } from "@local/shared";
+import { AutocompleteOption, BookmarkFor } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
-import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, SmartContractIcon, StandardIcon, UserIcon, VisibleIcon } from "icons";
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
 import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AutocompleteOption, SvgComponent } from "types";
+import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getLocalStorageKeys } from "utils/localStorage";
 import { performAction } from "utils/navigation/quickActions";
@@ -94,15 +94,15 @@ const IconMap = {
     Action: ActionIcon,
     Api: ApiIcon,
     Bookmark: BookmarkFilledIcon,
+    Code: TerminalIcon,
     Note: NoteIcon,
-    Organization: OrganizationIcon,
     Project: ProjectIcon,
     Question: HelpIcon,
     Routine: RoutineIcon,
     Run: PlayIcon,
     Shortcut: ShortcutIcon,
-    SmartContract: SmartContractIcon,
     Standard: StandardIcon,
+    Team: TeamIcon,
     User: UserIcon,
     View: VisibleIcon,
 };

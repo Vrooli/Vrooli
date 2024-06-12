@@ -1,7 +1,8 @@
 import { GqlModelType, isOfType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType } from "../types";
 
 /**
  * Finds the latest version of a versioned object, using the root object's ID OR handle
@@ -10,13 +11,17 @@ import { PrismaType } from "../types";
 export async function getLatestVersion({
     includeIncomplete = true,
     objectType,
-    prisma,
     idRoot,
     handleRoot,
 }: {
     includeIncomplete?: boolean,
-    objectType: `${GqlModelType.ApiVersion | GqlModelType.NoteVersion | GqlModelType.ProjectVersion | GqlModelType.RoutineVersion | GqlModelType.SmartContractVersion | GqlModelType.StandardVersion}`,
-    prisma: PrismaType,
+    objectType: `${GqlModelType.ApiVersion
+    | GqlModelType.CodeVersion
+    | GqlModelType.NoteVersion
+    | GqlModelType.ProjectVersion
+    | GqlModelType.RoutineVersion
+    | GqlModelType.StandardVersion
+    }`,
     idRoot?: string | null,
     handleRoot?: string | null,
 }): Promise<string | undefined> {
@@ -36,7 +41,7 @@ export async function getLatestVersion({
             orderBy: { versionIndex: "desc" as const },
             select: { id: true },
         };
-        const latestVersion = await model.delegate(prisma).findFirst(query);
+        const latestVersion = await (prismaInstance[model.dbTable] as PrismaDelegate).findFirst(query);
         return latestVersion?.id;
     }
     // Handle other objects, which do have an "isComplete" field
@@ -46,7 +51,7 @@ export async function getLatestVersion({
             orderBy: { versionIndex: "desc" as const },
             select: { id: true },
         };
-        const latestVersion = await model.delegate(prisma).findFirst(query);
+        const latestVersion = await (prismaInstance[model.dbTable] as PrismaDelegate).findFirst(query);
         return latestVersion?.id;
     }
 }

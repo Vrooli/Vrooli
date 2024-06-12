@@ -4,9 +4,8 @@ import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
-import { Selector } from "components/inputs/Selector/Selector";
-import { SelectorBase } from "components/inputs/SelectorBase/SelectorBase";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
@@ -20,7 +19,6 @@ import { CompleteIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "utils/display/translationTools";
 import { shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
@@ -95,8 +93,7 @@ const ResourceForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["bio"],
-        validationSchema: userTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: userTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const [field, meta, helpers] = useField("translations");
@@ -110,7 +107,7 @@ const ResourceForm = ({
         if (currDescription.length === 0) helpers.setValue(field.value.map((t) => t.language === language ? { ...t, description: subtitle } : t));
     }, [field, helpers, language]);
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Resource>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Resource>({
         display,
         isCreate,
         objectId: values.id,
@@ -130,7 +127,7 @@ const ResourceForm = ({
         endpointCreate: endpointPostResource,
         endpointUpdate: endpointPutResource,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Resource" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Resource" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -187,7 +184,7 @@ const ResourceForm = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={isCreate ? t("CreateResource") : t("UpdateResource")}
+                title={isCreate ? t("AddResource") : t("UpdateResource")}
                 help={t("ResourceHelp")}
             />
             <BaseForm
@@ -291,14 +288,13 @@ export const ResourceUpsert = ({
 }: ResourceUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
         ...endpointGetResource,
         isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
         transform: (existing) => resourceInitialValues(session, existing as ResourceShape),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -308,7 +304,7 @@ export const ResourceUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformResourceValues, resourceValidation)}
         >
             {(formik) => <ResourceForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

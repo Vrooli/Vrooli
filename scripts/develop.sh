@@ -47,6 +47,11 @@ for arg in "$@"; do
     esac
 done
 
+NODE_ENV="development"
+if $PROD_FLAG_FOUND; then
+    NODE_ENV="production"
+fi
+
 # Running setup.sh
 info "Running setup.sh..."
 . "${HERE}/setup.sh" -e y -r n "${SETUP_ARGS[@]}"
@@ -55,10 +60,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-NODE_ENV="development"
-if $PROD_FLAG_FOUND; then
-    NODE_ENV="production"
-fi
 info "Getting ${NODE_ENV} secrets..."
 readarray -t secrets <"${HERE}/secrets_list.txt"
 TMP_FILE=$(mktemp) && { "${HERE}/getSecrets.sh" ${NODE_ENV} ${TMP_FILE} "${secrets[@]}" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."

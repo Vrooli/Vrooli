@@ -1,4 +1,4 @@
-import { ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, RunProjectOrRunRoutineSortBy } from "@local/shared";
+import { ProjectOrRoutineSortBy, ProjectOrTeamSortBy, RunProjectOrRunRoutineSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
 import { EndpointsUnions, UnionsEndpoints } from "../logic/unions";
@@ -28,7 +28,7 @@ export const typeDef = gql`
         ViewsDesc
     }
 
-    enum ProjectOrOrganizationSortBy {
+    enum ProjectOrTeamSortBy {
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -53,7 +53,7 @@ export const typeDef = gql`
     }
 
     union ProjectOrRoutine = Project | Routine
-    union ProjectOrOrganization = Project | Organization
+    union ProjectOrTeam = Project | Team
     union RunProjectOrRunRoutine = RunProject | RunRoutine
 
     input ProjectOrRoutineSearchInput {
@@ -69,7 +69,6 @@ export const typeDef = gql`
         minScore: Int
         minViews: Int
         objectType: String
-        organizationId: ID
         parentId: ID
         projectAfter: String
         reportId: ID
@@ -87,6 +86,7 @@ export const typeDef = gql`
         sortBy: ProjectOrRoutineSortBy
         tags: [String!]
         take: Int
+        teamId: ID
         updatedTimeFrame: TimeFrame
         userId: ID
         visibility: VisibilityType
@@ -105,7 +105,7 @@ export const typeDef = gql`
         node: ProjectOrRoutine!
     }
 
-    input ProjectOrOrganizationSearchInput {
+    input ProjectOrTeamSearchInput {
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
@@ -115,39 +115,39 @@ export const typeDef = gql`
         minBookmarks: Int
         minViews: Int
         objectType: String
-        organizationAfter: String
-        organizationIsOpenToNewMembers: Boolean
-        organizationProjectId: ID
-        organizationRoutineId: ID
         projectAfter: String
         projectIsComplete: Boolean
         projectIsCompleteExceptions: [SearchException!]
         projectMaxScore: Int
         projectMinScore: Int
-        projectOrganizationId: ID
         projectParentId: ID
+        projectTeamId: ID
         reportId: ID
         resourceTypes: [ResourceUsedFor!]
         searchString: String
-        sortBy: ProjectOrOrganizationSortBy
+        sortBy: ProjectOrTeamSortBy
         tags: [String!]
+        teamAfter: String
+        teamIsOpenToNewMembers: Boolean
+        teamProjectId: ID
+        teamRoutineId: ID
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
         visibility: VisibilityType
     }
-    type ProjectOrOrganizationSearchResult {
-        pageInfo: ProjectOrOrganizationPageInfo!
-        edges: [ProjectOrOrganizationEdge!]!
+    type ProjectOrTeamSearchResult {
+        pageInfo: ProjectOrTeamPageInfo!
+        edges: [ProjectOrTeamEdge!]!
     }
-    type ProjectOrOrganizationPageInfo {
+    type ProjectOrTeamPageInfo {
         hasNextPage: Boolean!
         endCursorProject: String
-        endCursorOrganization: String
+        endCursorTeam: String
     }
-    type ProjectOrOrganizationEdge {
+    type ProjectOrTeamEdge {
         cursor: String!
-        node: ProjectOrOrganization!
+        node: ProjectOrTeam!
     }
 
     input RunProjectOrRunRoutineSearchInput {
@@ -185,23 +185,23 @@ export const typeDef = gql`
 
     type Query {
         projectOrRoutines(input: ProjectOrRoutineSearchInput!): ProjectOrRoutineSearchResult!
-        projectOrOrganizations(input: ProjectOrOrganizationSearchInput!): ProjectOrOrganizationSearchResult!
         runProjectOrRunRoutines(input: RunProjectOrRunRoutineSearchInput!): RunProjectOrRunRoutineSearchResult!
+        projectOrTeams(input: ProjectOrTeamSearchInput!): ProjectOrTeamSearchResult!
     }
 `;
 
 export const resolvers: {
     ProjectOrRoutineSortBy: typeof ProjectOrRoutineSortBy,
-    ProjectOrOrganizationSortBy: typeof ProjectOrOrganizationSortBy,
+    ProjectOrTeamSortBy: typeof ProjectOrTeamSortBy,
     RunProjectOrRunRoutineSortBy: typeof RunProjectOrRunRoutineSortBy,
     ProjectOrRoutine: UnionResolver;
-    ProjectOrOrganization: UnionResolver;
+    ProjectOrTeam: UnionResolver;
     Query: EndpointsUnions["Query"];
 } = {
     ProjectOrRoutineSortBy,
-    ProjectOrOrganizationSortBy,
+    ProjectOrTeamSortBy,
     RunProjectOrRunRoutineSortBy,
     ProjectOrRoutine: { __resolveType(obj: any) { return resolveUnion(obj); } },
-    ProjectOrOrganization: { __resolveType(obj: any) { return resolveUnion(obj); } },
+    ProjectOrTeam: { __resolveType(obj: any) { return resolveUnion(obj); } },
     ...UnionsEndpoints,
 };

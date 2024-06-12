@@ -55,7 +55,7 @@ const SettingsDisplayForm = ({
                     variant="subheader"
                 />
                 <Stack direction="column" spacing={2} p={1}>
-                    <ThemeSwitch />
+                    <ThemeSwitch updateServer={false} />
                     <TextSizeButtons />
                     <LeftHandedCheckbox />
                 </Stack>
@@ -116,7 +116,7 @@ export const SettingsDisplayView = ({
                                 onCompleted: () => { helpers.setSubmitting(false); },
                             });
                         }}
-                        validationSchema={profileValidation.update({ env: import.meta.env.PROD ? "production" : "development" })}
+                        validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
                     >
                         {(formik) => <SettingsDisplayForm
                             display={display}

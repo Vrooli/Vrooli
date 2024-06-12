@@ -1,7 +1,7 @@
 import { CommonKey, TimeFrame } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
-import { useZIndex } from "hooks/useZIndex";
+import { usePopover } from "hooks/usePopover";
 import { HistoryIcon as TimeIcon } from "icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,13 +28,8 @@ const TimeMenu = ({
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open);
 
-    const [customRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-    const handleTimeOpen = (event) => setCustomRangeAnchorEl(event.currentTarget);
-    const handleTimeClose = () => {
-        setCustomRangeAnchorEl(null);
-    };
+    const [customRangeAnchorEl, openCustomRange, closeCustomRange] = usePopover();
 
     const menuItems = useMemo(() => Object.keys(timeOptions).map((labelKey) => (
         <MenuItem
@@ -67,13 +62,13 @@ const TimeMenu = ({
             <MenuItem
                 id='custom-range-menu-item'
                 value='custom'
-                onClick={handleTimeOpen}
+                onClick={openCustomRange}
             >
                 {t("CustomRange")}
             </MenuItem>
             <DateRangeMenu
                 anchorEl={customRangeAnchorEl}
-                onClose={handleTimeClose}
+                onClose={closeCustomRange}
                 onSubmit={(after, before) => onClose("Custom", { after, before })}
             />
         </Menu>
@@ -88,12 +83,11 @@ export const TimeButton = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>("");
 
-    const handleTimeOpen = (event: { currentTarget: HTMLElement }) => setTimeAnchorEl(event.currentTarget);
+    const [timeAnchorEl, openTime, closeTime] = usePopover();
     const handleTimeClose = (labelKey?: CommonKey, frame?: TimeFrame) => {
-        setTimeAnchorEl(null);
+        closeTime();
         setTimeFrame(frame);
         if (labelKey) setTimeFrameLabel(t(labelKey));
     };
@@ -107,7 +101,7 @@ export const TimeButton = ({
             <Tooltip title={t("TimeCreated")} placement="top">
                 <Box
                     id="time-filter-button"
-                    onClick={handleTimeOpen}
+                    onClick={openTime}
                     sx={searchButtonStyle(palette)}
                 >
                     <TimeIcon fill={palette.secondary.main} />

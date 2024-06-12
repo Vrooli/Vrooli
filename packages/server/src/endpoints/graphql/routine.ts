@@ -34,8 +34,8 @@ export const typeDef = gql`
         isPrivate: Boolean!
         permissions: String
         parentConnect: ID
+        ownedByTeamConnect: ID
         ownedByUserConnect: ID
-        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
         tagsConnect: [ID!]
@@ -47,8 +47,8 @@ export const typeDef = gql`
         isInternal: Boolean
         isPrivate: Boolean
         permissions: String
+        ownedByTeamConnect: ID
         ownedByUserConnect: ID
-        ownedByOrganizationConnect: ID
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -120,14 +120,15 @@ export const typeDef = gql`
         isInternal: Boolean
         issuesId: ID
         labelsIds: [ID!]
+        latestVersionRoutineType: RoutineType
         maxScore: Int
         maxBookmarks: Int
         maxViews: Int
         minScore: Int
         minBookmarks: Int
         minViews: Int
+        ownedByTeamId: ID
         ownedByUserId: ID
-        ownedByOrganizationId: ID
         parentId: ID
         pullRequestsId: ID
         searchString: String

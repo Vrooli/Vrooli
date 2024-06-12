@@ -8,7 +8,7 @@ import { StandardModelInfo, StandardModelLogic, StatsStandardModelInfo, StatsSta
 const __typename = "StatsStandard" as const;
 export const StatsStandardModel: StatsStandardModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.stats_standard,
+    dbTable: "stats_standard",
     display: () => ({
         label: {
             select: () => ({ id: true, standard: { select: ModelMap.get<StandardModelLogic>("Standard").display().label.select() } }),

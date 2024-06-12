@@ -1,6 +1,6 @@
 import { description, id, name, nodeCondition, opt, req, transRel, YupModel, yupObj } from "../utils";
 
-export const nodeLinkWhenTranslationValidation: YupModel = transRel({
+export const nodeLinkWhenTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -11,7 +11,7 @@ export const nodeLinkWhenTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const nodeLinkWhenValidation: YupModel = {
+export const nodeLinkWhenValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         condition: req(nodeCondition),

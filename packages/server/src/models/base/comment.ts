@@ -8,9 +8,10 @@ import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { visibilityBuilder } from "../../builders/visibilityBuilder";
+import { visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
+import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
-import { PrismaType, SessionUserToken } from "../../types";
+import { SessionUserToken } from "../../types";
 import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
@@ -23,7 +24,8 @@ import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelL
 const __typename = "Comment" as const;
 export const CommentModel: CommentModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.comment,
+    dbTable: "comment",
+    dbTranslationTable: "comment_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -37,10 +39,10 @@ export const CommentModel: CommentModelLogic = ({
                 id: data.id,
                 ownedByUser: { connect: { id: rest.userData.id } },
                 [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         trigger: {
@@ -48,7 +50,7 @@ export const CommentModel: CommentModelLogic = ({
                 await afterMutationsPlain({
                     ...params,
                     objectType: __typename,
-                    ownerOrganizationField: "ownedByOrganization",
+                    ownerTeamField: "ownedByTeam",
                     ownerUserField: "ownedByUser",
                 });
             },
@@ -60,7 +62,6 @@ export const CommentModel: CommentModelLogic = ({
          * Custom search query for querying comment threads
          */
         async searchThreads(
-            prisma: PrismaType,
             userData: SessionUserToken | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
             info: GraphQLInfo | PartialGraphQLInfo,
@@ -77,7 +78,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined;
             const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
             // Find requested search array
-            const searchResults = await prisma.comment.findMany({
+            const searchResults = await prismaInstance.comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? 10,
@@ -90,14 +91,14 @@ export const CommentModel: CommentModelLogic = ({
             // For each result
             for (const result of searchResults) {
                 // Find total in thread
-                const totalInThread = await prisma.comment.count({
+                const totalInThread = await prismaInstance.comment.count({
                     where: {
                         ...where,
                         parentId: result.id,
                     },
                 });
                 // Query for nested threads
-                const nestedThreads = nestLimit > 0 ? await prisma.comment.findMany({
+                const nestedThreads = nestLimit > 0 ? await prismaInstance.comment.findMany({
                     where: {
                         ...where,
                         parentId: result.id,
@@ -108,7 +109,7 @@ export const CommentModel: CommentModelLogic = ({
                 // Find end cursor of nested threads
                 const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
                 // For nested threads, recursively call this function
-                const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, userData, {
+                const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                     ids: nestedThreads.map(n => n.id),
                     take: input.take ?? 10,
                     sortBy: input.sortBy,
@@ -132,12 +133,12 @@ export const CommentModel: CommentModelLogic = ({
          * parentId equal to one of the second-level comments).
          */
         async searchNested(
-            prisma: PrismaType,
             req: Request,
             input: CommentSearchInput,
             info: GraphQLInfo | PartialGraphQLInfo,
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
+            const userData = getUser(req.session);
             // Partially convert info type
             const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, req.session.languages, true);
             // Determine text search query
@@ -146,12 +147,15 @@ export const CommentModel: CommentModelLogic = ({
             // if the field is specified in the input
             const customQueries: { [x: string]: any }[] = [];
             for (const field of Object.keys(ModelMap.get<CommentModelLogic>("Comment").search.searchFields)) {
-                if (input[field as string] !== undefined) {
-                    customQueries.push(SearchMap[field as string](input[field as string], getUser(req.session), __typename));
+                const fieldInput = input[field];
+                const searchMapper = SearchMap[field];
+                if (fieldInput !== undefined && searchMapper !== undefined) {
+                    const searchData = { objectType: __typename, userData, visibility: VisibilityType.Public };
+                    customQueries.push(searchMapper(fieldInput, searchData));
                 }
             }
             // Create query for visibility
-            const visibilityQuery = visibilityBuilder({ objectType: "Comment", userData: getUser(req.session), visibility: VisibilityType.Public });
+            const visibilityQuery = visibilityBuilderPrisma({ objectType: "Comment", userData, visibility: VisibilityType.Public });
             // Combine queries
             const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order
@@ -159,7 +163,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
             const orderBy = orderByField in SortMap ? SortMap[orderByField] : undefined;
             // Find requested search array
-            const searchResults = await prisma.comment.findMany({
+            const searchResults = await prismaInstance.comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? 10,
@@ -176,13 +180,13 @@ export const CommentModel: CommentModelLogic = ({
                 threads: [],
             };
             // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-            const totalInThread = input.after ? undefined : await prisma.comment.count({
+            const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
                 where: { ...where },
             });
             // Calculate end cursor
             const endCursor = searchResults[searchResults.length - 1].id;
             // If not as nestLimit, recurse with all result IDs
-            const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req.session), {
+            const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                 ids: searchResults.map(r => r.id),
                 take: input.take ?? 10,
                 sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
@@ -199,7 +203,7 @@ export const CommentModel: CommentModelLogic = ({
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
             comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
-            comments = await addSupplementalFields(prisma, getUser(req.session), comments, partialInfo);
+            comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
             const shapeThreads = (threads: CommentThread[]) => {
@@ -235,11 +239,12 @@ export const CommentModel: CommentModelLogic = ({
         searchFields: {
             apiVersionId: true,
             createdTimeFrame: true,
+            codeVersionId: true,
             issueId: true,
             minScore: true,
             minBookmarks: true,
             noteVersionId: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             postId: true,
             projectVersionId: true,
@@ -247,7 +252,6 @@ export const CommentModel: CommentModelLogic = ({
             questionAnswerId: true,
             questionId: true,
             routineVersionId: true,
-            smartContractVersionId: true,
             standardVersionId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
@@ -256,12 +260,12 @@ export const CommentModel: CommentModelLogic = ({
         searchStringQuery: () => ({ translations: "transText" }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },
@@ -273,8 +277,9 @@ export const CommentModel: CommentModelLogic = ({
         permissionsSelect: () => ({
             id: true,
             apiVersion: "ApiVersion",
+            codeVersion: "CodeVersion",
             issue: "Issue",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             post: "Post",
             projectVersion: "ProjectVersion",
@@ -282,7 +287,6 @@ export const CommentModel: CommentModelLogic = ({
             question: "Question",
             questionAnswer: "QuestionAnswer",
             routineVersion: "RoutineVersion",
-            smartContractVersion: "SmartContractVersion",
             standardVersion: "StandardVersion",
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isLoggedIn, isPublic }) => ({
@@ -290,12 +294,13 @@ export const CommentModel: CommentModelLogic = ({
             canReply: () => isLoggedIn && (isAdmin || isPublic),
         }),
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<CommentModelInfo["PrismaSelect"]>([
             ["apiVersion", "ApiVersion"],
+            ["codeVersion", "CodeVersion"],
             ["issue", "Issue"],
             ["post", "Post"],
             ["projectVersion", "ProjectVersion"],
@@ -303,7 +308,6 @@ export const CommentModel: CommentModelLogic = ({
             ["question", "Question"],
             ["questionAnswer", "QuestionAnswer"],
             ["routineVersion", "RoutineVersion"],
-            ["smartContractVersion", "SmartContractVersion"],
             ["standardVersion", "StandardVersion"],
         ], ...rest),
         visibility: {

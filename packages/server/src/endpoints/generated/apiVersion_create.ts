@@ -32,6 +32,7 @@ export const apiVersion_create = {
     "__typename": "PullRequest"
   },
   "root": {
+    "versionsCount": true,
     "parent": {
       "id": true,
       "isLatest": true,
@@ -40,7 +41,8 @@ export const apiVersion_create = {
       "versionLabel": true,
       "root": {
         "id": true,
-        "isPrivate": true
+        "isPrivate": true,
+        "__typename": "Api"
       },
       "translations": {
         "id": true,
@@ -49,7 +51,7 @@ export const apiVersion_create = {
         "name": true,
         "summary": true
       },
-      "__typename": "Api"
+      "__typename": "ApiVersion"
     },
     "stats": {
       "id": true,
@@ -72,19 +74,7 @@ export const apiVersion_create = {
       "color": true,
       "label": true,
       "owner": {
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "Organization": {
+        "Team": {
           "id": true,
           "bannerImage": true,
           "handle": true,
@@ -106,7 +96,19 @@ export const apiVersion_create = {
               "permissions": true
             }
           },
-          "__typename": "Organization"
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
         }
       },
       "you": {
@@ -116,19 +118,7 @@ export const apiVersion_create = {
       "__typename": "Label"
     },
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -150,7 +140,19 @@ export const apiVersion_create = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "permissions": true,
@@ -195,6 +197,7 @@ export const apiVersion_create = {
     "name": true,
     "summary": true
   },
+  "schemaText": true,
   "versionNotes": true,
   "id": true,
   "created_at": true,

@@ -1,11 +1,11 @@
-import { LINKS } from "@local/shared";
-import { Box, Button, Checkbox, FormControlLabel, FormHelperText, Grid, Stack } from "@mui/material";
+import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid, Stack } from "@mui/material";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -66,8 +66,32 @@ const SettingsDataForm = ({
                         disabled={false}
                         label="All"
                         name="all"
+                        help="All data associated with your account"
                     />
-                    <Title title={"Personal"} variant="subheader" sxs={{ stack: { paddingLeft: 0, marginRight: "auto" } }} />
+                    <Divider sx={{ marginTop: 2 }} />
+                    <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
+                        <Title
+                            Icon={UserIcon}
+                            title={"Personal"}
+                            variant="subsection"
+                            sxs={{ stack: { paddingLeft: 0 } }}
+                        />
+                        <Checkbox
+                            size="large"
+                            color="secondary"
+                            onChange={(e) => {
+                                const { checked } = e.target;
+                                props.setFieldValue("account", checked);
+                                props.setFieldValue("projects", checked);
+                                props.setFieldValue("reminders", checked);
+                                props.setFieldValue("notes", checked);
+                                props.setFieldValue("runs", checked);
+                                props.setFieldValue("schedules", checked);
+                                props.setFieldValue("bookmarks", checked);
+                                props.setFieldValue("views", checked);
+                            }}
+                        />
+                    </Box>
                     <DataOption
                         disabled={allField.value}
                         help="Profile, emails, wallets, awards, focus modes, payment history, api usage, and user stats"
@@ -114,7 +138,29 @@ const SettingsDataForm = ({
                         label="Views"
                         name="views"
                     />
-                    <Title title={"Engagement & Contributions"} variant="subheader" sxs={{ stack: { paddingLeft: 0, marginRight: "auto" } }} />
+                    <Divider sx={{ marginTop: 2 }} />
+                    <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
+                        <Title
+                            Icon={HeartFilledIcon}
+                            title={"Engagement & Contributions"}
+                            variant="subsection"
+                            sxs={{ stack: { paddingLeft: 0 } }}
+                        />
+                        <Checkbox
+                            size="large"
+                            color="secondary"
+                            onChange={(e) => {
+                                const { checked } = e.target;
+                                props.setFieldValue("comments", checked);
+                                props.setFieldValue("issues", checked);
+                                props.setFieldValue("pullRequests", checked);
+                                props.setFieldValue("questions", checked);
+                                props.setFieldValue("questionAnswers", checked);
+                                props.setFieldValue("reactions", checked);
+                                props.setFieldValue("reports", checked);
+                            }}
+                        />
+                    </Box>
                     <DataOption
                         disabled={allField.value}
                         help="Comments you've created"
@@ -156,12 +202,30 @@ const SettingsDataForm = ({
                         label="Reports"
                         name="reports"
                     />
-                    <Title title={"Collaborative"} variant="subheader" sxs={{ stack: { paddingLeft: 0, marginRight: "auto" } }} />
+                    <Divider sx={{ marginTop: 2 }} />
+                    <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
+                        <Title
+                            Icon={TeamIcon}
+                            title={"Collaborative"}
+                            variant="subsection"
+                            sxs={{ stack: { paddingLeft: 0 } }}
+                        />
+                        <Checkbox
+                            size="large"
+                            color="secondary"
+                            onChange={(e) => {
+                                const { checked } = e.target;
+                                props.setFieldValue("teams", checked);
+                                props.setFieldValue("chats", checked);
+                                props.setFieldValue("bots", checked);
+                            }}
+                        />
+                    </Box>
                     <DataOption
                         disabled={allField.value}
                         help="Will not delete teams with other admins"
                         label="Teams"
-                        name="organizations"
+                        name="teams"
                     />
                     <DataOption
                         disabled={allField.value}
@@ -174,7 +238,26 @@ const SettingsDataForm = ({
                         label="Bots"
                         name="bots"
                     />
-                    <Title title={"Automations"} variant="subheader" sxs={{ stack: { paddingLeft: 0, marginRight: "auto" } }} />
+                    <Divider sx={{ marginTop: 2 }} />
+                    <Box display="flex" flexDirection="row" sx={{ gap: 1, marginRight: "auto" }}>
+                        <Title
+                            Icon={RoutineIcon}
+                            title={"Automations"}
+                            variant="subsection"
+                            sxs={{ stack: { paddingLeft: 0 } }}
+                        />
+                        <Checkbox
+                            size="large"
+                            color="secondary"
+                            onChange={(e) => {
+                                const { checked } = e.target;
+                                props.setFieldValue("routines", checked);
+                                props.setFieldValue("apis", checked);
+                                props.setFieldValue("standards", checked);
+                                props.setFieldValue("codes", checked);
+                            }}
+                        />
+                    </Box>
                     <DataOption
                         disabled={allField.value}
                         label="Routines"
@@ -192,8 +275,8 @@ const SettingsDataForm = ({
                     />
                     <DataOption
                         disabled={allField.value}
-                        label="Smart Contracts"
-                        name="smartContracts"
+                        label="Codes"
+                        name="codes"
                     />
                 </Box>
             </BaseForm>
@@ -269,12 +352,10 @@ export const SettingsDataView = ({
                         alignItems="center"
                         margin="auto"
                         sx={{
-                            gap: 2,
                             width: "min(100%, 600px)",
                             marginBottom: 4,
                         }}>
                         <MarkdownDisplay content={t("DataSettingsPageText")} />
-                        <Button variant="outlined" color="primary" onClick={() => { setLocation(LINKS.SettingsPrivacy); }}>{t("DataSettingsPageText2")}</Button>
                     </Box>
                     <Formik
                         enableReinitialize={true}
@@ -286,10 +367,10 @@ export const SettingsDataView = ({
                             bookmarks: false,
                             bots: false,
                             chats: false,
+                            codes: false,
                             comments: false,
                             issues: false,
                             notes: false,
-                            organizations: false, // Includes meetings and roles
                             //posts: false,
                             pullRequests: false,
                             projects: false,
@@ -303,14 +384,15 @@ export const SettingsDataView = ({
                             routines: false,
                             runs: false,
                             schedules: false,
-                            smartContracts: false,
                             standards: false,
                             // tags: false,
+                            teams: false, // Includes meetings and roles
                             views: false,
                         }}
                         onSubmit={(values, helpers) => {
                             console.log("onsubmit", values);
-                            //TODO
+                            //TODO make sure they have at least one validated email address to send a download link to, if not just deleting
+                            // TODO make request
                         }}
                     >
                         {(formik) => <SettingsDataForm

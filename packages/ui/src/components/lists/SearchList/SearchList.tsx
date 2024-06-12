@@ -1,24 +1,27 @@
 /**
  * Search list for a single object type
  */
+import { ListObject, NavigableObject } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
-import { useFindMany } from "hooks/useFindMany";
 import { PlusIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { ArgsType, NavigableObject } from "types";
-import { ListObject } from "utils/display/listTools";
+import { ArgsType } from "types";
 import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { ObjectListActions, SearchListProps } from "../types";
 
 export function SearchList<DataType extends ListObject>({
+    advancedSearchParams,
+    advancedSearchSchema,
+    allData,
+    autocompleteOptions,
     canNavigate = () => true,
-    canSearch,
+    defaultSortBy,
     display,
     dummyLength = 5,
     handleAdd,
@@ -26,43 +29,27 @@ export function SearchList<DataType extends ListObject>({
     hideUpdateButton,
     id,
     isSelecting,
+    loading,
+    loadMore,
+    onItemClick,
+    removeItem,
     searchPlaceholder,
-    take = 20,
-    resolve,
+    searchString,
     searchType,
     selectedItems,
+    setAdvancedSearchParams,
+    setSortBy,
+    setSearchString,
+    setTimeFrame,
+    sortBy,
+    sortByOptions,
     sxs,
-    onItemClick,
-    where,
+    timeFrame,
+    updateItem,
 }: SearchListProps<DataType>) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const {
-        advancedSearchParams,
-        advancedSearchSchema,
-        allData,
-        autocompleteOptions,
-        loading,
-        loadMore,
-        removeItem,
-        searchString,
-        setAdvancedSearchParams,
-        setSortBy,
-        setSearchString,
-        setTimeFrame,
-        sortBy,
-        sortByOptions,
-        timeFrame,
-        updateItem,
-    } = useFindMany<DataType>({
-        canSearch,
-        controlsUrl: display === "page", // Only update URL if this component is used for a page
-        resolve,
-        searchType,
-        take,
-        where,
-    });
     // Selected items which don't appear in allData (e.g. when searching)
     const selectedItemsNotInSearch = useMemo(() => {
         if (!selectedItems) return [];
@@ -131,7 +118,6 @@ export function SearchList<DataType extends ListObject>({
     }, [getScrollingContainer, handleScroll]);
 
     const handleSearch = useCallback((newString: string) => {
-        console.log("handleSearch called", newString);
         setSearchString(newString);
     }, [setSearchString]);
 

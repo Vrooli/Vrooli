@@ -3,7 +3,7 @@ import { bool, description, id, maxStrErr, name, opt, req, transRel, YupModel, y
 
 export const childOrder = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
-export const projectVersionDirectoryTranslationValidation: YupModel = transRel({
+export const projectVersionDirectoryTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: req(name),
@@ -14,7 +14,7 @@ export const projectVersionDirectoryTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const projectVersionDirectoryValidation: YupModel = {
+export const projectVersionDirectoryValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         childOrder: opt(childOrder),
@@ -22,6 +22,13 @@ export const projectVersionDirectoryValidation: YupModel = {
     }, [
         ["parentDirectory", ["Connect"], "one", "opt"],
         ["projectVersion", ["Connect"], "one", "req"],
+        ["childApiVersions", ["Connect"], "many", "opt"],
+        ["childCodeVersions", ["Connect"], "many", "opt"],
+        ["childNoteVersions", ["Connect"], "many", "opt"],
+        ["childProjectVersions", ["Connect"], "many", "opt"],
+        ["childRoutineVersions", ["Connect"], "many", "opt"],
+        ["childStandardVersions", ["Connect"], "many", "opt"],
+        ["childTeams", ["Connect"], "many", "opt"],
         ["translations", ["Create"], "many", "opt", projectVersionDirectoryTranslationValidation],
     ], [], d),
     update: (d) => yupObj({
@@ -31,6 +38,13 @@ export const projectVersionDirectoryValidation: YupModel = {
     }, [
         ["parentDirectory", ["Connect", "Disconnect"], "one", "opt"],
         ["projectVersion", ["Connect"], "one", "opt"],
+        ["childApiVersions", ["Connect", "Disconnect"], "many", "opt"],
+        ["childCodeVersions", ["Connect", "Disconnect"], "many", "opt"],
+        ["childNoteVersions", ["Connect", "Disconnect"], "many", "opt"],
+        ["childProjectVersions", ["Connect", "Disconnect"], "many", "opt"],
+        ["childRoutineVersions", ["Connect", "Disconnect"], "many", "opt"],
+        ["childStandardVersions", ["Connect", "Disconnect"], "many", "opt"],
+        ["childTeams", ["Connect", "Disconnect"], "many", "opt"],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", projectVersionDirectoryTranslationValidation],
     ], [], d),
 };

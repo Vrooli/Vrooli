@@ -1,17 +1,24 @@
-import { Checkbox, Stack, Typography } from "@mui/material";
+import { Box, Checkbox, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
-import { getCookieIsLeftHanded } from "utils/cookies";
+import { SxType } from "types";
+import { getCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
+
+type LeftHandedCheckboxProps = {
+    sx?: SxType;
+};
 
 /**
  * Updates the font size of the entire app
  */
-export function LeftHandedCheckbox() {
+export function LeftHandedCheckbox({
+    sx,
+}: LeftHandedCheckboxProps) {
     const { t } = useTranslation();
 
-    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookieIsLeftHanded(false));
+    const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
 
     const handleToggle = useCallback(() => {
         setIsLeftHanded(!isLeftHanded);
@@ -19,11 +26,17 @@ export function LeftHandedCheckbox() {
     }, [isLeftHanded]);
 
     return (
-        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-            <Typography variant="body1" sx={{
-                ...noSelect,
-                marginRight: "auto",
-            }}>
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "row",
+                gap: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                ...sx,
+            }}
+        >
+            <Typography variant="body1" sx={noSelect}>
                 {t("LeftHandedQuestion")}
             </Typography>
             <Checkbox
@@ -33,6 +46,6 @@ export function LeftHandedCheckbox() {
                 checked={isLeftHanded}
                 onChange={handleToggle}
             />
-        </Stack>
+        </Box>
     );
 }

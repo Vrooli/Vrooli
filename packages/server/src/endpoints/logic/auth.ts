@@ -1,8 +1,10 @@
 import { AccountStatus, COOKIE, emailLogInFormValidation, EmailLogInInput, EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, EmailResetPasswordInput, EmailSignUpInput, emailSignUpValidation, LINKS, LogOutInput, password as passwordValidation, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
-import { hashPassword, logIn, setupPasswordReset, validateCode, validateVerificationCode } from "../../auth/email";
+import { randomString, validateCode } from "../../auth/codes";
+import { EMAIL_VERIFICATION_TIMEOUT, hashPassword, logIn, setupPasswordReset, validateEmailVerificationCode } from "../../auth/email";
 import { generateSessionJwt, getUser, updateSessionTimeZone } from "../../auth/request";
 import { sessionUserTokenToUser, toSession, toSessionUser } from "../../auth/session";
-import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet";
+import { generateNonce, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet";
+import { prismaInstance } from "../../db/instance";
 import { Award } from "../../events/awards";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
@@ -125,10 +127,6 @@ const DEFAULT_USER_DATA = {
             },
         }],
     },
-    // NOTE: We are purposely omitting premium data, so that its absence
-    // can indicate that:
-    // 1. The user has never had premium
-    // 2. The user has never verified their account to receive free credits
 };
 
 /**
@@ -139,7 +137,7 @@ const DEFAULT_USER_DATA = {
  */
 export const AuthEndpoints: EndpointsAuth = {
     Mutation: {
-        emailLogIn: async (_, { input }, { prisma, req, res }) => {
+        emailLogIn: async (_, { input }, { req, res }) => {
             await rateLimit({ maxUser: 100, req });
             // Validate arguments with schema
             emailLogInFormValidation.validateSync(input, { abortEarly: false });
@@ -151,17 +149,9 @@ export const AuthEndpoints: EndpointsAuth = {
                 if (!userId)
                     throw new CustomError("0128", "BadCredentials", req.session.languages);
                 // Find user by id
-                user = await prisma.user.findUnique({
+                user = await prismaInstance.user.findUnique({
                     where: { id: userId },
-                    select: {
-                        id: true,
-                        premium: {
-                            select: {
-                                isActive: true,
-                                credits: true,
-                            },
-                        },
-                    },
+                    select: { id: true },
                 });
                 if (!user)
                     throw new CustomError("0129", "NoUser", req.session.languages);
@@ -171,7 +161,7 @@ export const AuthEndpoints: EndpointsAuth = {
                         throw new CustomError("0130", "CannotVerifyEmailCode", req.session.languages);
                     const [, verificationCode] = input.verificationCode.split(":");
                     // Find all emails for user
-                    const emails = await prisma.email.findMany({
+                    const emails = await prismaInstance.email.findMany({
                         where: {
                             AND: [
                                 { userId: user.id },
@@ -182,41 +172,24 @@ export const AuthEndpoints: EndpointsAuth = {
                     const firstEmail = emails[0];
                     if (!firstEmail || !verificationCode)
                         throw new CustomError("0131", "EmailOrCodeInvalid", req.session.languages, { verificationCode });
-                    const verified = await validateVerificationCode(firstEmail.emailAddress, user.id, verificationCode, prisma, req.session.languages);
+                    const verified = await validateEmailVerificationCode(firstEmail.emailAddress, user.id, verificationCode, req.session.languages);
                     if (!verified)
                         throw new CustomError("0132", "CannotVerifyEmailCode", req.session.languages);
-                    // If this is the first time verifying (i.e. premium relation is null), give user free credits
-                    if (!user.premium) {
-                        const premiumData = {
-                            isActive: false,
-                            credits: 100,
-                        };
-                        await prisma.premium.create({
-                            data: {
-                                ...premiumData,
-                                user: { connect: { id: user.id } },
-                            },
-                        });
-                        user = {
-                            ...user,
-                            premium: premiumData,
-                        };
-                    }
                 }
-                return await toSession(user, prisma, req);
+                return await toSession(user, req);
             }
             // If email supplied, validate
             else {
-                const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
+                const email = await prismaInstance.email.findUnique({ where: { emailAddress: input.email ?? "" } });
                 if (!email)
                     throw new CustomError("0133", "EmailNotFound", req.session.languages);
                 // Find user
-                user = await prisma.user.findUnique({ where: { id: email.userId ?? "" } });
+                user = await prismaInstance.user.findUnique({ where: { id: email.userId ?? "" } });
                 if (!user)
                     throw new CustomError("0134", "NoUser", req.session.languages);
                 // Check for password in database, if doesn't exist, send a password reset link
                 if (!user.password) {
-                    await setupPasswordReset(user, prisma);
+                    await setupPasswordReset(user);
                     throw new CustomError("0135", "MustResetPassword", req.session.languages);
                 }
                 // Validate verification code, if supplied
@@ -224,22 +197,22 @@ export const AuthEndpoints: EndpointsAuth = {
                     const [, verificationCode] = input.verificationCode.includes(":") ? input.verificationCode.split(":") : [undefined, undefined];
                     if (!verificationCode)
                         throw new CustomError("0136", "CannotVerifyEmailCode", req.session.languages);
-                    const verified = await validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.session.languages);
+                    const verified = await validateEmailVerificationCode(email.emailAddress, user.id, verificationCode, req.session.languages);
                     if (!verified)
                         throw new CustomError("0137", "CannotVerifyEmailCode", req.session.languages);
                 }
                 // Create new session
-                const session = await logIn(input?.password as string, user, prisma, req);
+                const session = await logIn(input?.password as string, user, req);
                 if (session) {
                     // Set session token
-                    await generateSessionJwt(res, session as any);
+                    await generateSessionJwt(res, session);
                     return session;
                 } else {
                     throw new CustomError("0138", "BadCredentials", req.session.languages);
                 }
             }
         },
-        emailSignUp: async (_, { input }, { prisma, req, res }) => {
+        emailSignUp: async (_, { input }, { req, res }) => {
             await rateLimit({ maxUser: 10, req });
             // Validate input format
             emailSignUpValidation.validateSync(input, { abortEarly: false });
@@ -247,10 +220,10 @@ export const AuthEndpoints: EndpointsAuth = {
             if (hasProfanity(input.name))
                 throw new CustomError("0140", "BannedWord", req.session.languages);
             // Check if email exists
-            const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
+            const existingEmail = await prismaInstance.email.findUnique({ where: { emailAddress: input.email ?? "" } });
             if (existingEmail) throw new CustomError("0141", "EmailInUse", req.session.languages);
             // Create user object
-            const user = await prisma.user.create({
+            const user = await prismaInstance.user.create({
                 data: {
                     name: input.name,
                     password: hashPassword(input.password),
@@ -267,38 +240,38 @@ export const AuthEndpoints: EndpointsAuth = {
             if (!user)
                 throw new CustomError("0142", "FailedToCreate", req.session.languages);
             // Give user award for signing up
-            await Award(prisma, user.id, req.session.languages).update("AccountNew", 1);
+            await Award(user.id, req.session.languages).update("AccountNew", 1);
             // Create session from user object
-            const session = await toSession(user, prisma, req);
+            const session = await toSession(user, req);
             // Set up session token
-            await generateSessionJwt(res, session as any);
+            await generateSessionJwt(res, session);
             // Trigger new account
-            await Trigger(prisma, req.session.languages).acountNew(user.id, input.email);
+            await Trigger(req.session.languages).acountNew(user.id, input.email);
             // Return user data
             return session;
         },
-        emailRequestPasswordChange: async (_, { input }, { prisma, req }) => {
+        emailRequestPasswordChange: async (_, { input }, { req }) => {
             await rateLimit({ maxUser: 10, req });
             // Validate input format
             emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
-            const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? "" } });
+            const email = await prismaInstance.email.findUnique({ where: { emailAddress: input.email ?? "" } });
             if (!email)
                 throw new CustomError("0143", "EmailNotFound", req.session.languages);
             // Find user
-            const user = await prisma.user.findUnique({ where: { id: email.userId ?? "" } });
+            const user = await prismaInstance.user.findUnique({ where: { id: email.userId ?? "" } });
             if (!user)
                 throw new CustomError("0144", "NoUser", req.session.languages);
             // Generate and send password reset code
-            const success = await setupPasswordReset(user, prisma);
+            const success = await setupPasswordReset(user);
             return { __typename: "Success", success };
         },
-        emailResetPassword: async (_, { input }, { prisma, req, res }) => {
+        emailResetPassword: async (_, { input }, { req, res }) => {
             await rateLimit({ maxUser: 10, req });
             // Validate input format
             passwordValidation.validateSync(input.newPassword, { abortEarly: false });
             // Find user
-            const user = await prisma.user.findUnique({
+            const user = await prismaInstance.user.findUnique({
                 where: { id: input.id },
                 select: {
                     id: true,
@@ -309,14 +282,14 @@ export const AuthEndpoints: EndpointsAuth = {
             if (!user)
                 throw new CustomError("0145", "NoUser", req.session.languages);
             // If code is invalid
-            if (!validateCode(input.code, user.resetPasswordCode ?? "", user.lastResetPasswordReqestAttempt as Date)) {
+            if (!validateCode(input.code, user.resetPasswordCode ?? "", user.lastResetPasswordReqestAttempt as Date, EMAIL_VERIFICATION_TIMEOUT)) {
                 // Generate and send new code
-                await setupPasswordReset(user, prisma);
+                await setupPasswordReset(user);
                 // Return error
                 throw new CustomError("0156", "InvalidResetCode", req.session.languages);
             }
             // Remove request data from user, and set new password
-            await prisma.user.update({
+            await prismaInstance.user.update({
                 where: { id: user.id as unknown as string },
                 data: {
                     resetPasswordCode: null,
@@ -325,9 +298,9 @@ export const AuthEndpoints: EndpointsAuth = {
                 },
             });
             // Create session from user object
-            const session = await toSession(user, prisma, req);
+            const session = await toSession(user, req);
             // Set up session token
-            await generateSessionJwt(res, session as any);
+            await generateSessionJwt(res, session);
             return session;
         },
         guestLogIn: async (_p, _d, { req, res }) => {
@@ -358,10 +331,10 @@ export const AuthEndpoints: EndpointsAuth = {
                     users: req.session.users.filter(u => u.id !== input.id).map(sessionUserTokenToUser),
                 };
                 await generateSessionJwt(res, session);
-                return session as any;
+                return session;
             }
         },
-        validateSession: async (_, { input }, { prisma, req, res }) => {
+        validateSession: async (_, { input }, { req, res }) => {
             await rateLimit({ maxUser: 5000, req });
             const userId = getUser(req.session)?.id;
             // If session is expired
@@ -380,36 +353,37 @@ export const AuthEndpoints: EndpointsAuth = {
                 };
             }
             // Otherwise, check if session can be verified from userId
-            const userData = await prisma.user.findUnique({
+            const userData = await prismaInstance.user.findUnique({
                 where: { id: userId },
                 select: { id: true },
             });
             if (userData) {
-                const session = await toSession(userData, prisma, req);
+                const session = await toSession(userData, req);
+                await generateSessionJwt(res, session);
                 return session;
             }
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
             throw new CustomError("0148", "NotVerified", req.session.languages);
         },
-        switchCurrentAccount: async (_, { input }, { prisma, req, res }) => {
+        switchCurrentAccount: async (_, { input }, { req, res }) => {
             // Find index of user in session
             const index = req.session.users?.findIndex(u => u.id === input.id) ?? -1;
             // If user not found, throw error
             if (!req.session.users || index === -1) throw new CustomError("0272", "NoUser", req.session.languages);
             // Filter out user from session, then place at front
             const otherUsers = (req.session.users.filter(u => u.id !== input.id) ?? []).map(sessionUserTokenToUser);
-            const currentUser = await toSessionUser(req.session.users[index]!, prisma, req);
+            const currentUser = await toSessionUser(req.session.users[index]!, req);
             const session = { isLoggedIn: true, users: [currentUser, ...otherUsers] };
             // Set up session token
             await generateSessionJwt(res, session);
-            return session as any;
+            return session;
         },
         /**
          * Starts handshake for establishing trust between backend and user wallet
          * @returns Nonce that wallet must sign and send to walletComplete endpoint
          */
-        walletInit: async (_, { input }, { prisma, req }) => {
+        walletInit: async (_, { input }, { req }) => {
             await rateLimit({ maxUser: 100, req });
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
@@ -418,7 +392,7 @@ export const AuthEndpoints: EndpointsAuth = {
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
-            let walletData = await prisma.wallet.findUnique({
+            let walletData = await prismaInstance.wallet.findUnique({
                 where: {
                     stakingAddress: input.stakingAddress,
                 },
@@ -430,7 +404,7 @@ export const AuthEndpoints: EndpointsAuth = {
             });
             // If wallet exists, update with new nonce
             if (walletData) {
-                await prisma.wallet.update({
+                await prismaInstance.wallet.update({
                     where: { id: walletData.id },
                     data: {
                         nonce,
@@ -440,7 +414,7 @@ export const AuthEndpoints: EndpointsAuth = {
             }
             // If wallet data doesn't exist, create
             if (!walletData) {
-                walletData = await prisma.wallet.create({
+                walletData = await prismaInstance.wallet.create({
                     data: {
                         stakingAddress: input.stakingAddress,
                         nonce,
@@ -456,25 +430,17 @@ export const AuthEndpoints: EndpointsAuth = {
             return nonce;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        walletComplete: async (_, { input }, { prisma, req, res }) => {
+        walletComplete: async (_, { input }, { req, res }) => {
             await rateLimit({ maxUser: 100, req });
             // Find wallet with public address
-            const walletData = await prisma.wallet.findUnique({
+            const walletData = await prismaInstance.wallet.findUnique({
                 where: { stakingAddress: input.stakingAddress },
                 select: {
                     id: true,
                     nonce: true,
                     nonceCreationTime: true,
                     user: {
-                        select: {
-                            id: true,
-                            premium: {
-                                select: {
-                                    isActive: true,
-                                    credits: true,
-                                },
-                            },
-                        },
+                        select: { id: true },
                     },
                     verified: true,
                 },
@@ -499,17 +465,11 @@ export const AuthEndpoints: EndpointsAuth = {
                 }
                 firstLogIn = true;
                 // Create new user
-                const userData = await prisma.user.create({
+                const userData = await prismaInstance.user.create({
                     data: {
-                        name: `user${randomString(8)}`,
+                        name: `user${randomString(8, "0123456789")}`,
                         wallets: {
                             connect: { id: walletData.id },
-                        },
-                        premium: {
-                            create: {
-                                isActive: false,
-                                credits: 100,
-                            },
                         },
                         ...DEFAULT_USER_DATA,
                     },
@@ -517,13 +477,13 @@ export const AuthEndpoints: EndpointsAuth = {
                 });
                 userId = userData.id;
                 // Give user award for signing up
-                await Award(prisma, userId, req.session.languages).update("AccountNew", 1);
+                await Award(userId, req.session.languages).update("AccountNew", 1);
             }
             // If you are signed in
             else {
                 // If wallet is not verified, link it to your account
                 if (!walletData.verified) {
-                    await prisma.user.update({
+                    await prismaInstance.user.update({
                         where: { id: req.session.users?.[0]?.id as string },
                         data: {
                             wallets: {
@@ -532,19 +492,9 @@ export const AuthEndpoints: EndpointsAuth = {
                         },
                     });
                 }
-                // If you never verified your account, give free credits
-                if (!walletData.user?.premium) {
-                    await prisma.premium.create({
-                        data: {
-                            user: { connect: { id: req.session.users?.[0]?.id as string } },
-                            isActive: false,
-                            credits: 100,
-                        },
-                    });
-                }
             }
             // Update wallet and remove nonce data
-            const wallet = await prisma.wallet.update({
+            const wallet = await prismaInstance.wallet.update({
                 where: { id: walletData.id },
                 data: {
                     verified: true,
@@ -561,9 +511,9 @@ export const AuthEndpoints: EndpointsAuth = {
                 },
             });
             // Create session token
-            const session = await toSession({ id: userId as string }, prisma, req);
+            const session = await toSession({ id: userId as string }, req);
             // Add session token to return payload
-            await generateSessionJwt(res, session as any);
+            await generateSessionJwt(res, session);
             return {
                 firstLogIn,
                 session,

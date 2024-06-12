@@ -24,38 +24,38 @@ export type EndpointsRunRoutine = {
 const objectType = "RunRoutine";
 export const RunRoutineEndpoints: EndpointsRunRoutine = {
     Query: {
-        runRoutine: async (_, { input }, { prisma, req }, info) => {
+        runRoutine: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        runRoutines: async (_, { input }, { prisma, req }, info) => {
+        runRoutines: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
+            return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
-        runRoutineCreate: async (_, { input }, { prisma, req }, info) => {
+        runRoutineCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        runRoutineUpdate: async (_, { input }, { prisma, req }, info) => {
+        runRoutineUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
-        runRoutineDeleteAll: async (_p, _d, { prisma, req }) => {
+        runRoutineDeleteAll: async (_p, _d, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 25, req });
-            return RunRoutineModel.danger.deleteAll(prisma, { __typename: "User", id: userData.id });
+            return RunRoutineModel.danger.deleteAll({ __typename: "User", id: userData.id });
         },
-        runRoutineComplete: async (_, { input }, { prisma, req }, info) => {
+        runRoutineComplete: async (_, { input }, { req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
-            return RunRoutineModel.run.complete(prisma, userData, input, info);
+            return RunRoutineModel.run.complete(userData, input, info);
         },
-        runRoutineCancel: async (_, { input }, { prisma, req }, info) => {
+        runRoutineCancel: async (_, { input }, { req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
-            return RunRoutineModel.run.cancel(prisma, userData, input, info);
+            return RunRoutineModel.run.cancel(userData, input, info);
         },
     },
 };

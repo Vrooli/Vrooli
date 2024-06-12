@@ -1,5 +1,4 @@
-import { OrArray } from "@local/shared";
-import { ListObject } from "utils/display/listTools";
+import { ListObject, OrArray } from "@local/shared";
 import { ObjectViewPropsDialog, ObjectViewPropsPage, ObjectViewPropsPartial } from "views/types";
 
 export type CrudPropsBase = {

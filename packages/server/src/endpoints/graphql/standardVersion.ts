@@ -117,10 +117,11 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
         createdByIdRoot: ID
+        ownedByTeamIdRoot: ID
         ownedByUserIdRoot: ID
-        ownedByOrganizationIdRoot: ID
         ids: [ID!]
         isCompleteWithRoot: Boolean
+        isInternalWithRoot: Boolean
         isLatest: Boolean
         translationLanguages: [String!]
         maxBookmarksRoot: Int

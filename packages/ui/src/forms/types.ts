@@ -1,13 +1,15 @@
-import { InputType, Node, OrArray } from "@local/shared";
+import { InputType, ListObject, Node, OrArray } from "@local/shared";
 import { SubroutineInfoDialogProps } from "components/dialogs/types";
-import { CodeInputProps as CP, DropzoneProps as DP, LanguageInputProps as LP, IntegerInputProps as QP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as IP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
-import { ListObject } from "utils/display/listTools";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { TagShape } from "utils/shape/models/tag";
 import { NodeWithEndCrudProps, NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
+import { ViewProps } from "views/types";
+
+export type FormBuildViewProps = ViewProps;
 
 //==============================================================
 /* #region Specific Form Props */
@@ -160,7 +162,7 @@ export interface TextProps {
 /**
  * Props for rendering a IntegerInput input component
  */
-export interface IntegerInputProps extends Omit<QP, "defaultValue" | "name"> {
+export interface IntegerInputProps extends Omit<IP, "defaultValue" | "name"> {
     defaultValue?: any; // Ignored, but required by some components
 }
 
@@ -522,14 +524,12 @@ export interface GridContainerBase {
  * This is used with the schema fields to determine which inputs to render.
  */
 export interface GridContainer extends GridContainerBase {
-    /**
-     * Total number of fields in this container
-     */
-    totalItems: number;
-    /**
-     * Determines if the border should be displayed
-     */
+    /** True if the container is not collapsible. Defaults to false. */
+    disableCollapse?: boolean;
+    /** Determines if the border should be displayed */
     showBorder?: boolean;
+    /** Total number of fields in this container */
+    totalItems: number;
 }
 
 //==============================================================

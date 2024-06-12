@@ -1,4 +1,5 @@
+export * from "./cache";
 export * from "./getEmbeddableString";
 export * from "./getEmbeddings";
-export * from "./search";
+export * from "./types";
 

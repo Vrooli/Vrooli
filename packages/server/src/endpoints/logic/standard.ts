@@ -1,4 +1,4 @@
-import { FindByIdInput, Standard, StandardVersion, StandardVersionCreateInput, StandardVersionSearchInput, StandardVersionUpdateInput } from "@local/shared";
+import { FindByIdInput, Standard, StandardCreateInput, StandardSearchInput, StandardUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -8,34 +8,34 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 export type EndpointsStandard = {
     Query: {
         standard: GQLEndpoint<FindByIdInput, FindOneResult<Standard>>;
-        standards: GQLEndpoint<StandardVersionSearchInput, FindManyResult<StandardVersion>>;
+        standards: GQLEndpoint<StandardSearchInput, FindManyResult<Standard>>;
     },
     Mutation: {
-        standardCreate: GQLEndpoint<StandardVersionCreateInput, CreateOneResult<StandardVersion>>;
-        standardUpdate: GQLEndpoint<StandardVersionUpdateInput, UpdateOneResult<StandardVersion>>;
+        standardCreate: GQLEndpoint<StandardCreateInput, CreateOneResult<Standard>>;
+        standardUpdate: GQLEndpoint<StandardUpdateInput, UpdateOneResult<Standard>>;
     }
 }
 
 const objectType = "Standard";
 export const StandardEndpoints: EndpointsStandard = {
     Query: {
-        standard: async (_, { input }, { prisma, req }, info) => {
+        standard: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        standards: async (_, { input }, { prisma, req }, info) => {
+        standards: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req });
+            return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        standardCreate: async (_, { input }, { prisma, req }, info) => {
+        standardCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 250, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        standardUpdate: async (_, { input }, { prisma, req }, info) => {
+        standardUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

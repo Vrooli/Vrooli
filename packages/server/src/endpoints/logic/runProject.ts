@@ -24,38 +24,38 @@ export type EndpointsRunProject = {
 const objectType = "RunProject";
 export const RunProjectEndpoints: EndpointsRunProject = {
     Query: {
-        runProject: async (_, { input }, { prisma, req }, info) => {
+        runProject: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        runProjects: async (_, { input }, { prisma, req }, info) => {
+        runProjects: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, prisma, req, visibility: VisibilityType.Own });
+            return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
-        runProjectCreate: async (_, { input }, { prisma, req }, info) => {
+        runProjectCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        runProjectUpdate: async (_, { input }, { prisma, req }, info) => {
+        runProjectUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
-        runProjectDeleteAll: async (_p, _d, { prisma, req }) => {
+        runProjectDeleteAll: async (_p, _d, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 25, req });
-            return (RunProjectModel as any).danger.deleteAll(prisma, { __typename: "User", id: userData.id });
+            return (RunProjectModel as any).danger.deleteAll({ __typename: "User", id: userData.id });
         },
-        runProjectComplete: async (_, { input }, { prisma, req }, info) => {
+        runProjectComplete: async (_, { input }, { req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
-            return (RunProjectModel as any).run.complete(prisma, userData, input, info);
+            return (RunProjectModel as any).run.complete(userData, input, info);
         },
-        runProjectCancel: async (_, { input }, { prisma, req }, info) => {
+        runProjectCancel: async (_, { input }, { req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
-            return (RunProjectModel as any).run.cancel(prisma, userData, input, info);
+            return (RunProjectModel as any).run.cancel(userData, input, info);
         },
     },
 };

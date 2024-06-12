@@ -8,7 +8,7 @@ import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from 
 const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.reminder_list,
+    dbTable: "reminder_list",
     display: () => ({
         label: {
             select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.select() } }),
@@ -21,12 +21,12 @@ export const ReminderListModel: ReminderListModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: data.id,
-                ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest })),
-                ...(await shapeHelper({ relation: "reminders", relTypes: ["Create"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest })),
+                focusMode: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest }),
+                reminders: await shapeHelper({ relation: "reminders", relTypes: ["Create"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                ...(await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest })),
-                ...(await shapeHelper({ relation: "reminders", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest })),
+                focusMode: await shapeHelper({ relation: "focusMode", relTypes: ["Connect"], isOneToOne: true, objectType: "FocusMode", parentRelationshipName: "reminderList", data, ...rest }),
+                reminders: await shapeHelper({ relation: "reminders", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "Reminder", parentRelationshipName: "reminderList", data, ...rest }),
             }),
         },
         yup: reminderListValidation,

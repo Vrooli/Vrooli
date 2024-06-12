@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { Cookies } from "utils/cookies";
+import { removeCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { LoginViewProps } from "views/types";
 
@@ -88,7 +88,7 @@ const LoginForm = ({
                         inputs: { ...values, verificationCode },
                         successCondition: (data) => data !== null,
                         onSuccess: (data) => {
-                            localStorage.removeItem(Cookies.FormData); // Clear old form data cache
+                            removeCookie("FormData"); // Clear old form data cache
                             if (verificationCode) PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
                             PubSub.get().publish("session", data);
                             setLocation(redirect ?? LINKS.Home);

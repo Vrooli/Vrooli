@@ -40,11 +40,11 @@ export const Title = ({
     const matchesSM = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     let fontSize: string;
     if (matchesXS) {
-        fontSize = variant === "header" ? "1.75rem" : "1.5rem";
+        fontSize = variant === "header" ? "1.75rem" : variant === "subheader" ? "1.5rem" : "1.25rem";
     } else if (matchesSM) {
-        fontSize = variant === "header" ? "2rem" : "1.75rem";
+        fontSize = variant === "header" ? "2rem" : variant === "subheader" ? "1.75rem" : "1.5rem";
     } else {
-        fontSize = variant === "header" ? "2.5rem" : "2rem";
+        fontSize = variant === "header" ? "2.5rem" : variant === "subheader" ? "2rem" : "1.75rem";
     }
 
     return (
@@ -64,8 +64,8 @@ export const Title = ({
                 {/* Title */}
                 {titleComponent ?? <Typography
                     ref={textRef}
-                    component={variant === "header" ? "h1" : "h2"}
-                    variant={variant === "header" ? "h3" : "h4"}
+                    component={variant === "header" ? "h1" : variant === "subheader" ? "h2" : "h3"}
+                    variant={variant === "header" ? "h3" : variant === "subheader" ? "h4" : "h5"}
                     textAlign="center"
                     sx={{
                         fontSize,
@@ -74,8 +74,8 @@ export const Title = ({
                     }}
                 >{title}</Typography>}
                 {/* Adornments */}
-                {adornments && adornments.map((Adornment) => (
-                    <Box sx={{
+                {adornments && adornments.map(({ Adornment, key }) => (
+                    <Box key={key} sx={{
                         height: fontSizeToPixels(fontSize ?? "1rem") * Number(typography[variant === "header" ? "h3" : "h4"].lineHeight ?? "1.5"),
                     }}>
                         {Adornment}
@@ -87,8 +87,8 @@ export const Title = ({
                 {help && help.length > 0 ? <HelpButton
                     markdown={help}
                     sx={{
-                        width: variant === "header" ? "40px" : "30px",
-                        height: variant === "header" ? "40px" : "30px",
+                        width: variant === "header" ? "40px" : variant === "subheader" ? "30px" : "25px",
+                        height: variant === "header" ? "40px" : variant === "subheader" ? "30px" : "25px",
                     }}
                 /> : null}
                 {/* Additional options */}

@@ -15,9 +15,8 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { CalendarPageTabOption } from "utils/search/objectToSearch";
 import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
@@ -81,7 +80,7 @@ const RunProjectForm = ({
         setIsScheduleDialogOpen(false);
     };
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<RunProject>({
+    const { handleCancel, handleCompleted } = useUpsertActions<RunProject>({
         display,
         isCreate,
         objectId: values.id,
@@ -98,7 +97,7 @@ const RunProjectForm = ({
         endpointCreate: endpointPostRunProject,
         endpointUpdate: endpointPutRunProject,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "RunProject" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunProject" });
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -128,7 +127,7 @@ const RunProjectForm = ({
             <ScheduleUpsert
                 canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab={CalendarPageTabOption.RunProject}
+                defaultTab="RunProject"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -241,14 +240,13 @@ export const RunProjectUpsert = ({
 }: RunProjectUpsertProps) => {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<RunProject, RunProjectShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunProject, RunProjectShape>({
         ...endpointGetRunProject,
         isCreate,
         objectType: "RunProject",
         overrideObject,
         transform: (existing) => runProjectInitialValues(session, existing),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -258,7 +256,7 @@ export const RunProjectUpsert = ({
             validate={async (values) => await validateFormValues(values, existing, isCreate, transformRunProjectValues, runProjectValidation)}
         >
             {(formik) => <RunProjectForm
-                disabled={!(isCreate || canUpdate)}
+                disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

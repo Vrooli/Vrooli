@@ -1,5 +1,5 @@
 import { JoinMap } from "../models/types";
-import { isRelationshipObject } from "./isRelationshipObject";
+import { isRelationshipObject } from "./isOfType";
 
 /**
  * Idempotent helper function for removing join tables between

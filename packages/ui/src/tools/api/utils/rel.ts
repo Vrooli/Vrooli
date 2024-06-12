@@ -1,6 +1,6 @@
 import { exists } from "@local/shared";
 import pkg from "lodash";
-import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
+import { DeepPartialBooleanWithFragments, GqlPartial, SelectionType } from "../types";
 import { findSelection } from "./findSelection";
 import { partialShape } from "./partialShape";
 import { removeValuesUsingDot } from "./removeValuesUsingDot";
@@ -15,7 +15,7 @@ const { merge } = pkg;
  */
 export const rel = async <
     Partial extends GqlPartial<any>,
-    Selection extends "common" | "full" | "list" | "nav",
+    Selection extends SelectionType,
     OmitField extends string | number | symbol,
 >(
     partial: Partial,

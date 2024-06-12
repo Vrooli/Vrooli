@@ -1,6 +1,6 @@
-import { ModelMap, PrismaType, Trigger, batch, findFirstRel, logger } from "@local/server";
-import { GqlModelType, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
-import pkg, { Prisma, ReportStatus } from "@prisma/client";
+import { ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger, prismaInstance } from "@local/server";
+import { GqlModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
+import pkg, { Prisma } from "@prisma/client";
 
 // Constants for calculating when a moderation action for a report should be accepted
 // Minimum reputation sum of users who have suggested a specific moderation action
@@ -84,11 +84,11 @@ const actionToStatus = (action: ReportSuggestedAction): ReportStatus => {
  */
 const softDeletableTypes = [
     "ApiVersion",
+    "CodeVersion",
     "NoteVersion",
     "Post",
     "ProjectVersion",
     "RoutineVersion",
-    "SmartContractVersion",
     "StandardVersion",
 ];
 
@@ -109,7 +109,6 @@ const moderateReport = async (
     report: pkg.report & {
         responses: (pkg.report_response & { createdBy: pkg.user })[]
     },
-    prisma: PrismaType,
 ): Promise<void> => {
     let acceptedAction: ReportSuggestedAction | null = null;
     // Group responses by action and sum reputation
@@ -138,7 +137,7 @@ const moderateReport = async (
     if (acceptedAction) {
         // Update report
         const status = actionToStatus(acceptedAction);
-        await prisma.report.update({
+        await prismaInstance.report.update({
             where: { id: report.id },
             data: { status },
         });
@@ -147,16 +146,16 @@ const moderateReport = async (
         const [objectField, objectData] = findFirstRel(report, [
             "apiVersion",
             "comment",
+            "codeVersion",
             "issue",
             "noteVersion",
-            "organization",
             "post",
             "projectVersion",
             "question",
             "routineVersion",
-            "smartContractVersion",
             "standardVersion",
             "tag",
+            "team",
             "user",
         ]).map(([type, data]) => [uppercaseFirstLetter(type ?? ""), data]) as [string, any];
         if (!objectField || !objectData) {
@@ -165,18 +164,18 @@ const moderateReport = async (
         }
         const objectType = uppercaseFirstLetter(objectField);
         // Find the object's owner
-        let objectOwner: { __typename: "Organization" | "User", id: string } | null = null;
+        let objectOwner: { __typename: "Team" | "User", id: string } | null = null;
         if (objectType.endsWith("Version")) {
-            if (objectData.root.ownedByOrganization) {
-                objectOwner = { __typename: "Organization", id: objectData.root.ownedByOrganization.id };
+            if (objectData.root.ownedByTeam) {
+                objectOwner = { __typename: "Team", id: objectData.root.ownedByTeam.id };
             }
             else if (objectData.root.ownedByUser) {
                 objectOwner = { __typename: "User", id: objectData.root.ownedByUser.id };
             }
         }
         else if (["Post"].includes(objectType)) {
-            if (objectData.organization) {
-                objectOwner = { __typename: "Organization", id: objectData.organization.id };
+            if (objectData.team) {
+                objectOwner = { __typename: "Team", id: objectData.team.id };
             }
             else if (objectData.user) {
                 objectOwner = { __typename: "User", id: objectData.user.id };
@@ -187,8 +186,8 @@ const moderateReport = async (
                 objectOwner = { __typename: "User", id: objectData.owner.id };
             }
         }
-        else if (["Organization"].includes(objectType)) {
-            objectOwner = { __typename: "Organization", id: objectData.id };
+        else if (["Team"].includes(objectType)) {
+            objectOwner = { __typename: "Team", id: objectData.id };
         }
         else if (["User"].includes(objectType)) {
             objectOwner = { __typename: "User", id: objectData.id };
@@ -198,7 +197,7 @@ const moderateReport = async (
             return;
         }
         // Trigger activity
-        await Trigger(prisma, ["en"]).reportActivity({
+        await Trigger(["en"]).reportActivity({
             objectId: objectData.id,
             objectType: objectType as GqlModelType,
             objectOwner,
@@ -208,8 +207,8 @@ const moderateReport = async (
             reportStatus: status,
             userUpdatingReportId: null,
         });
-        // Get Prisma delegate for the object type
-        const { delegate } = ModelMap.getLogic(["delegate"], objectType as GqlModelType);
+        // Get Prisma table for the object type
+        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as GqlModelType);
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:
@@ -217,13 +216,13 @@ const moderateReport = async (
             // If the object can be soft-deleted, soft-delete it.
             case ReportSuggestedAction.Delete:
                 if (softDeletableTypes.includes(objectType)) {
-                    await delegate(prisma).update({
+                    await (prismaInstance[dbTable] as PrismaDelegate).update({
                         where: { id: objectData.id },
                         data: { isDeleted: true },
                     });
                 }
                 else {
-                    await delegate(prisma).delete({ where: { id: objectData.id } });
+                    await (prismaInstance[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
                 }
                 break;
             case ReportSuggestedAction.FalseReport:
@@ -236,7 +235,7 @@ const moderateReport = async (
                     return;
                 }
                 // Hide the object
-                await delegate(prisma).update({
+                await (prismaInstance[dbTable] as PrismaDelegate).update({
                     where: { id: objectData.id },
                     data: { isPrivate: true },
                 });
@@ -247,7 +246,7 @@ const moderateReport = async (
             case ReportSuggestedAction.SuspendUser:
                 //TODO - implement. Can set account status to HardLockout, 
                 // but should have timeout that increases with each suspension. 
-                // Also, this cannot be available for objects owned by organizations. 
+                // Also, this cannot be available for objects owned by teams. 
                 // So need to come up with similarly severe punishment for orgs.
                 break;
         }
@@ -261,7 +260,7 @@ const versionedObjectQuery = {
     id: true,
     root: {
         select: {
-            ownedByOrganization: {
+            ownedByTeam: {
                 select: { id: true },
             },
             ownedByUser: {
@@ -276,7 +275,7 @@ const versionedObjectQuery = {
  */
 const nonVersionedObjectQuery = {
     id: true,
-    ownedByOrganization: {
+    ownedByTeam: {
         select: { id: true },
     },
     ownedByUser: {
@@ -290,7 +289,7 @@ const nonVersionedObjectQuery = {
  */
 const nonVersionedObjectQuery2 = {
     id: true,
-    organization: {
+    team: {
         select: { id: true },
     },
     user: {
@@ -324,42 +323,47 @@ const nonVersionedObjectQuery3 = {
  *   the report is automatically accepted and the object is moderated accordingly.
  * 4. Notifications are sent to the relevant users when a decision is made, and reputation scores are updated.
  */
-export const moderateReports = async () => await batch<Prisma.reportFindManyArgs>({
-    objectType: "Report",
-    processBatch: async (batch, prisma) => {
-        Promise.all(batch.map(async (report) => {
-            await moderateReport(report, prisma);
-        }));
-    },
-    select: {
-        id: true,
-        created_at: true,
-        apiVersion: { select: versionedObjectQuery },
-        comment: { select: nonVersionedObjectQuery },
-        issue: { select: nonVersionedObjectQuery3 },
-        noteVersion: { select: versionedObjectQuery },
-        organization: { select: { id: true } },
-        post: { select: nonVersionedObjectQuery2 },
-        projectVersion: { select: versionedObjectQuery },
-        question: { select: nonVersionedObjectQuery3 },
-        routineVersion: { select: versionedObjectQuery },
-        smartContractVersion: { select: versionedObjectQuery },
-        standardVersion: { select: versionedObjectQuery },
-        tag: { select: nonVersionedObjectQuery3 },
-        user: { select: { id: true } },
-        createdBy: { select: { id: true } },
-        responses: {
+export const moderateReports = async () => {
+    try {
+        await batch<Prisma.reportFindManyArgs>({
+            objectType: "Report",
+            processBatch: async (batch) => {
+                Promise.all(batch.map(async (report) => {
+                    await moderateReport(report);
+                }));
+            },
             select: {
                 id: true,
-                actionSuggested: true,
-                createdBy: {
-                    select: { reputation: true },
+                created_at: true,
+                apiVersion: { select: versionedObjectQuery },
+                comment: { select: nonVersionedObjectQuery },
+                codeVersion: { select: versionedObjectQuery },
+                issue: { select: nonVersionedObjectQuery3 },
+                noteVersion: { select: versionedObjectQuery },
+                post: { select: nonVersionedObjectQuery2 },
+                projectVersion: { select: versionedObjectQuery },
+                question: { select: nonVersionedObjectQuery3 },
+                routineVersion: { select: versionedObjectQuery },
+                standardVersion: { select: versionedObjectQuery },
+                tag: { select: nonVersionedObjectQuery3 },
+                team: { select: { id: true } },
+                user: { select: { id: true } },
+                createdBy: { select: { id: true } },
+                responses: {
+                    select: {
+                        id: true,
+                        actionSuggested: true,
+                        createdBy: {
+                            select: { reputation: true },
+                        },
+                    },
                 },
             },
-        },
-    },
-    trace: "0464",
-    where: {
-        status: ReportStatus.Open,
-    },
-});
+            where: {
+                status: ReportStatus.Open,
+            },
+        });
+    } catch (error) {
+        logger.error("moderateReports caught error", { error, trace: "0464" });
+    }
+};

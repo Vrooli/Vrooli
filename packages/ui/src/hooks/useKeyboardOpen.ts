@@ -1,28 +1,45 @@
 import { useEffect, useState } from "react";
+import { getDeviceInfo } from "utils/display/device";
 
 /**
- * Hook to detect if the keyboard is open or not. Useful for hiding fixed elements when the keyboard is open.
- * @param minKeyboardHeight The minimum height of the keyboard to consider it open. Defaults to 300.
- * @returns Whether the keyboard is open or not.
+ * Hook to detect if the keyboard is open or not. 
+ * Useful for hiding fixed elements (e.g. BottomNav).
  */
-export const useKeyboardOpen = (minKeyboardHeight = 300): boolean => {
-    const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+export const useKeyboardOpen = (): boolean => {
+    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
     useEffect(() => {
-        const listener = () => {
-            if (!window.visualViewport) return;
-            // Calculate difference in height between window and visual viewport. 
-            const newState = (window.visualViewport.height - window.innerHeight) > minKeyboardHeight;
-            // const newState = window.screen.height - minKeyboardHeight > window.visualViewport.height;
-            if (isKeyboardOpen !== newState) {
-                setIsKeyboardOpen(newState);
-            }
+        // Function to handle focus event
+        const handleFocus = (event: FocusEvent) => {
+            const target = event.target as HTMLElement;
+            const isTextBox = target?.role === "textbox" || target?.tagName === "TEXTAREA";
+            setIsKeyboardOpen(isTextBox && getDeviceInfo().isMobile);
         };
-        window.visualViewport?.addEventListener("resize", listener);
+
+        // Function to handle blur event
+        const handleBlur = () => {
+            setIsKeyboardOpen(false);
+        };
+
+        // Add event listeners
+        window.addEventListener("focusin", handleFocus);
+        window.addEventListener("focusout", handleBlur);
+
+        // Cleanup
         return () => {
-            window.visualViewport?.removeEventListener("resize", listener);
+            window.removeEventListener("focusin", handleFocus);
+            window.removeEventListener("focusout", handleBlur);
         };
-    }, [isKeyboardOpen, minKeyboardHeight]);
+    }, []);
+
+    //TODO this fixes initial state for pages like NoteCrud, but then you have to press "Submit" or "Cancel" twice
+    // // Check initial state
+    // useEffect(() => {
+    //     const activeElement = document.activeElement as HTMLElement | null;
+    //     if (!activeElement) return;
+    //     const isTextBox = activeElement?.role === "textbox" || activeElement?.tagName === "TEXTAREA";
+    //     setIsKeyboardOpen(isTextBox && getDeviceInfo().isMobile);
+    // }, []);
 
     return isKeyboardOpen;
 };

@@ -5,7 +5,7 @@ import { nodeLoopWhileValidation } from "./nodeLoopWhile";
 const loops = yup.number().integer().min(0, minStrErr).max(100, maxStrErr);
 const maxLoops = yup.number().integer().min(1, minStrErr).max(100, maxStrErr);
 
-export const nodeLoopValidation: YupModel = {
+export const nodeLoopValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         loops: opt(loops),

@@ -19,23 +19,23 @@ export type EndpointsTag = {
 const objectType = "Tag";
 export const TagEndpoints: EndpointsTag = {
     Query: {
-        tag: async (_, { input }, { prisma, req }, info) => {
+        tag: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, prisma, req });
+            return readOneHelper({ info, input, objectType, req });
         },
-        tags: async (_, { input }, { prisma, req }, info) => {
+        tags: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyWithEmbeddingsHelper({ info, input, objectType, prisma, req });
+            return readManyWithEmbeddingsHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
-        tagCreate: async (_, { input }, { prisma, req }, info) => {
+        tagCreate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return createOneHelper({ info, input, objectType, prisma, req });
+            return createOneHelper({ info, input, objectType, req });
         },
-        tagUpdate: async (_, { input }, { prisma, req }, info) => {
+        tagUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 500, req });
-            return updateOneHelper({ info, input, objectType, prisma, req });
+            return updateOneHelper({ info, input, objectType, req });
         },
     },
 };

@@ -21,7 +21,7 @@ export const api: GqlPartial<Api> = {
     __typename: "Api",
     common: {
         __define: {
-            0: async () => rel((await import("./organization")).organization, "nav"),
+            0: async () => rel((await import("./team")).team, "nav"),
             1: async () => rel((await import("./user")).user, "nav"),
             2: async () => rel((await import("./tag")).tag, "list"),
             3: async () => rel((await import("./label")).label, "list"),
@@ -34,7 +34,7 @@ export const api: GqlPartial<Api> = {
         labels: { __use: 3 },
         owner: {
             __union: {
-                Organization: 0,
+                Team: 0,
                 User: 1,
             },
         },
@@ -48,6 +48,7 @@ export const api: GqlPartial<Api> = {
         you: () => rel(apiYou, "full"),
     },
     full: {
+        versionsCount: true,
         parent: async () => rel((await import("./apiVersion")).apiVersion, "nav"),
         versions: async () => rel((await import("./apiVersion")).apiVersion, "full", { omit: "root" }),
         stats: async () => rel((await import("./statsApi")).statsApi, "full"),

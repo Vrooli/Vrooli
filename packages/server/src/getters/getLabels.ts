@@ -1,8 +1,9 @@
 import { GqlModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ModelMap } from "../models/base";
-import { PrismaType } from "../types";
 
 /**
  * Finds translated labels for a list of objects
@@ -10,14 +11,12 @@ import { PrismaType } from "../types";
  * when a user action triggers a notification for someone else.
  * If languages not defined, uses user's preferred languages
  * @param objectType Type of object to find labels for
- * @param prisma Prisma client
  * @param languages Preferred languages to display errors in
  * @param errorTrace Error trace to display
  */
 export async function getLabels(
     objects: { id: string, languages: string[] }[] | string[],
     objectType: `${GqlModelType}`,
-    prisma: PrismaType,
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {
@@ -31,7 +30,7 @@ export async function getLabels(
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
         select = typeof model.display().label.select === "function" ? model.display().label.select() : model.display().label.select;
-        labelsData = await model.delegate(prisma).findMany({
+        labelsData = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
             where,
             select,
         });

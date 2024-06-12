@@ -1,6 +1,6 @@
 import { InputType } from "@local/shared";
 import { FieldData, FieldDataBase } from "forms/types";
-import { StandardLanguage } from "../CodeInputBase/CodeInputBase";
+import { CodeLanguage } from "../CodeInput/CodeInput";
 
 /**
  * Handles all parts of creating a standard input, from props, to labels, to validation
@@ -22,7 +22,7 @@ type StandardInputCommonProps = Omit<BaseStandardInputProps, "inputType" | "labe
 export type CheckboxStandardInputProps = StandardInputCommonProps;
 
 export type CodeStandardInputProps = StandardInputCommonProps & {
-    limitTo?: StandardLanguage[];
+    limitTo?: CodeLanguage[];
 };
 
 export type DropzoneStandardInputProps = StandardInputCommonProps;

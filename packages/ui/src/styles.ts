@@ -221,7 +221,7 @@ export const FormSection = styled(Stack)(({ theme }) => ({
 export const formContainer = (theme: Theme): SxProps => ({
     flexDirection: "column",
     margin: theme.spacing(2),
-    gap: theme.spacing(4),
+    gap: theme.spacing(3),
 });
 export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),
@@ -277,3 +277,22 @@ export const highlightStyle = (background: string, disabled: boolean | undefined
         filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
     },
 } as const);
+
+export const CardBox = styled(Box)(({ theme }) => ({
+    ...noSelect,
+    display: "block",
+    boxShadow: theme.shadows[4],
+    background: theme.palette.primary.light,
+    color: theme.palette.secondary.contrastText,
+    borderRadius: "8px",
+    padding: theme.spacing(0.5),
+    cursor: "pointer",
+    width: "200px",
+    minWidth: "200px",
+    height: `calc(${theme.typography.h3.fontSize} * 2 + ${theme.spacing(1)})`,
+    position: "relative",
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
+})) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274

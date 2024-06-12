@@ -1,4 +1,4 @@
-import { GqlPartial } from "../types";
+import { GqlPartial, SelectionType } from "../types";
 import { partialToString } from "./partialToString";
 
 /**
@@ -14,7 +14,7 @@ import { partialToString } from "./partialToString";
 export const toQuery = async <
     Endpoint extends string,
     Partial extends GqlPartial<any>,
-    Selection extends "common" | "full" | "list" | "nav",
+    Selection extends SelectionType,
 >(
     endpointName: Endpoint,
     inputType: string | null,

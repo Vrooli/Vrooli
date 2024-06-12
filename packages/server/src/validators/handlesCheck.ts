@@ -1,6 +1,7 @@
+import { PrismaDelegate } from "../builders/types";
+import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
-import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 
 /** 
@@ -11,40 +12,55 @@ const RESERVED_HANDLES = [
     "abuse",
     "add",
     "api",
+    "adm1n",
     "admin",
     "administrator",
     "assistant",
     "billing",
     "bot",
     "careers",
+    "channel",
+    "chat",
+    "chatMessage",
+    "code",
     "community",
     "compliance",
     "contact",
     "customerservice",
     "customer_service",
     "create",
+    "data",
     "delete",
     "dev",
+    "develop",
     "developer",
     "edit",
     "feedback",
     "finance",
     "find",
     "help",
+    "helper",
+    "helpdesk",
     "hr",
     "humanresources",
     "human_resources",
     "info",
     "investor",
     "legal",
+    "link",
     "management",
     "manager",
     "marketing",
     "meeting",
     "mod",
     "moderator",
+    "new",
+    "news",
     "note",
     "official",
+    "officialvrooli",
+    "official_vrooli",
+    "org",
     "organization",
     "partners",
     "press",
@@ -52,6 +68,11 @@ const RESERVED_HANDLES = [
     "profile",
     "project",
     "question",
+    "realvrooli",
+    "real_vrooli",
+    "report",
+    "resource",
+    "resources",
     "root",
     "routine",
     "run",
@@ -63,6 +84,7 @@ const RESERVED_HANDLES = [
     "smartcontract",
     "standard",
     "status",
+    "subroutine",
     "support",
     "system",
     "tag",
@@ -77,21 +99,22 @@ const RESERVED_HANDLES = [
     "valyxa_official",
     "vrooli",
     "vrooliofficial",
+    "vroolireal",
     "vrooli_official",
+    "vrooli_real",
+    "web",
     "webmaster",
 ];
 
 /**
  * Verifies that handles are available 
- * @param prisma Prisma client
  * @param forType The type of object to check handles for
  * @param Create Handle and id pairs for new objects
  * @param Update Handle and id pairs for updated objects
  * @param languages Preferred languages for error messages
  */
 export const handlesCheck = async (
-    prisma: PrismaType,
-    forType: "User" | "Organization" | "Project",
+    forType: "User" | "Project" | "Team",
     Create: { input: { id: string, handle?: string | null | undefined } }[],
     Update: { input: { id: string, handle?: string | null | undefined } }[],
     languages: string[],
@@ -102,8 +125,8 @@ export const handlesCheck = async (
 
     // Find all existing handles that match the handles in createList and updateList.
     // There should be none, unless some of the updates are changing the existing handles to something else.
-    const { delegate } = ModelMap.getLogic(["delegate"], forType);
-    const existingHandles = await delegate(prisma).findMany({
+    const { dbTable } = ModelMap.getLogic(["dbTable"], forType);
+    const existingHandles = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
         where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
         select: { id: true, handle: true },
     });

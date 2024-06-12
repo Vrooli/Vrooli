@@ -1,4 +1,5 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
+import { WarningIcon } from "icons";
 import { TIDCardProps } from "../types";
 
 /**
@@ -11,6 +12,7 @@ export const TIDCard = ({
     id,
     onClick,
     title,
+    warning,
     ...props
 }: TIDCardProps) => {
     const { breakpoints, palette } = useTheme();
@@ -62,6 +64,12 @@ export const TIDCard = ({
                     <Typography variant='body2' color={palette.background.textSecondary} sx={{ overflowWrap: "anywhere" }}>
                         {description}
                     </Typography>
+                    {warning && (
+                        <Box sx={{ display: "flex", alignItems: "center", color: palette.warning.main, marginTop: 1 }}>
+                            <WarningIcon style={{ fontSize: 20, marginRight: "8px" }} />
+                            <Typography variant="body2">{warning}</Typography>
+                        </Box>
+                    )}
                 </Box>
                 {/* Bottom of card is button */}
                 <Button

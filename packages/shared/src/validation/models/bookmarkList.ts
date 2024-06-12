@@ -4,7 +4,7 @@ import { bookmarkValidation } from "./bookmark";
 
 const label = yup.string().trim().removeEmptyString().max(128, maxStrErr);
 
-export const bookmarkListValidation: YupModel = {
+export const bookmarkListValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         label: req(label),

@@ -3,6 +3,7 @@ import { EmailEndpoints, EndpointsEmail } from "../logic/email";
 
 export const typeDef = gql`
     input EmailCreateInput {
+        id: ID!
         emailAddress: String!
     }
     input SendVerificationEmailInput {

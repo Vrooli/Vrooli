@@ -1,10 +1,10 @@
 import { CommonKey, ErrorKey, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
-import { MakeLazyRequest } from "hooks/useLazyFetch";
 import { useCallback } from "react";
 import { PubSub } from "utils/pubsub";
 import { errorToMessage } from "./errorParser";
 import { fetchData } from "./fetchData";
+import { LazyRequestWithResult } from "./types";
 
 // For some reason, these snack message types break when we omit "severity". So we must redefine them here
 type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
@@ -57,7 +57,7 @@ const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?:
 };
 
 interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
-    fetch: MakeLazyRequest<Input, Output>;
+    fetch: LazyRequestWithResult<Input, Output>;
     /** Input to pass to endpoint */
     inputs?: Input;
     /** Callback to determine if mutation was a success, using mutation's return data */

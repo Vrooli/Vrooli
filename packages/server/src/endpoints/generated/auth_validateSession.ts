@@ -1333,27 +1333,104 @@ export const auth_validateSession = {
                                             "start": 3232,
                                             "end": 3243
                                           }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "you",
+                                            "loc": {
+                                              "start": 3268,
+                                              "end": 3271
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "selectionSet": {
+                                            "kind": "SelectionSet",
+                                            "selections": [
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canDelete",
+                                                  "loc": {
+                                                    "start": 3302,
+                                                    "end": 3311
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3302,
+                                                  "end": 3311
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canRead",
+                                                  "loc": {
+                                                    "start": 3340,
+                                                    "end": 3347
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3340,
+                                                  "end": 3347
+                                                }
+                                              },
+                                              {
+                                                "kind": "Field",
+                                                "name": {
+                                                  "kind": "Name",
+                                                  "value": "canUpdate",
+                                                  "loc": {
+                                                    "start": 3376,
+                                                    "end": 3385
+                                                  }
+                                                },
+                                                "arguments": [],
+                                                "directives": [],
+                                                "loc": {
+                                                  "start": 3376,
+                                                  "end": 3385
+                                                }
+                                              }
+                                            ],
+                                            "loc": {
+                                              "start": 3272,
+                                              "end": 3411
+                                            }
+                                          },
+                                          "loc": {
+                                            "start": 3268,
+                                            "end": 3411
+                                          }
                                         }
                                       ],
                                       "loc": {
                                         "start": 1041,
-                                        "end": 3265
+                                        "end": 3433
                                       }
                                     },
                                     "loc": {
                                       "start": 1031,
-                                      "end": 3265
+                                      "end": 3433
                                     }
                                   }
                                 ],
                                 "loc": {
                                   "start": 479,
-                                  "end": 3283
+                                  "end": 3451
                                 }
                               },
                               "loc": {
                                 "start": 471,
-                                "end": 3283
+                                "end": 3451
                               }
                             },
                             {
@@ -1362,8 +1439,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "labels",
                                 "loc": {
-                                  "start": 3300,
-                                  "end": 3306
+                                  "start": 3468,
+                                  "end": 3474
                                 }
                               },
                               "arguments": [],
@@ -1377,15 +1454,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3329,
-                                        "end": 3331
+                                        "start": 3497,
+                                        "end": 3499
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3329,
-                                      "end": 3331
+                                      "start": 3497,
+                                      "end": 3499
                                     }
                                   },
                                   {
@@ -1394,15 +1471,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "color",
                                       "loc": {
-                                        "start": 3352,
-                                        "end": 3357
+                                        "start": 3520,
+                                        "end": 3525
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3352,
-                                      "end": 3357
+                                      "start": 3520,
+                                      "end": 3525
                                     }
                                   },
                                   {
@@ -1411,26 +1488,26 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "label",
                                       "loc": {
-                                        "start": 3378,
-                                        "end": 3383
+                                        "start": 3546,
+                                        "end": 3551
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3378,
-                                      "end": 3383
+                                      "start": 3546,
+                                      "end": 3551
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3307,
-                                  "end": 3401
+                                  "start": 3475,
+                                  "end": 3569
                                 }
                               },
                               "loc": {
-                                "start": 3300,
-                                "end": 3401
+                                "start": 3468,
+                                "end": 3569
                               }
                             },
                             {
@@ -1439,8 +1516,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "reminderList",
                                 "loc": {
-                                  "start": 3418,
-                                  "end": 3430
+                                  "start": 3586,
+                                  "end": 3598
                                 }
                               },
                               "arguments": [],
@@ -1454,15 +1531,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 3453,
-                                        "end": 3455
+                                        "start": 3621,
+                                        "end": 3623
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3453,
-                                      "end": 3455
+                                      "start": 3621,
+                                      "end": 3623
                                     }
                                   },
                                   {
@@ -1471,15 +1548,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 3476,
-                                        "end": 3486
+                                        "start": 3644,
+                                        "end": 3654
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3476,
-                                      "end": 3486
+                                      "start": 3644,
+                                      "end": 3654
                                     }
                                   },
                                   {
@@ -1488,15 +1565,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 3507,
-                                        "end": 3517
+                                        "start": 3675,
+                                        "end": 3685
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 3507,
-                                      "end": 3517
+                                      "start": 3675,
+                                      "end": 3685
                                     }
                                   },
                                   {
@@ -1505,8 +1582,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "reminders",
                                       "loc": {
-                                        "start": 3538,
-                                        "end": 3547
+                                        "start": 3706,
+                                        "end": 3715
                                       }
                                     },
                                     "arguments": [],
@@ -1520,15 +1597,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 3574,
-                                              "end": 3576
+                                              "start": 3742,
+                                              "end": 3744
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3574,
-                                            "end": 3576
+                                            "start": 3742,
+                                            "end": 3744
                                           }
                                         },
                                         {
@@ -1537,15 +1614,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 3601,
-                                              "end": 3611
+                                              "start": 3769,
+                                              "end": 3779
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3601,
-                                            "end": 3611
+                                            "start": 3769,
+                                            "end": 3779
                                           }
                                         },
                                         {
@@ -1554,15 +1631,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 3636,
-                                              "end": 3646
+                                              "start": 3804,
+                                              "end": 3814
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3636,
-                                            "end": 3646
+                                            "start": 3804,
+                                            "end": 3814
                                           }
                                         },
                                         {
@@ -1571,15 +1648,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 3671,
-                                              "end": 3675
+                                              "start": 3839,
+                                              "end": 3843
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3671,
-                                            "end": 3675
+                                            "start": 3839,
+                                            "end": 3843
                                           }
                                         },
                                         {
@@ -1588,15 +1665,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 3700,
-                                              "end": 3711
+                                              "start": 3868,
+                                              "end": 3879
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3700,
-                                            "end": 3711
+                                            "start": 3868,
+                                            "end": 3879
                                           }
                                         },
                                         {
@@ -1605,15 +1682,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 3736,
-                                              "end": 3743
+                                              "start": 3904,
+                                              "end": 3911
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3736,
-                                            "end": 3743
+                                            "start": 3904,
+                                            "end": 3911
                                           }
                                         },
                                         {
@@ -1622,15 +1699,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 3768,
-                                              "end": 3773
+                                              "start": 3936,
+                                              "end": 3941
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3768,
-                                            "end": 3773
+                                            "start": 3936,
+                                            "end": 3941
                                           }
                                         },
                                         {
@@ -1639,15 +1716,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 3798,
-                                              "end": 3808
+                                              "start": 3966,
+                                              "end": 3976
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 3798,
-                                            "end": 3808
+                                            "start": 3966,
+                                            "end": 3976
                                           }
                                         },
                                         {
@@ -1656,8 +1733,8 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "reminderItems",
                                             "loc": {
-                                              "start": 3833,
-                                              "end": 3846
+                                              "start": 4001,
+                                              "end": 4014
                                             }
                                           },
                                           "arguments": [],
@@ -1671,15 +1748,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 3877,
-                                                    "end": 3879
+                                                    "start": 4045,
+                                                    "end": 4047
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3877,
-                                                  "end": 3879
+                                                  "start": 4045,
+                                                  "end": 4047
                                                 }
                                               },
                                               {
@@ -1688,15 +1765,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 3908,
-                                                    "end": 3918
+                                                    "start": 4076,
+                                                    "end": 4086
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3908,
-                                                  "end": 3918
+                                                  "start": 4076,
+                                                  "end": 4086
                                                 }
                                               },
                                               {
@@ -1705,15 +1782,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 3947,
-                                                    "end": 3957
+                                                    "start": 4115,
+                                                    "end": 4125
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3947,
-                                                  "end": 3957
+                                                  "start": 4115,
+                                                  "end": 4125
                                                 }
                                               },
                                               {
@@ -1722,15 +1799,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 3986,
-                                                    "end": 3990
+                                                    "start": 4154,
+                                                    "end": 4158
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 3986,
-                                                  "end": 3990
+                                                  "start": 4154,
+                                                  "end": 4158
                                                 }
                                               },
                                               {
@@ -1739,15 +1816,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4019,
-                                                    "end": 4030
+                                                    "start": 4187,
+                                                    "end": 4198
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4019,
-                                                  "end": 4030
+                                                  "start": 4187,
+                                                  "end": 4198
                                                 }
                                               },
                                               {
@@ -1756,15 +1833,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 4059,
-                                                    "end": 4066
+                                                    "start": 4227,
+                                                    "end": 4234
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4059,
-                                                  "end": 4066
+                                                  "start": 4227,
+                                                  "end": 4234
                                                 }
                                               },
                                               {
@@ -1773,15 +1850,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 4095,
-                                                    "end": 4100
+                                                    "start": 4263,
+                                                    "end": 4268
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4095,
-                                                  "end": 4100
+                                                  "start": 4263,
+                                                  "end": 4268
                                                 }
                                               },
                                               {
@@ -1790,48 +1867,48 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 4129,
-                                                    "end": 4139
+                                                    "start": 4297,
+                                                    "end": 4307
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4129,
-                                                  "end": 4139
+                                                  "start": 4297,
+                                                  "end": 4307
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 3847,
-                                              "end": 4165
+                                              "start": 4015,
+                                              "end": 4333
                                             }
                                           },
                                           "loc": {
-                                            "start": 3833,
-                                            "end": 4165
+                                            "start": 4001,
+                                            "end": 4333
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 3548,
-                                        "end": 4187
+                                        "start": 3716,
+                                        "end": 4355
                                       }
                                     },
                                     "loc": {
-                                      "start": 3538,
-                                      "end": 4187
+                                      "start": 3706,
+                                      "end": 4355
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 3431,
-                                  "end": 4205
+                                  "start": 3599,
+                                  "end": 4373
                                 }
                               },
                               "loc": {
-                                "start": 3418,
-                                "end": 4205
+                                "start": 3586,
+                                "end": 4373
                               }
                             },
                             {
@@ -1840,8 +1917,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "resourceList",
                                 "loc": {
-                                  "start": 4222,
-                                  "end": 4234
+                                  "start": 4390,
+                                  "end": 4402
                                 }
                               },
                               "arguments": [],
@@ -1855,15 +1932,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 4257,
-                                        "end": 4259
+                                        "start": 4425,
+                                        "end": 4427
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4257,
-                                      "end": 4259
+                                      "start": 4425,
+                                      "end": 4427
                                     }
                                   },
                                   {
@@ -1872,15 +1949,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 4280,
-                                        "end": 4290
+                                        "start": 4448,
+                                        "end": 4458
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 4280,
-                                      "end": 4290
+                                      "start": 4448,
+                                      "end": 4458
                                     }
                                   },
                                   {
@@ -1889,8 +1966,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 4311,
-                                        "end": 4323
+                                        "start": 4479,
+                                        "end": 4491
                                       }
                                     },
                                     "arguments": [],
@@ -1904,15 +1981,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4350,
-                                              "end": 4352
+                                              "start": 4518,
+                                              "end": 4520
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4350,
-                                            "end": 4352
+                                            "start": 4518,
+                                            "end": 4520
                                           }
                                         },
                                         {
@@ -1921,15 +1998,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 4377,
-                                              "end": 4385
+                                              "start": 4545,
+                                              "end": 4553
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4377,
-                                            "end": 4385
+                                            "start": 4545,
+                                            "end": 4553
                                           }
                                         },
                                         {
@@ -1938,15 +2015,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 4410,
-                                              "end": 4421
+                                              "start": 4578,
+                                              "end": 4589
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4410,
-                                            "end": 4421
+                                            "start": 4578,
+                                            "end": 4589
                                           }
                                         },
                                         {
@@ -1955,26 +2032,26 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 4446,
-                                              "end": 4450
+                                              "start": 4614,
+                                              "end": 4618
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4446,
-                                            "end": 4450
+                                            "start": 4614,
+                                            "end": 4618
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4324,
-                                        "end": 4472
+                                        "start": 4492,
+                                        "end": 4640
                                       }
                                     },
                                     "loc": {
-                                      "start": 4311,
-                                      "end": 4472
+                                      "start": 4479,
+                                      "end": 4640
                                     }
                                   },
                                   {
@@ -1983,8 +2060,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "resources",
                                       "loc": {
-                                        "start": 4493,
-                                        "end": 4502
+                                        "start": 4661,
+                                        "end": 4670
                                       }
                                     },
                                     "arguments": [],
@@ -1998,15 +2075,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 4529,
-                                              "end": 4531
+                                              "start": 4697,
+                                              "end": 4699
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4529,
-                                            "end": 4531
+                                            "start": 4697,
+                                            "end": 4699
                                           }
                                         },
                                         {
@@ -2015,15 +2092,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 4556,
-                                              "end": 4561
+                                              "start": 4724,
+                                              "end": 4729
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4556,
-                                            "end": 4561
+                                            "start": 4724,
+                                            "end": 4729
                                           }
                                         },
                                         {
@@ -2032,15 +2109,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "link",
                                             "loc": {
-                                              "start": 4586,
-                                              "end": 4590
+                                              "start": 4754,
+                                              "end": 4758
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4586,
-                                            "end": 4590
+                                            "start": 4754,
+                                            "end": 4758
                                           }
                                         },
                                         {
@@ -2049,15 +2126,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "usedFor",
                                             "loc": {
-                                              "start": 4615,
-                                              "end": 4622
+                                              "start": 4783,
+                                              "end": 4790
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 4615,
-                                            "end": 4622
+                                            "start": 4783,
+                                            "end": 4790
                                           }
                                         },
                                         {
@@ -2066,8 +2143,8 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 4647,
-                                              "end": 4659
+                                              "start": 4815,
+                                              "end": 4827
                                             }
                                           },
                                           "arguments": [],
@@ -2081,15 +2158,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 4690,
-                                                    "end": 4692
+                                                    "start": 4858,
+                                                    "end": 4860
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4690,
-                                                  "end": 4692
+                                                  "start": 4858,
+                                                  "end": 4860
                                                 }
                                               },
                                               {
@@ -2098,15 +2175,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 4721,
-                                                    "end": 4729
+                                                    "start": 4889,
+                                                    "end": 4897
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4721,
-                                                  "end": 4729
+                                                  "start": 4889,
+                                                  "end": 4897
                                                 }
                                               },
                                               {
@@ -2115,15 +2192,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 4758,
-                                                    "end": 4769
+                                                    "start": 4926,
+                                                    "end": 4937
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4758,
-                                                  "end": 4769
+                                                  "start": 4926,
+                                                  "end": 4937
                                                 }
                                               },
                                               {
@@ -2132,48 +2209,48 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 4798,
-                                                    "end": 4802
+                                                    "start": 4966,
+                                                    "end": 4970
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 4798,
-                                                  "end": 4802
+                                                  "start": 4966,
+                                                  "end": 4970
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 4660,
-                                              "end": 4828
+                                              "start": 4828,
+                                              "end": 4996
                                             }
                                           },
                                           "loc": {
-                                            "start": 4647,
-                                            "end": 4828
+                                            "start": 4815,
+                                            "end": 4996
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 4503,
-                                        "end": 4850
+                                        "start": 4671,
+                                        "end": 5018
                                       }
                                     },
                                     "loc": {
-                                      "start": 4493,
-                                      "end": 4850
+                                      "start": 4661,
+                                      "end": 5018
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4235,
-                                  "end": 4868
+                                  "start": 4403,
+                                  "end": 5036
                                 }
                               },
                               "loc": {
-                                "start": 4222,
-                                "end": 4868
+                                "start": 4390,
+                                "end": 5036
                               }
                             },
                             {
@@ -2182,8 +2259,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "schedule",
                                 "loc": {
-                                  "start": 4885,
-                                  "end": 4893
+                                  "start": 5053,
+                                  "end": 5061
                                 }
                               },
                               "arguments": [],
@@ -2197,25 +2274,25 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "Schedule_common",
                                       "loc": {
-                                        "start": 4919,
-                                        "end": 4934
+                                        "start": 5087,
+                                        "end": 5102
                                       }
                                     },
                                     "directives": [],
                                     "loc": {
-                                      "start": 4916,
-                                      "end": 4934
+                                      "start": 5084,
+                                      "end": 5102
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 4894,
-                                  "end": 4952
+                                  "start": 5062,
+                                  "end": 5120
                                 }
                               },
                               "loc": {
-                                "start": 4885,
-                                "end": 4952
+                                "start": 5053,
+                                "end": 5120
                               }
                             },
                             {
@@ -2224,15 +2301,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 4969,
-                                  "end": 4971
+                                  "start": 5137,
+                                  "end": 5139
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4969,
-                                "end": 4971
+                                "start": 5137,
+                                "end": 5139
                               }
                             },
                             {
@@ -2241,15 +2318,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "name",
                                 "loc": {
-                                  "start": 4988,
-                                  "end": 4992
+                                  "start": 5156,
+                                  "end": 5160
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 4988,
-                                "end": 4992
+                                "start": 5156,
+                                "end": 5160
                               }
                             },
                             {
@@ -2258,26 +2335,103 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "description",
                                 "loc": {
-                                  "start": 5009,
-                                  "end": 5020
+                                  "start": 5177,
+                                  "end": 5188
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5009,
-                                "end": 5020
+                                "start": 5177,
+                                "end": 5188
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "you",
+                                "loc": {
+                                  "start": 5205,
+                                  "end": 5208
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canDelete",
+                                      "loc": {
+                                        "start": 5231,
+                                        "end": 5240
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5231,
+                                      "end": 5240
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canRead",
+                                      "loc": {
+                                        "start": 5261,
+                                        "end": 5268
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5261,
+                                      "end": 5268
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "canUpdate",
+                                      "loc": {
+                                        "start": 5289,
+                                        "end": 5298
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "loc": {
+                                      "start": 5289,
+                                      "end": 5298
+                                    }
+                                  }
+                                ],
+                                "loc": {
+                                  "start": 5209,
+                                  "end": 5316
+                                }
+                              },
+                              "loc": {
+                                "start": 5205,
+                                "end": 5316
                               }
                             }
                           ],
                           "loc": {
                             "start": 453,
-                            "end": 5034
+                            "end": 5330
                           }
                         },
                         "loc": {
                           "start": 448,
-                          "end": 5034
+                          "end": 5330
                         }
                       },
                       {
@@ -2286,15 +2440,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "stopCondition",
                           "loc": {
-                            "start": 5047,
-                            "end": 5060
+                            "start": 5343,
+                            "end": 5356
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5047,
-                          "end": 5060
+                          "start": 5343,
+                          "end": 5356
                         }
                       },
                       {
@@ -2303,26 +2457,26 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "stopTime",
                           "loc": {
-                            "start": 5073,
-                            "end": 5081
+                            "start": 5369,
+                            "end": 5377
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5073,
-                          "end": 5081
+                          "start": 5369,
+                          "end": 5377
                         }
                       }
                     ],
                     "loc": {
                       "start": 434,
-                      "end": 5091
+                      "end": 5387
                     }
                   },
                   "loc": {
                     "start": 418,
-                    "end": 5091
+                    "end": 5387
                   }
                 },
                 {
@@ -2331,15 +2485,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 5100,
-                      "end": 5109
+                      "start": 5396,
+                      "end": 5405
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 5100,
-                    "end": 5109
+                    "start": 5396,
+                    "end": 5405
                   }
                 },
                 {
@@ -2348,8 +2502,8 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "bookmarkLists",
                     "loc": {
-                      "start": 5118,
-                      "end": 5131
+                      "start": 5414,
+                      "end": 5427
                     }
                   },
                   "arguments": [],
@@ -2363,15 +2517,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 5146,
-                            "end": 5148
+                            "start": 5442,
+                            "end": 5444
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5146,
-                          "end": 5148
+                          "start": 5442,
+                          "end": 5444
                         }
                       },
                       {
@@ -2380,15 +2534,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "created_at",
                           "loc": {
-                            "start": 5161,
-                            "end": 5171
+                            "start": 5457,
+                            "end": 5467
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5161,
-                          "end": 5171
+                          "start": 5457,
+                          "end": 5467
                         }
                       },
                       {
@@ -2397,15 +2551,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "updated_at",
                           "loc": {
-                            "start": 5184,
-                            "end": 5194
+                            "start": 5480,
+                            "end": 5490
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5184,
-                          "end": 5194
+                          "start": 5480,
+                          "end": 5490
                         }
                       },
                       {
@@ -2414,15 +2568,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "label",
                           "loc": {
-                            "start": 5207,
-                            "end": 5212
+                            "start": 5503,
+                            "end": 5508
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5207,
-                          "end": 5212
+                          "start": 5503,
+                          "end": 5508
                         }
                       },
                       {
@@ -2431,26 +2585,43 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "bookmarksCount",
                           "loc": {
-                            "start": 5225,
-                            "end": 5239
+                            "start": 5521,
+                            "end": 5535
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 5225,
-                          "end": 5239
+                          "start": 5521,
+                          "end": 5535
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5132,
-                      "end": 5249
+                      "start": 5428,
+                      "end": 5545
                     }
                   },
                   "loc": {
-                    "start": 5118,
-                    "end": 5249
+                    "start": 5414,
+                    "end": 5545
+                  }
+                },
+                {
+                  "kind": "Field",
+                  "name": {
+                    "kind": "Name",
+                    "value": "codesCount",
+                    "loc": {
+                      "start": 5554,
+                      "end": 5564
+                    }
+                  },
+                  "arguments": [],
+                  "directives": [],
+                  "loc": {
+                    "start": 5554,
+                    "end": 5564
                   }
                 },
                 {
@@ -2459,8 +2630,8 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "focusModes",
                     "loc": {
-                      "start": 5258,
-                      "end": 5268
+                      "start": 5573,
+                      "end": 5583
                     }
                   },
                   "arguments": [],
@@ -2474,8 +2645,8 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "filters",
                           "loc": {
-                            "start": 5283,
-                            "end": 5290
+                            "start": 5598,
+                            "end": 5605
                           }
                         },
                         "arguments": [],
@@ -2489,15 +2660,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 5309,
-                                  "end": 5311
+                                  "start": 5624,
+                                  "end": 5626
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5309,
-                                "end": 5311
+                                "start": 5624,
+                                "end": 5626
                               }
                             },
                             {
@@ -2506,15 +2677,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "filterType",
                                 "loc": {
-                                  "start": 5328,
-                                  "end": 5338
+                                  "start": 5643,
+                                  "end": 5653
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 5328,
-                                "end": 5338
+                                "start": 5643,
+                                "end": 5653
                               }
                             },
                             {
@@ -2523,8 +2694,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "tag",
                                 "loc": {
-                                  "start": 5355,
-                                  "end": 5358
+                                  "start": 5670,
+                                  "end": 5673
                                 }
                               },
                               "arguments": [],
@@ -2538,15 +2709,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 5381,
-                                        "end": 5383
+                                        "start": 5696,
+                                        "end": 5698
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5381,
-                                      "end": 5383
+                                      "start": 5696,
+                                      "end": 5698
                                     }
                                   },
                                   {
@@ -2555,15 +2726,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 5404,
-                                        "end": 5414
+                                        "start": 5719,
+                                        "end": 5729
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5404,
-                                      "end": 5414
+                                      "start": 5719,
+                                      "end": 5729
                                     }
                                   },
                                   {
@@ -2572,15 +2743,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "tag",
                                       "loc": {
-                                        "start": 5435,
-                                        "end": 5438
+                                        "start": 5750,
+                                        "end": 5753
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5435,
-                                      "end": 5438
+                                      "start": 5750,
+                                      "end": 5753
                                     }
                                   },
                                   {
@@ -2589,15 +2760,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "bookmarks",
                                       "loc": {
-                                        "start": 5459,
-                                        "end": 5468
+                                        "start": 5774,
+                                        "end": 5783
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 5459,
-                                      "end": 5468
+                                      "start": 5774,
+                                      "end": 5783
                                     }
                                   },
                                   {
@@ -2606,8 +2777,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 5489,
-                                        "end": 5501
+                                        "start": 5804,
+                                        "end": 5816
                                       }
                                     },
                                     "arguments": [],
@@ -2621,15 +2792,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5528,
-                                              "end": 5530
+                                              "start": 5843,
+                                              "end": 5845
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5528,
-                                            "end": 5530
+                                            "start": 5843,
+                                            "end": 5845
                                           }
                                         },
                                         {
@@ -2638,15 +2809,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 5555,
-                                              "end": 5563
+                                              "start": 5870,
+                                              "end": 5878
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5555,
-                                            "end": 5563
+                                            "start": 5870,
+                                            "end": 5878
                                           }
                                         },
                                         {
@@ -2655,26 +2826,26 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 5588,
-                                              "end": 5599
+                                              "start": 5903,
+                                              "end": 5914
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5588,
-                                            "end": 5599
+                                            "start": 5903,
+                                            "end": 5914
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5502,
-                                        "end": 5621
+                                        "start": 5817,
+                                        "end": 5936
                                       }
                                     },
                                     "loc": {
-                                      "start": 5489,
-                                      "end": 5621
+                                      "start": 5804,
+                                      "end": 5936
                                     }
                                   },
                                   {
@@ -2683,8 +2854,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "you",
                                       "loc": {
-                                        "start": 5642,
-                                        "end": 5645
+                                        "start": 5957,
+                                        "end": 5960
                                       }
                                     },
                                     "arguments": [],
@@ -2698,15 +2869,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "isOwn",
                                             "loc": {
-                                              "start": 5672,
-                                              "end": 5677
+                                              "start": 5987,
+                                              "end": 5992
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5672,
-                                            "end": 5677
+                                            "start": 5987,
+                                            "end": 5992
                                           }
                                         },
                                         {
@@ -2715,37 +2886,37 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "isBookmarked",
                                             "loc": {
-                                              "start": 5702,
-                                              "end": 5714
+                                              "start": 6017,
+                                              "end": 6029
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5702,
-                                            "end": 5714
+                                            "start": 6017,
+                                            "end": 6029
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5646,
-                                        "end": 5736
+                                        "start": 5961,
+                                        "end": 6051
                                       }
                                     },
                                     "loc": {
-                                      "start": 5642,
-                                      "end": 5736
+                                      "start": 5957,
+                                      "end": 6051
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5359,
-                                  "end": 5754
+                                  "start": 5674,
+                                  "end": 6069
                                 }
                               },
                               "loc": {
-                                "start": 5355,
-                                "end": 5754
+                                "start": 5670,
+                                "end": 6069
                               }
                             },
                             {
@@ -2754,8 +2925,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "focusMode",
                                 "loc": {
-                                  "start": 5771,
-                                  "end": 5780
+                                  "start": 6086,
+                                  "end": 6095
                                 }
                               },
                               "arguments": [],
@@ -2769,8 +2940,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "labels",
                                       "loc": {
-                                        "start": 5803,
-                                        "end": 5809
+                                        "start": 6118,
+                                        "end": 6124
                                       }
                                     },
                                     "arguments": [],
@@ -2784,15 +2955,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5836,
-                                              "end": 5838
+                                              "start": 6151,
+                                              "end": 6153
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5836,
-                                            "end": 5838
+                                            "start": 6151,
+                                            "end": 6153
                                           }
                                         },
                                         {
@@ -2801,15 +2972,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "color",
                                             "loc": {
-                                              "start": 5863,
-                                              "end": 5868
+                                              "start": 6178,
+                                              "end": 6183
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5863,
-                                            "end": 5868
+                                            "start": 6178,
+                                            "end": 6183
                                           }
                                         },
                                         {
@@ -2818,26 +2989,26 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "label",
                                             "loc": {
-                                              "start": 5893,
-                                              "end": 5898
+                                              "start": 6208,
+                                              "end": 6213
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5893,
-                                            "end": 5898
+                                            "start": 6208,
+                                            "end": 6213
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5810,
-                                        "end": 5920
+                                        "start": 6125,
+                                        "end": 6235
                                       }
                                     },
                                     "loc": {
-                                      "start": 5803,
-                                      "end": 5920
+                                      "start": 6118,
+                                      "end": 6235
                                     }
                                   },
                                   {
@@ -2846,8 +3017,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "reminderList",
                                       "loc": {
-                                        "start": 5941,
-                                        "end": 5953
+                                        "start": 6256,
+                                        "end": 6268
                                       }
                                     },
                                     "arguments": [],
@@ -2861,15 +3032,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 5980,
-                                              "end": 5982
+                                              "start": 6295,
+                                              "end": 6297
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 5980,
-                                            "end": 5982
+                                            "start": 6295,
+                                            "end": 6297
                                           }
                                         },
                                         {
@@ -2878,15 +3049,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6007,
-                                              "end": 6017
+                                              "start": 6322,
+                                              "end": 6332
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6007,
-                                            "end": 6017
+                                            "start": 6322,
+                                            "end": 6332
                                           }
                                         },
                                         {
@@ -2895,15 +3066,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 6042,
-                                              "end": 6052
+                                              "start": 6357,
+                                              "end": 6367
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6042,
-                                            "end": 6052
+                                            "start": 6357,
+                                            "end": 6367
                                           }
                                         },
                                         {
@@ -2912,8 +3083,8 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "reminders",
                                             "loc": {
-                                              "start": 6077,
-                                              "end": 6086
+                                              "start": 6392,
+                                              "end": 6401
                                             }
                                           },
                                           "arguments": [],
@@ -2927,15 +3098,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6117,
-                                                    "end": 6119
+                                                    "start": 6432,
+                                                    "end": 6434
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6117,
-                                                  "end": 6119
+                                                  "start": 6432,
+                                                  "end": 6434
                                                 }
                                               },
                                               {
@@ -2944,15 +3115,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "created_at",
                                                   "loc": {
-                                                    "start": 6148,
-                                                    "end": 6158
+                                                    "start": 6463,
+                                                    "end": 6473
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6148,
-                                                  "end": 6158
+                                                  "start": 6463,
+                                                  "end": 6473
                                                 }
                                               },
                                               {
@@ -2961,15 +3132,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "updated_at",
                                                   "loc": {
-                                                    "start": 6187,
-                                                    "end": 6197
+                                                    "start": 6502,
+                                                    "end": 6512
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6187,
-                                                  "end": 6197
+                                                  "start": 6502,
+                                                  "end": 6512
                                                 }
                                               },
                                               {
@@ -2978,15 +3149,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 6226,
-                                                    "end": 6230
+                                                    "start": 6541,
+                                                    "end": 6545
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6226,
-                                                  "end": 6230
+                                                  "start": 6541,
+                                                  "end": 6545
                                                 }
                                               },
                                               {
@@ -2995,15 +3166,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 6259,
-                                                    "end": 6270
+                                                    "start": 6574,
+                                                    "end": 6585
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6259,
-                                                  "end": 6270
+                                                  "start": 6574,
+                                                  "end": 6585
                                                 }
                                               },
                                               {
@@ -3012,15 +3183,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "dueDate",
                                                   "loc": {
-                                                    "start": 6299,
-                                                    "end": 6306
+                                                    "start": 6614,
+                                                    "end": 6621
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6299,
-                                                  "end": 6306
+                                                  "start": 6614,
+                                                  "end": 6621
                                                 }
                                               },
                                               {
@@ -3029,15 +3200,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 6335,
-                                                    "end": 6340
+                                                    "start": 6650,
+                                                    "end": 6655
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6335,
-                                                  "end": 6340
+                                                  "start": 6650,
+                                                  "end": 6655
                                                 }
                                               },
                                               {
@@ -3046,15 +3217,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "isComplete",
                                                   "loc": {
-                                                    "start": 6369,
-                                                    "end": 6379
+                                                    "start": 6684,
+                                                    "end": 6694
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6369,
-                                                  "end": 6379
+                                                  "start": 6684,
+                                                  "end": 6694
                                                 }
                                               },
                                               {
@@ -3063,8 +3234,8 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "reminderItems",
                                                   "loc": {
-                                                    "start": 6408,
-                                                    "end": 6421
+                                                    "start": 6723,
+                                                    "end": 6736
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3078,15 +3249,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 6456,
-                                                          "end": 6458
+                                                          "start": 6771,
+                                                          "end": 6773
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6456,
-                                                        "end": 6458
+                                                        "start": 6771,
+                                                        "end": 6773
                                                       }
                                                     },
                                                     {
@@ -3095,15 +3266,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "created_at",
                                                         "loc": {
-                                                          "start": 6491,
-                                                          "end": 6501
+                                                          "start": 6806,
+                                                          "end": 6816
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6491,
-                                                        "end": 6501
+                                                        "start": 6806,
+                                                        "end": 6816
                                                       }
                                                     },
                                                     {
@@ -3112,15 +3283,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "updated_at",
                                                         "loc": {
-                                                          "start": 6534,
-                                                          "end": 6544
+                                                          "start": 6849,
+                                                          "end": 6859
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6534,
-                                                        "end": 6544
+                                                        "start": 6849,
+                                                        "end": 6859
                                                       }
                                                     },
                                                     {
@@ -3129,15 +3300,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 6577,
-                                                          "end": 6581
+                                                          "start": 6892,
+                                                          "end": 6896
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6577,
-                                                        "end": 6581
+                                                        "start": 6892,
+                                                        "end": 6896
                                                       }
                                                     },
                                                     {
@@ -3146,15 +3317,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 6614,
-                                                          "end": 6625
+                                                          "start": 6929,
+                                                          "end": 6940
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6614,
-                                                        "end": 6625
+                                                        "start": 6929,
+                                                        "end": 6940
                                                       }
                                                     },
                                                     {
@@ -3163,15 +3334,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "dueDate",
                                                         "loc": {
-                                                          "start": 6658,
-                                                          "end": 6665
+                                                          "start": 6973,
+                                                          "end": 6980
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6658,
-                                                        "end": 6665
+                                                        "start": 6973,
+                                                        "end": 6980
                                                       }
                                                     },
                                                     {
@@ -3180,15 +3351,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "index",
                                                         "loc": {
-                                                          "start": 6698,
-                                                          "end": 6703
+                                                          "start": 7013,
+                                                          "end": 7018
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6698,
-                                                        "end": 6703
+                                                        "start": 7013,
+                                                        "end": 7018
                                                       }
                                                     },
                                                     {
@@ -3197,48 +3368,48 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "isComplete",
                                                         "loc": {
-                                                          "start": 6736,
-                                                          "end": 6746
+                                                          "start": 7051,
+                                                          "end": 7061
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 6736,
-                                                        "end": 6746
+                                                        "start": 7051,
+                                                        "end": 7061
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 6422,
-                                                    "end": 6776
+                                                    "start": 6737,
+                                                    "end": 7091
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 6408,
-                                                  "end": 6776
+                                                  "start": 6723,
+                                                  "end": 7091
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6087,
-                                              "end": 6802
+                                              "start": 6402,
+                                              "end": 7117
                                             }
                                           },
                                           "loc": {
-                                            "start": 6077,
-                                            "end": 6802
+                                            "start": 6392,
+                                            "end": 7117
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 5954,
-                                        "end": 6824
+                                        "start": 6269,
+                                        "end": 7139
                                       }
                                     },
                                     "loc": {
-                                      "start": 5941,
-                                      "end": 6824
+                                      "start": 6256,
+                                      "end": 7139
                                     }
                                   },
                                   {
@@ -3247,8 +3418,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "resourceList",
                                       "loc": {
-                                        "start": 6845,
-                                        "end": 6857
+                                        "start": 7160,
+                                        "end": 7172
                                       }
                                     },
                                     "arguments": [],
@@ -3262,15 +3433,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 6884,
-                                              "end": 6886
+                                              "start": 7199,
+                                              "end": 7201
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6884,
-                                            "end": 6886
+                                            "start": 7199,
+                                            "end": 7201
                                           }
                                         },
                                         {
@@ -3279,15 +3450,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 6911,
-                                              "end": 6921
+                                              "start": 7226,
+                                              "end": 7236
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 6911,
-                                            "end": 6921
+                                            "start": 7226,
+                                            "end": 7236
                                           }
                                         },
                                         {
@@ -3296,8 +3467,8 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "translations",
                                             "loc": {
-                                              "start": 6946,
-                                              "end": 6958
+                                              "start": 7261,
+                                              "end": 7273
                                             }
                                           },
                                           "arguments": [],
@@ -3311,15 +3482,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 6989,
-                                                    "end": 6991
+                                                    "start": 7304,
+                                                    "end": 7306
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 6989,
-                                                  "end": 6991
+                                                  "start": 7304,
+                                                  "end": 7306
                                                 }
                                               },
                                               {
@@ -3328,15 +3499,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "language",
                                                   "loc": {
-                                                    "start": 7020,
-                                                    "end": 7028
+                                                    "start": 7335,
+                                                    "end": 7343
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7020,
-                                                  "end": 7028
+                                                  "start": 7335,
+                                                  "end": 7343
                                                 }
                                               },
                                               {
@@ -3345,15 +3516,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "description",
                                                   "loc": {
-                                                    "start": 7057,
-                                                    "end": 7068
+                                                    "start": 7372,
+                                                    "end": 7383
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7057,
-                                                  "end": 7068
+                                                  "start": 7372,
+                                                  "end": 7383
                                                 }
                                               },
                                               {
@@ -3362,26 +3533,26 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "name",
                                                   "loc": {
-                                                    "start": 7097,
-                                                    "end": 7101
+                                                    "start": 7412,
+                                                    "end": 7416
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7097,
-                                                  "end": 7101
+                                                  "start": 7412,
+                                                  "end": 7416
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 6959,
-                                              "end": 7127
+                                              "start": 7274,
+                                              "end": 7442
                                             }
                                           },
                                           "loc": {
-                                            "start": 6946,
-                                            "end": 7127
+                                            "start": 7261,
+                                            "end": 7442
                                           }
                                         },
                                         {
@@ -3390,8 +3561,8 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "resources",
                                             "loc": {
-                                              "start": 7152,
-                                              "end": 7161
+                                              "start": 7467,
+                                              "end": 7476
                                             }
                                           },
                                           "arguments": [],
@@ -3405,15 +3576,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "id",
                                                   "loc": {
-                                                    "start": 7192,
-                                                    "end": 7194
+                                                    "start": 7507,
+                                                    "end": 7509
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7192,
-                                                  "end": 7194
+                                                  "start": 7507,
+                                                  "end": 7509
                                                 }
                                               },
                                               {
@@ -3422,15 +3593,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "index",
                                                   "loc": {
-                                                    "start": 7223,
-                                                    "end": 7228
+                                                    "start": 7538,
+                                                    "end": 7543
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7223,
-                                                  "end": 7228
+                                                  "start": 7538,
+                                                  "end": 7543
                                                 }
                                               },
                                               {
@@ -3439,15 +3610,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "link",
                                                   "loc": {
-                                                    "start": 7257,
-                                                    "end": 7261
+                                                    "start": 7572,
+                                                    "end": 7576
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7257,
-                                                  "end": 7261
+                                                  "start": 7572,
+                                                  "end": 7576
                                                 }
                                               },
                                               {
@@ -3456,15 +3627,15 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "usedFor",
                                                   "loc": {
-                                                    "start": 7290,
-                                                    "end": 7297
+                                                    "start": 7605,
+                                                    "end": 7612
                                                   }
                                                 },
                                                 "arguments": [],
                                                 "directives": [],
                                                 "loc": {
-                                                  "start": 7290,
-                                                  "end": 7297
+                                                  "start": 7605,
+                                                  "end": 7612
                                                 }
                                               },
                                               {
@@ -3473,8 +3644,8 @@ export const auth_validateSession = {
                                                   "kind": "Name",
                                                   "value": "translations",
                                                   "loc": {
-                                                    "start": 7326,
-                                                    "end": 7338
+                                                    "start": 7641,
+                                                    "end": 7653
                                                   }
                                                 },
                                                 "arguments": [],
@@ -3488,15 +3659,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "id",
                                                         "loc": {
-                                                          "start": 7373,
-                                                          "end": 7375
+                                                          "start": 7688,
+                                                          "end": 7690
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7373,
-                                                        "end": 7375
+                                                        "start": 7688,
+                                                        "end": 7690
                                                       }
                                                     },
                                                     {
@@ -3505,15 +3676,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "language",
                                                         "loc": {
-                                                          "start": 7408,
-                                                          "end": 7416
+                                                          "start": 7723,
+                                                          "end": 7731
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7408,
-                                                        "end": 7416
+                                                        "start": 7723,
+                                                        "end": 7731
                                                       }
                                                     },
                                                     {
@@ -3522,15 +3693,15 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "description",
                                                         "loc": {
-                                                          "start": 7449,
-                                                          "end": 7460
+                                                          "start": 7764,
+                                                          "end": 7775
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7449,
-                                                        "end": 7460
+                                                        "start": 7764,
+                                                        "end": 7775
                                                       }
                                                     },
                                                     {
@@ -3539,48 +3710,48 @@ export const auth_validateSession = {
                                                         "kind": "Name",
                                                         "value": "name",
                                                         "loc": {
-                                                          "start": 7493,
-                                                          "end": 7497
+                                                          "start": 7808,
+                                                          "end": 7812
                                                         }
                                                       },
                                                       "arguments": [],
                                                       "directives": [],
                                                       "loc": {
-                                                        "start": 7493,
-                                                        "end": 7497
+                                                        "start": 7808,
+                                                        "end": 7812
                                                       }
                                                     }
                                                   ],
                                                   "loc": {
-                                                    "start": 7339,
-                                                    "end": 7527
+                                                    "start": 7654,
+                                                    "end": 7842
                                                   }
                                                 },
                                                 "loc": {
-                                                  "start": 7326,
-                                                  "end": 7527
+                                                  "start": 7641,
+                                                  "end": 7842
                                                 }
                                               }
                                             ],
                                             "loc": {
-                                              "start": 7162,
-                                              "end": 7553
+                                              "start": 7477,
+                                              "end": 7868
                                             }
                                           },
                                           "loc": {
-                                            "start": 7152,
-                                            "end": 7553
+                                            "start": 7467,
+                                            "end": 7868
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 6858,
-                                        "end": 7575
+                                        "start": 7173,
+                                        "end": 7890
                                       }
                                     },
                                     "loc": {
-                                      "start": 6845,
-                                      "end": 7575
+                                      "start": 7160,
+                                      "end": 7890
                                     }
                                   },
                                   {
@@ -3589,8 +3760,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "schedule",
                                       "loc": {
-                                        "start": 7596,
-                                        "end": 7604
+                                        "start": 7911,
+                                        "end": 7919
                                       }
                                     },
                                     "arguments": [],
@@ -3604,25 +3775,25 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "Schedule_common",
                                             "loc": {
-                                              "start": 7634,
-                                              "end": 7649
+                                              "start": 7949,
+                                              "end": 7964
                                             }
                                           },
                                           "directives": [],
                                           "loc": {
-                                            "start": 7631,
-                                            "end": 7649
+                                            "start": 7946,
+                                            "end": 7964
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 7605,
-                                        "end": 7671
+                                        "start": 7920,
+                                        "end": 7986
                                       }
                                     },
                                     "loc": {
-                                      "start": 7596,
-                                      "end": 7671
+                                      "start": 7911,
+                                      "end": 7986
                                     }
                                   },
                                   {
@@ -3631,15 +3802,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 7692,
-                                        "end": 7694
+                                        "start": 8007,
+                                        "end": 8009
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7692,
-                                      "end": 7694
+                                      "start": 8007,
+                                      "end": 8009
                                     }
                                   },
                                   {
@@ -3648,15 +3819,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 7715,
-                                        "end": 7719
+                                        "start": 8030,
+                                        "end": 8034
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7715,
-                                      "end": 7719
+                                      "start": 8030,
+                                      "end": 8034
                                     }
                                   },
                                   {
@@ -3665,37 +3836,114 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 7740,
-                                        "end": 7751
+                                        "start": 8055,
+                                        "end": 8066
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 7740,
-                                      "end": 7751
+                                      "start": 8055,
+                                      "end": 8066
+                                    }
+                                  },
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "you",
+                                      "loc": {
+                                        "start": 8087,
+                                        "end": 8090
+                                      }
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canDelete",
+                                            "loc": {
+                                              "start": 8117,
+                                              "end": 8126
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8117,
+                                            "end": 8126
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canRead",
+                                            "loc": {
+                                              "start": 8151,
+                                              "end": 8158
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8151,
+                                            "end": 8158
+                                          }
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "canUpdate",
+                                            "loc": {
+                                              "start": 8183,
+                                              "end": 8192
+                                            }
+                                          },
+                                          "arguments": [],
+                                          "directives": [],
+                                          "loc": {
+                                            "start": 8183,
+                                            "end": 8192
+                                          }
+                                        }
+                                      ],
+                                      "loc": {
+                                        "start": 8091,
+                                        "end": 8214
+                                      }
+                                    },
+                                    "loc": {
+                                      "start": 8087,
+                                      "end": 8214
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 5781,
-                                  "end": 7769
+                                  "start": 6096,
+                                  "end": 8232
                                 }
                               },
                               "loc": {
-                                "start": 5771,
-                                "end": 7769
+                                "start": 6086,
+                                "end": 8232
                               }
                             }
                           ],
                           "loc": {
-                            "start": 5291,
-                            "end": 7783
+                            "start": 5606,
+                            "end": 8246
                           }
                         },
                         "loc": {
-                          "start": 5283,
-                          "end": 7783
+                          "start": 5598,
+                          "end": 8246
                         }
                       },
                       {
@@ -3704,8 +3952,8 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "labels",
                           "loc": {
-                            "start": 7796,
-                            "end": 7802
+                            "start": 8259,
+                            "end": 8265
                           }
                         },
                         "arguments": [],
@@ -3719,15 +3967,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7821,
-                                  "end": 7823
+                                  "start": 8284,
+                                  "end": 8286
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7821,
-                                "end": 7823
+                                "start": 8284,
+                                "end": 8286
                               }
                             },
                             {
@@ -3736,15 +3984,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "color",
                                 "loc": {
-                                  "start": 7840,
-                                  "end": 7845
+                                  "start": 8303,
+                                  "end": 8308
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7840,
-                                "end": 7845
+                                "start": 8303,
+                                "end": 8308
                               }
                             },
                             {
@@ -3753,26 +4001,26 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "label",
                                 "loc": {
-                                  "start": 7862,
-                                  "end": 7867
+                                  "start": 8325,
+                                  "end": 8330
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7862,
-                                "end": 7867
+                                "start": 8325,
+                                "end": 8330
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7803,
-                            "end": 7881
+                            "start": 8266,
+                            "end": 8344
                           }
                         },
                         "loc": {
-                          "start": 7796,
-                          "end": 7881
+                          "start": 8259,
+                          "end": 8344
                         }
                       },
                       {
@@ -3781,8 +4029,8 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "reminderList",
                           "loc": {
-                            "start": 7894,
-                            "end": 7906
+                            "start": 8357,
+                            "end": 8369
                           }
                         },
                         "arguments": [],
@@ -3796,15 +4044,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 7925,
-                                  "end": 7927
+                                  "start": 8388,
+                                  "end": 8390
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7925,
-                                "end": 7927
+                                "start": 8388,
+                                "end": 8390
                               }
                             },
                             {
@@ -3813,15 +4061,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 7944,
-                                  "end": 7954
+                                  "start": 8407,
+                                  "end": 8417
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7944,
-                                "end": 7954
+                                "start": 8407,
+                                "end": 8417
                               }
                             },
                             {
@@ -3830,15 +4078,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "updated_at",
                                 "loc": {
-                                  "start": 7971,
-                                  "end": 7981
+                                  "start": 8434,
+                                  "end": 8444
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 7971,
-                                "end": 7981
+                                "start": 8434,
+                                "end": 8444
                               }
                             },
                             {
@@ -3847,8 +4095,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "reminders",
                                 "loc": {
-                                  "start": 7998,
-                                  "end": 8007
+                                  "start": 8461,
+                                  "end": 8470
                                 }
                               },
                               "arguments": [],
@@ -3862,15 +4110,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8030,
-                                        "end": 8032
+                                        "start": 8493,
+                                        "end": 8495
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8030,
-                                      "end": 8032
+                                      "start": 8493,
+                                      "end": 8495
                                     }
                                   },
                                   {
@@ -3879,15 +4127,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "created_at",
                                       "loc": {
-                                        "start": 8053,
-                                        "end": 8063
+                                        "start": 8516,
+                                        "end": 8526
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8053,
-                                      "end": 8063
+                                      "start": 8516,
+                                      "end": 8526
                                     }
                                   },
                                   {
@@ -3896,15 +4144,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "updated_at",
                                       "loc": {
-                                        "start": 8084,
-                                        "end": 8094
+                                        "start": 8547,
+                                        "end": 8557
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8084,
-                                      "end": 8094
+                                      "start": 8547,
+                                      "end": 8557
                                     }
                                   },
                                   {
@@ -3913,15 +4161,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8115,
-                                        "end": 8119
+                                        "start": 8578,
+                                        "end": 8582
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8115,
-                                      "end": 8119
+                                      "start": 8578,
+                                      "end": 8582
                                     }
                                   },
                                   {
@@ -3930,15 +4178,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8140,
-                                        "end": 8151
+                                        "start": 8603,
+                                        "end": 8614
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8140,
-                                      "end": 8151
+                                      "start": 8603,
+                                      "end": 8614
                                     }
                                   },
                                   {
@@ -3947,15 +4195,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "dueDate",
                                       "loc": {
-                                        "start": 8172,
-                                        "end": 8179
+                                        "start": 8635,
+                                        "end": 8642
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8172,
-                                      "end": 8179
+                                      "start": 8635,
+                                      "end": 8642
                                     }
                                   },
                                   {
@@ -3964,15 +4212,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8200,
-                                        "end": 8205
+                                        "start": 8663,
+                                        "end": 8668
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8200,
-                                      "end": 8205
+                                      "start": 8663,
+                                      "end": 8668
                                     }
                                   },
                                   {
@@ -3981,15 +4229,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "isComplete",
                                       "loc": {
-                                        "start": 8226,
-                                        "end": 8236
+                                        "start": 8689,
+                                        "end": 8699
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8226,
-                                      "end": 8236
+                                      "start": 8689,
+                                      "end": 8699
                                     }
                                   },
                                   {
@@ -3998,8 +4246,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "reminderItems",
                                       "loc": {
-                                        "start": 8257,
-                                        "end": 8270
+                                        "start": 8720,
+                                        "end": 8733
                                       }
                                     },
                                     "arguments": [],
@@ -4013,15 +4261,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 8297,
-                                              "end": 8299
+                                              "start": 8760,
+                                              "end": 8762
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8297,
-                                            "end": 8299
+                                            "start": 8760,
+                                            "end": 8762
                                           }
                                         },
                                         {
@@ -4030,15 +4278,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "created_at",
                                             "loc": {
-                                              "start": 8324,
-                                              "end": 8334
+                                              "start": 8787,
+                                              "end": 8797
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8324,
-                                            "end": 8334
+                                            "start": 8787,
+                                            "end": 8797
                                           }
                                         },
                                         {
@@ -4047,15 +4295,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "updated_at",
                                             "loc": {
-                                              "start": 8359,
-                                              "end": 8369
+                                              "start": 8822,
+                                              "end": 8832
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8359,
-                                            "end": 8369
+                                            "start": 8822,
+                                            "end": 8832
                                           }
                                         },
                                         {
@@ -4064,15 +4312,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 8394,
-                                              "end": 8398
+                                              "start": 8857,
+                                              "end": 8861
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8394,
-                                            "end": 8398
+                                            "start": 8857,
+                                            "end": 8861
                                           }
                                         },
                                         {
@@ -4081,15 +4329,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 8423,
-                                              "end": 8434
+                                              "start": 8886,
+                                              "end": 8897
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8423,
-                                            "end": 8434
+                                            "start": 8886,
+                                            "end": 8897
                                           }
                                         },
                                         {
@@ -4098,15 +4346,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "dueDate",
                                             "loc": {
-                                              "start": 8459,
-                                              "end": 8466
+                                              "start": 8922,
+                                              "end": 8929
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8459,
-                                            "end": 8466
+                                            "start": 8922,
+                                            "end": 8929
                                           }
                                         },
                                         {
@@ -4115,15 +4363,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "index",
                                             "loc": {
-                                              "start": 8491,
-                                              "end": 8496
+                                              "start": 8954,
+                                              "end": 8959
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8491,
-                                            "end": 8496
+                                            "start": 8954,
+                                            "end": 8959
                                           }
                                         },
                                         {
@@ -4132,48 +4380,48 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "isComplete",
                                             "loc": {
-                                              "start": 8521,
-                                              "end": 8531
+                                              "start": 8984,
+                                              "end": 8994
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 8521,
-                                            "end": 8531
+                                            "start": 8984,
+                                            "end": 8994
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8271,
-                                        "end": 8553
+                                        "start": 8734,
+                                        "end": 9016
                                       }
                                     },
                                     "loc": {
-                                      "start": 8257,
-                                      "end": 8553
+                                      "start": 8720,
+                                      "end": 9016
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8008,
-                                  "end": 8571
+                                  "start": 8471,
+                                  "end": 9034
                                 }
                               },
                               "loc": {
-                                "start": 7998,
-                                "end": 8571
+                                "start": 8461,
+                                "end": 9034
                               }
                             }
                           ],
                           "loc": {
-                            "start": 7907,
-                            "end": 8585
+                            "start": 8370,
+                            "end": 9048
                           }
                         },
                         "loc": {
-                          "start": 7894,
-                          "end": 8585
+                          "start": 8357,
+                          "end": 9048
                         }
                       },
                       {
@@ -4182,8 +4430,8 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "resourceList",
                           "loc": {
-                            "start": 8598,
-                            "end": 8610
+                            "start": 9061,
+                            "end": 9073
                           }
                         },
                         "arguments": [],
@@ -4197,15 +4445,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "id",
                                 "loc": {
-                                  "start": 8629,
-                                  "end": 8631
+                                  "start": 9092,
+                                  "end": 9094
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8629,
-                                "end": 8631
+                                "start": 9092,
+                                "end": 9094
                               }
                             },
                             {
@@ -4214,15 +4462,15 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "created_at",
                                 "loc": {
-                                  "start": 8648,
-                                  "end": 8658
+                                  "start": 9111,
+                                  "end": 9121
                                 }
                               },
                               "arguments": [],
                               "directives": [],
                               "loc": {
-                                "start": 8648,
-                                "end": 8658
+                                "start": 9111,
+                                "end": 9121
                               }
                             },
                             {
@@ -4231,8 +4479,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "translations",
                                 "loc": {
-                                  "start": 8675,
-                                  "end": 8687
+                                  "start": 9138,
+                                  "end": 9150
                                 }
                               },
                               "arguments": [],
@@ -4246,15 +4494,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8710,
-                                        "end": 8712
+                                        "start": 9173,
+                                        "end": 9175
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8710,
-                                      "end": 8712
+                                      "start": 9173,
+                                      "end": 9175
                                     }
                                   },
                                   {
@@ -4263,15 +4511,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "language",
                                       "loc": {
-                                        "start": 8733,
-                                        "end": 8741
+                                        "start": 9196,
+                                        "end": 9204
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8733,
-                                      "end": 8741
+                                      "start": 9196,
+                                      "end": 9204
                                     }
                                   },
                                   {
@@ -4280,15 +4528,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "description",
                                       "loc": {
-                                        "start": 8762,
-                                        "end": 8773
+                                        "start": 9225,
+                                        "end": 9236
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8762,
-                                      "end": 8773
+                                      "start": 9225,
+                                      "end": 9236
                                     }
                                   },
                                   {
@@ -4297,26 +4545,26 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "name",
                                       "loc": {
-                                        "start": 8794,
-                                        "end": 8798
+                                        "start": 9257,
+                                        "end": 9261
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8794,
-                                      "end": 8798
+                                      "start": 9257,
+                                      "end": 9261
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8688,
-                                  "end": 8816
+                                  "start": 9151,
+                                  "end": 9279
                                 }
                               },
                               "loc": {
-                                "start": 8675,
-                                "end": 8816
+                                "start": 9138,
+                                "end": 9279
                               }
                             },
                             {
@@ -4325,8 +4573,8 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "resources",
                                 "loc": {
-                                  "start": 8833,
-                                  "end": 8842
+                                  "start": 9296,
+                                  "end": 9305
                                 }
                               },
                               "arguments": [],
@@ -4340,15 +4588,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "id",
                                       "loc": {
-                                        "start": 8865,
-                                        "end": 8867
+                                        "start": 9328,
+                                        "end": 9330
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8865,
-                                      "end": 8867
+                                      "start": 9328,
+                                      "end": 9330
                                     }
                                   },
                                   {
@@ -4357,15 +4605,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "index",
                                       "loc": {
-                                        "start": 8888,
-                                        "end": 8893
+                                        "start": 9351,
+                                        "end": 9356
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8888,
-                                      "end": 8893
+                                      "start": 9351,
+                                      "end": 9356
                                     }
                                   },
                                   {
@@ -4374,15 +4622,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "link",
                                       "loc": {
-                                        "start": 8914,
-                                        "end": 8918
+                                        "start": 9377,
+                                        "end": 9381
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8914,
-                                      "end": 8918
+                                      "start": 9377,
+                                      "end": 9381
                                     }
                                   },
                                   {
@@ -4391,15 +4639,15 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "usedFor",
                                       "loc": {
-                                        "start": 8939,
-                                        "end": 8946
+                                        "start": 9402,
+                                        "end": 9409
                                       }
                                     },
                                     "arguments": [],
                                     "directives": [],
                                     "loc": {
-                                      "start": 8939,
-                                      "end": 8946
+                                      "start": 9402,
+                                      "end": 9409
                                     }
                                   },
                                   {
@@ -4408,8 +4656,8 @@ export const auth_validateSession = {
                                       "kind": "Name",
                                       "value": "translations",
                                       "loc": {
-                                        "start": 8967,
-                                        "end": 8979
+                                        "start": 9430,
+                                        "end": 9442
                                       }
                                     },
                                     "arguments": [],
@@ -4423,15 +4671,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "id",
                                             "loc": {
-                                              "start": 9006,
-                                              "end": 9008
+                                              "start": 9469,
+                                              "end": 9471
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9006,
-                                            "end": 9008
+                                            "start": 9469,
+                                            "end": 9471
                                           }
                                         },
                                         {
@@ -4440,15 +4688,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "language",
                                             "loc": {
-                                              "start": 9033,
-                                              "end": 9041
+                                              "start": 9496,
+                                              "end": 9504
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9033,
-                                            "end": 9041
+                                            "start": 9496,
+                                            "end": 9504
                                           }
                                         },
                                         {
@@ -4457,15 +4705,15 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "description",
                                             "loc": {
-                                              "start": 9066,
-                                              "end": 9077
+                                              "start": 9529,
+                                              "end": 9540
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9066,
-                                            "end": 9077
+                                            "start": 9529,
+                                            "end": 9540
                                           }
                                         },
                                         {
@@ -4474,48 +4722,48 @@ export const auth_validateSession = {
                                             "kind": "Name",
                                             "value": "name",
                                             "loc": {
-                                              "start": 9102,
-                                              "end": 9106
+                                              "start": 9565,
+                                              "end": 9569
                                             }
                                           },
                                           "arguments": [],
                                           "directives": [],
                                           "loc": {
-                                            "start": 9102,
-                                            "end": 9106
+                                            "start": 9565,
+                                            "end": 9569
                                           }
                                         }
                                       ],
                                       "loc": {
-                                        "start": 8980,
-                                        "end": 9128
+                                        "start": 9443,
+                                        "end": 9591
                                       }
                                     },
                                     "loc": {
-                                      "start": 8967,
-                                      "end": 9128
+                                      "start": 9430,
+                                      "end": 9591
                                     }
                                   }
                                 ],
                                 "loc": {
-                                  "start": 8843,
-                                  "end": 9146
+                                  "start": 9306,
+                                  "end": 9609
                                 }
                               },
                               "loc": {
-                                "start": 8833,
-                                "end": 9146
+                                "start": 9296,
+                                "end": 9609
                               }
                             }
                           ],
                           "loc": {
-                            "start": 8611,
-                            "end": 9160
+                            "start": 9074,
+                            "end": 9623
                           }
                         },
                         "loc": {
-                          "start": 8598,
-                          "end": 9160
+                          "start": 9061,
+                          "end": 9623
                         }
                       },
                       {
@@ -4524,8 +4772,8 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "schedule",
                           "loc": {
-                            "start": 9173,
-                            "end": 9181
+                            "start": 9636,
+                            "end": 9644
                           }
                         },
                         "arguments": [],
@@ -4539,25 +4787,25 @@ export const auth_validateSession = {
                                 "kind": "Name",
                                 "value": "Schedule_common",
                                 "loc": {
-                                  "start": 9203,
-                                  "end": 9218
+                                  "start": 9666,
+                                  "end": 9681
                                 }
                               },
                               "directives": [],
                               "loc": {
-                                "start": 9200,
-                                "end": 9218
+                                "start": 9663,
+                                "end": 9681
                               }
                             }
                           ],
                           "loc": {
-                            "start": 9182,
-                            "end": 9232
+                            "start": 9645,
+                            "end": 9695
                           }
                         },
                         "loc": {
-                          "start": 9173,
-                          "end": 9232
+                          "start": 9636,
+                          "end": 9695
                         }
                       },
                       {
@@ -4566,15 +4814,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "id",
                           "loc": {
-                            "start": 9245,
-                            "end": 9247
+                            "start": 9708,
+                            "end": 9710
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9245,
-                          "end": 9247
+                          "start": 9708,
+                          "end": 9710
                         }
                       },
                       {
@@ -4583,15 +4831,15 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "name",
                           "loc": {
-                            "start": 9260,
-                            "end": 9264
+                            "start": 9723,
+                            "end": 9727
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9260,
-                          "end": 9264
+                          "start": 9723,
+                          "end": 9727
                         }
                       },
                       {
@@ -4600,26 +4848,103 @@ export const auth_validateSession = {
                           "kind": "Name",
                           "value": "description",
                           "loc": {
-                            "start": 9277,
-                            "end": 9288
+                            "start": 9740,
+                            "end": 9751
                           }
                         },
                         "arguments": [],
                         "directives": [],
                         "loc": {
-                          "start": 9277,
-                          "end": 9288
+                          "start": 9740,
+                          "end": 9751
+                        }
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "you",
+                          "loc": {
+                            "start": 9764,
+                            "end": 9767
+                          }
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canDelete",
+                                "loc": {
+                                  "start": 9786,
+                                  "end": 9795
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9786,
+                                "end": 9795
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canRead",
+                                "loc": {
+                                  "start": 9812,
+                                  "end": 9819
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9812,
+                                "end": 9819
+                              }
+                            },
+                            {
+                              "kind": "Field",
+                              "name": {
+                                "kind": "Name",
+                                "value": "canUpdate",
+                                "loc": {
+                                  "start": 9836,
+                                  "end": 9845
+                                }
+                              },
+                              "arguments": [],
+                              "directives": [],
+                              "loc": {
+                                "start": 9836,
+                                "end": 9845
+                              }
+                            }
+                          ],
+                          "loc": {
+                            "start": 9768,
+                            "end": 9859
+                          }
+                        },
+                        "loc": {
+                          "start": 9764,
+                          "end": 9859
                         }
                       }
                     ],
                     "loc": {
-                      "start": 5269,
-                      "end": 9298
+                      "start": 5584,
+                      "end": 9869
                     }
                   },
                   "loc": {
-                    "start": 5258,
-                    "end": 9298
+                    "start": 5573,
+                    "end": 9869
                   }
                 },
                 {
@@ -4628,15 +4953,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 9307,
-                      "end": 9313
+                      "start": 9878,
+                      "end": 9884
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9307,
-                    "end": 9313
+                    "start": 9878,
+                    "end": 9884
                   }
                 },
                 {
@@ -4645,15 +4970,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 9322,
-                      "end": 9332
+                      "start": 9893,
+                      "end": 9903
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9322,
-                    "end": 9332
+                    "start": 9893,
+                    "end": 9903
                   }
                 },
                 {
@@ -4662,15 +4987,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 9341,
-                      "end": 9343
+                      "start": 9912,
+                      "end": 9914
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9341,
-                    "end": 9343
+                    "start": 9912,
+                    "end": 9914
                   }
                 },
                 {
@@ -4679,15 +5004,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 9352,
-                      "end": 9361
+                      "start": 9923,
+                      "end": 9932
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9352,
-                    "end": 9361
+                    "start": 9923,
+                    "end": 9932
                   }
                 },
                 {
@@ -4696,15 +5021,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 9370,
-                      "end": 9386
+                      "start": 9941,
+                      "end": 9957
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9370,
-                    "end": 9386
+                    "start": 9941,
+                    "end": 9957
                   }
                 },
                 {
@@ -4713,15 +5038,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 9395,
-                      "end": 9399
+                      "start": 9966,
+                      "end": 9970
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9395,
-                    "end": 9399
+                    "start": 9966,
+                    "end": 9970
                   }
                 },
                 {
@@ -4730,15 +5055,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 9408,
-                      "end": 9418
+                      "start": 9979,
+                      "end": 9989
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9408,
-                    "end": 9418
+                    "start": 9979,
+                    "end": 9989
                   }
                 },
                 {
@@ -4747,15 +5072,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 9427,
-                      "end": 9440
+                      "start": 9998,
+                      "end": 10011
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9427,
-                    "end": 9440
+                    "start": 9998,
+                    "end": 10011
                   }
                 },
                 {
@@ -4764,15 +5089,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 9449,
-                      "end": 9468
+                      "start": 10020,
+                      "end": 10039
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9449,
-                    "end": 9468
+                    "start": 10020,
+                    "end": 10039
                   }
                 },
                 {
@@ -4781,32 +5106,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 9477,
-                      "end": 9490
+                      "start": 10048,
+                      "end": 10061
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9477,
-                    "end": 9490
-                  }
-                },
-                {
-                  "kind": "Field",
-                  "name": {
-                    "kind": "Name",
-                    "value": "smartContractsCount",
-                    "loc": {
-                      "start": 9499,
-                      "end": 9518
-                    }
-                  },
-                  "arguments": [],
-                  "directives": [],
-                  "loc": {
-                    "start": 9499,
-                    "end": 9518
+                    "start": 10048,
+                    "end": 10061
                   }
                 },
                 {
@@ -4815,15 +5123,15 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 9527,
-                      "end": 9541
+                      "start": 10070,
+                      "end": 10084
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9527,
-                    "end": 9541
+                    "start": 10070,
+                    "end": 10084
                   }
                 },
                 {
@@ -4832,37 +5140,37 @@ export const auth_validateSession = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 9550,
-                      "end": 9555
+                      "start": 10093,
+                      "end": 10098
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 9550,
-                    "end": 9555
+                    "start": 10093,
+                    "end": 10098
                   }
                 }
               ],
               "loc": {
                 "start": 408,
-                "end": 9561
+                "end": 10104
               }
             },
             "loc": {
               "start": 402,
-              "end": 9561
+              "end": 10104
             }
           }
         ],
         "loc": {
           "start": 368,
-          "end": 9565
+          "end": 10108
         }
       },
       "loc": {
         "start": 337,
-        "end": 9565
+        "end": 10108
       }
     },
     {
@@ -6988,27 +7296,104 @@ export const auth_validateSession = {
                                                 "start": 3232,
                                                 "end": 3243
                                               }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "you",
+                                                "loc": {
+                                                  "start": 3268,
+                                                  "end": 3271
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "selectionSet": {
+                                                "kind": "SelectionSet",
+                                                "selections": [
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canDelete",
+                                                      "loc": {
+                                                        "start": 3302,
+                                                        "end": 3311
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3302,
+                                                      "end": 3311
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canRead",
+                                                      "loc": {
+                                                        "start": 3340,
+                                                        "end": 3347
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3340,
+                                                      "end": 3347
+                                                    }
+                                                  },
+                                                  {
+                                                    "kind": "Field",
+                                                    "name": {
+                                                      "kind": "Name",
+                                                      "value": "canUpdate",
+                                                      "loc": {
+                                                        "start": 3376,
+                                                        "end": 3385
+                                                      }
+                                                    },
+                                                    "arguments": [],
+                                                    "directives": [],
+                                                    "loc": {
+                                                      "start": 3376,
+                                                      "end": 3385
+                                                    }
+                                                  }
+                                                ],
+                                                "loc": {
+                                                  "start": 3272,
+                                                  "end": 3411
+                                                }
+                                              },
+                                              "loc": {
+                                                "start": 3268,
+                                                "end": 3411
+                                              }
                                             }
                                           ],
                                           "loc": {
                                             "start": 1041,
-                                            "end": 3265
+                                            "end": 3433
                                           }
                                         },
                                         "loc": {
                                           "start": 1031,
-                                          "end": 3265
+                                          "end": 3433
                                         }
                                       }
                                     ],
                                     "loc": {
                                       "start": 479,
-                                      "end": 3283
+                                      "end": 3451
                                     }
                                   },
                                   "loc": {
                                     "start": 471,
-                                    "end": 3283
+                                    "end": 3451
                                   }
                                 },
                                 {
@@ -7017,8 +7402,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "labels",
                                     "loc": {
-                                      "start": 3300,
-                                      "end": 3306
+                                      "start": 3468,
+                                      "end": 3474
                                     }
                                   },
                                   "arguments": [],
@@ -7032,15 +7417,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3329,
-                                            "end": 3331
+                                            "start": 3497,
+                                            "end": 3499
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3329,
-                                          "end": 3331
+                                          "start": 3497,
+                                          "end": 3499
                                         }
                                       },
                                       {
@@ -7049,15 +7434,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "color",
                                           "loc": {
-                                            "start": 3352,
-                                            "end": 3357
+                                            "start": 3520,
+                                            "end": 3525
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3352,
-                                          "end": 3357
+                                          "start": 3520,
+                                          "end": 3525
                                         }
                                       },
                                       {
@@ -7066,26 +7451,26 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "label",
                                           "loc": {
-                                            "start": 3378,
-                                            "end": 3383
+                                            "start": 3546,
+                                            "end": 3551
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3378,
-                                          "end": 3383
+                                          "start": 3546,
+                                          "end": 3551
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3307,
-                                      "end": 3401
+                                      "start": 3475,
+                                      "end": 3569
                                     }
                                   },
                                   "loc": {
-                                    "start": 3300,
-                                    "end": 3401
+                                    "start": 3468,
+                                    "end": 3569
                                   }
                                 },
                                 {
@@ -7094,8 +7479,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "reminderList",
                                     "loc": {
-                                      "start": 3418,
-                                      "end": 3430
+                                      "start": 3586,
+                                      "end": 3598
                                     }
                                   },
                                   "arguments": [],
@@ -7109,15 +7494,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 3453,
-                                            "end": 3455
+                                            "start": 3621,
+                                            "end": 3623
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3453,
-                                          "end": 3455
+                                          "start": 3621,
+                                          "end": 3623
                                         }
                                       },
                                       {
@@ -7126,15 +7511,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 3476,
-                                            "end": 3486
+                                            "start": 3644,
+                                            "end": 3654
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3476,
-                                          "end": 3486
+                                          "start": 3644,
+                                          "end": 3654
                                         }
                                       },
                                       {
@@ -7143,15 +7528,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 3507,
-                                            "end": 3517
+                                            "start": 3675,
+                                            "end": 3685
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 3507,
-                                          "end": 3517
+                                          "start": 3675,
+                                          "end": 3685
                                         }
                                       },
                                       {
@@ -7160,8 +7545,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "reminders",
                                           "loc": {
-                                            "start": 3538,
-                                            "end": 3547
+                                            "start": 3706,
+                                            "end": 3715
                                           }
                                         },
                                         "arguments": [],
@@ -7175,15 +7560,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 3574,
-                                                  "end": 3576
+                                                  "start": 3742,
+                                                  "end": 3744
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3574,
-                                                "end": 3576
+                                                "start": 3742,
+                                                "end": 3744
                                               }
                                             },
                                             {
@@ -7192,15 +7577,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 3601,
-                                                  "end": 3611
+                                                  "start": 3769,
+                                                  "end": 3779
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3601,
-                                                "end": 3611
+                                                "start": 3769,
+                                                "end": 3779
                                               }
                                             },
                                             {
@@ -7209,15 +7594,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 3636,
-                                                  "end": 3646
+                                                  "start": 3804,
+                                                  "end": 3814
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3636,
-                                                "end": 3646
+                                                "start": 3804,
+                                                "end": 3814
                                               }
                                             },
                                             {
@@ -7226,15 +7611,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 3671,
-                                                  "end": 3675
+                                                  "start": 3839,
+                                                  "end": 3843
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3671,
-                                                "end": 3675
+                                                "start": 3839,
+                                                "end": 3843
                                               }
                                             },
                                             {
@@ -7243,15 +7628,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 3700,
-                                                  "end": 3711
+                                                  "start": 3868,
+                                                  "end": 3879
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3700,
-                                                "end": 3711
+                                                "start": 3868,
+                                                "end": 3879
                                               }
                                             },
                                             {
@@ -7260,15 +7645,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 3736,
-                                                  "end": 3743
+                                                  "start": 3904,
+                                                  "end": 3911
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3736,
-                                                "end": 3743
+                                                "start": 3904,
+                                                "end": 3911
                                               }
                                             },
                                             {
@@ -7277,15 +7662,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 3768,
-                                                  "end": 3773
+                                                  "start": 3936,
+                                                  "end": 3941
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3768,
-                                                "end": 3773
+                                                "start": 3936,
+                                                "end": 3941
                                               }
                                             },
                                             {
@@ -7294,15 +7679,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 3798,
-                                                  "end": 3808
+                                                  "start": 3966,
+                                                  "end": 3976
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 3798,
-                                                "end": 3808
+                                                "start": 3966,
+                                                "end": 3976
                                               }
                                             },
                                             {
@@ -7311,8 +7696,8 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "reminderItems",
                                                 "loc": {
-                                                  "start": 3833,
-                                                  "end": 3846
+                                                  "start": 4001,
+                                                  "end": 4014
                                                 }
                                               },
                                               "arguments": [],
@@ -7326,15 +7711,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 3877,
-                                                        "end": 3879
+                                                        "start": 4045,
+                                                        "end": 4047
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3877,
-                                                      "end": 3879
+                                                      "start": 4045,
+                                                      "end": 4047
                                                     }
                                                   },
                                                   {
@@ -7343,15 +7728,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 3908,
-                                                        "end": 3918
+                                                        "start": 4076,
+                                                        "end": 4086
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3908,
-                                                      "end": 3918
+                                                      "start": 4076,
+                                                      "end": 4086
                                                     }
                                                   },
                                                   {
@@ -7360,15 +7745,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 3947,
-                                                        "end": 3957
+                                                        "start": 4115,
+                                                        "end": 4125
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3947,
-                                                      "end": 3957
+                                                      "start": 4115,
+                                                      "end": 4125
                                                     }
                                                   },
                                                   {
@@ -7377,15 +7762,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 3986,
-                                                        "end": 3990
+                                                        "start": 4154,
+                                                        "end": 4158
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 3986,
-                                                      "end": 3990
+                                                      "start": 4154,
+                                                      "end": 4158
                                                     }
                                                   },
                                                   {
@@ -7394,15 +7779,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4019,
-                                                        "end": 4030
+                                                        "start": 4187,
+                                                        "end": 4198
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4019,
-                                                      "end": 4030
+                                                      "start": 4187,
+                                                      "end": 4198
                                                     }
                                                   },
                                                   {
@@ -7411,15 +7796,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 4059,
-                                                        "end": 4066
+                                                        "start": 4227,
+                                                        "end": 4234
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4059,
-                                                      "end": 4066
+                                                      "start": 4227,
+                                                      "end": 4234
                                                     }
                                                   },
                                                   {
@@ -7428,15 +7813,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 4095,
-                                                        "end": 4100
+                                                        "start": 4263,
+                                                        "end": 4268
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4095,
-                                                      "end": 4100
+                                                      "start": 4263,
+                                                      "end": 4268
                                                     }
                                                   },
                                                   {
@@ -7445,48 +7830,48 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 4129,
-                                                        "end": 4139
+                                                        "start": 4297,
+                                                        "end": 4307
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4129,
-                                                      "end": 4139
+                                                      "start": 4297,
+                                                      "end": 4307
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 3847,
-                                                  "end": 4165
+                                                  "start": 4015,
+                                                  "end": 4333
                                                 }
                                               },
                                               "loc": {
-                                                "start": 3833,
-                                                "end": 4165
+                                                "start": 4001,
+                                                "end": 4333
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 3548,
-                                            "end": 4187
+                                            "start": 3716,
+                                            "end": 4355
                                           }
                                         },
                                         "loc": {
-                                          "start": 3538,
-                                          "end": 4187
+                                          "start": 3706,
+                                          "end": 4355
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 3431,
-                                      "end": 4205
+                                      "start": 3599,
+                                      "end": 4373
                                     }
                                   },
                                   "loc": {
-                                    "start": 3418,
-                                    "end": 4205
+                                    "start": 3586,
+                                    "end": 4373
                                   }
                                 },
                                 {
@@ -7495,8 +7880,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "resourceList",
                                     "loc": {
-                                      "start": 4222,
-                                      "end": 4234
+                                      "start": 4390,
+                                      "end": 4402
                                     }
                                   },
                                   "arguments": [],
@@ -7510,15 +7895,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 4257,
-                                            "end": 4259
+                                            "start": 4425,
+                                            "end": 4427
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4257,
-                                          "end": 4259
+                                          "start": 4425,
+                                          "end": 4427
                                         }
                                       },
                                       {
@@ -7527,15 +7912,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 4280,
-                                            "end": 4290
+                                            "start": 4448,
+                                            "end": 4458
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 4280,
-                                          "end": 4290
+                                          "start": 4448,
+                                          "end": 4458
                                         }
                                       },
                                       {
@@ -7544,8 +7929,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 4311,
-                                            "end": 4323
+                                            "start": 4479,
+                                            "end": 4491
                                           }
                                         },
                                         "arguments": [],
@@ -7559,15 +7944,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4350,
-                                                  "end": 4352
+                                                  "start": 4518,
+                                                  "end": 4520
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4350,
-                                                "end": 4352
+                                                "start": 4518,
+                                                "end": 4520
                                               }
                                             },
                                             {
@@ -7576,15 +7961,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 4377,
-                                                  "end": 4385
+                                                  "start": 4545,
+                                                  "end": 4553
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4377,
-                                                "end": 4385
+                                                "start": 4545,
+                                                "end": 4553
                                               }
                                             },
                                             {
@@ -7593,15 +7978,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 4410,
-                                                  "end": 4421
+                                                  "start": 4578,
+                                                  "end": 4589
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4410,
-                                                "end": 4421
+                                                "start": 4578,
+                                                "end": 4589
                                               }
                                             },
                                             {
@@ -7610,26 +7995,26 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 4446,
-                                                  "end": 4450
+                                                  "start": 4614,
+                                                  "end": 4618
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4446,
-                                                "end": 4450
+                                                "start": 4614,
+                                                "end": 4618
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4324,
-                                            "end": 4472
+                                            "start": 4492,
+                                            "end": 4640
                                           }
                                         },
                                         "loc": {
-                                          "start": 4311,
-                                          "end": 4472
+                                          "start": 4479,
+                                          "end": 4640
                                         }
                                       },
                                       {
@@ -7638,8 +8023,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "resources",
                                           "loc": {
-                                            "start": 4493,
-                                            "end": 4502
+                                            "start": 4661,
+                                            "end": 4670
                                           }
                                         },
                                         "arguments": [],
@@ -7653,15 +8038,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 4529,
-                                                  "end": 4531
+                                                  "start": 4697,
+                                                  "end": 4699
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4529,
-                                                "end": 4531
+                                                "start": 4697,
+                                                "end": 4699
                                               }
                                             },
                                             {
@@ -7670,15 +8055,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 4556,
-                                                  "end": 4561
+                                                  "start": 4724,
+                                                  "end": 4729
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4556,
-                                                "end": 4561
+                                                "start": 4724,
+                                                "end": 4729
                                               }
                                             },
                                             {
@@ -7687,15 +8072,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "link",
                                                 "loc": {
-                                                  "start": 4586,
-                                                  "end": 4590
+                                                  "start": 4754,
+                                                  "end": 4758
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4586,
-                                                "end": 4590
+                                                "start": 4754,
+                                                "end": 4758
                                               }
                                             },
                                             {
@@ -7704,15 +8089,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "usedFor",
                                                 "loc": {
-                                                  "start": 4615,
-                                                  "end": 4622
+                                                  "start": 4783,
+                                                  "end": 4790
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 4615,
-                                                "end": 4622
+                                                "start": 4783,
+                                                "end": 4790
                                               }
                                             },
                                             {
@@ -7721,8 +8106,8 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 4647,
-                                                  "end": 4659
+                                                  "start": 4815,
+                                                  "end": 4827
                                                 }
                                               },
                                               "arguments": [],
@@ -7736,15 +8121,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 4690,
-                                                        "end": 4692
+                                                        "start": 4858,
+                                                        "end": 4860
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4690,
-                                                      "end": 4692
+                                                      "start": 4858,
+                                                      "end": 4860
                                                     }
                                                   },
                                                   {
@@ -7753,15 +8138,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 4721,
-                                                        "end": 4729
+                                                        "start": 4889,
+                                                        "end": 4897
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4721,
-                                                      "end": 4729
+                                                      "start": 4889,
+                                                      "end": 4897
                                                     }
                                                   },
                                                   {
@@ -7770,15 +8155,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 4758,
-                                                        "end": 4769
+                                                        "start": 4926,
+                                                        "end": 4937
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4758,
-                                                      "end": 4769
+                                                      "start": 4926,
+                                                      "end": 4937
                                                     }
                                                   },
                                                   {
@@ -7787,48 +8172,48 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 4798,
-                                                        "end": 4802
+                                                        "start": 4966,
+                                                        "end": 4970
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 4798,
-                                                      "end": 4802
+                                                      "start": 4966,
+                                                      "end": 4970
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 4660,
-                                                  "end": 4828
+                                                  "start": 4828,
+                                                  "end": 4996
                                                 }
                                               },
                                               "loc": {
-                                                "start": 4647,
-                                                "end": 4828
+                                                "start": 4815,
+                                                "end": 4996
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 4503,
-                                            "end": 4850
+                                            "start": 4671,
+                                            "end": 5018
                                           }
                                         },
                                         "loc": {
-                                          "start": 4493,
-                                          "end": 4850
+                                          "start": 4661,
+                                          "end": 5018
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4235,
-                                      "end": 4868
+                                      "start": 4403,
+                                      "end": 5036
                                     }
                                   },
                                   "loc": {
-                                    "start": 4222,
-                                    "end": 4868
+                                    "start": 4390,
+                                    "end": 5036
                                   }
                                 },
                                 {
@@ -7837,8 +8222,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "schedule",
                                     "loc": {
-                                      "start": 4885,
-                                      "end": 4893
+                                      "start": 5053,
+                                      "end": 5061
                                     }
                                   },
                                   "arguments": [],
@@ -7852,25 +8237,25 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "Schedule_common",
                                           "loc": {
-                                            "start": 4919,
-                                            "end": 4934
+                                            "start": 5087,
+                                            "end": 5102
                                           }
                                         },
                                         "directives": [],
                                         "loc": {
-                                          "start": 4916,
-                                          "end": 4934
+                                          "start": 5084,
+                                          "end": 5102
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 4894,
-                                      "end": 4952
+                                      "start": 5062,
+                                      "end": 5120
                                     }
                                   },
                                   "loc": {
-                                    "start": 4885,
-                                    "end": 4952
+                                    "start": 5053,
+                                    "end": 5120
                                   }
                                 },
                                 {
@@ -7879,15 +8264,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 4969,
-                                      "end": 4971
+                                      "start": 5137,
+                                      "end": 5139
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4969,
-                                    "end": 4971
+                                    "start": 5137,
+                                    "end": 5139
                                   }
                                 },
                                 {
@@ -7896,15 +8281,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "name",
                                     "loc": {
-                                      "start": 4988,
-                                      "end": 4992
+                                      "start": 5156,
+                                      "end": 5160
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 4988,
-                                    "end": 4992
+                                    "start": 5156,
+                                    "end": 5160
                                   }
                                 },
                                 {
@@ -7913,26 +8298,103 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "description",
                                     "loc": {
-                                      "start": 5009,
-                                      "end": 5020
+                                      "start": 5177,
+                                      "end": 5188
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5009,
-                                    "end": 5020
+                                    "start": 5177,
+                                    "end": 5188
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "you",
+                                    "loc": {
+                                      "start": 5205,
+                                      "end": 5208
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "selectionSet": {
+                                    "kind": "SelectionSet",
+                                    "selections": [
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canDelete",
+                                          "loc": {
+                                            "start": 5231,
+                                            "end": 5240
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5231,
+                                          "end": 5240
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canRead",
+                                          "loc": {
+                                            "start": 5261,
+                                            "end": 5268
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5261,
+                                          "end": 5268
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "canUpdate",
+                                          "loc": {
+                                            "start": 5289,
+                                            "end": 5298
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "loc": {
+                                          "start": 5289,
+                                          "end": 5298
+                                        }
+                                      }
+                                    ],
+                                    "loc": {
+                                      "start": 5209,
+                                      "end": 5316
+                                    }
+                                  },
+                                  "loc": {
+                                    "start": 5205,
+                                    "end": 5316
                                   }
                                 }
                               ],
                               "loc": {
                                 "start": 453,
-                                "end": 5034
+                                "end": 5330
                               }
                             },
                             "loc": {
                               "start": 448,
-                              "end": 5034
+                              "end": 5330
                             }
                           },
                           {
@@ -7941,15 +8403,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "stopCondition",
                               "loc": {
-                                "start": 5047,
-                                "end": 5060
+                                "start": 5343,
+                                "end": 5356
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5047,
-                              "end": 5060
+                              "start": 5343,
+                              "end": 5356
                             }
                           },
                           {
@@ -7958,26 +8420,26 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "stopTime",
                               "loc": {
-                                "start": 5073,
-                                "end": 5081
+                                "start": 5369,
+                                "end": 5377
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5073,
-                              "end": 5081
+                              "start": 5369,
+                              "end": 5377
                             }
                           }
                         ],
                         "loc": {
                           "start": 434,
-                          "end": 5091
+                          "end": 5387
                         }
                       },
                       "loc": {
                         "start": 418,
-                        "end": 5091
+                        "end": 5387
                       }
                     },
                     {
@@ -7986,15 +8448,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "apisCount",
                         "loc": {
-                          "start": 5100,
-                          "end": 5109
+                          "start": 5396,
+                          "end": 5405
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 5100,
-                        "end": 5109
+                        "start": 5396,
+                        "end": 5405
                       }
                     },
                     {
@@ -8003,8 +8465,8 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "bookmarkLists",
                         "loc": {
-                          "start": 5118,
-                          "end": 5131
+                          "start": 5414,
+                          "end": 5427
                         }
                       },
                       "arguments": [],
@@ -8018,15 +8480,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 5146,
-                                "end": 5148
+                                "start": 5442,
+                                "end": 5444
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5146,
-                              "end": 5148
+                              "start": 5442,
+                              "end": 5444
                             }
                           },
                           {
@@ -8035,15 +8497,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "created_at",
                               "loc": {
-                                "start": 5161,
-                                "end": 5171
+                                "start": 5457,
+                                "end": 5467
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5161,
-                              "end": 5171
+                              "start": 5457,
+                              "end": 5467
                             }
                           },
                           {
@@ -8052,15 +8514,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "updated_at",
                               "loc": {
-                                "start": 5184,
-                                "end": 5194
+                                "start": 5480,
+                                "end": 5490
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5184,
-                              "end": 5194
+                              "start": 5480,
+                              "end": 5490
                             }
                           },
                           {
@@ -8069,15 +8531,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "label",
                               "loc": {
-                                "start": 5207,
-                                "end": 5212
+                                "start": 5503,
+                                "end": 5508
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5207,
-                              "end": 5212
+                              "start": 5503,
+                              "end": 5508
                             }
                           },
                           {
@@ -8086,26 +8548,43 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "bookmarksCount",
                               "loc": {
-                                "start": 5225,
-                                "end": 5239
+                                "start": 5521,
+                                "end": 5535
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 5225,
-                              "end": 5239
+                              "start": 5521,
+                              "end": 5535
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5132,
-                          "end": 5249
+                          "start": 5428,
+                          "end": 5545
                         }
                       },
                       "loc": {
-                        "start": 5118,
-                        "end": 5249
+                        "start": 5414,
+                        "end": 5545
+                      }
+                    },
+                    {
+                      "kind": "Field",
+                      "name": {
+                        "kind": "Name",
+                        "value": "codesCount",
+                        "loc": {
+                          "start": 5554,
+                          "end": 5564
+                        }
+                      },
+                      "arguments": [],
+                      "directives": [],
+                      "loc": {
+                        "start": 5554,
+                        "end": 5564
                       }
                     },
                     {
@@ -8114,8 +8593,8 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "focusModes",
                         "loc": {
-                          "start": 5258,
-                          "end": 5268
+                          "start": 5573,
+                          "end": 5583
                         }
                       },
                       "arguments": [],
@@ -8129,8 +8608,8 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "filters",
                               "loc": {
-                                "start": 5283,
-                                "end": 5290
+                                "start": 5598,
+                                "end": 5605
                               }
                             },
                             "arguments": [],
@@ -8144,15 +8623,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 5309,
-                                      "end": 5311
+                                      "start": 5624,
+                                      "end": 5626
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5309,
-                                    "end": 5311
+                                    "start": 5624,
+                                    "end": 5626
                                   }
                                 },
                                 {
@@ -8161,15 +8640,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "filterType",
                                     "loc": {
-                                      "start": 5328,
-                                      "end": 5338
+                                      "start": 5643,
+                                      "end": 5653
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 5328,
-                                    "end": 5338
+                                    "start": 5643,
+                                    "end": 5653
                                   }
                                 },
                                 {
@@ -8178,8 +8657,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "tag",
                                     "loc": {
-                                      "start": 5355,
-                                      "end": 5358
+                                      "start": 5670,
+                                      "end": 5673
                                     }
                                   },
                                   "arguments": [],
@@ -8193,15 +8672,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 5381,
-                                            "end": 5383
+                                            "start": 5696,
+                                            "end": 5698
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5381,
-                                          "end": 5383
+                                          "start": 5696,
+                                          "end": 5698
                                         }
                                       },
                                       {
@@ -8210,15 +8689,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 5404,
-                                            "end": 5414
+                                            "start": 5719,
+                                            "end": 5729
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5404,
-                                          "end": 5414
+                                          "start": 5719,
+                                          "end": 5729
                                         }
                                       },
                                       {
@@ -8227,15 +8706,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "tag",
                                           "loc": {
-                                            "start": 5435,
-                                            "end": 5438
+                                            "start": 5750,
+                                            "end": 5753
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5435,
-                                          "end": 5438
+                                          "start": 5750,
+                                          "end": 5753
                                         }
                                       },
                                       {
@@ -8244,15 +8723,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "bookmarks",
                                           "loc": {
-                                            "start": 5459,
-                                            "end": 5468
+                                            "start": 5774,
+                                            "end": 5783
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 5459,
-                                          "end": 5468
+                                          "start": 5774,
+                                          "end": 5783
                                         }
                                       },
                                       {
@@ -8261,8 +8740,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 5489,
-                                            "end": 5501
+                                            "start": 5804,
+                                            "end": 5816
                                           }
                                         },
                                         "arguments": [],
@@ -8276,15 +8755,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5528,
-                                                  "end": 5530
+                                                  "start": 5843,
+                                                  "end": 5845
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5528,
-                                                "end": 5530
+                                                "start": 5843,
+                                                "end": 5845
                                               }
                                             },
                                             {
@@ -8293,15 +8772,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 5555,
-                                                  "end": 5563
+                                                  "start": 5870,
+                                                  "end": 5878
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5555,
-                                                "end": 5563
+                                                "start": 5870,
+                                                "end": 5878
                                               }
                                             },
                                             {
@@ -8310,26 +8789,26 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 5588,
-                                                  "end": 5599
+                                                  "start": 5903,
+                                                  "end": 5914
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5588,
-                                                "end": 5599
+                                                "start": 5903,
+                                                "end": 5914
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5502,
-                                            "end": 5621
+                                            "start": 5817,
+                                            "end": 5936
                                           }
                                         },
                                         "loc": {
-                                          "start": 5489,
-                                          "end": 5621
+                                          "start": 5804,
+                                          "end": 5936
                                         }
                                       },
                                       {
@@ -8338,8 +8817,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "you",
                                           "loc": {
-                                            "start": 5642,
-                                            "end": 5645
+                                            "start": 5957,
+                                            "end": 5960
                                           }
                                         },
                                         "arguments": [],
@@ -8353,15 +8832,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "isOwn",
                                                 "loc": {
-                                                  "start": 5672,
-                                                  "end": 5677
+                                                  "start": 5987,
+                                                  "end": 5992
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5672,
-                                                "end": 5677
+                                                "start": 5987,
+                                                "end": 5992
                                               }
                                             },
                                             {
@@ -8370,37 +8849,37 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "isBookmarked",
                                                 "loc": {
-                                                  "start": 5702,
-                                                  "end": 5714
+                                                  "start": 6017,
+                                                  "end": 6029
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5702,
-                                                "end": 5714
+                                                "start": 6017,
+                                                "end": 6029
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5646,
-                                            "end": 5736
+                                            "start": 5961,
+                                            "end": 6051
                                           }
                                         },
                                         "loc": {
-                                          "start": 5642,
-                                          "end": 5736
+                                          "start": 5957,
+                                          "end": 6051
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5359,
-                                      "end": 5754
+                                      "start": 5674,
+                                      "end": 6069
                                     }
                                   },
                                   "loc": {
-                                    "start": 5355,
-                                    "end": 5754
+                                    "start": 5670,
+                                    "end": 6069
                                   }
                                 },
                                 {
@@ -8409,8 +8888,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "focusMode",
                                     "loc": {
-                                      "start": 5771,
-                                      "end": 5780
+                                      "start": 6086,
+                                      "end": 6095
                                     }
                                   },
                                   "arguments": [],
@@ -8424,8 +8903,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "labels",
                                           "loc": {
-                                            "start": 5803,
-                                            "end": 5809
+                                            "start": 6118,
+                                            "end": 6124
                                           }
                                         },
                                         "arguments": [],
@@ -8439,15 +8918,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5836,
-                                                  "end": 5838
+                                                  "start": 6151,
+                                                  "end": 6153
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5836,
-                                                "end": 5838
+                                                "start": 6151,
+                                                "end": 6153
                                               }
                                             },
                                             {
@@ -8456,15 +8935,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "color",
                                                 "loc": {
-                                                  "start": 5863,
-                                                  "end": 5868
+                                                  "start": 6178,
+                                                  "end": 6183
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5863,
-                                                "end": 5868
+                                                "start": 6178,
+                                                "end": 6183
                                               }
                                             },
                                             {
@@ -8473,26 +8952,26 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "label",
                                                 "loc": {
-                                                  "start": 5893,
-                                                  "end": 5898
+                                                  "start": 6208,
+                                                  "end": 6213
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5893,
-                                                "end": 5898
+                                                "start": 6208,
+                                                "end": 6213
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5810,
-                                            "end": 5920
+                                            "start": 6125,
+                                            "end": 6235
                                           }
                                         },
                                         "loc": {
-                                          "start": 5803,
-                                          "end": 5920
+                                          "start": 6118,
+                                          "end": 6235
                                         }
                                       },
                                       {
@@ -8501,8 +8980,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "reminderList",
                                           "loc": {
-                                            "start": 5941,
-                                            "end": 5953
+                                            "start": 6256,
+                                            "end": 6268
                                           }
                                         },
                                         "arguments": [],
@@ -8516,15 +8995,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 5980,
-                                                  "end": 5982
+                                                  "start": 6295,
+                                                  "end": 6297
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 5980,
-                                                "end": 5982
+                                                "start": 6295,
+                                                "end": 6297
                                               }
                                             },
                                             {
@@ -8533,15 +9012,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6007,
-                                                  "end": 6017
+                                                  "start": 6322,
+                                                  "end": 6332
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6007,
-                                                "end": 6017
+                                                "start": 6322,
+                                                "end": 6332
                                               }
                                             },
                                             {
@@ -8550,15 +9029,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 6042,
-                                                  "end": 6052
+                                                  "start": 6357,
+                                                  "end": 6367
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6042,
-                                                "end": 6052
+                                                "start": 6357,
+                                                "end": 6367
                                               }
                                             },
                                             {
@@ -8567,8 +9046,8 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "reminders",
                                                 "loc": {
-                                                  "start": 6077,
-                                                  "end": 6086
+                                                  "start": 6392,
+                                                  "end": 6401
                                                 }
                                               },
                                               "arguments": [],
@@ -8582,15 +9061,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6117,
-                                                        "end": 6119
+                                                        "start": 6432,
+                                                        "end": 6434
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6117,
-                                                      "end": 6119
+                                                      "start": 6432,
+                                                      "end": 6434
                                                     }
                                                   },
                                                   {
@@ -8599,15 +9078,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "created_at",
                                                       "loc": {
-                                                        "start": 6148,
-                                                        "end": 6158
+                                                        "start": 6463,
+                                                        "end": 6473
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6148,
-                                                      "end": 6158
+                                                      "start": 6463,
+                                                      "end": 6473
                                                     }
                                                   },
                                                   {
@@ -8616,15 +9095,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "updated_at",
                                                       "loc": {
-                                                        "start": 6187,
-                                                        "end": 6197
+                                                        "start": 6502,
+                                                        "end": 6512
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6187,
-                                                      "end": 6197
+                                                      "start": 6502,
+                                                      "end": 6512
                                                     }
                                                   },
                                                   {
@@ -8633,15 +9112,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 6226,
-                                                        "end": 6230
+                                                        "start": 6541,
+                                                        "end": 6545
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6226,
-                                                      "end": 6230
+                                                      "start": 6541,
+                                                      "end": 6545
                                                     }
                                                   },
                                                   {
@@ -8650,15 +9129,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 6259,
-                                                        "end": 6270
+                                                        "start": 6574,
+                                                        "end": 6585
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6259,
-                                                      "end": 6270
+                                                      "start": 6574,
+                                                      "end": 6585
                                                     }
                                                   },
                                                   {
@@ -8667,15 +9146,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "dueDate",
                                                       "loc": {
-                                                        "start": 6299,
-                                                        "end": 6306
+                                                        "start": 6614,
+                                                        "end": 6621
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6299,
-                                                      "end": 6306
+                                                      "start": 6614,
+                                                      "end": 6621
                                                     }
                                                   },
                                                   {
@@ -8684,15 +9163,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 6335,
-                                                        "end": 6340
+                                                        "start": 6650,
+                                                        "end": 6655
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6335,
-                                                      "end": 6340
+                                                      "start": 6650,
+                                                      "end": 6655
                                                     }
                                                   },
                                                   {
@@ -8701,15 +9180,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "isComplete",
                                                       "loc": {
-                                                        "start": 6369,
-                                                        "end": 6379
+                                                        "start": 6684,
+                                                        "end": 6694
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6369,
-                                                      "end": 6379
+                                                      "start": 6684,
+                                                      "end": 6694
                                                     }
                                                   },
                                                   {
@@ -8718,8 +9197,8 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "reminderItems",
                                                       "loc": {
-                                                        "start": 6408,
-                                                        "end": 6421
+                                                        "start": 6723,
+                                                        "end": 6736
                                                       }
                                                     },
                                                     "arguments": [],
@@ -8733,15 +9212,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 6456,
-                                                              "end": 6458
+                                                              "start": 6771,
+                                                              "end": 6773
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6456,
-                                                            "end": 6458
+                                                            "start": 6771,
+                                                            "end": 6773
                                                           }
                                                         },
                                                         {
@@ -8750,15 +9229,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "created_at",
                                                             "loc": {
-                                                              "start": 6491,
-                                                              "end": 6501
+                                                              "start": 6806,
+                                                              "end": 6816
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6491,
-                                                            "end": 6501
+                                                            "start": 6806,
+                                                            "end": 6816
                                                           }
                                                         },
                                                         {
@@ -8767,15 +9246,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "updated_at",
                                                             "loc": {
-                                                              "start": 6534,
-                                                              "end": 6544
+                                                              "start": 6849,
+                                                              "end": 6859
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6534,
-                                                            "end": 6544
+                                                            "start": 6849,
+                                                            "end": 6859
                                                           }
                                                         },
                                                         {
@@ -8784,15 +9263,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 6577,
-                                                              "end": 6581
+                                                              "start": 6892,
+                                                              "end": 6896
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6577,
-                                                            "end": 6581
+                                                            "start": 6892,
+                                                            "end": 6896
                                                           }
                                                         },
                                                         {
@@ -8801,15 +9280,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 6614,
-                                                              "end": 6625
+                                                              "start": 6929,
+                                                              "end": 6940
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6614,
-                                                            "end": 6625
+                                                            "start": 6929,
+                                                            "end": 6940
                                                           }
                                                         },
                                                         {
@@ -8818,15 +9297,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "dueDate",
                                                             "loc": {
-                                                              "start": 6658,
-                                                              "end": 6665
+                                                              "start": 6973,
+                                                              "end": 6980
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6658,
-                                                            "end": 6665
+                                                            "start": 6973,
+                                                            "end": 6980
                                                           }
                                                         },
                                                         {
@@ -8835,15 +9314,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "index",
                                                             "loc": {
-                                                              "start": 6698,
-                                                              "end": 6703
+                                                              "start": 7013,
+                                                              "end": 7018
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6698,
-                                                            "end": 6703
+                                                            "start": 7013,
+                                                            "end": 7018
                                                           }
                                                         },
                                                         {
@@ -8852,48 +9331,48 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "isComplete",
                                                             "loc": {
-                                                              "start": 6736,
-                                                              "end": 6746
+                                                              "start": 7051,
+                                                              "end": 7061
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 6736,
-                                                            "end": 6746
+                                                            "start": 7051,
+                                                            "end": 7061
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 6422,
-                                                        "end": 6776
+                                                        "start": 6737,
+                                                        "end": 7091
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 6408,
-                                                      "end": 6776
+                                                      "start": 6723,
+                                                      "end": 7091
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6087,
-                                                  "end": 6802
+                                                  "start": 6402,
+                                                  "end": 7117
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6077,
-                                                "end": 6802
+                                                "start": 6392,
+                                                "end": 7117
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 5954,
-                                            "end": 6824
+                                            "start": 6269,
+                                            "end": 7139
                                           }
                                         },
                                         "loc": {
-                                          "start": 5941,
-                                          "end": 6824
+                                          "start": 6256,
+                                          "end": 7139
                                         }
                                       },
                                       {
@@ -8902,8 +9381,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "resourceList",
                                           "loc": {
-                                            "start": 6845,
-                                            "end": 6857
+                                            "start": 7160,
+                                            "end": 7172
                                           }
                                         },
                                         "arguments": [],
@@ -8917,15 +9396,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 6884,
-                                                  "end": 6886
+                                                  "start": 7199,
+                                                  "end": 7201
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6884,
-                                                "end": 6886
+                                                "start": 7199,
+                                                "end": 7201
                                               }
                                             },
                                             {
@@ -8934,15 +9413,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 6911,
-                                                  "end": 6921
+                                                  "start": 7226,
+                                                  "end": 7236
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 6911,
-                                                "end": 6921
+                                                "start": 7226,
+                                                "end": 7236
                                               }
                                             },
                                             {
@@ -8951,8 +9430,8 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "translations",
                                                 "loc": {
-                                                  "start": 6946,
-                                                  "end": 6958
+                                                  "start": 7261,
+                                                  "end": 7273
                                                 }
                                               },
                                               "arguments": [],
@@ -8966,15 +9445,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 6989,
-                                                        "end": 6991
+                                                        "start": 7304,
+                                                        "end": 7306
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 6989,
-                                                      "end": 6991
+                                                      "start": 7304,
+                                                      "end": 7306
                                                     }
                                                   },
                                                   {
@@ -8983,15 +9462,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "language",
                                                       "loc": {
-                                                        "start": 7020,
-                                                        "end": 7028
+                                                        "start": 7335,
+                                                        "end": 7343
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7020,
-                                                      "end": 7028
+                                                      "start": 7335,
+                                                      "end": 7343
                                                     }
                                                   },
                                                   {
@@ -9000,15 +9479,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "description",
                                                       "loc": {
-                                                        "start": 7057,
-                                                        "end": 7068
+                                                        "start": 7372,
+                                                        "end": 7383
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7057,
-                                                      "end": 7068
+                                                      "start": 7372,
+                                                      "end": 7383
                                                     }
                                                   },
                                                   {
@@ -9017,26 +9496,26 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "name",
                                                       "loc": {
-                                                        "start": 7097,
-                                                        "end": 7101
+                                                        "start": 7412,
+                                                        "end": 7416
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7097,
-                                                      "end": 7101
+                                                      "start": 7412,
+                                                      "end": 7416
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 6959,
-                                                  "end": 7127
+                                                  "start": 7274,
+                                                  "end": 7442
                                                 }
                                               },
                                               "loc": {
-                                                "start": 6946,
-                                                "end": 7127
+                                                "start": 7261,
+                                                "end": 7442
                                               }
                                             },
                                             {
@@ -9045,8 +9524,8 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "resources",
                                                 "loc": {
-                                                  "start": 7152,
-                                                  "end": 7161
+                                                  "start": 7467,
+                                                  "end": 7476
                                                 }
                                               },
                                               "arguments": [],
@@ -9060,15 +9539,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "id",
                                                       "loc": {
-                                                        "start": 7192,
-                                                        "end": 7194
+                                                        "start": 7507,
+                                                        "end": 7509
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7192,
-                                                      "end": 7194
+                                                      "start": 7507,
+                                                      "end": 7509
                                                     }
                                                   },
                                                   {
@@ -9077,15 +9556,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "index",
                                                       "loc": {
-                                                        "start": 7223,
-                                                        "end": 7228
+                                                        "start": 7538,
+                                                        "end": 7543
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7223,
-                                                      "end": 7228
+                                                      "start": 7538,
+                                                      "end": 7543
                                                     }
                                                   },
                                                   {
@@ -9094,15 +9573,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "link",
                                                       "loc": {
-                                                        "start": 7257,
-                                                        "end": 7261
+                                                        "start": 7572,
+                                                        "end": 7576
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7257,
-                                                      "end": 7261
+                                                      "start": 7572,
+                                                      "end": 7576
                                                     }
                                                   },
                                                   {
@@ -9111,15 +9590,15 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "usedFor",
                                                       "loc": {
-                                                        "start": 7290,
-                                                        "end": 7297
+                                                        "start": 7605,
+                                                        "end": 7612
                                                       }
                                                     },
                                                     "arguments": [],
                                                     "directives": [],
                                                     "loc": {
-                                                      "start": 7290,
-                                                      "end": 7297
+                                                      "start": 7605,
+                                                      "end": 7612
                                                     }
                                                   },
                                                   {
@@ -9128,8 +9607,8 @@ export const auth_validateSession = {
                                                       "kind": "Name",
                                                       "value": "translations",
                                                       "loc": {
-                                                        "start": 7326,
-                                                        "end": 7338
+                                                        "start": 7641,
+                                                        "end": 7653
                                                       }
                                                     },
                                                     "arguments": [],
@@ -9143,15 +9622,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "id",
                                                             "loc": {
-                                                              "start": 7373,
-                                                              "end": 7375
+                                                              "start": 7688,
+                                                              "end": 7690
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7373,
-                                                            "end": 7375
+                                                            "start": 7688,
+                                                            "end": 7690
                                                           }
                                                         },
                                                         {
@@ -9160,15 +9639,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "language",
                                                             "loc": {
-                                                              "start": 7408,
-                                                              "end": 7416
+                                                              "start": 7723,
+                                                              "end": 7731
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7408,
-                                                            "end": 7416
+                                                            "start": 7723,
+                                                            "end": 7731
                                                           }
                                                         },
                                                         {
@@ -9177,15 +9656,15 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "description",
                                                             "loc": {
-                                                              "start": 7449,
-                                                              "end": 7460
+                                                              "start": 7764,
+                                                              "end": 7775
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7449,
-                                                            "end": 7460
+                                                            "start": 7764,
+                                                            "end": 7775
                                                           }
                                                         },
                                                         {
@@ -9194,48 +9673,48 @@ export const auth_validateSession = {
                                                             "kind": "Name",
                                                             "value": "name",
                                                             "loc": {
-                                                              "start": 7493,
-                                                              "end": 7497
+                                                              "start": 7808,
+                                                              "end": 7812
                                                             }
                                                           },
                                                           "arguments": [],
                                                           "directives": [],
                                                           "loc": {
-                                                            "start": 7493,
-                                                            "end": 7497
+                                                            "start": 7808,
+                                                            "end": 7812
                                                           }
                                                         }
                                                       ],
                                                       "loc": {
-                                                        "start": 7339,
-                                                        "end": 7527
+                                                        "start": 7654,
+                                                        "end": 7842
                                                       }
                                                     },
                                                     "loc": {
-                                                      "start": 7326,
-                                                      "end": 7527
+                                                      "start": 7641,
+                                                      "end": 7842
                                                     }
                                                   }
                                                 ],
                                                 "loc": {
-                                                  "start": 7162,
-                                                  "end": 7553
+                                                  "start": 7477,
+                                                  "end": 7868
                                                 }
                                               },
                                               "loc": {
-                                                "start": 7152,
-                                                "end": 7553
+                                                "start": 7467,
+                                                "end": 7868
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 6858,
-                                            "end": 7575
+                                            "start": 7173,
+                                            "end": 7890
                                           }
                                         },
                                         "loc": {
-                                          "start": 6845,
-                                          "end": 7575
+                                          "start": 7160,
+                                          "end": 7890
                                         }
                                       },
                                       {
@@ -9244,8 +9723,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "schedule",
                                           "loc": {
-                                            "start": 7596,
-                                            "end": 7604
+                                            "start": 7911,
+                                            "end": 7919
                                           }
                                         },
                                         "arguments": [],
@@ -9259,25 +9738,25 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "Schedule_common",
                                                 "loc": {
-                                                  "start": 7634,
-                                                  "end": 7649
+                                                  "start": 7949,
+                                                  "end": 7964
                                                 }
                                               },
                                               "directives": [],
                                               "loc": {
-                                                "start": 7631,
-                                                "end": 7649
+                                                "start": 7946,
+                                                "end": 7964
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 7605,
-                                            "end": 7671
+                                            "start": 7920,
+                                            "end": 7986
                                           }
                                         },
                                         "loc": {
-                                          "start": 7596,
-                                          "end": 7671
+                                          "start": 7911,
+                                          "end": 7986
                                         }
                                       },
                                       {
@@ -9286,15 +9765,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 7692,
-                                            "end": 7694
+                                            "start": 8007,
+                                            "end": 8009
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7692,
-                                          "end": 7694
+                                          "start": 8007,
+                                          "end": 8009
                                         }
                                       },
                                       {
@@ -9303,15 +9782,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 7715,
-                                            "end": 7719
+                                            "start": 8030,
+                                            "end": 8034
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7715,
-                                          "end": 7719
+                                          "start": 8030,
+                                          "end": 8034
                                         }
                                       },
                                       {
@@ -9320,37 +9799,114 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 7740,
-                                            "end": 7751
+                                            "start": 8055,
+                                            "end": 8066
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 7740,
-                                          "end": 7751
+                                          "start": 8055,
+                                          "end": 8066
+                                        }
+                                      },
+                                      {
+                                        "kind": "Field",
+                                        "name": {
+                                          "kind": "Name",
+                                          "value": "you",
+                                          "loc": {
+                                            "start": 8087,
+                                            "end": 8090
+                                          }
+                                        },
+                                        "arguments": [],
+                                        "directives": [],
+                                        "selectionSet": {
+                                          "kind": "SelectionSet",
+                                          "selections": [
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canDelete",
+                                                "loc": {
+                                                  "start": 8117,
+                                                  "end": 8126
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8117,
+                                                "end": 8126
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canRead",
+                                                "loc": {
+                                                  "start": 8151,
+                                                  "end": 8158
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8151,
+                                                "end": 8158
+                                              }
+                                            },
+                                            {
+                                              "kind": "Field",
+                                              "name": {
+                                                "kind": "Name",
+                                                "value": "canUpdate",
+                                                "loc": {
+                                                  "start": 8183,
+                                                  "end": 8192
+                                                }
+                                              },
+                                              "arguments": [],
+                                              "directives": [],
+                                              "loc": {
+                                                "start": 8183,
+                                                "end": 8192
+                                              }
+                                            }
+                                          ],
+                                          "loc": {
+                                            "start": 8091,
+                                            "end": 8214
+                                          }
+                                        },
+                                        "loc": {
+                                          "start": 8087,
+                                          "end": 8214
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 5781,
-                                      "end": 7769
+                                      "start": 6096,
+                                      "end": 8232
                                     }
                                   },
                                   "loc": {
-                                    "start": 5771,
-                                    "end": 7769
+                                    "start": 6086,
+                                    "end": 8232
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 5291,
-                                "end": 7783
+                                "start": 5606,
+                                "end": 8246
                               }
                             },
                             "loc": {
-                              "start": 5283,
-                              "end": 7783
+                              "start": 5598,
+                              "end": 8246
                             }
                           },
                           {
@@ -9359,8 +9915,8 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "labels",
                               "loc": {
-                                "start": 7796,
-                                "end": 7802
+                                "start": 8259,
+                                "end": 8265
                               }
                             },
                             "arguments": [],
@@ -9374,15 +9930,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7821,
-                                      "end": 7823
+                                      "start": 8284,
+                                      "end": 8286
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7821,
-                                    "end": 7823
+                                    "start": 8284,
+                                    "end": 8286
                                   }
                                 },
                                 {
@@ -9391,15 +9947,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "color",
                                     "loc": {
-                                      "start": 7840,
-                                      "end": 7845
+                                      "start": 8303,
+                                      "end": 8308
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7840,
-                                    "end": 7845
+                                    "start": 8303,
+                                    "end": 8308
                                   }
                                 },
                                 {
@@ -9408,26 +9964,26 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "label",
                                     "loc": {
-                                      "start": 7862,
-                                      "end": 7867
+                                      "start": 8325,
+                                      "end": 8330
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7862,
-                                    "end": 7867
+                                    "start": 8325,
+                                    "end": 8330
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7803,
-                                "end": 7881
+                                "start": 8266,
+                                "end": 8344
                               }
                             },
                             "loc": {
-                              "start": 7796,
-                              "end": 7881
+                              "start": 8259,
+                              "end": 8344
                             }
                           },
                           {
@@ -9436,8 +9992,8 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "reminderList",
                               "loc": {
-                                "start": 7894,
-                                "end": 7906
+                                "start": 8357,
+                                "end": 8369
                               }
                             },
                             "arguments": [],
@@ -9451,15 +10007,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 7925,
-                                      "end": 7927
+                                      "start": 8388,
+                                      "end": 8390
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7925,
-                                    "end": 7927
+                                    "start": 8388,
+                                    "end": 8390
                                   }
                                 },
                                 {
@@ -9468,15 +10024,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 7944,
-                                      "end": 7954
+                                      "start": 8407,
+                                      "end": 8417
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7944,
-                                    "end": 7954
+                                    "start": 8407,
+                                    "end": 8417
                                   }
                                 },
                                 {
@@ -9485,15 +10041,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "updated_at",
                                     "loc": {
-                                      "start": 7971,
-                                      "end": 7981
+                                      "start": 8434,
+                                      "end": 8444
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 7971,
-                                    "end": 7981
+                                    "start": 8434,
+                                    "end": 8444
                                   }
                                 },
                                 {
@@ -9502,8 +10058,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "reminders",
                                     "loc": {
-                                      "start": 7998,
-                                      "end": 8007
+                                      "start": 8461,
+                                      "end": 8470
                                     }
                                   },
                                   "arguments": [],
@@ -9517,15 +10073,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8030,
-                                            "end": 8032
+                                            "start": 8493,
+                                            "end": 8495
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8030,
-                                          "end": 8032
+                                          "start": 8493,
+                                          "end": 8495
                                         }
                                       },
                                       {
@@ -9534,15 +10090,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "created_at",
                                           "loc": {
-                                            "start": 8053,
-                                            "end": 8063
+                                            "start": 8516,
+                                            "end": 8526
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8053,
-                                          "end": 8063
+                                          "start": 8516,
+                                          "end": 8526
                                         }
                                       },
                                       {
@@ -9551,15 +10107,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "updated_at",
                                           "loc": {
-                                            "start": 8084,
-                                            "end": 8094
+                                            "start": 8547,
+                                            "end": 8557
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8084,
-                                          "end": 8094
+                                          "start": 8547,
+                                          "end": 8557
                                         }
                                       },
                                       {
@@ -9568,15 +10124,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8115,
-                                            "end": 8119
+                                            "start": 8578,
+                                            "end": 8582
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8115,
-                                          "end": 8119
+                                          "start": 8578,
+                                          "end": 8582
                                         }
                                       },
                                       {
@@ -9585,15 +10141,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8140,
-                                            "end": 8151
+                                            "start": 8603,
+                                            "end": 8614
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8140,
-                                          "end": 8151
+                                          "start": 8603,
+                                          "end": 8614
                                         }
                                       },
                                       {
@@ -9602,15 +10158,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "dueDate",
                                           "loc": {
-                                            "start": 8172,
-                                            "end": 8179
+                                            "start": 8635,
+                                            "end": 8642
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8172,
-                                          "end": 8179
+                                          "start": 8635,
+                                          "end": 8642
                                         }
                                       },
                                       {
@@ -9619,15 +10175,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8200,
-                                            "end": 8205
+                                            "start": 8663,
+                                            "end": 8668
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8200,
-                                          "end": 8205
+                                          "start": 8663,
+                                          "end": 8668
                                         }
                                       },
                                       {
@@ -9636,15 +10192,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "isComplete",
                                           "loc": {
-                                            "start": 8226,
-                                            "end": 8236
+                                            "start": 8689,
+                                            "end": 8699
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8226,
-                                          "end": 8236
+                                          "start": 8689,
+                                          "end": 8699
                                         }
                                       },
                                       {
@@ -9653,8 +10209,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "reminderItems",
                                           "loc": {
-                                            "start": 8257,
-                                            "end": 8270
+                                            "start": 8720,
+                                            "end": 8733
                                           }
                                         },
                                         "arguments": [],
@@ -9668,15 +10224,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 8297,
-                                                  "end": 8299
+                                                  "start": 8760,
+                                                  "end": 8762
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8297,
-                                                "end": 8299
+                                                "start": 8760,
+                                                "end": 8762
                                               }
                                             },
                                             {
@@ -9685,15 +10241,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "created_at",
                                                 "loc": {
-                                                  "start": 8324,
-                                                  "end": 8334
+                                                  "start": 8787,
+                                                  "end": 8797
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8324,
-                                                "end": 8334
+                                                "start": 8787,
+                                                "end": 8797
                                               }
                                             },
                                             {
@@ -9702,15 +10258,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "updated_at",
                                                 "loc": {
-                                                  "start": 8359,
-                                                  "end": 8369
+                                                  "start": 8822,
+                                                  "end": 8832
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8359,
-                                                "end": 8369
+                                                "start": 8822,
+                                                "end": 8832
                                               }
                                             },
                                             {
@@ -9719,15 +10275,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 8394,
-                                                  "end": 8398
+                                                  "start": 8857,
+                                                  "end": 8861
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8394,
-                                                "end": 8398
+                                                "start": 8857,
+                                                "end": 8861
                                               }
                                             },
                                             {
@@ -9736,15 +10292,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 8423,
-                                                  "end": 8434
+                                                  "start": 8886,
+                                                  "end": 8897
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8423,
-                                                "end": 8434
+                                                "start": 8886,
+                                                "end": 8897
                                               }
                                             },
                                             {
@@ -9753,15 +10309,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "dueDate",
                                                 "loc": {
-                                                  "start": 8459,
-                                                  "end": 8466
+                                                  "start": 8922,
+                                                  "end": 8929
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8459,
-                                                "end": 8466
+                                                "start": 8922,
+                                                "end": 8929
                                               }
                                             },
                                             {
@@ -9770,15 +10326,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "index",
                                                 "loc": {
-                                                  "start": 8491,
-                                                  "end": 8496
+                                                  "start": 8954,
+                                                  "end": 8959
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8491,
-                                                "end": 8496
+                                                "start": 8954,
+                                                "end": 8959
                                               }
                                             },
                                             {
@@ -9787,48 +10343,48 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "isComplete",
                                                 "loc": {
-                                                  "start": 8521,
-                                                  "end": 8531
+                                                  "start": 8984,
+                                                  "end": 8994
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 8521,
-                                                "end": 8531
+                                                "start": 8984,
+                                                "end": 8994
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8271,
-                                            "end": 8553
+                                            "start": 8734,
+                                            "end": 9016
                                           }
                                         },
                                         "loc": {
-                                          "start": 8257,
-                                          "end": 8553
+                                          "start": 8720,
+                                          "end": 9016
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8008,
-                                      "end": 8571
+                                      "start": 8471,
+                                      "end": 9034
                                     }
                                   },
                                   "loc": {
-                                    "start": 7998,
-                                    "end": 8571
+                                    "start": 8461,
+                                    "end": 9034
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 7907,
-                                "end": 8585
+                                "start": 8370,
+                                "end": 9048
                               }
                             },
                             "loc": {
-                              "start": 7894,
-                              "end": 8585
+                              "start": 8357,
+                              "end": 9048
                             }
                           },
                           {
@@ -9837,8 +10393,8 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "resourceList",
                               "loc": {
-                                "start": 8598,
-                                "end": 8610
+                                "start": 9061,
+                                "end": 9073
                               }
                             },
                             "arguments": [],
@@ -9852,15 +10408,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "id",
                                     "loc": {
-                                      "start": 8629,
-                                      "end": 8631
+                                      "start": 9092,
+                                      "end": 9094
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8629,
-                                    "end": 8631
+                                    "start": 9092,
+                                    "end": 9094
                                   }
                                 },
                                 {
@@ -9869,15 +10425,15 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "created_at",
                                     "loc": {
-                                      "start": 8648,
-                                      "end": 8658
+                                      "start": 9111,
+                                      "end": 9121
                                     }
                                   },
                                   "arguments": [],
                                   "directives": [],
                                   "loc": {
-                                    "start": 8648,
-                                    "end": 8658
+                                    "start": 9111,
+                                    "end": 9121
                                   }
                                 },
                                 {
@@ -9886,8 +10442,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "translations",
                                     "loc": {
-                                      "start": 8675,
-                                      "end": 8687
+                                      "start": 9138,
+                                      "end": 9150
                                     }
                                   },
                                   "arguments": [],
@@ -9901,15 +10457,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8710,
-                                            "end": 8712
+                                            "start": 9173,
+                                            "end": 9175
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8710,
-                                          "end": 8712
+                                          "start": 9173,
+                                          "end": 9175
                                         }
                                       },
                                       {
@@ -9918,15 +10474,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "language",
                                           "loc": {
-                                            "start": 8733,
-                                            "end": 8741
+                                            "start": 9196,
+                                            "end": 9204
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8733,
-                                          "end": 8741
+                                          "start": 9196,
+                                          "end": 9204
                                         }
                                       },
                                       {
@@ -9935,15 +10491,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "description",
                                           "loc": {
-                                            "start": 8762,
-                                            "end": 8773
+                                            "start": 9225,
+                                            "end": 9236
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8762,
-                                          "end": 8773
+                                          "start": 9225,
+                                          "end": 9236
                                         }
                                       },
                                       {
@@ -9952,26 +10508,26 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "name",
                                           "loc": {
-                                            "start": 8794,
-                                            "end": 8798
+                                            "start": 9257,
+                                            "end": 9261
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8794,
-                                          "end": 8798
+                                          "start": 9257,
+                                          "end": 9261
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8688,
-                                      "end": 8816
+                                      "start": 9151,
+                                      "end": 9279
                                     }
                                   },
                                   "loc": {
-                                    "start": 8675,
-                                    "end": 8816
+                                    "start": 9138,
+                                    "end": 9279
                                   }
                                 },
                                 {
@@ -9980,8 +10536,8 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "resources",
                                     "loc": {
-                                      "start": 8833,
-                                      "end": 8842
+                                      "start": 9296,
+                                      "end": 9305
                                     }
                                   },
                                   "arguments": [],
@@ -9995,15 +10551,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "id",
                                           "loc": {
-                                            "start": 8865,
-                                            "end": 8867
+                                            "start": 9328,
+                                            "end": 9330
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8865,
-                                          "end": 8867
+                                          "start": 9328,
+                                          "end": 9330
                                         }
                                       },
                                       {
@@ -10012,15 +10568,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "index",
                                           "loc": {
-                                            "start": 8888,
-                                            "end": 8893
+                                            "start": 9351,
+                                            "end": 9356
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8888,
-                                          "end": 8893
+                                          "start": 9351,
+                                          "end": 9356
                                         }
                                       },
                                       {
@@ -10029,15 +10585,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "link",
                                           "loc": {
-                                            "start": 8914,
-                                            "end": 8918
+                                            "start": 9377,
+                                            "end": 9381
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8914,
-                                          "end": 8918
+                                          "start": 9377,
+                                          "end": 9381
                                         }
                                       },
                                       {
@@ -10046,15 +10602,15 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "usedFor",
                                           "loc": {
-                                            "start": 8939,
-                                            "end": 8946
+                                            "start": 9402,
+                                            "end": 9409
                                           }
                                         },
                                         "arguments": [],
                                         "directives": [],
                                         "loc": {
-                                          "start": 8939,
-                                          "end": 8946
+                                          "start": 9402,
+                                          "end": 9409
                                         }
                                       },
                                       {
@@ -10063,8 +10619,8 @@ export const auth_validateSession = {
                                           "kind": "Name",
                                           "value": "translations",
                                           "loc": {
-                                            "start": 8967,
-                                            "end": 8979
+                                            "start": 9430,
+                                            "end": 9442
                                           }
                                         },
                                         "arguments": [],
@@ -10078,15 +10634,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "id",
                                                 "loc": {
-                                                  "start": 9006,
-                                                  "end": 9008
+                                                  "start": 9469,
+                                                  "end": 9471
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9006,
-                                                "end": 9008
+                                                "start": 9469,
+                                                "end": 9471
                                               }
                                             },
                                             {
@@ -10095,15 +10651,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "language",
                                                 "loc": {
-                                                  "start": 9033,
-                                                  "end": 9041
+                                                  "start": 9496,
+                                                  "end": 9504
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9033,
-                                                "end": 9041
+                                                "start": 9496,
+                                                "end": 9504
                                               }
                                             },
                                             {
@@ -10112,15 +10668,15 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "description",
                                                 "loc": {
-                                                  "start": 9066,
-                                                  "end": 9077
+                                                  "start": 9529,
+                                                  "end": 9540
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9066,
-                                                "end": 9077
+                                                "start": 9529,
+                                                "end": 9540
                                               }
                                             },
                                             {
@@ -10129,48 +10685,48 @@ export const auth_validateSession = {
                                                 "kind": "Name",
                                                 "value": "name",
                                                 "loc": {
-                                                  "start": 9102,
-                                                  "end": 9106
+                                                  "start": 9565,
+                                                  "end": 9569
                                                 }
                                               },
                                               "arguments": [],
                                               "directives": [],
                                               "loc": {
-                                                "start": 9102,
-                                                "end": 9106
+                                                "start": 9565,
+                                                "end": 9569
                                               }
                                             }
                                           ],
                                           "loc": {
-                                            "start": 8980,
-                                            "end": 9128
+                                            "start": 9443,
+                                            "end": 9591
                                           }
                                         },
                                         "loc": {
-                                          "start": 8967,
-                                          "end": 9128
+                                          "start": 9430,
+                                          "end": 9591
                                         }
                                       }
                                     ],
                                     "loc": {
-                                      "start": 8843,
-                                      "end": 9146
+                                      "start": 9306,
+                                      "end": 9609
                                     }
                                   },
                                   "loc": {
-                                    "start": 8833,
-                                    "end": 9146
+                                    "start": 9296,
+                                    "end": 9609
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 8611,
-                                "end": 9160
+                                "start": 9074,
+                                "end": 9623
                               }
                             },
                             "loc": {
-                              "start": 8598,
-                              "end": 9160
+                              "start": 9061,
+                              "end": 9623
                             }
                           },
                           {
@@ -10179,8 +10735,8 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "schedule",
                               "loc": {
-                                "start": 9173,
-                                "end": 9181
+                                "start": 9636,
+                                "end": 9644
                               }
                             },
                             "arguments": [],
@@ -10194,25 +10750,25 @@ export const auth_validateSession = {
                                     "kind": "Name",
                                     "value": "Schedule_common",
                                     "loc": {
-                                      "start": 9203,
-                                      "end": 9218
+                                      "start": 9666,
+                                      "end": 9681
                                     }
                                   },
                                   "directives": [],
                                   "loc": {
-                                    "start": 9200,
-                                    "end": 9218
+                                    "start": 9663,
+                                    "end": 9681
                                   }
                                 }
                               ],
                               "loc": {
-                                "start": 9182,
-                                "end": 9232
+                                "start": 9645,
+                                "end": 9695
                               }
                             },
                             "loc": {
-                              "start": 9173,
-                              "end": 9232
+                              "start": 9636,
+                              "end": 9695
                             }
                           },
                           {
@@ -10221,15 +10777,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "id",
                               "loc": {
-                                "start": 9245,
-                                "end": 9247
+                                "start": 9708,
+                                "end": 9710
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9245,
-                              "end": 9247
+                              "start": 9708,
+                              "end": 9710
                             }
                           },
                           {
@@ -10238,15 +10794,15 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "name",
                               "loc": {
-                                "start": 9260,
-                                "end": 9264
+                                "start": 9723,
+                                "end": 9727
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9260,
-                              "end": 9264
+                              "start": 9723,
+                              "end": 9727
                             }
                           },
                           {
@@ -10255,26 +10811,103 @@ export const auth_validateSession = {
                               "kind": "Name",
                               "value": "description",
                               "loc": {
-                                "start": 9277,
-                                "end": 9288
+                                "start": 9740,
+                                "end": 9751
                               }
                             },
                             "arguments": [],
                             "directives": [],
                             "loc": {
-                              "start": 9277,
-                              "end": 9288
+                              "start": 9740,
+                              "end": 9751
+                            }
+                          },
+                          {
+                            "kind": "Field",
+                            "name": {
+                              "kind": "Name",
+                              "value": "you",
+                              "loc": {
+                                "start": 9764,
+                                "end": 9767
+                              }
+                            },
+                            "arguments": [],
+                            "directives": [],
+                            "selectionSet": {
+                              "kind": "SelectionSet",
+                              "selections": [
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canDelete",
+                                    "loc": {
+                                      "start": 9786,
+                                      "end": 9795
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9786,
+                                    "end": 9795
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canRead",
+                                    "loc": {
+                                      "start": 9812,
+                                      "end": 9819
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9812,
+                                    "end": 9819
+                                  }
+                                },
+                                {
+                                  "kind": "Field",
+                                  "name": {
+                                    "kind": "Name",
+                                    "value": "canUpdate",
+                                    "loc": {
+                                      "start": 9836,
+                                      "end": 9845
+                                    }
+                                  },
+                                  "arguments": [],
+                                  "directives": [],
+                                  "loc": {
+                                    "start": 9836,
+                                    "end": 9845
+                                  }
+                                }
+                              ],
+                              "loc": {
+                                "start": 9768,
+                                "end": 9859
+                              }
+                            },
+                            "loc": {
+                              "start": 9764,
+                              "end": 9859
                             }
                           }
                         ],
                         "loc": {
-                          "start": 5269,
-                          "end": 9298
+                          "start": 5584,
+                          "end": 9869
                         }
                       },
                       "loc": {
-                        "start": 5258,
-                        "end": 9298
+                        "start": 5573,
+                        "end": 9869
                       }
                     },
                     {
@@ -10283,15 +10916,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 9307,
-                          "end": 9313
+                          "start": 9878,
+                          "end": 9884
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9307,
-                        "end": 9313
+                        "start": 9878,
+                        "end": 9884
                       }
                     },
                     {
@@ -10300,15 +10933,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 9322,
-                          "end": 9332
+                          "start": 9893,
+                          "end": 9903
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9322,
-                        "end": 9332
+                        "start": 9893,
+                        "end": 9903
                       }
                     },
                     {
@@ -10317,15 +10950,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 9341,
-                          "end": 9343
+                          "start": 9912,
+                          "end": 9914
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9341,
-                        "end": 9343
+                        "start": 9912,
+                        "end": 9914
                       }
                     },
                     {
@@ -10334,15 +10967,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 9352,
-                          "end": 9361
+                          "start": 9923,
+                          "end": 9932
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9352,
-                        "end": 9361
+                        "start": 9923,
+                        "end": 9932
                       }
                     },
                     {
@@ -10351,15 +10984,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 9370,
-                          "end": 9386
+                          "start": 9941,
+                          "end": 9957
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9370,
-                        "end": 9386
+                        "start": 9941,
+                        "end": 9957
                       }
                     },
                     {
@@ -10368,15 +11001,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 9395,
-                          "end": 9399
+                          "start": 9966,
+                          "end": 9970
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9395,
-                        "end": 9399
+                        "start": 9966,
+                        "end": 9970
                       }
                     },
                     {
@@ -10385,15 +11018,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 9408,
-                          "end": 9418
+                          "start": 9979,
+                          "end": 9989
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9408,
-                        "end": 9418
+                        "start": 9979,
+                        "end": 9989
                       }
                     },
                     {
@@ -10402,15 +11035,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 9427,
-                          "end": 9440
+                          "start": 9998,
+                          "end": 10011
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9427,
-                        "end": 9440
+                        "start": 9998,
+                        "end": 10011
                       }
                     },
                     {
@@ -10419,15 +11052,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 9449,
-                          "end": 9468
+                          "start": 10020,
+                          "end": 10039
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9449,
-                        "end": 9468
+                        "start": 10020,
+                        "end": 10039
                       }
                     },
                     {
@@ -10436,32 +11069,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 9477,
-                          "end": 9490
+                          "start": 10048,
+                          "end": 10061
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9477,
-                        "end": 9490
-                      }
-                    },
-                    {
-                      "kind": "Field",
-                      "name": {
-                        "kind": "Name",
-                        "value": "smartContractsCount",
-                        "loc": {
-                          "start": 9499,
-                          "end": 9518
-                        }
-                      },
-                      "arguments": [],
-                      "directives": [],
-                      "loc": {
-                        "start": 9499,
-                        "end": 9518
+                        "start": 10048,
+                        "end": 10061
                       }
                     },
                     {
@@ -10470,15 +11086,15 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 9527,
-                          "end": 9541
+                          "start": 10070,
+                          "end": 10084
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9527,
-                        "end": 9541
+                        "start": 10070,
+                        "end": 10084
                       }
                     },
                     {
@@ -10487,48 +11103,48 @@ export const auth_validateSession = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 9550,
-                          "end": 9555
+                          "start": 10093,
+                          "end": 10098
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 9550,
-                        "end": 9555
+                        "start": 10093,
+                        "end": 10098
                       }
                     }
                   ],
                   "loc": {
                     "start": 408,
-                    "end": 9561
+                    "end": 10104
                   }
                 },
                 "loc": {
                   "start": 402,
-                  "end": 9561
+                  "end": 10104
                 }
               }
             ],
             "loc": {
               "start": 368,
-              "end": 9565
+              "end": 10108
             }
           },
           "loc": {
             "start": 337,
-            "end": 9565
+            "end": 10108
           }
         }
       ],
       "loc": {
         "start": 333,
-        "end": 9567
+        "end": 10110
       }
     },
     "loc": {
       "start": 277,
-      "end": 9567
+      "end": 10110
     }
   },
   "variableValues": {},

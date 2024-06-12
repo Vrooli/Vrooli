@@ -2,48 +2,56 @@ import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { defaultPermissions } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, NoteModelLogic, NoteVersionModelLogic, OrganizationModelLogic, ReactionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, NoteModelInfo, NoteModelLogic, NoteVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+
+type NotePre = PreShapeRootResult;
 
 const __typename = "Note" as const;
 export const NoteModel: NoteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.note,
+    dbTable: "note",
     display: () => rootObjectDisplay(ModelMap.get<NoteVersionModelLogic>("NoteVersion")),
     format: NoteFormat,
     mutate: {
         shape: {
-            pre: async (params) => {
+            pre: async (params): Promise<NotePre> => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isPrivate: data.isPrivate,
-                permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", relation: "labels", data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isPrivate: noNull(data.isPrivate),
-                permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", relation: "labels", data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as NotePre;
+                return {
+                    id: data.id,
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "NoteVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
+                }
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as NotePre;
+                return {
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "notes", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
+                }
+            },
         },
         trigger: {
             afterMutations: async (params) => {
@@ -62,7 +70,7 @@ export const NoteModel: NoteModelLogic = ({
             maxScore: true,
             minBookmarks: true,
             minScore: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             tags: true,
@@ -79,13 +87,13 @@ export const NoteModel: NoteModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
             },
@@ -95,11 +103,20 @@ export const NoteModel: NoteModelLogic = ({
         hasCompleteVersion: () => true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === true,
-        isPublic: (data) => data.isPrivate === false,
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
+            data.isDeleted === false &&
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<NoteModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -109,17 +126,32 @@ export const NoteModel: NoteModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["NoteVersion", ["root"]],
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

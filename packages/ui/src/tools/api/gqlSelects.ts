@@ -249,7 +249,6 @@ async function main() {
             for (const restFile of restFiles) {
                 try {
                     // Import rest file
-                    console.log("importing rest file", restFile);
                     await import(`../../../${pairsSrcFolder}/${restFile}.ts`).then(m => {
                         // Find router
                         const router = m[`${restFile.charAt(0).toUpperCase() + restFile.slice(1)}Rest`];

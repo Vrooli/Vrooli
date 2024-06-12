@@ -1,11 +1,11 @@
 import { RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput } from "@local/shared";
 import { CanConnect, ShapeModel } from "types";
-import { OrganizationShape } from "./organization";
 import { RoutineVersionShape } from "./routineVersion";
 import { RunProjectShape } from "./runProject";
 import { RunRoutineInputShape, shapeRunRoutineInput } from "./runRoutineInput";
 import { RunRoutineStepShape, shapeRunRoutineStep } from "./runRoutineStep";
 import { ScheduleShape, shapeSchedule } from "./schedule";
+import { TeamShape } from "./team";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./tools";
 
 export type RunRoutineShape = Pick<RunRoutine, "id" | "isPrivate" | "completedComplexity" | "contextSwitches" | "name" | "status" | "timeElapsed"> & {
@@ -15,7 +15,7 @@ export type RunRoutineShape = Pick<RunRoutine, "id" | "isPrivate" | "completedCo
     schedule?: ScheduleShape | null;
     routineVersion?: CanConnect<RoutineVersionShape> | null;
     runProject?: CanConnect<RunProjectShape> | null;
-    organization?: CanConnect<OrganizationShape> | null;
+    team?: CanConnect<TeamShape> | null;
 }
 
 export const shapeRunRoutine: ShapeModel<RunRoutineShape, RunRoutineCreateInput, RunRoutineUpdateInput> = {
@@ -26,7 +26,7 @@ export const shapeRunRoutine: ShapeModel<RunRoutineShape, RunRoutineCreateInput,
         ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
         ...createRel(d, "routineVersion", ["Connect"], "one"),
         ...createRel(d, "runProject", ["Connect"], "one"),
-        ...createRel(d, "organization", ["Connect"], "one"),
+        ...createRel(d, "team", ["Connect"], "one"),
     }),
     update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate", "completedComplexity", "contextSwitches", "status", "timeElapsed"),

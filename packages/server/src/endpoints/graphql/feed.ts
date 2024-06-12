@@ -12,32 +12,32 @@ export const typeDef = gql`
 
     enum PopularObjectType {
         Api
+        Code
         Note
-        Organization
         Project
         Question
         Routine
-        SmartContract
         Standard
+        Team
         User
     }  
 
-    union Popular = Api | Note | Organization | Project | Question | Routine | SmartContract | Standard | User
+    union Popular = Api | Code | Note | Project | Question | Routine | Standard | Team | User
 
     input PopularSearchInput {
         apiAfter: String
+        codeAfter: String
         createdTimeFrame: TimeFrame
         noteAfter: String
         objectType: PopularObjectType # To limit to a specific type
-        organizationAfter: String
         projectAfter: String
         questionAfter: String
         routineAfter: String
-        smartContractAfter: String
         sortBy: PopularSortBy
         searchString: String
         standardAfter: String
         take: Int
+        teamAfter: String
         updatedTimeFrame: TimeFrame
         userAfter: String
         visibility: VisibilityType
@@ -50,13 +50,13 @@ export const typeDef = gql`
     type PopularPageInfo {
         hasNextPage: Boolean!
         endCursorApi: String
+        endCursorCode: String
         endCursorNote: String
-        endCursorOrganization: String
         endCursorProject: String
         endCursorQuestion: String
         endCursorRoutine: String
-        endCursorSmartContract: String
         endCursorStandard: String
+        endCursorTeam: String
         endCursorUser: String
     }
     type PopularEdge {

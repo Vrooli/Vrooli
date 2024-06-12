@@ -7,7 +7,7 @@ import { StatsSiteModelLogic } from "./types";
 const __typename = "StatsSite" as const;
 export const StatsSiteModel: StatsSiteModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.stats_site,
+    dbTable: "stats_site",
     display: () => ({
         label: {
             select: () => ({ id: true }),

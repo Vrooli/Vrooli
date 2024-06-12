@@ -9,7 +9,7 @@ import { NodeLoopModelInfo, NodeLoopModelLogic, NodeModelInfo, NodeModelLogic } 
 const __typename = "NodeLoop" as const;
 export const NodeLoopModel: NodeLoopModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_loop,
+    dbTable: "node_loop",
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {
@@ -25,15 +25,15 @@ export const NodeLoopModel: NodeLoopModelLogic = ({
                 loops: noNull(data.loops),
                 maxLoops: noNull(data.maxLoops),
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "loop", data, ...rest })),
-                ...(await shapeHelper({ relation: "whiles", relTypes: ["Create"], isOneToOne: false, objectType: "NodeLoopWhile", parentRelationshipName: "loop", data, ...rest })),
+                node: await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "loop", data, ...rest }),
+                whiles: await shapeHelper({ relation: "whiles", relTypes: ["Create"], isOneToOne: false, objectType: "NodeLoopWhile", parentRelationshipName: "loop", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 loops: noNull(data.loops),
                 maxLoops: noNull(data.maxLoops),
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "loop", data, ...rest })),
-                ...(await shapeHelper({ relation: "whiles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeLoopWhile", parentRelationshipName: "loop", data, ...rest })),
+                node: await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "loop", data, ...rest }),
+                whiles: await shapeHelper({ relation: "whiles", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NodeLoopWhile", parentRelationshipName: "loop", data, ...rest }),
             }),
         },
         yup: nodeLoopValidation,

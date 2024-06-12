@@ -1,7 +1,7 @@
 import { id, intPositiveOrOne, language, opt, req, YupModel, yupObj } from "../utils";
 import { quizQuestionResponseValidation } from "./quizQuestionResponse";
 
-export const quizAttemptValidation: YupModel = {
+export const quizAttemptValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),

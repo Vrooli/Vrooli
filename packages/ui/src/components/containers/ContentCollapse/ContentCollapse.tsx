@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ContentCollapseProps } from "../types";
 
-export function ContentCollapse({
+export const ContentCollapse = ({
     children,
+    disableCollapse,
     helpText,
     id,
     isOpen = true,
@@ -14,9 +15,11 @@ export function ContentCollapse({
     sxs,
     title,
     titleComponent,
+    titleVariant,
     titleKey,
     titleVariables,
-}: ContentCollapseProps) {
+    toTheRight,
+}: ContentCollapseProps) => {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -48,12 +51,12 @@ export function ContentCollapse({
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography component={titleComponent ?? "h6"} variant="h6">{titleText}</Typography>
+                <Typography component={titleComponent ?? "h6"} variant={titleVariant ?? "h6"}>{titleText}</Typography>
                 {helpText && <HelpButton
                     markdown={helpText}
                     sx={sxs?.helpButton ?? {}}
                 />}
-                <IconButton
+                {!disableCollapse && <IconButton
                     id={`toggle-expand-icon-button-${title}`}
                     aria-label={t(internalIsOpen ? "Collapse" : "Expand")}
                     onClick={toggleOpen}
@@ -67,12 +70,15 @@ export function ContentCollapse({
                             id={`toggle-expand-icon-${title}`}
                             fill={fillColor}
                         />}
-                </IconButton>
+                </IconButton>}
+                {toTheRight}
             </Stack>
-            {/* Text */}
-            <Collapse in={internalIsOpen}>
-                {children}
-            </Collapse>
+            {/* Text within Collapse, or just children if collapse is disabled */}
+            {disableCollapse ? children : (
+                <Collapse in={internalIsOpen}>
+                    {children}
+                </Collapse>
+            )}
         </Box>
     );
-}
+};

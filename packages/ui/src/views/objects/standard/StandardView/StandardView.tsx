@@ -7,7 +7,7 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListHorizontal } from "components/lists/resource";
+import { ResourceList } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
@@ -110,7 +110,8 @@ export const StandardView = ({
                         objectType={"Routine"}
                     />
                     {/* Resources */}
-                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                    {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
+                        horizontal
                         title={"Resources"}
                         list={resourceList as any}
                         canUpdate={false}
@@ -146,12 +147,11 @@ export const StandardView = ({
                         {/* Date created */}
                         <DateDisplay
                             loading={isLoading}
-                            showIcon={true}
                             timestamp={existing?.created_at}
                         />
                         <VersionDisplay
                             currentVersion={existing}
-                            prefix={" - "}
+                            prefix={" - v"}
                             versions={existing?.root?.versions}
                         />
                     </Stack>

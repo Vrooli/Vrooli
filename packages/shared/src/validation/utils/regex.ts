@@ -10,5 +10,8 @@ export const urlRegexDev = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?:loca
 /** Cardano payment wallet address (i.e. starts with "addr1", and is 103 characters long in total) */
 export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/;
 
-/** Handle (i.e. 3-16 characters, no special characters) */
-export const handleRegex = /^[a-zA-Z0-9]{3,16}$/;
+/** Handle (i.e. 3-16 characters, no special characters except underscores) */
+export const handleRegex = /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9_]{3,16}$/;
+
+/** Hex code */
+export const hexColorRegex = /^#([0-9A-F]{3}([0-9A-F]{3})?)$/i;

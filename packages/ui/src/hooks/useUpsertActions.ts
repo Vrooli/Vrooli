@@ -1,13 +1,10 @@
-import { DUMMY_ID, LINKS, OrArray } from "@local/shared";
+import { DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { FormProps } from "forms/types";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { NavigableObject } from "types";
-import { removeCookieFormData, removeCookiePartialData, setCookiePartialData } from "utils/cookies";
-import { ListObject } from "utils/display/listTools";
-import { getObjectUrl } from "utils/navigation/openObject";
+import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 
 type TType = OrArray<{ __typename: ListObject["__typename"], id: string }>;
@@ -37,17 +34,12 @@ export const useUpsertActions = <T extends TType>({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const isCacheOn = useRef(true);
-
     /** Helper function to navigate back or to a specific URL */
     const goBack = useCallback((targetUrl?: string) => {
         const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
-        console.log("in goback a", targetUrl, hasPreviousPage, sessionStorage.getItem("lastPath"));
         if (!targetUrl && hasPreviousPage) {
-            console.log("in goback history.back!");
             window.history.back();
         } else {
-            console.log("in goback setlocation! replacing?", !hasPreviousPage);
             setLocation(targetUrl ?? LINKS.Home, { replace: !hasPreviousPage });
         }
     }, [setLocation]);
@@ -85,7 +77,7 @@ export const useUpsertActions = <T extends TType>({
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
                 removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`); // Remove form backup data from cache
-                isCacheOn.current = false;
+                setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
             }
 
             if (display === "page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
@@ -103,8 +95,8 @@ export const useUpsertActions = <T extends TType>({
             case ObjectDialogAction.Cancel:
                 // Remove form backup data from cache
                 if (canStore) {
-                    removeCookieFormData(`${objectType}-${objectId}`);
-                    isCacheOn.current = false;
+                    removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`);
+                    setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
                 }
                 if (display === "page") goBack(isCreate ? undefined : viewUrl);
                 else onCancel?.();
@@ -119,7 +111,7 @@ export const useUpsertActions = <T extends TType>({
                 if (canStore) {
                     removeCookiePartialData(item as NavigableObject);
                     removeCookieFormData(`${objectType}-${objectId}`);
-                    isCacheOn.current = false;
+                    setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
                 }
                 if (display === "page") goBack();
                 else onDeleted?.(item);
@@ -143,6 +135,5 @@ export const useUpsertActions = <T extends TType>({
         handleDeleted,
         handleUpdated,
         handleCompleted,
-        isCacheOn,
     };
 };

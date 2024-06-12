@@ -15,7 +15,6 @@ export async function updateManyHelper<GraphQLModel>({
     info,
     input,
     objectType,
-    prisma,
     req,
 }: UpdateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
     const userData = assertRequestFrom(req, { isUser: true });
@@ -26,12 +25,11 @@ export async function updateManyHelper<GraphQLModel>({
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
         inputData: input.map(d => ({
-            actionType: "Update",
+            action: "Update",
             input: d,
             objectType,
         })),
         partialInfo,
-        prisma,
         userData,
     });
     // Make sure none of the items in the array are booleans
@@ -40,7 +38,7 @@ export async function updateManyHelper<GraphQLModel>({
     }
     // Handle new version trigger, if applicable
     //TODO might be done in shapeUpdate. Not sure yet
-    return await addSupplementalFields(prisma, userData, updated as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
+    return await addSupplementalFields(userData, updated as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
 }
 
 /**

@@ -1,9 +1,9 @@
+import { ListObject } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObjectDialog";
 import { ShareIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ListObject } from "utils/display/listTools";
 import { ShareButtonProps } from "../types";
 
 export const ShareButton = ({

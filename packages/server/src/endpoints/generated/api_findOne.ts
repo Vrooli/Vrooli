@@ -1,4 +1,5 @@
 export const api_findOne = {
+  "versionsCount": true,
   "parent": {
     "id": true,
     "isLatest": true,
@@ -7,7 +8,8 @@ export const api_findOne = {
     "versionLabel": true,
     "root": {
       "id": true,
-      "isPrivate": true
+      "isPrivate": true,
+      "__typename": "Api"
     },
     "translations": {
       "id": true,
@@ -16,7 +18,7 @@ export const api_findOne = {
       "name": true,
       "summary": true
     },
-    "__typename": "Api"
+    "__typename": "ApiVersion"
   },
   "versions": {
     "pullRequest": {
@@ -58,6 +60,7 @@ export const api_findOne = {
       "name": true,
       "summary": true
     },
+    "schemaText": true,
     "versionNotes": true,
     "id": true,
     "created_at": true,
@@ -103,19 +106,7 @@ export const api_findOne = {
     "color": true,
     "label": true,
     "owner": {
-      "User": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "Organization": {
+      "Team": {
         "id": true,
         "bannerImage": true,
         "handle": true,
@@ -137,7 +128,19 @@ export const api_findOne = {
             "permissions": true
           }
         },
-        "__typename": "Organization"
+        "__typename": "Team"
+      },
+      "User": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
       }
     },
     "you": {
@@ -147,19 +150,7 @@ export const api_findOne = {
     "__typename": "Label"
   },
   "owner": {
-    "User": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "bannerImage": true,
-      "handle": true,
-      "isBot": true,
-      "isBotDepictingPerson": true,
-      "name": true,
-      "profileImage": true,
-      "__typename": "User"
-    },
-    "Organization": {
+    "Team": {
       "id": true,
       "bannerImage": true,
       "handle": true,
@@ -181,7 +172,19 @@ export const api_findOne = {
           "permissions": true
         }
       },
-      "__typename": "Organization"
+      "__typename": "Team"
+    },
+    "User": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "bannerImage": true,
+      "handle": true,
+      "isBot": true,
+      "isBotDepictingPerson": true,
+      "name": true,
+      "profileImage": true,
+      "__typename": "User"
     }
   },
   "permissions": true,

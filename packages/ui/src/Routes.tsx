@@ -1,8 +1,8 @@
 import { LINKS } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
-import { NavbarProps } from "components/navigation/types";
 import { ScrollToTop } from "components/ScrollToTop";
+import { NavbarProps } from "components/navigation/types";
 import { lazily } from "react-lazily";
 import { Route, RouteProps, Switch } from "route";
 import { BotUpsert } from "views/objects/bot";
@@ -43,15 +43,17 @@ const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
 const { ChatCrud } = lazily(() => import("./views/objects/chat"));
+const { CodeUpsert, CodeView } = lazily(() => import("./views/objects/code"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
+const { SearchVersionView } = lazily(() => import("./views/SearchVersionView/SearchVersionView"));
 const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
 const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
 const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
 const { NoteCrud } = lazily(() => import("./views/objects/note"));
-const { OrganizationUpsert, OrganizationView } = lazily(() => import("./views/objects/organization"));
-const { ProjectUpsert, ProjectView } = lazily(() => import("./views/objects/project"));
+const { TeamUpsert, TeamView } = lazily(() => import("./views/objects/team"));
+const { ProjectCrud } = lazily(() => import("./views/objects/project"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
 const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
 const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
@@ -208,17 +210,8 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <InboxView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpsert display="page" isCreate={true} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
-                    <OrganizationUpsert display="page" isCreate={false} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Organization}/:id`} sx={noSidePadding} {...props}>
-                    <OrganizationView display="page" />
-                </NavRoute>
                 <NavRoute
-                    path={LINKS.Premium}
+                    path={LINKS.Pro}
                     excludePageContainer
                     sitemapIndex
                     priority={0.5}
@@ -232,7 +225,6 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
-                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <PrivacyPolicyView display="page" />
@@ -246,14 +238,23 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView display="page" />
                 </NavRoute>
+                <NavRoute path={`${LINKS.Code}/add`} mustBeLoggedIn={true} {...props}>
+                    <CodeUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Code}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <CodeUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Code}/:rootId/:versionId?`} {...props}>
+                    <CodeView display="page" />
+                </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpsert display="page" isCreate={true} />
+                    <ProjectCrud display="page" isCreate={true} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <ProjectUpsert display="page" isCreate={false} />
+                    <ProjectCrud display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:rootId/:versionId?`} {...props}>
-                    <ProjectView display="page" />
+                    <ProjectCrud display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
                     <QuestionUpsert display="page" isCreate={true} />
@@ -299,6 +300,15 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                     {...props}
                 >
                     <SearchView display="page" />
+                </NavRoute>
+                <NavRoute
+                    path={`${LINKS.SearchVersion}/:params*`}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                    {...props}
+                >
+                    <SearchVersionView display="page" />
                 </NavRoute>
                 <NavRoute path={LINKS.Settings} mustBeLoggedIn={true} {...props}>
                     <SettingsView display="page" />
@@ -367,12 +377,20 @@ export const Routes = (props: { sessionChecked: boolean }) => {
                 >
                     <StatsView display="page" />
                 </NavRoute>
+                <NavRoute path={`${LINKS.Team}/add`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
+                    <TeamUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Team}/edit/:id`} sx={noSidePadding} mustBeLoggedIn={true} {...props}>
+                    <TeamUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Team}/:id`} sx={noSidePadding} {...props}>
+                    <TeamView display="page" />
+                </NavRoute>
                 <NavRoute
                     path={LINKS.Terms}
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
-                    sx={{ background: palette.background.paper }}
                     {...props}
                 >
                     <TermsView display="page" />

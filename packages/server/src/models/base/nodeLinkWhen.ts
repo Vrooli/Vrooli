@@ -10,7 +10,8 @@ import { NodeLinkModelInfo, NodeLinkModelLogic, NodeLinkWhenModelInfo, NodeLinkW
 const __typename = "NodeLinkWhen" as const;
 export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.node_link,
+    dbTable: "node_link_when",
+    dbTranslationTable: "node_link_when_translation",
     // Doesn't make sense to have a displayer for this model
     display: () => ({
         label: {
@@ -24,13 +25,13 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
             create: async ({ data, ...rest }) => ({
                 id: data.id,
                 condition: data.condition,
-                ...(await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create"], data, ...rest })),
+                link: await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
                 condition: noNull(data.condition),
-                ...(await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest })),
-                ...(await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest })),
+                link: await shapeHelper({ relation: "link", relTypes: ["Connect"], isOneToOne: true, objectType: "NodeLink", parentRelationshipName: "link", data, ...rest }),
+                translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], data, ...rest }),
             }),
         },
         yup: nodeLinkWhenValidation,

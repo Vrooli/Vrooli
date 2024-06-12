@@ -1,7 +1,8 @@
-import { BookmarkFor, ChatInvite, endpointGetProfile, endpointGetUser, FindByIdOrHandleInput, LINKS, User, uuid } from "@local/shared";
-import { Box, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { BookmarkFor, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, getObjectUrl, noop, uuid, uuidValidate } from "@local/shared";
+import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
+import { PageTabs } from "components/PageTabs/PageTabs";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -11,15 +12,15 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { PageTabs } from "components/PageTabs/PageTabs";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
+import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
-import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, OrganizationIcon, PersonaIcon, RoutineValidIcon, SearchIcon, UserIcon } from "icons";
+import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, SearchIcon, TeamIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
@@ -31,10 +32,11 @@ import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } fro
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
-import { parseSingleItemUrl, UrlInfo } from "utils/navigation/urlTools";
+import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
+import { ChatShape } from "utils/shape/models/chat";
+import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
 
 export const UserView = ({
@@ -89,8 +91,8 @@ export const UserView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
-        const { creativity, verbosity, translations } = findBotData(language, user);
-        const { bio, ...botTranslations } = getTranslation({ translations }, [language]);
+        const { model, creativity, verbosity, translations } = findBotData(language, user);
+        const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
         let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
         if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
@@ -98,7 +100,7 @@ export const UserView = ({
             adornments,
             bannerImageUrl,
             bio: bio && bio.trim().length > 0 ? bio : undefined,
-            botData: { ...botTranslations, creativity, verbosity },
+            botData: { ...botTranslations, model, creativity, verbosity },
             name: user?.name,
             handle: user?.handle,
         };
@@ -107,7 +109,7 @@ export const UserView = ({
     const availableTabs = useMemo(() => {
         // Details tab is only for bots
         if (user?.isBot) return userTabParams;
-        return userTabParams.filter(tab => tab.tabType !== UserPageTabOption.Details);
+        return userTabParams.filter(tab => tab.key !== UserPageTabOption.Details);
     }, [user]);
     const {
         currTab,
@@ -116,7 +118,15 @@ export const UserView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<UserPageTabOption>({ id: "user-tabs", tabParams: availableTabs, display });
+    } = useTabs({ id: "user-tabs", tabParams: availableTabs, display });
+
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(user?.id ?? ""),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where({ userId: user?.id ?? "", permissions }),
+    });
 
     const [showSearchFilters, setShowSearchFilters] = useState<boolean>(false);
     const toggleSearchFilters = useCallback(() => setShowSearchFilters(!showSearchFilters), [showSearchFilters]);
@@ -144,10 +154,10 @@ export const UserView = ({
 
     /** Opens add new page */
     const toAddNew = useCallback(() => {
-        setLocation(`${LINKS[currTab.tabType]}/add`);
-    }, [currTab.tabType, setLocation]);
+        setLocation(`${LINKS[currTab.key]}/add`);
+    }, [currTab.key, setLocation]);
 
-    /** Opens dialog to add or invite user to an organization/meeting/chat */
+    /** Opens dialog to add or invite user to a team/meeting/chat */
     const handleAddOrInvite = useCallback(() => {
         if (!user) return;
         // Users are invited, and bots are added (since you don't need permission to use a public bot)
@@ -168,19 +178,45 @@ export const UserView = ({
         // Create search params to initialize new chat. 
         // If the chat isn't new, this will initialize the chat if the one 
         // we're looking for doesn't exist (i.e. it was deleted)
-        openLink(setLocation, url, {
+        const initialChatData = {
             invites: [{
                 __typename: "ChatInvite" as const,
                 id: uuid(),
                 user: { __typename: "User", id: user.id } as Partial<User>,
-            }] as Partial<ChatInvite>[],
+            }] as Partial<ChatShape["invites"]>,
             translations: [{
                 __typename: "ChatTranslation" as const,
                 language: getUserLanguages(session)[0],
                 name: user.name,
                 description: "",
-            }],
-        });
+            }] as Partial<ChatShape["translations"]>,
+        };
+        // For bots, add a start message
+        if (user.isBot) {
+            const bestLanguage = getUserLanguages(session)[0];
+            const { translations } = findBotData(bestLanguage, user);
+            const bestTranslation = translations.length > 0
+                ? translations.find(t => t.language === bestLanguage) ?? translations[0]
+                : undefined;
+            const startingMessage = bestTranslation?.startingMessage ?? "";
+            if (startingMessage.length > 0) {
+                (initialChatData as unknown as { messages: Partial<ChatShape["messages"]> }).messages = [{
+                    id: uuid(),
+                    status: "unsent",
+                    translations: [{
+                        __typename: "ChatMessageTranslation" as const,
+                        id: uuid(),
+                        language,
+                        text: startingMessage,
+                    }],
+                    user: {
+                        __typename: "User" as const,
+                        id: user.id,
+                    },
+                }] as Partial<ChatShape["messages"]>;
+            }
+        }
+        openLink(setLocation, url, initialChatData);
     }, [session, setLocation, user]);
 
     return (
@@ -197,7 +233,7 @@ export const UserView = ({
                 object={user}
                 onClose={closeMoreMenu}
             />
-            {/* Popup menu for adding/inviting to an organization/meeting/chat */}
+            {/* Popup menu for adding/inviting to a team/meeting/chat */}
             {/* TODO */}
             <BannerImageContainer sx={{
                 backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
@@ -311,7 +347,7 @@ export const UserView = ({
                     </Stack>
                 </Stack>
             </OverviewContainer>
-            {/* View routines, organizations, standards, and projects associated with this user */}
+            {/* View routines, teams, standards, and projects associated with this user */}
             <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
                 <PageTabs
                     ariaLabel="user-tabs"
@@ -324,12 +360,18 @@ export const UserView = ({
                         borderBottom: `1px solid ${palette.divider}`,
                     }}
                 />
-                {currTab.tabType === UserPageTabOption.Details && (
+                {currTab.key === UserPageTabOption.Details && (
                     <FormSection sx={{
                         overflowX: "hidden",
                         marginTop: 0,
                         borderRadius: "0px",
                     }}>
+                        {botData.model && <TextInput
+                            disabled
+                            fullWidth
+                            label={t("Model", { count: 1 })}
+                            value={botData.model}
+                        />}
                         {botData.occupation && <TextInput
                             disabled
                             fullWidth
@@ -338,7 +380,7 @@ export const UserView = ({
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <OrganizationIcon />
+                                        <TeamIcon />
                                     </InputAdornment>
                                 ),
                             }}
@@ -356,11 +398,11 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        {botData.startMessage && <TextInput
+                        {botData.startingMessage && <TextInput
                             disabled
                             fullWidth
                             label={t("StartMessage")}
-                            value={botData.startMessage}
+                            value={botData.startingMessage}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
@@ -421,84 +463,34 @@ export const UserView = ({
                                 ),
                             }}
                         />}
-                        <Stack>
-                            <Typography id="creativity-slider" gutterBottom>
-                                {t("CreativityPlaceholder")}
-                            </Typography>
-                            <Slider
-                                aria-labelledby="creativity-slider"
-                                disabled
-                                value={botData.creativity as number}
-                                valueLabelDisplay="auto"
-                                min={0.1}
-                                max={1}
-                                step={0.1}
-                                marks={[
-                                    {
-                                        value: 0.1,
-                                        label: t("Low"),
-                                    },
-                                    {
-                                        value: 1,
-                                        label: t("High"),
-                                    },
-                                ]}
-                                sx={{
-                                    "& .MuiSlider-markLabel": {
-                                        "&[data-index=\"0\"]": {
-                                            marginLeft: 2,
-                                        },
-                                        "&[data-index=\"1\"]": {
-                                            marginLeft: -2,
-                                        },
-                                    },
-                                }}
-                            />
-                        </Stack>
-                        <Stack>
-                            <Typography id="verbosity-slider" gutterBottom>
-                                {t("VerbosityPlaceholder")}
-                            </Typography>
-                            <Slider
-                                aria-labelledby="verbosity-slider"
-                                disabled
-                                value={botData.verbosity as number}
-                                valueLabelDisplay="auto"
-                                min={0.1}
-                                max={1}
-                                step={0.1}
-                                marks={[
-                                    {
-                                        value: 0.1,
-                                        label: t("Short"),
-                                    },
-                                    {
-                                        value: 1,
-                                        label: t("Long"),
-                                    },
-                                ]}
-                                sx={{
-                                    "& .MuiSlider-markLabel": {
-                                        "&[data-index=\"0\"]": {
-                                            marginLeft: 2,
-                                        },
-                                        "&[data-index=\"1\"]": {
-                                            marginLeft: -2,
-                                        },
-                                    },
-                                }}
-                            />
-                        </Stack>
+                        <FeatureSlider
+                            id="creativity-slider"
+                            disabled
+                            labelLeft={t("Low")}
+                            labelRight={t("High")}
+                            setValue={noop}
+                            title={t("CreativityPlaceholder")}
+                            value={botData.creativity ?? 0.5}
+                        />
+                        <FeatureSlider
+                            id="verbosity-slider"
+                            disabled
+                            labelLeft={t("Low")}
+                            labelRight={t("High")}
+                            setValue={noop}
+                            title={t("VerbosityPlaceholder")}
+                            value={botData.verbosity ?? 0.5}
+                        />
                     </FormSection>
                 )}
-                {currTab.tabType !== UserPageTabOption.Details && <Box>
+                {currTab.key !== UserPageTabOption.Details && <Box>
                     <SearchList
+                        {...findManyData}
                         display={display}
                         dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
-                        searchType={searchType}
                         searchPlaceholder={searchPlaceholderKey}
                         sxs={showSearchFilters ? {
                             search: { marginTop: 2 },
@@ -508,13 +500,11 @@ export const UserView = ({
                             buttons: { display: "none" },
                             listContainer: { borderRadius: 0 },
                         }}
-                        take={20}
-                        where={where({ userId: user?.id ?? "", permissions })}
                     />
                 </Box>}
             </Box>
             <SideActionsButtons display={display}>
-                {currTab.tabType !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                {currTab.key !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </IconButton> : null}
                 {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>

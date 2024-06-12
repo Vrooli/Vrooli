@@ -8,7 +8,7 @@ import { AwardModelLogic } from "./types";
 const __typename = "Award" as const;
 export const AwardModel: AwardModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.award,
+    dbTable: "award",
     display: () => ({
         label: {
             select: () => ({ id: true, category: true, progress: true }),
@@ -36,7 +36,7 @@ export const AwardModel: AwardModelLogic = ({
         supplemental: {
             dbFields: ["category", "progress"],
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, prisma, userData }) => {
+            toGraphQL: async ({ ids, objects, userData }) => {
                 // Find name and description of highest tier achieved
                 const titles: (string | null)[] = [];
                 const descriptions: (string | null)[] = [];

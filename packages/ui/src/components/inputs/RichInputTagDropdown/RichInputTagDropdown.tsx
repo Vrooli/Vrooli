@@ -1,7 +1,7 @@
+import { ListObject } from "@local/shared";
 import { Box, CircularProgress, List, ListItem, Popover } from "@mui/material";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { noSelect } from "styles";
-import { ListObject } from "utils/display/listTools";
 import { RichInputBaseProps } from "../types";
 
 export interface RichInputTagDropdownData {

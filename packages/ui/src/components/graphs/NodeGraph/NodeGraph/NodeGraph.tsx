@@ -10,8 +10,8 @@ import { usePinchZoom } from "hooks/usePinchZoom";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
-import { NodeEdge } from "../edges";
 import { NodeColumn } from "../NodeColumn/NodeColumn";
+import { NodeEdge } from "../edges";
 import { NodeGraphProps } from "../types";
 
 type DragRefs = {
@@ -276,10 +276,10 @@ export const NodeGraph = ({
             window.removeEventListener("touchstart", onTouchStart);
             window.removeEventListener("touchmove", onTouchMove);
             window.removeEventListener("touchend", onTouchEnd);
-            // Remove PubSub subscribers
-            PubSub.get().unsubscribe(dragStartSub);
-            PubSub.get().unsubscribe(dragDropSub);
-            PubSub.get().unsubscribe(fastUpdateSub);
+            // Cleanup pubsub subscribers
+            dragStartSub();
+            dragDropSub();
+            fastUpdateSub();
         };
     }, [handleDragStop, nodeScroll]);
 

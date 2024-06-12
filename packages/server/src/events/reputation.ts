@@ -3,8 +3,9 @@
  */
 
 import { GqlModelType } from "@local/shared";
+import { prismaInstance } from "../db/instance";
+import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
-import { PrismaType } from "../types";
 
 export enum ReputationEvent {
     ObjectDeletedFromReport = "ObjectDeletedFromReport",
@@ -17,9 +18,9 @@ export enum ReputationEvent {
     AnsweredQuestion = "AnsweredQuestion",
     AnsweredQuestionWasAccepted = "AnsweredQuestionWasAccepted",
     PublicApiCreated = "PublicApiCreated",
+    PublicCodeCreated = "PublicCodeCreated",
     PublicProjectCreated = "PublicProjectCreated",
     PublicRoutineCreated = "PublicRoutineCreated",
-    PublicSmartContractCreated = "PublicSmartContractCreated",
     PublicStandardCreated = "PublicStandardCreated",
     ReceivedVote = "ReceivedVote",
     ReceivedStar = "ReceivedStar",
@@ -37,6 +38,32 @@ export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objec
     return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
 };
 
+/**
+ * Finds the next threshold for rewarding a reputation point,
+ * given the current vote count and the direction of the change.
+ * 
+ * Examples:
+ * - If curr is 0 and direction is 1, returns 1
+ * - If curr is 0 and direction is -1, returns -1
+ * - If curr is 10 and direction is 1, returns 20
+ * - If curr is 10 and direction is -1, returns 0
+ * - If curr is 99 and direction is 1, returns 100
+ * - If curr is 99 and direction is -1, returns 90
+ * - If curr is 100 and direction is 1, returns 200
+ * - If curr is -1 and direction is -1, returns -2
+ * - If curr is -10 and direction is -1, returns -20
+ * - If curr is -999 and direction is -1, returns -1000
+ */
+export const nextRewardThreshold = (curr: number, direction: 1 | -1) => {
+    const diffSigns = (curr < 0 && direction > 0) || (curr > 0 && direction < 0);
+    // Determine magnitude of curr (1 * 10^(digits - 1)). 
+    // NOTE: We move curr by 1 when signs are opposite because not doing so would cause 
+    // situations like nextRewardThreshold(-10, 1) to return 0 instead of -9.
+    const magnitude = Math.pow(10, (Math.abs(curr + (diffSigns ? direction : 0)) + "").length - 1);
+    return direction > 0 ?
+        Math.ceil((curr + 1) / magnitude) * magnitude :
+        Math.floor((curr - 1) / magnitude) * magnitude;
+};
 
 /**
  * Generates the reputation which should be rewarded to a user for receiving a vote. 
@@ -49,17 +76,36 @@ export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objec
  * - If v0 is from -999 to -100 or 100 to 999 and v1 > v0, then the user gets 1 reputation if v1 is a multiple of 100, otherwise 0
  * - If v0 is from -999 to -100 or 100 to 999 and v1 < v0, then the user loses 1 reputation if v1 is a multiple of 100, otherwise 0
  * , and so on.
+ * @returns The amount of reputation to reward the user, or NaN if an error occurred
  */
 export const reputationDeltaVote = (v0: number, v1: number): number => {
+    if (typeof v0 !== "number" || typeof v1 !== "number") {
+        logger.error("Invalid vote count", { trace: "0101", v0, v1 });
+        return NaN;
+    }
     if (v0 === v1) return 0;
-    // Determine how many zeros follow the leading digit
-    const magnitude = v0 === 0 ? 1 : Math.floor(Math.log10(Math.abs(v0)));
-    // Use modulo to check if the new vote count is a multiple of 10^(magnitude)
-    const isMultiple = v1 % Math.pow(10, magnitude) === 0;
-    // If vote increased, give reputation if it's a multiple of 10^(magnitude)
-    if (v1 > v0) return isMultiple ? 1 : 0;
-    // Otherwise vote must have decreased. Lose reputation if it's a multiple of 10^(magnitude)
-    return isMultiple ? -1 : 0;
+
+    const pastTarget = () => direction > 0 ? curr > v1 : curr < v1;
+
+    const direction = v1 > v0 ? 1 : -1;
+    let reputationDelta = 0;
+    let curr = v0;
+    let loops = 0;
+
+    do {
+        curr = nextRewardThreshold(curr, direction);
+        // If the current number is past the target, return current reputation delta
+        if (pastTarget()) {
+            return reputationDelta * direction; // Make sure it has the correct sign
+        }
+        // Otherwise, increment the reputation delta
+        reputationDelta++;
+        // Track the number of loops to prevent infinite loops
+        loops++;
+    } while (loops < 1000); // Prevent infinite loops
+
+    logger.error("Infinite loop detected in reputationDeltaVote", { trace: "0102", v0, v1, reputationDelta });
+    return reputationDelta;
 };
 
 /**
@@ -94,9 +140,9 @@ const reputationMap: { [key in ReputationEvent]?: number } = {
     AnsweredQuestion: 1,
     AnsweredQuestionWasAccepted: 3,
     PublicApiCreated: 2,
+    PublicCodeCreated: 2,
     PublicProjectCreated: 2,
     PublicRoutineCreated: 2,
-    PublicSmartContractCreated: 2,
     PublicStandardCreated: 2,
 };
 
@@ -127,7 +173,6 @@ export async function getReputationGainedToday(userId: string, delta: number): P
 /**
  * Helper function to update the reputation of a user. Not to be used directly.
  * @param delta The amount of reputation to add to the user's reputation
- * @param prisma The prisma client
  * @param userId The id of the user
  * @param event The event which caused the reputation change
  * @param objectId1 The id of the first object involved in the event, if applicable
@@ -135,7 +180,6 @@ export async function getReputationGainedToday(userId: string, delta: number): P
  */
 const updateReputationHelper = async (
     delta: number,
-    prisma: PrismaType,
     userId: string,
     event: ReputationEvent | `${ReputationEvent}`,
     objectId1?: string,
@@ -157,14 +201,14 @@ const updateReputationHelper = async (
         return;
     }
     // Update the user's reputation
-    await prisma.award.update({
+    await prismaInstance.award.update({
         where: { userId_category: { userId, category: "Reputation" } },
         data: { progress: updatedReputation },
     });
     // Also add to user's reputation history, so they can see why their reputation changed
     const amount = totalReputationToday > MaxReputationGainPerDay || totalReputationToday < -MaxReputationGainPerDay ?
         totalReputationToday - delta : delta;
-    await prisma.reputation_history.create({
+    await prismaInstance.reputation_history.create({
         data: {
             userId,
             amount,
@@ -183,22 +227,21 @@ const updateReputationHelper = async (
 export const Reputation = () => ({
     /**
      * Deletes a reputation history entry for an object creation, and updates the user's reputation accordingly
-     * @param prisma The prisma client
      * @param objectId The id of the object that was deleted
      * @param userId The id of the user who created the object
      */
-    unCreateObject: async (prisma: PrismaType, objectId: string, userId: string) => {
+    unCreateObject: async (objectId: string, userId: string) => {
         // Find the reputation history entry for the object creation
-        const historyEntry = await prisma.reputation_history.findFirst({
+        const historyEntry = await prismaInstance.reputation_history.findFirst({
             where: {
                 objectId1: objectId,
                 userId,
                 event: {
                     in: [
                         "PublicApiCreated",
+                        "PublicCodeCreated",
                         "PublicProjectCreated",
                         "PublicRoutineCreated",
-                        "PublicSmartContractCreated",
                         "PublicStandardCreated",
                     ],
                 },
@@ -206,10 +249,10 @@ export const Reputation = () => ({
         });
         // If the entry exists, delete it and decrease the user's reputation
         if (historyEntry) {
-            await prisma.reputation_history.delete({
+            await prismaInstance.reputation_history.delete({
                 where: { id: historyEntry.id },
             });
-            await prisma.user.update({
+            await prismaInstance.user.update({
                 where: { id: userId },
                 data: { reputation: { decrement: historyEntry.amount } },
             });
@@ -218,13 +261,11 @@ export const Reputation = () => ({
     /**
      * Updates a user's reputation based on an event
      * @param event The event that occurred
-     * @param prisma The prisma client
      * @param userId Typically the user who performed the event, 
      * but can also be the user who owns the object that was affected
      */
     update: async (
         event: Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport"> | `${Exclude<ReputationEvent, "ReceivedVote" | "ReceivedStar" | "ContributedToReport">}`,
-        prisma: PrismaType,
         userId: string,
         object1Id?: string,
         object2Id?: string,
@@ -232,38 +273,37 @@ export const Reputation = () => ({
         // Determine reputation delta
         const delta = reputationMap[event] || 0;
         // Update reputation
-        await updateReputationHelper(delta, prisma, userId, event, object1Id, object2Id);
+        await updateReputationHelper(delta, userId, event, object1Id, object2Id);
     },
     /**
      * Custom reputation update function for votes
      * @param v0 The original vote count
      * @param v1 The new vote count
-     * @param prisma The prisma client
      * @param userId The user who received the vote
      */
-    updateVote: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
+    updateVote: async (v0: number, v1: number, userId: string) => {
         const delta = reputationDeltaVote(v0, v1);
-        await updateReputationHelper(delta, prisma, userId, "ReceivedVote");
+        if (!isFinite(delta)) return;
+        await updateReputationHelper(delta, userId, "ReceivedVote");
     },
     /**
      * Custom reputation update function for bookmarks
      * @param v0 The original star count
      * @param v1 The new star count
-     * @param prisma The prisma client
      * @param userId The user who received the star
      */
-    updateStar: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
+    updateStar: async (v0: number, v1: number, userId: string) => {
         const delta = reputationDeltaStar(v0, v1);
-        await updateReputationHelper(delta, prisma, userId, "ReceivedStar");
+        if (!isFinite(delta)) return;
+        await updateReputationHelper(delta, userId, "ReceivedStar");
     },
     /**
      * Custom reputation update function for report contributions
      * @param totalContributions The total number of contributions you've made to all reports
-     * @param prisma The prisma client
      * @param userId The user who contributed to the report
      */
-    updateReportContribute: async (totalContributions: number, prisma: PrismaType, userId: string) => {
+    updateReportContribute: async (totalContributions: number, userId: string) => {
         const delta = reputationDeltaReportContribute(totalContributions);
-        await updateReputationHelper(delta, prisma, userId, "ContributedToReport");
+        await updateReputationHelper(delta, userId, "ContributedToReport");
     },
 });

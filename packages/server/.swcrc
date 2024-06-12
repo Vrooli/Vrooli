@@ -1,4 +1,9 @@
 {
+    "exclude": [
+        "/.*__mocks__.*/",
+        "/.*\\/types\\.ts$/",
+        "/.*\\/types\\.d\\.ts$/"
+    ],
     "jsc": {
         "minify": {
             "compress": true,
@@ -15,5 +20,5 @@
     "module": {
         "type": "es6"
     },
-    "sourceMaps": true
+        "sourceMaps": false
 }

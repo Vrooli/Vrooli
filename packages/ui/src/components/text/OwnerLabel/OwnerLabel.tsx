@@ -1,21 +1,21 @@
+import { getObjectUrl } from "@local/shared";
 import { Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo } from "react";
 import { useLocation } from "route";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
 import { OwnerLabelProps } from "../types";
 
 /**
- * Gets name of user or organization that owns/created this object
+ * Gets name of user or team that owns/created this object
  * @params owner Owner object
  * @params languages Languages preferred by user
  * @returns String of owner, or empty string if no owner
  */
 const getLabel = (
     owner: {
-        __typename: "Organization" | "User",
+        __typename: "Team" | "User",
         handle?: string | null,
         name?: string | null,
         translations?: { language: string, name?: string }[],

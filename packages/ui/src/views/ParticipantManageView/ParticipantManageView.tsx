@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteStatus, DUMMY_ID, GqlModelType, noop, User } from "@local/shared";
+import { ChatInvite, ChatInviteStatus, DUMMY_ID, ListObject, noop, User, uuidValidate } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -6,12 +6,13 @@ import { SearchList } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useFindMany } from "hooks/useFindMany";
+import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { ListObject } from "utils/display/listTools";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { ChatInvitesUpsert } from "views/objects/chatInvite";
@@ -35,39 +36,37 @@ export const ParticipantManageView = ({
         searchType,
         tabs,
         where,
-    } = useTabs<ParticipantManagePageTabOption>({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
+    } = useTabs({ id: "participant-manage-tabs", tabParams: participantTabParams, display });
 
-    const [isSelecting, setIsSelecting] = useState(true);
-    const [selectedData, setSelectedData] = useState<ListObject[]>([]);
-    const handleToggleSelecting = useCallback(() => {
-        if (isSelecting) { setSelectedData([]); }
-        setIsSelecting(is => !is);
-    }, [isSelecting]);
-    const handleToggleSelect = useCallback((item: ListObject) => {
-        setSelectedData(items => {
-            const newItems = [...items];
-            const index = newItems.findIndex(i => i.id === item.id);
-            if (index === -1) {
-                newItems.push(item as ListObject);
-            } else {
-                newItems.splice(index, 1);
-            }
-            return newItems;
-        });
-    }, []);
+    const findManyData = useFindMany<ListObject>({
+        canSearch: () => uuidValidate(chat.id),
+        controlsUrl: display === "page",
+        searchType,
+        take: 20,
+        where: where({ chatId: chat.id }),
+    });
+
+    const {
+        isSelecting,
+        handleToggleSelecting,
+        handleToggleSelect,
+        selectedData,
+        setIsSelecting,
+        setSelectedData,
+    } = useSelectableList();
     // Remove selection when tab changes
     useEffect(() => {
         setSelectedData([]);
-    }, [currTab.tabType]);
+    }, [currTab.key]);
 
     // Handle add/update invite dialog
     const [invitesToUpsert, setInvitesToUpsert] = useState<ChatInviteShape[]>([]);
     const handleInvitesUpdate = useCallback(() => {
-        if (currTab.tabType !== ParticipantManagePageTabOption.ChatInvite) return;
+        if (currTab.key !== ParticipantManagePageTabOption.ChatInvite) return;
         setInvitesToUpsert(selectedData as ChatInviteShape[]);
-    }, [currTab.tabType, selectedData]);
+    }, [currTab.key, selectedData]);
     const handleInvitesCreate = useCallback(() => {
-        if (currTab.tabType !== ParticipantManagePageTabOption.Add) return;
+        if (currTab.key !== ParticipantManagePageTabOption.Add) return;
         const asInvites: ChatInviteShape[] = (selectedData as User[]).map(user => ({
             __typename: "ChatInvite",
             id: DUMMY_ID,
@@ -78,17 +77,15 @@ export const ParticipantManageView = ({
             user,
         } as const));
         setInvitesToUpsert(asInvites);
-    }, [chat.id, currTab.tabType, selectedData]);
+    }, [chat.id, currTab.key, selectedData]);
     const onInviteCompleted = (invites: ChatInvite[]) => {
         setInvitesToUpsert([]);
     };
 
     // Handle deleting participants
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<ListObject>({
-        allData: [] as any, //TODO
+        ...findManyData,
         selectedData,
-        objectType: searchType as unknown as GqlModelType,
-        setAllData: noop, //TODO
         setSelectedData: (data) => {
             setSelectedData(data);
             setIsSelecting(false);
@@ -110,21 +107,21 @@ export const ParticipantManageView = ({
         }
         // If there are selected items, show relevant actions depending on tab
         if (selectedData.length > 0) {
-            if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.tabType)) {
+            if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.key as ParticipantManagePageTabOption)) {
                 buttons.push(<Tooltip title={t("Delete")}>
                     <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
                         <DeleteIcon {...actionIconProps} />
                     </IconButton>
                 </Tooltip>);
             }
-            if (currTab.tabType === ParticipantManagePageTabOption.ChatInvite) {
+            if (currTab.key === ParticipantManagePageTabOption.ChatInvite) {
                 buttons.push(<Tooltip title={t("Edit")}>
                     <IconButton aria-label={t("Edit")} onClick={handleInvitesUpdate} sx={{ background: palette.secondary.main }}>
                         <EditIcon {...actionIconProps} />
                     </IconButton>
                 </Tooltip>);
             }
-            if (currTab.tabType === ParticipantManagePageTabOption.Add) {
+            if (currTab.key === ParticipantManagePageTabOption.Add) {
                 buttons.push(<Tooltip title={t("Add")}>
                     <IconButton aria-label={t("Add")} onClick={handleInvitesCreate} sx={{ background: palette.secondary.main }}>
                         <AddIcon {...actionIconProps} />
@@ -139,7 +136,7 @@ export const ParticipantManageView = ({
             </IconButton>
         </Tooltip>);
         return buttons;
-    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.tabType, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
+    }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
 
     return (
         <MaybeLargeDialog
@@ -183,14 +180,12 @@ export const ParticipantManageView = ({
             />
             <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
                 {searchType && <SearchList
+                    {...findManyData}
                     id="participant-manage-list"
                     display={display}
                     dummyLength={display === "page" ? 5 : 3}
                     handleToggleSelect={handleToggleSelect}
                     isSelecting={isSelecting}
-                    take={20}
-                    searchType={searchType}
-                    where={where(chat.id)}
                     selectedItems={selectedData}
                     sxs={{
                         search: { marginTop: 2 },

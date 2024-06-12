@@ -66,13 +66,13 @@ export const cudOutputsToMaps = <Model extends {
         }
     }
     // Generate createdIds and updatedIds
-    for (const type of Object.keys(result) as GqlModelType[]) {
-        const { idField } = ModelMap.getLogic(["idField"], type);
-        for (const createInput of result[type]!.createInputs) {
-            result[type]!.createdIds.push((createInput as { [key in typeof idField]: string })[idField]);
+    for (const type of Object.keys(result)) {
+        const { idField } = ModelMap.getLogic(["idField"], type as GqlModelType);
+        for (const createInput of result[type].createInputs) {
+            result[type].createdIds.push((createInput as { [key in typeof idField]: string })[idField]);
         }
-        for (const updateInput of result[type]!.updateInputs) {
-            result[type]!.updatedIds.push((updateInput as { [key in typeof idField]: string })[idField]);
+        for (const updateInput of result[type].updateInputs) {
+            result[type].updatedIds.push((updateInput as { [key in typeof idField]: string })[idField]);
         }
     }
     return result;

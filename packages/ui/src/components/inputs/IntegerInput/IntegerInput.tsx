@@ -1,13 +1,58 @@
-import { Box, FormControl, FormHelperText, Input, InputLabel, Tooltip, useTheme } from "@mui/material";
+import { Box, FormControl, FormHelperText, Input, InputLabel, Palette, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { useCallback } from "react";
-import { IntegerInputProps } from "../types";
+import { IntegerInputBaseProps, IntegerInputProps } from "../types";
 
-export const IntegerInput = ({
+export const getNumberInRange = (
+    updatedNumber: number,
+    max: number,
+    min: number,
+) => {
+    let result = updatedNumber;
+    if (result > max) result = max;
+    if (result < min) result = min;
+    return result;
+};
+
+export const calculateUpdatedNumber = (
+    updatedNumber: string,
+    max: number,
+    min: number,
+    allowDecimal: boolean = false,
+) => {
+    let asNumber = Number(updatedNumber);
+    if (!Number.isFinite(asNumber)) asNumber = 0;
+    let result = getNumberInRange(asNumber, max, min);
+    if (!allowDecimal) result = Math.round(result);
+    return result;
+};
+
+export const getColorForLabel = (
+    value: number | string,
+    min: number,
+    max: number,
+    palette: Palette,
+    zeroText: string | undefined,
+) => {
+    let asNumber = zeroText && value === zeroText ? 0 : Number(value);
+    if (!Number.isFinite(asNumber)) {
+        asNumber = Number.MIN_SAFE_INTEGER;
+    }
+    if (asNumber < min || asNumber > max) {
+        return palette.error.main;
+    } else if (asNumber === min || asNumber === max) {
+        return palette.warning.main;
+    } else {
+        return palette.background.textSecondary;
+    }
+};
+
+export const IntegerInputBase = ({
     allowDecimal = false,
     autoFocus = false,
     disabled = false,
+    error = false,
     fullWidth = false,
+    helperText,
     key,
     initial = 0,
     label = "Number",
@@ -15,18 +60,17 @@ export const IntegerInput = ({
     min = Number.MIN_SAFE_INTEGER,
     name,
     offset = 0,
+    onChange,
     step = 1,
     tooltip = "",
+    value,
+    zeroText,
     ...props
-}: IntegerInputProps) => {
+}: IntegerInputBaseProps) => {
     const { palette } = useTheme();
-    const [field, meta, helpers] = useField<number>(name);
 
-    const updateValue = useCallback((quantity) => {
-        if (quantity > max) quantity = max;
-        if (quantity < min) quantity = min;
-        helpers.setValue(quantity);
-    }, [max, min, helpers]);
+    const offsetValue = (value ?? 0) + offset;
+    const displayValue = offsetValue === 0 && zeroText ? zeroText : offsetValue
 
     return (
         <Tooltip title={tooltip}>
@@ -42,15 +86,11 @@ export const IntegerInput = ({
                     height: "100%",
                     borderRadius: "4px",
                     border: `1px solid ${palette.divider}`,
-                }} error={meta.touched && !!meta.error}>
+                }} error={!!error}>
                     <InputLabel
                         htmlFor={`quantity-box-${name}`}
                         sx={{
-                            color: (field.value < min || field.value > max) ?
-                                palette.error.main :
-                                (field.value === min || field.value === max) ?
-                                    palette.warning.main :
-                                    palette.background.textSecondary,
+                            color: getColorForLabel(displayValue, min, max, palette, zeroText),
                             paddingTop: "12px",
                         }}
                     >{label}</InputLabel>
@@ -67,16 +107,40 @@ export const IntegerInput = ({
                             max,
                             pattern: "[0-9]*",
                         }}
-                        value={(field.value ?? 0) + offset}
-                        onChange={(e) => updateValue(Number(e.target.value) - offset)}
+                        value={displayValue}
+                        onChange={(e) => onChange(calculateUpdatedNumber(e.target.value, max, min, allowDecimal))}
+                        placeholder={zeroText}
                         sx={{
                             color: palette.background.textPrimary,
                             marginLeft: 1,
                         }}
                     />
-                    {meta.touched && meta.error && <FormHelperText id={`helper-text-${name}`}>{meta.error}</FormHelperText>}
+                    {helperText && <FormHelperText id={`helper-text-${name}`}>{helperText}</FormHelperText>}
                 </FormControl>
             </Box>
         </Tooltip >
+    );
+};
+
+export const IntegerInput = ({
+    name,
+    ...props
+}: IntegerInputProps) => {
+    const [field, meta, helpers] = useField<number>(name);
+
+    const handleChange = (value) => {
+        helpers.setValue(value);
+    };
+
+    return (
+        <IntegerInputBase
+            {...props}
+            name={name}
+            value={field.value}
+            error={meta.touched && !!meta.error}
+            helperText={meta.touched && meta.error}
+            onBlur={field.onBlur}
+            onChange={handleChange}
+        />
     );
 };

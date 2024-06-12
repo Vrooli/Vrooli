@@ -1,42 +1,55 @@
-import { GqlModelType, InputMaybe, lowercaseFirstLetter, TimeFrame, VisibilityType } from "@local/shared";
+import { GqlModelType, lowercaseFirstLetter, RoutineType, ScheduleFor, TimeFrame, VisibilityType } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { timeFrameToPrisma } from "../builders/timeFrameToPrisma";
-import { visibilityBuilder } from "../builders/visibilityBuilder";
+import { timeFrameToPrisma } from "../builders/timeFrame";
+import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
 import { SessionUserToken } from "../types";
-
-type Maybe<T> = InputMaybe<T> | undefined
 
 /**
  * Creates a partial query for the ID of a one-to-one relation.
  */
-const oneToOneId = <RelField extends string>(
-    id: InputMaybe<string> | undefined,
-    relField: RelField,
-) => ({ [relField]: { id } });
+const oneToOneId = <RelField extends string>(id: string, relField: RelField) => ({
+    [relField]: { id },
+});
 
 /**
  * Creates a partial query for multiple IDs of a one-to-one relation.
  */
-const oneToOneIds = <RelField extends string>(
-    ids: InputMaybe<string[]> | undefined,
-    relField: RelField,
-) => ({ [relField]: { id: { in: ids } } });
+const oneToOneIds = <RelField extends string>(ids: string[], relField: RelField) => ({
+    [relField]: { id: { in: ids } },
+});
 
 /**
  * Creates a partial query for the ID of a one-to-many relation.
  */
-const oneToManyId = <RelField extends string>(
-    id: InputMaybe<string> | undefined,
-    relField: RelField,
-) => ({ [relField]: { some: { id } } });
+const oneToManyId = <RelField extends string>(id: string, relField: RelField) => ({
+    [relField]: { some: { id } },
+});
 
 /**
  * Creates a partial query for multiple IDs of a one-to-many relation.
  */
-const oneToManyIds = <RelField extends string>(
-    ids: InputMaybe<string[]> | undefined,
-    relField: RelField,
-) => ({ [relField]: { some: { id: { in: ids } } } });
+const oneToManyIds = <RelField extends string>(ids: string[], relField: RelField) => ({
+    [relField]: { some: { id: { in: ids } } },
+});
+
+/**
+ * Supplemental data passed into SearchMap. Useful for building queries that need 
+ * access to the user's session data, the search visibility, etc.
+ */
+type RequestData = {
+    /** The object type being queried */
+    objectType: GqlModelType | `${GqlModelType}`;
+    /** The current user's session token */
+    userData: SessionUserToken | null;
+    /** The visibility of the query */
+    visibility: VisibilityType;
+};
+
+type SearchFunction = (inputField: unknown, requestData: RequestData) => object;
+
+type SearchMapType<T> = {
+    [P in keyof T]: SearchFunction;
+};
 
 /**
  * Maps any object's search input field to a partial Prisma query.
@@ -47,69 +60,76 @@ const oneToManyIds = <RelField extends string>(
  * This ensures that the database implementation of various relations (bookmarks, views, etc.) is 
  * consistent across all objects.
  */
-export const SearchMap = {
-    apiId: (id: Maybe<string>) => oneToOneId(id, "api"),
-    apisId: (id: Maybe<string>) => oneToManyId(id, "apis"),
-    apiVersionId: (id: Maybe<string>) => oneToOneId(id, "apiVersion"),
-    apiVersionsId: (id: Maybe<string>) => oneToManyId(id, "apiVersions"),
-    bookmarksContainsId: (id: Maybe<string>) => ({
+export const SearchMap: { [key in string]?: SearchFunction } = {
+    apiId: (id: string) => oneToOneId(id, "api"),
+    apisId: (id: string) => oneToManyId(id, "apis"),
+    apiVersionId: (id: string) => oneToOneId(id, "apiVersion"),
+    apiVersionsId: (id: string) => oneToManyId(id, "apiVersions"),
+    bookmarksContainsId: (id: string) => ({
         bookmarks: {
             some: {
                 OR: [
                     { api: { id } },
+                    { code: { id } },
                     { comment: { id } },
                     { issue: { id } },
                     { note: { id } },
-                    { organization: { id } },
                     { post: { id } },
                     { project: { id } },
                     { question: { id } },
                     { questionAnswer: { id } },
                     { quiz: { id } },
                     { routine: { id } },
-                    { smartContract: { id } },
                     { standard: { id } },
                     { tag: { id } },
+                    { team: { id } },
                     { user: { id } },
                 ],
             },
         },
     }),
-    cardLast4: (cardLast4: Maybe<string>) => ({ cardLast4 }),
-    chatId: (id: Maybe<string>) => oneToOneId(id, "chat"),
-    chatMessageId: (id: Maybe<string>) => oneToOneId(id, "chatMessage"),
-    commentId: (id: Maybe<string>) => oneToOneId(id, "comment"),
-    commentsId: (id: Maybe<string>) => oneToManyId(id, "comments"),
-    completedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("completedAt", time),
-    closedById: (id: Maybe<string>) => oneToOneId(id, "closedBy"),
-    createdById: (id: Maybe<string>) => oneToOneId(id, "createdBy"),
-    createdByIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
-    createdTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("created_at", time),
-    creatorId: (id: Maybe<string>) => oneToOneId(id, "creator"),
-    currency: (currency: Maybe<string>) => ({ currency }),
-    directoryListingsId: (id: Maybe<string>) => oneToManyId(id, "directoryListings"),
-    endTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("endTime", time),
-    excludeIds: (ids: Maybe<string[]>) => ({ NOT: { id: { in: ids } } }),
-    excludeLinkedToTag: (exclude: Maybe<boolean>) => exclude === true ? { tagId: null } : {},
-    focusModeId: (id: Maybe<string>) => oneToOneId(id, "focusMode"),
-    focusModesId: (id: Maybe<string>) => oneToManyId(id, "focusModes"),
-    fromId: (id: Maybe<string>) => oneToOneId(id, "from"),
-    fromOrganizationId: (id: Maybe<string>) => oneToOneId(id, "fromOrganization"),
-    hasAcceptedAnswer: (hasAcceptedAnswer: Maybe<boolean>) => ({ hasAcceptedAnswer }),
-    hasCompleteVersion: (hasCompleteVersion: Maybe<boolean>) => ({ hasCompleteVersion }),
-    ids: (ids: Maybe<string[]>) => ({ id: { in: ids } }),
-    isBot: (isBot: Maybe<boolean>) => ({ isBot }),
-    isBotDepictingPerson: (isBotDepictingPerson: Maybe<boolean>) => ({ isBotDepictingPerson }),
-    isComplete: (isComplete: Maybe<boolean>) => ({ isComplete }),
-    isCompleteWithRoot: (isComplete: Maybe<boolean>) => ({
+    calledByRoutineVersionId: (id: string) => oneToManyId(id, "calledByRoutineVersion"),
+    cardLast4: (cardLast4: string) => ({ cardLast4 }),
+    chatId: (id: string) => oneToOneId(id, "chat"),
+    chatMessageId: (id: string) => oneToOneId(id, "chatMessage"),
+    codeId: (id: string) => oneToOneId(id, "code"),
+    codesId: (id: string) => oneToManyId(id, "codes"),
+    codeType: (codeType: string) => codeType ? ({ codeType: { contains: codeType.trim(), mode: "insensitive" } }) : {},
+    codeVersionId: (id: string) => oneToOneId(id, "codeVersion"),
+    codeVersionsId: (id: string) => oneToManyId(id, "codeVersions"),
+    commentId: (id: string) => oneToOneId(id, "comment"),
+    commentsId: (id: string) => oneToManyId(id, "comments"),
+    completedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("completedAt", time),
+    closedById: (id: string) => oneToOneId(id, "closedBy"),
+    createdById: (id: string) => oneToOneId(id, "createdBy"),
+    createdByIdRoot: (id: string) => ({ root: oneToOneId(id, "createdBy") }),
+    createdTimeFrame: (time: TimeFrame) => timeFrameToPrisma("created_at", time),
+    creatorId: (id: string) => oneToOneId(id, "creator"),
+    currency: (currency: string) => ({ currency }),
+    directoryListingsId: (id: string) => oneToManyId(id, "directoryListings"),
+    endTimeFrame: (time: TimeFrame) => timeFrameToPrisma("endTime", time),
+    excludeIds: (ids: string[]) => ({ NOT: { id: { in: ids } } }),
+    excludeLinkedToTag: (exclude: boolean) => exclude === true ? { tagId: null } : {},
+    focusModeId: (id: string) => oneToOneId(id, "focusMode"),
+    focusModesId: (id: string) => oneToManyId(id, "focusModes"),
+    fromId: (id: string) => oneToOneId(id, "from"),
+    fromTeamId: (id: string) => oneToOneId(id, "fromTeam"),
+    hasAcceptedAnswer: (hasAcceptedAnswer: boolean) => ({ hasAcceptedAnswer }),
+    hasCompleteVersion: (hasCompleteVersion: boolean) => ({ hasCompleteVersion }),
+    ids: (ids: string[]) => ({ id: { in: ids } }),
+    isAdmin: (isAdmin: boolean) => ({ isAdmin }),
+    isBot: (isBot: boolean) => ({ isBot }),
+    isBotDepictingPerson: (isBotDepictingPerson: boolean) => ({ isBotDepictingPerson }),
+    isComplete: (isComplete: boolean) => ({ isComplete }),
+    isCompleteWithRoot: (isComplete: boolean) => ({
         AND: [
             { isComplete },
             { root: { hasCompleteVersion: isComplete } },
         ],
     }),
-    isCompleteWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+    isCompleteWithRootExcludeOwnedByTeamId: (ownedByTeamId: string) => ({
         OR: [
-            { ownedByOrganizationId },
+            { ownedByTeamId },
             {
                 AND: [
                     { isComplete: true },
@@ -118,7 +138,7 @@ export const SearchMap = {
             },
         ],
     }),
-    isCompleteWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
+    isCompleteWithRootExcludeOwnedByUserId: (ownedByUserId: string) => ({
         OR: [
             { ownedByUserId },
             {
@@ -129,131 +149,160 @@ export const SearchMap = {
             },
         ],
     }),
-    isInternal: (isInternal: Maybe<boolean>) => ({ isInternal }),
-    isInternalWithRoot: (isInternal: Maybe<boolean>) => ({ root: { isInternal } }),
-    isInternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+    isInternal: (isInternal: boolean) => ({ isInternal }),
+    isInternalWithRoot: (isInternal: boolean) => ({ root: { isInternal } }),
+    isInternalWithRootExcludeOwnedByTeamId: (ownedByTeamId: string) => ({
         OR: [
-            { ownedByOrganizationId },
+            { ownedByTeamId },
             { root: { isInternal: true } },
         ],
     }),
-    isInternalWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
+    isInternalWithRootExcludeOwnedByUserId: (ownedByUserId: string) => ({
         OR: [
             { ownedByUserId },
             { root: { isInternal: true } },
         ],
     }),
-    isExternalWithRootExcludeOwnedByOrganizationId: (ownedByOrganizationId: Maybe<string>) => ({
+    isExternalWithRootExcludeOwnedByTeamId: (ownedByTeamId: string) => ({
         OR: [
-            { ownedByOrganizationId },
+            { ownedByTeamId },
             { root: { isInternal: false } },
         ],
     }),
-    isExternalWithRootExcludeOwnedByUserId: (ownedByUserId: Maybe<string>) => ({
+    isExternalWithRootExcludeOwnedByUserId: (ownedByUserId: string) => ({
         OR: [
             { ownedByUserId },
             { root: { isInternal: false } },
         ],
     }),
-    isMergedOrRejected: (isMergedOrRejected: Maybe<boolean>) => ({ isMergedOrRejected }),
-    isOpenToNewMembers: (isOpenToNewMembers: Maybe<boolean>) => ({ isOpenToNewMembers }),
-    isPinned: (isPinned: Maybe<boolean>) => ({ isPinned }),
-    issueId: (id: Maybe<string>) => oneToOneId(id, "issue"),
-    issuesId: (id: Maybe<string>) => oneToManyId(id, "issues"),
-    label: (label: Maybe<string>) => ({ label }),
-    labelsId: (id: Maybe<string>) => ({ labels: { some: { label: { id } } } }),
-    labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
-    languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
-    lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("lastViewedAt", time),
+    isLatest: (isLatest: boolean) => ({ isLatest }),
+    isMergedOrRejected: (isMergedOrRejected: boolean) => ({ isMergedOrRejected }),
+    isOpenToNewMembers: (isOpenToNewMembers: boolean) => ({ isOpenToNewMembers }),
+    isPinned: (isPinned: boolean) => ({ isPinned }),
+    issueId: (id: string) => oneToOneId(id, "issue"),
+    issuesId: (id: string) => oneToManyId(id, "issues"),
+    label: (label: string) => ({ label }),
+    labelsId: (id: string) => ({ labels: { some: { label: { id } } } }),
+    labelsIds: (ids: string[]) => ({ labels: { some: { label: { id: { in: ids } } } } }),
+    languageIn: (languages: string[]) => ({ language: { in: languages } }),
+    lastViewedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("lastViewedAt", time),
+    latestVersionRoutineType: (routineType: RoutineType, { visibility }) => {
+        // If visibility is "Public", then we must use "isLatestPublic" flag
+        if (visibility === VisibilityType.Public) {
+            return { versions: { some: { isLatestPublic: true, routineType } } };
+        }
+        // Otherwise, use "isLatest" flag or "isLatestPublic" flag. The visibility builder will handle omitting objects you're not allowed to see.
+        // TODO probably flawed if using visibility "All"
+        return {
+            versions: {
+                some: {
+                    OR: [
+                        { isLatest: true },
+                        { isLatestPublic: true },
+                    ],
+                    routineType,
+                },
+            },
+        };
+    },
     /**
      * Example: limitTo(["Routine", "Standard"]) => ({ OR: [{ routineId: { NOT: null } }, { standardId: { NOT: null } }] })
      */
-    limitTo: (limitTo: Maybe<string[]>) => limitTo ? ({
+    limitTo: (limitTo: string[]) => limitTo ? ({
         OR: limitTo.map((t) => ({ [`${lowercaseFirstLetter(t)}Id`]: { not: null } })),
     }) : {},
-    listLabel: (label: Maybe<string>) => ({ list: { label } }),
-    listId: (id: Maybe<string>) => oneToOneId(id, "list"),
-    maxAmount: (amount: Maybe<number>) => ({ amount: { lte: amount } }),
-    maxBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { lte: bookmarks } }),
-    maxBookmarksRoot: (bookmarks: Maybe<number>) => ({ root: { bookmarks: { lte: bookmarks } } }),
-    maxComplexity: (complexity: Maybe<number>) => ({ complexity: { lte: complexity } }),
-    maxPointsEarned: (pointsEarned: Maybe<number>) => ({ pointsEarned: { lte: pointsEarned } }),
-    maxScore: (score: Maybe<number>) => ({ score: { lte: score } }),
-    maxScoreRoot: (score: Maybe<number>) => ({ root: { score: { lte: score } } }),
-    maxSimplicity: (simplicity: Maybe<number>) => ({ simplicity: { lte: simplicity } }),
-    maxTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { lte: timesCompleted } }),
-    maxViews: (views: Maybe<number>) => ({ views: { lte: views } }),
-    maxViewsRoot: (views: Maybe<number>) => ({ root: { views: { lte: views } } }),
-    memberInOrganizationId: (id: Maybe<string>) => ({ memberships: { some: { organization: { id } } } }),
-    memberUserIds: (ids: Maybe<string[]>) => ({ members: { some: { user: { id: { in: ids } } } } }),
-    meetingId: (id: Maybe<string>) => oneToOneId(id, "meeting"),
-    meetingsId: (id: Maybe<string>) => oneToManyId(id, "meetings"),
-    minAmount: (amount: Maybe<number>) => ({ amount: { gte: amount } }),
-    minBookmarks: (bookmarks: Maybe<number>) => ({ bookmarks: { gte: bookmarks } }),
-    minBookmarksRoot: (bookmarks: Maybe<number>) => ({ root: { bookmarks: { gte: bookmarks } } }),
-    minComplexity: (complexity: Maybe<number>) => ({ complexity: { gte: complexity } }),
-    minPointsEarned: (pointsEarned: Maybe<number>) => ({ pointsEarned: { gte: pointsEarned } }),
-    minScore: (score: Maybe<number>) => ({ score: { gte: score } }),
-    minScoreRoot: (score: Maybe<number>) => ({ root: { score: { gte: score } } }),
-    minSimplicity: (simplicity: Maybe<number>) => ({ simplicity: { gte: simplicity } }),
-    minTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { gte: timesCompleted } }),
-    minViews: (views: Maybe<number>) => ({ views: { gte: views } }),
-    minViewsRoot: (views: Maybe<number>) => ({ root: { views: { gte: views } } }),
-    nodeType: (nodeType: Maybe<string>) => nodeType ? ({ nodeType: { contains: nodeType.trim(), mode: "insensitive" } }) : {},
-    notInChatId: (id: Maybe<string>) => id ? ({ NOT: { chats: { some: { id } } } }) : {}, // TODO should probably validate that you can read the participants in this chat, so that you can't figure out who's in a chat by finding out everyone who's not
-    noteId: (id: Maybe<string>) => oneToOneId(id, "note"),
-    notesId: (id: Maybe<string>) => oneToManyId(id, "notes"),
-    noteVersionId: (id: Maybe<string>) => oneToOneId(id, "noteVersion"),
-    noteVersionsId: (id: Maybe<string>) => oneToManyId(id, "noteVersions"),
-    objectId: (id: Maybe<string>) => oneToOneId(id, "object"),
-    objectType: (objectType: Maybe<string>) => objectType ? ({ objectType: { contains: objectType.trim(), mode: "insensitive" } }) : {},
+    listLabel: (label: string) => ({ list: { label } }),
+    listId: (id: string) => oneToOneId(id, "list"),
+    maxAmount: (amount: number) => ({ amount: { lte: amount } }),
+    maxBookmarks: (bookmarks: number) => ({ bookmarks: { lte: bookmarks } }),
+    maxBookmarksRoot: (bookmarks: number) => ({ root: { bookmarks: { lte: bookmarks } } }),
+    maxComplexity: (complexity: number) => ({ complexity: { lte: complexity } }),
+    maxPointsEarned: (pointsEarned: number) => ({ pointsEarned: { lte: pointsEarned } }),
+    maxScore: (score: number) => ({ score: { lte: score } }),
+    maxScoreRoot: (score: number) => ({ root: { score: { lte: score } } }),
+    maxSimplicity: (simplicity: number) => ({ simplicity: { lte: simplicity } }),
+    maxTimesCompleted: (timesCompleted: number) => ({ timesCompleted: { lte: timesCompleted } }),
+    maxViews: (views: number) => ({ views: { lte: views } }),
+    maxViewsRoot: (views: number) => ({ root: { views: { lte: views } } }),
+    memberInTeamId: (id: string) => ({ memberships: { some: { team: { id } } } }),
+    memberUserIds: (ids: string[]) => ({ members: { some: { user: { id: { in: ids } } } } }),
+    meetingId: (id: string) => oneToOneId(id, "meeting"),
+    meetingsId: (id: string) => oneToManyId(id, "meetings"),
+    minAmount: (amount: number) => ({ amount: { gte: amount } }),
+    minBookmarks: (bookmarks: number) => ({ bookmarks: { gte: bookmarks } }),
+    minBookmarksRoot: (bookmarks: number) => ({ root: { bookmarks: { gte: bookmarks } } }),
+    minComplexity: (complexity: number) => ({ complexity: { gte: complexity } }),
+    minPointsEarned: (pointsEarned: number) => ({ pointsEarned: { gte: pointsEarned } }),
+    minScore: (score: number) => ({ score: { gte: score } }),
+    minScoreRoot: (score: number) => ({ root: { score: { gte: score } } }),
+    minSimplicity: (simplicity: number) => ({ simplicity: { gte: simplicity } }),
+    minTimesCompleted: (timesCompleted: number) => ({ timesCompleted: { gte: timesCompleted } }),
+    minViews: (views: number) => ({ views: { gte: views } }),
+    minViewsRoot: (views: number) => ({ root: { views: { gte: views } } }),
+    nodeType: (nodeType: string) => nodeType ? ({ nodeType: { contains: nodeType.trim(), mode: "insensitive" } }) : {},
+    notInChatId: (id: string) => id ? ({ NOT: { chats: { some: { id } } } }) : {}, // TODO should probably validate that you can read the participants in this chat, so that you can't figure out who's in a chat by finding out everyone who's not
+    noteId: (id: string) => oneToOneId(id, "note"),
+    notesId: (id: string) => oneToManyId(id, "notes"),
+    noteVersionId: (id: string) => oneToOneId(id, "noteVersion"),
+    noteVersionsId: (id: string) => oneToManyId(id, "noteVersions"),
+    objectId: (id: string) => oneToOneId(id, "object"),
+    objectType: (objectType: string) => objectType ? ({ objectType: { contains: objectType.trim(), mode: "insensitive" } }) : {},
     openToAnyoneWithInvite: () => ({ openToAnyoneWithInvite: true }),
-    organizationId: (id: Maybe<string>) => oneToOneId(id, "organization"),
-    organizationsId: (id: Maybe<string>) => oneToManyId(id, "organizations"),
-    ownedByOrganizationId: (id: Maybe<string>) => oneToOneId(id, "ownedByOrganization"),
-    ownedByOrganizationIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
-    ownedByUserId: (id: Maybe<string>) => oneToOneId(id, "ownedByUser"),
-    ownedByUserIdRoot: (id: Maybe<string>) => ({ root: oneToOneId(id, "createdBy") }),
-    parentId: (id: Maybe<string>) => oneToOneId(id, "parent"),
-    periodTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("periodEnd", time),
-    periodType: (periodType: Maybe<PeriodType>) => ({ periodType }),
-    postId: (id: Maybe<string>) => oneToOneId(id, "post"),
-    postsId: (id: Maybe<string>) => oneToManyId(id, "posts"),
-    projectId: (id: Maybe<string>) => oneToOneId(id, "project"),
-    projectsId: (id: Maybe<string>) => oneToManyId(id, "projects"),
-    projectVersionId: (id: Maybe<string>) => oneToOneId(id, "projectVersion"),
-    projectVersionsId: (id: Maybe<string>) => oneToManyId(id, "projectVersions"),
-    pullRequestId: (id: Maybe<string>) => oneToOneId(id, "pullRequest"),
-    pullRequestsId: (id: Maybe<string>) => oneToManyId(id, "pullRequests"),
-    questionId: (id: Maybe<string>) => oneToOneId(id, "question"),
-    questionsId: (id: Maybe<string>) => oneToManyId(id, "questions"),
-    questionAnswerId: (id: Maybe<string>) => oneToOneId(id, "questionAnswer"),
-    questionAnswersId: (id: Maybe<string>) => oneToManyId(id, "questionAnswers"),
-    quizId: (id: Maybe<string>) => oneToOneId(id, "quiz"),
-    quizAttemptId: (id: Maybe<string>) => oneToOneId(id, "quizAttempt"),
-    quizQuestionId: (id: Maybe<string>) => oneToOneId(id, "quizQuestion"),
-    referencedVersionId: (id: Maybe<string>) => ({ referencedVersionId: id }), // Not a relationship, just a field
-    reminderListId: (id: Maybe<string>) => oneToOneId(id, "reminderList"),
-    repostedFromIds: (ids: Maybe<string[]>) => oneToManyIds(ids, "repostedFrom"),
-    reportId: (id: Maybe<string>) => oneToOneId(id, "report"),
-    reportsId: (id: Maybe<string>) => oneToManyId(id, "reports"),
-    resourceListId: (id: Maybe<string>) => oneToOneId(id, "resourceList"),
-    resourceListsId: (id: Maybe<string>) => oneToManyId(id, "resourceLists"),
-    responseId: (id: Maybe<string>) => oneToOneId(id, "response"),
-    rootId: (id: Maybe<string>) => oneToOneId(id, "root"),
-    routineId: (id: Maybe<string>) => oneToOneId(id, "routine"),
-    routineIds: (ids: Maybe<string[]>) => oneToOneIds(ids, "routine"),
-    routinesId: (id: Maybe<string>) => oneToManyId(id, "routines"),
-    routinesIds: (ids: Maybe<string[]>) => oneToManyIds(ids, "routines"),
-    routineVersionId: (id: Maybe<string>) => oneToOneId(id, "routineVersion"),
-    routineVersionsId: (id: Maybe<string>) => oneToManyId(id, "routineVersions"),
-    runProjectOrganizationId: (id: Maybe<string>) => ({ runProject: { organization: { id } } }),
-    runProjectUserId: (id: Maybe<string>) => ({ runProject: { user: { id } } }),
-    runRoutineOrganizationId: (id: Maybe<string>) => ({ runRoutine: { organization: { id } } }),
-    runRoutineUserId: (id: Maybe<string>) => ({ runRoutine: { user: { id } } }),
-    scheduleEndTimeFrame: (time: Maybe<TimeFrame>) => ({ schedule: timeFrameToPrisma("endTime", time) }),
-    scheduleStartTimeFrame: (time: Maybe<TimeFrame>) => ({ schedule: timeFrameToPrisma("startTime", time) }),
-    scheduleForUserId: (userId: Maybe<string>) => userId ? ({
+    ownedByTeamId: (id: string) => oneToOneId(id, "ownedByTeam"),
+    ownedByTeamIdRoot: (id: string) => ({ root: oneToOneId(id, "createdBy") }),
+    ownedByUserId: (id: string) => oneToOneId(id, "ownedByUser"),
+    ownedByUserIdRoot: (id: string) => ({ root: oneToOneId(id, "createdBy") }),
+    parentId: (id: string) => oneToOneId(id, "parent"),
+    periodTimeFrame: (time: TimeFrame) => timeFrameToPrisma("periodEnd", time),
+    periodType: (periodType: PeriodType) => ({ periodType }),
+    postId: (id: string) => oneToOneId(id, "post"),
+    postsId: (id: string) => oneToManyId(id, "posts"),
+    projectId: (id: string) => oneToOneId(id, "project"),
+    projectsId: (id: string) => oneToManyId(id, "projects"),
+    projectVersionId: (id: string) => oneToOneId(id, "projectVersion"),
+    projectVersionsId: (id: string) => oneToManyId(id, "projectVersions"),
+    pullRequestId: (id: string) => oneToOneId(id, "pullRequest"),
+    pullRequestsId: (id: string) => oneToManyId(id, "pullRequests"),
+    questionId: (id: string) => oneToOneId(id, "question"),
+    questionsId: (id: string) => oneToManyId(id, "questions"),
+    questionAnswerId: (id: string) => oneToOneId(id, "questionAnswer"),
+    questionAnswersId: (id: string) => oneToManyId(id, "questionAnswers"),
+    quizId: (id: string) => oneToOneId(id, "quiz"),
+    quizAttemptId: (id: string) => oneToOneId(id, "quizAttempt"),
+    quizQuestionId: (id: string) => oneToOneId(id, "quizQuestion"),
+    referencedVersionId: (id: string) => ({ referencedVersionId: id }), // Not a relationship, just a field
+    reminderListId: (id: string) => oneToOneId(id, "reminderList"),
+    repostedFromIds: (ids: string[]) => oneToManyIds(ids, "repostedFrom"),
+    reportId: (id: string) => oneToOneId(id, "report"),
+    reportsId: (id: string) => oneToManyId(id, "reports"),
+    resourceListId: (id: string) => oneToOneId(id, "resourceList"),
+    resourceListsId: (id: string) => oneToManyId(id, "resourceLists"),
+    responseId: (id: string) => oneToOneId(id, "response"),
+    roles: (roles: string[]) => ({ roles: { some: { name: { in: roles } } } }),
+    rootId: (id: string) => oneToOneId(id, "root"),
+    routineId: (id: string) => oneToOneId(id, "routine"),
+    routineIds: (ids: string[]) => oneToOneIds(ids, "routine"),
+    routinesId: (id: string) => oneToManyId(id, "routines"),
+    routinesIds: (ids: string[]) => oneToManyIds(ids, "routines"),
+    routineType: (routineType: RoutineType) => ({ routineType }),
+    routineVersionId: (id: string) => oneToOneId(id, "routineVersion"),
+    routineVersionsId: (id: string) => oneToManyId(id, "routineVersions"),
+    runProjectTeamId: (id: string) => ({ runProject: { team: { id } } }),
+    runProjectUserId: (id: string) => ({ runProject: { user: { id } } }),
+    runRoutineTeamId: (id: string) => ({ runRoutine: { team: { id } } }),
+    runRoutineUserId: (id: string) => ({ runRoutine: { user: { id } } }),
+    scheduleEndTimeFrame: (time: TimeFrame) => ({ schedule: timeFrameToPrisma("endTime", time) }),
+    scheduleStartTimeFrame: (time: TimeFrame) => ({ schedule: timeFrameToPrisma("startTime", time) }),
+    scheduleFor: (scheduleFor: ScheduleFor) => {
+        switch (scheduleFor) {
+            case "FocusMode": return { focusModes: { some: {} } };
+            case "Meeting": return { meetings: { some: {} } };
+            case "RunProject": return { runProjects: { some: {} } };
+            case "RunRoutine": return { runRoutines: { some: {} } };
+            default: return {};
+        }
+    },
+    scheduleForUserId: (userId: string) => userId ? ({
         focusModes: {
             some: {
                 user: {
@@ -265,7 +314,7 @@ export const SearchMap = {
             some: {
                 OR: [
                     {
-                        organization: {
+                        team: {
                             members: {
                                 some: {
                                     user: {
@@ -303,17 +352,12 @@ export const SearchMap = {
 
         },
     }) : {},
-    showOnOrganizationProfile: () => ({ showOnOrganizationProfile: true }),
-    silent: (silent: Maybe<boolean>) => ({ silent }),
-    smartContractId: (id: Maybe<string>) => oneToOneId(id, "smartContract"),
-    smartContractsId: (id: Maybe<string>) => oneToManyId(id, "smartContracts"),
-    smartContractType: (smartContractType: Maybe<string>) => smartContractType ? ({ smartContractType: { contains: smartContractType.trim(), mode: "insensitive" } }) : {},
-    smartContractVersionId: (id: Maybe<string>) => oneToOneId(id, "smartContractVersion"),
-    smartContractVersionsId: (id: Maybe<string>) => oneToManyId(id, "smartContractVersions"),
-    standardId: (id: Maybe<string>) => oneToOneId(id, "standard"),
-    standardIds: (ids: Maybe<string[]>) => oneToOneIds(ids, "standard"),
-    standardType: (standardType: Maybe<string>) => standardType ? ({ standardType: { contains: standardType.trim(), mode: "insensitive" } }) : {},
-    standardTypeLatestVersion: (type: Maybe<string>) => type ? ({
+    showOnTeamProfile: () => ({ showOnTeamProfile: true }),
+    silent: (silent: boolean) => ({ silent }),
+    standardId: (id: string) => oneToOneId(id, "standard"),
+    standardIds: (ids: string[]) => oneToOneIds(ids, "standard"),
+    standardType: (standardType: string) => standardType ? ({ standardType: { contains: standardType.trim(), mode: "insensitive" } }) : {},
+    standardTypeLatestVersion: (type: string) => type ? ({
         versions: {
             some: {
                 isLatest: true,
@@ -321,26 +365,28 @@ export const SearchMap = {
             },
         },
     }) : {},
-    standardsId: (id: Maybe<string>) => oneToManyId(id, "standards"),
-    standardsIds: (ids: Maybe<string[]>) => oneToManyIds(ids, "standards"),
-    standardVersionId: (id: Maybe<string>) => oneToOneId(id, "standardVersion"),
-    standardVersionsId: (id: Maybe<string>) => oneToManyId(id, "standardVersions"),
-    startTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("startTime", time),
-    startedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("startedAt", time),
-    status: <T>(status: Maybe<T>) => ({ status }),
-    statuses: <T>(statuses: Maybe<T[]>) => ({ status: { in: statuses } }),
-    tagId: (id: Maybe<string>) => oneToOneId(id, "tag"),
-    tagsId: (id: Maybe<string>) => oneToManyId(id, "tags"),
-    tags: (tags: Maybe<string[]>) => ({ tags: { some: { tag: { tag: { in: tags } } } } }),
-    tagsRoot: (tags: Maybe<string[]>) => ({ root: { tags: { some: { tag: { tag: { in: tags } } } } } }),
-    timeZone: (timeZone: Maybe<string>) => timeZone ? ({ timeZone: { contains: timeZone.trim(), mode: "insensitive" } }) : {},
-    toId: (id: Maybe<string>) => oneToOneId(id, "to"),
-    toOrganizationId: (id: Maybe<string>) => oneToOneId(id, "toOrganization"),
-    toUserId: (id: Maybe<string>) => oneToOneId(id, "toUser"),
-    transferId: (id: Maybe<string>) => oneToOneId(id, "transfer"),
-    transfersId: (id: Maybe<string>) => oneToManyId(id, "transfers"),
-    translationLanguages: (languages: Maybe<string[]>) => ({ translations: { some: { language: { in: languages } } } }),
-    translationLanguagesLatestVersion: (languages: Maybe<string[]>) => ({
+    standardsId: (id: string) => oneToManyId(id, "standards"),
+    standardsIds: (ids: string[]) => oneToManyIds(ids, "standards"),
+    standardVersionId: (id: string) => oneToOneId(id, "standardVersion"),
+    standardVersionsId: (id: string) => oneToManyId(id, "standardVersions"),
+    startTimeFrame: (time: TimeFrame) => timeFrameToPrisma("startTime", time),
+    startedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("startedAt", time),
+    status: <T>(status: T) => ({ status }),
+    statuses: <T>(statuses: T[]) => ({ status: { in: statuses } }),
+    tagId: (id: string) => oneToOneId(id, "tag"),
+    tagsId: (id: string) => oneToManyId(id, "tags"),
+    tags: (tags: string[]) => ({ tags: { some: { tag: { tag: { in: tags } } } } }),
+    tagsRoot: (tags: string[]) => ({ root: { tags: { some: { tag: { tag: { in: tags } } } } } }),
+    teamId: (id: string) => oneToOneId(id, "team"),
+    teamsId: (id: string) => oneToManyId(id, "teams"),
+    timeZone: (timeZone: string) => timeZone ? ({ timeZone: { contains: timeZone.trim(), mode: "insensitive" } }) : {},
+    toId: (id: string) => oneToOneId(id, "to"),
+    toTeamId: (id: string) => oneToOneId(id, "toTeam"),
+    toUserId: (id: string) => oneToOneId(id, "toUser"),
+    transferId: (id: string) => oneToOneId(id, "transfer"),
+    transfersId: (id: string) => oneToManyId(id, "transfers"),
+    translationLanguages: (languages: string[]) => ({ translations: { some: { language: { in: languages } } } }),
+    translationLanguagesLatestVersion: (languages: string[]) => ({
         versions: {
             some: {
                 isLatest: true,
@@ -348,12 +394,8 @@ export const SearchMap = {
             },
         },
     }),
-    updatedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma("updated_at", time),
-    userId: (id: Maybe<string>) => oneToOneId(id, "user"),
-    usersId: (id: Maybe<string>) => oneToManyId(id, "users"),
-    visibility: (
-        visibility: InputMaybe<VisibilityType> | undefined,
-        userData: SessionUserToken | null | undefined,
-        objectType: `${GqlModelType}`,
-    ) => visibilityBuilder({ objectType, userData, visibility }),
-};
+    updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updated_at", time),
+    userId: (id: string) => oneToOneId(id, "user"),
+    usersId: (id: string) => oneToManyId(id, "users"),
+    visibility: (visibility: VisibilityType | null | undefined, { objectType, userData }) => visibilityBuilderPrisma({ objectType, userData, visibility }),
+} as SearchMapType<typeof SearchMap>;

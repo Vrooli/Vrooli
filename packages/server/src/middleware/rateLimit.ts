@@ -62,8 +62,12 @@ export async function rateLimit({
         keyBase += `${req.body.operationName}:`;
     }
     // For REST requests, use the route path and method
-    else {
+    else if (req.route) {
         keyBase += `${req.route.path}:${req.method}:`;
+    }
+    // For other requests (typically when req is mocked by a task queue), use the path
+    else {
+        keyBase += `${req.path}:`;
     }
     // If maxApi not supplied, use maxUser * 1000
     maxApi = maxApi ?? (maxUser * 1000);

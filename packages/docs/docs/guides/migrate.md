@@ -6,6 +6,8 @@ Database migrations require an interactive terminal, which means they cannot be 
 ## Getting DB_URL
 To use Prisma, you'll need to make sure that the `DB_URL` environment variable is set. Since we calculate this in `scripts.sh` instead of directly as a docker-compose environment variable, it won't be available automatically. Instead, we'll need to export it manually whenever we're in the container. To do this, enter `export DB_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432;`, where `DB_USER` and `DB_PASSWORD` are the values you set in your `.env` file.
 
+For a development environment where you haven't changed the environment variables, you can use `export DB_URL=postgresql://site:databasepassword@db:5432;`.
+
 ## Initial Migration
 Before you even think about migrating your schema, make sure you have already created an initial migration. To do this:  
 1. Make sure schema.prisma matches the current database schema.  

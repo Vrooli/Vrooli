@@ -8,13 +8,13 @@ const link = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
         "link",
         "Must be a URL, Cardano payment address, or ADA Handle",
         (value: string | undefined) => {
-            const regexForUrl = env !== "development" ? urlRegex : urlRegexDev;
+            const regexForUrl = !env.startsWith("dev") ? urlRegex : urlRegexDev;
             return value !== undefined ? (regexForUrl.test(value) || walletAddressRegex.test(value) || handleRegex.test(value)) : true;
         },
     );
 const usedFor = enumToYup(ResourceUsedFor);
 
-export const resourceTranslationValidation: YupModel = transRel({
+export const resourceTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
         description: opt(description),
         name: opt(name),
@@ -25,16 +25,16 @@ export const resourceTranslationValidation: YupModel = transRel({
     }),
 });
 
-export const resourceValidation: YupModel = {
+export const resourceValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         index: opt(index),
         link: req(link(d)),
         usedFor: opt(usedFor),
     }, [
-        ["list", ["Connect", "Create"], "one", "req", resourceListValidation, ["resources"]],
+        ["list", ["Connect", "Create"], "one", "opt", resourceListValidation, ["resources"]],
         ["translations", ["Create"], "many", "opt", resourceTranslationValidation],
-    ], [["listConnect", "listCreate"]], d),
+    ], [["listConnect", "listCreate", true]], d),
     update: (d) => yupObj({
         id: req(id),
         index: opt(index),
@@ -43,5 +43,5 @@ export const resourceValidation: YupModel = {
     }, [
         ["list", ["Connect", "Create"], "one", "opt", resourceListValidation, ["resources"]],
         ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceTranslationValidation],
-    ], [["listConnect", "listCreate"]], d),
+    ], [["listConnect", "listCreate", false]], d),
 };

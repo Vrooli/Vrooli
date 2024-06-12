@@ -6,27 +6,22 @@ import * as yup from "yup";
 /**
  * Hook to get translated fields, touched status, error messages, and other related data
  * @param defaultLanguage The default language to use
- * @param fields The fields to get the translated values for
- * @param formik The formik object
- * @param formikField The formik.values field which contains the translations
  * @param validationSchema The validation schema to use for error messages
  * @returns An object containing the translated fields, touched status, and error messages
  */
 export function useTranslatedFields({
     defaultLanguage,
-    fields,
     validationSchema,
 }: {
     defaultLanguage: string,
-    fields: readonly string[],
-    validationSchema?: yup.ObjectSchema<any>
+    validationSchema?: yup.AnyObjectSchema,
 }) {
     // Language state
     const [language, setLanguage] = useState<string>(defaultLanguage);
 
     // Get the translated fields, touched status, and error messages
     const [field, meta, helpers] = useField("translations");
-    const translationErrors = useMemo(() => getFormikErrorsWithTranslations(field, meta, validationSchema) as any, [field, meta, validationSchema]);
+    const translationErrors = useMemo(() => validationSchema ? getFormikErrorsWithTranslations(field, validationSchema) : {}, [field, validationSchema]);
 
     // Find languages with translations
     const languages = useMemo(() => field.value?.map((t: { language: string }) => t.language) ?? [], [field.value]);

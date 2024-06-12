@@ -1,11 +1,11 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, GqlModelType, LINKS, Success, User } from "@local/shared";
+import { DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, Role, Success, User, endpointPostDeleteOne } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
 import { useCallback, useState } from "react";
 import { useLocation } from "route";
-import { ObjectActionComplete } from "utils/actions/objectActions";
-import { getDisplay, ListObject } from "utils/display/listTools";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
+import { getDisplay } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
 
@@ -13,6 +13,7 @@ export type ConfirmationLevel = "none" | "minimal" | "full";
 
 export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Api: "full",
+    ApiKey: "full",
     ApiVersion: "minimal",
     Bookmark: "none",
     BookmarkList: "full",
@@ -20,6 +21,8 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     ChatInvite: "none",
     ChatMessage: "minimal",
     ChatParticipant: "none",
+    Code: "full",
+    CodeVersion: "minimal",
     Comment: "minimal",
     Email: "minimal",
     FocusMode: "minimal",
@@ -32,7 +35,7 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     Note: "minimal",
     NoteVersion: "minimal",
     Notification: "none",
-    Organization: "full",
+    Phone: "minimal",
     Post: "minimal",
     Project: "full",
     ProjectVersion: "minimal",
@@ -45,15 +48,15 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     ReminderList: "minimal",
     Report: "minimal",
     Resource: "none",
+    Role: "full",
     Routine: "full",
     RoutineVersion: "minimal",
     RunProject: "none",
     RunRoutine: "none",
     Schedule: "none",
-    SmartContract: "full",
-    SmartContractVersion: "minimal",
     Standard: "full",
     StandardVersion: "minimal",
+    Team: "full",
     Transfer: "minimal",
     User: "full",
     Wallet: "minimal",
@@ -66,7 +69,7 @@ export const useDeleter = ({
 }: {
     object: ListObject | null | undefined;
     objectType: `${GqlModelType}`;
-    onActionComplete: (action: ObjectActionComplete.Delete, data: boolean) => unknown;
+    onActionComplete: <T extends "Delete">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }) => {
     const [, setLocation] = useLocation();
 
@@ -86,7 +89,7 @@ export const useDeleter = ({
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName: getDisplay(object).title } }),
             onSuccess: () => {
-                onActionComplete(ObjectActionComplete.Delete, true);
+                onActionComplete(ObjectActionComplete.Delete, { __typename: "Success", success: true });
                 // If we're on the page for the object being deleted, navigate away
                 const onObjectsPage = window.location.pathname.startsWith(LINKS[objectType]);
                 setIsDeleteDialogOpen(false);
@@ -100,22 +103,32 @@ export const useDeleter = ({
             },
             errorMessage: () => ({ messageKey: "FailedToDelete" }),
             onError: () => {
-                onActionComplete(ObjectActionComplete.Delete, false);
+                onActionComplete(ObjectActionComplete.Delete, { __typename: "Success", success: false });
             },
         });
     }, [deleteOne, object, objectType, onActionComplete, setLocation]);
 
-    const handleDelete = useCallback(() => {
+    const handleDelete = useCallback((objectOverride?: ListObject) => {
+        const objectToDelete = objectOverride || object;
         // Find confirmation level for this object type
         let confirmationType = ObjectsToDeleteConfirmLevel[objectType as DeleteType];
-        // Special case: Users with "isBot" set to true require minimal confirmation instead of full
+
+        // Handle special cases
+        // Case 1: Users with "isBot" set to true require minimal confirmation instead of full
         if (objectType === "User") {
-            const user = object as Partial<User>;
+            const user = objectToDelete as Partial<User>;
             if (user.isBot === true) {
                 confirmationType = "minimal";
             }
         }
-        console.log();
+        // Case 2: non-admin roles require minimal confirmation instead of full
+        if (objectType === "Role") {
+            const role = objectToDelete as Partial<Role>;
+            if (role.name !== "Admin") {
+                confirmationType = "minimal";
+            }
+        }
+
         if (confirmationType === "none") {
             // Delete without confirmation
             doDelete();

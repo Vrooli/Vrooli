@@ -14,10 +14,10 @@ import { getFocusModeInfo } from "utils/authentication/session";
 import { largeButtonProps } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
-export function FocusModeButton({
+export const FocusModeButton = ({
     isEditing,
     objectType,
-}: FocusModeButtonProps) {
+}: FocusModeButtonProps) => {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();

@@ -1,9 +1,8 @@
 // Defines common props
-import { AwardCategory, CommonKey, GqlModelType, NodeLink, RoutineVersion, Schedule, Session } from "@local/shared";
+import { AwardCategory, CommonKey, NodeLink, RoutineVersion } from "@local/shared";
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import { ProjectStepType, RoutineStepType } from "utils/consts";
-import { ListObject } from "utils/display/listTools";
 
 /** 
  * An object which at least includes its type.
@@ -20,23 +19,18 @@ export interface SvgProps {
     fill?: string;
     iconTitle?: string;
     id?: string;
-    style?: { [x: string]: string | number | null };
+    style?: {
+        [key: string]: string | number | null,
+    } & {
+        [key: `&:${string}`]: { [key: string]: string | number | null },
+        [key: `@media ${string}`]: { [key: string]: string | number | null },
+    };
     onClick?: () => unknown;
     width?: number | string | null;
     height?: number | string | null;
 }
 
 export type SvgComponent = (props: SvgProps) => JSX.Element;
-
-export type CalendarEvent = {
-    __typename: "CalendarEvent",
-    id: string;
-    title: string;
-    start: Date;
-    end: Date;
-    allDay: boolean;
-    schedule: Schedule;
-}
 
 export type FormErrors = { [key: string]: string | string[] | null | undefined | FormErrors | FormErrors[] };
 
@@ -61,13 +55,6 @@ export type IWrap<T> = { input: T }
 
 /** Extracts the arguments from a function */
 export type ArgsType<T> = T extends (...args: infer U) => any ? U : never;
-
-/** An object connected to routing */
-export type NavigableObject = Omit<ListObject, "__typename"> & {
-    __typename: `${GqlModelType}` | "Shortcut" | "Action" | "CalendarEvent",
-    handle?: string | null,
-    id?: string,
-}
 
 /**
  * All information required to display an award, its progress, and information about the next tier.
@@ -173,44 +160,6 @@ export interface DirectoryStep extends BaseStep {
 }
 export type ProjectStep = DirectoryStep | RoutineStep;
 
-export interface ObjectOption {
-    __typename: `${GqlModelType}`;
-    handle?: string | null;
-    id: string;
-    root?: ListObject | null;
-    versions?: ListObject[] | null;
-    isFromHistory?: boolean;
-    isBookmarked?: boolean;
-    label: string;
-    bookmarks?: number;
-    [key: string]: any;
-    runnableObject?: ListObject | null,
-    to?: ListObject
-}
-
-export interface ShortcutOption {
-    __typename: "Shortcut";
-    isFromHistory?: boolean;
-    label: string;
-    id: string; // Actually URL, but id makes it easier to use
-}
-
-export interface ActionOption {
-    __typename: "Action";
-    canPerform: (session: Session) => boolean;
-    id: string;
-    isFromHistory?: boolean;
-    label: string;
-}
-
-export interface CalendarEventOption {
-    __typename: "CalendarEvent";
-    id: string; // Shape is <scheduleId>|<startDate>|<endDate>
-    title: string;
-}
-
-export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
-
 export type CanConnect<
     RelationShape extends ({ [key in IDField]: string } & { __typename: string }),
     IDField extends string = "id",
@@ -249,9 +198,6 @@ export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<unknown> ? NonN
 
 /** Makes a value lazy or not */
 export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
-
-/** A task mode supported by Valyxa */
-export type AssistantTask = "start" | "note" | "standard";
 
 export type SxType = NonNullable<SystemStyleObject<Theme>> & {
     color?: string;

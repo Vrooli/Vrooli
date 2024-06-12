@@ -7,7 +7,9 @@ export const statsUser_findMany = {
       "periodEnd": true,
       "periodType": true,
       "apisCreated": true,
-      "organizationsCreated": true,
+      "codesCreated": true,
+      "codesCompleted": true,
+      "codeCompletionTimeAverage": true,
       "projectsCreated": true,
       "projectsCompleted": true,
       "projectCompletionTimeAverage": true,
@@ -24,12 +26,10 @@ export const statsUser_findMany = {
       "runRoutinesCompleted": true,
       "runRoutineCompletionTimeAverage": true,
       "runRoutineContextSwitchesAverage": true,
-      "smartContractsCreated": true,
-      "smartContractsCompleted": true,
-      "smartContractCompletionTimeAverage": true,
       "standardsCreated": true,
       "standardsCompleted": true,
-      "standardCompletionTimeAverage": true
+      "standardCompletionTimeAverage": true,
+      "teamssCreated": true
     }
   },
   "pageInfo": {

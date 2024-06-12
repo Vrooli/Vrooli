@@ -1,8 +1,8 @@
-import { BookmarkFor, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
+import { BookmarkFor, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
 import { ButtonProps } from "@mui/material";
 import { FormSchema } from "forms/types";
 import React from "react";
-import { FormErrors, NavigableObject, PartialWithType, SvgProps, SxType } from "types";
+import { FormErrors, PartialWithType, SvgProps, SxType } from "types";
 import { Status } from "utils/consts";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -111,7 +111,7 @@ export interface RunButtonProps {
     runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
 }
 
-export interface SearchButtonsProps {
+export type SearchButtonsProps = {
     advancedSearchParams: object | null;
     advancedSearchSchema: FormSchema | null | undefined;
     controlsUrl: boolean;
@@ -173,7 +173,6 @@ export interface TimeButtonProps {
 }
 
 export interface VoteButtonProps {
-    direction?: "row" | "column";
     disabled?: boolean;
     score?: number; // Net score - can be negative
     emoji?: string | null; // If not passed, then there is neither an upvote nor a downvote

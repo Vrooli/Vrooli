@@ -1,4 +1,4 @@
-import { endpointGetApi, endpointGetChat, endpointGetComment, endpointGetNote, endpointGetOrganization, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetSmartContract, endpointGetStandard, endpointGetTag, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
+import { endpointGetApi, endpointGetChat, endpointGetCode, endpointGetComment, endpointGetNote, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetStandard, endpointGetTag, endpointGetTeam, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -119,23 +119,38 @@ const processMarkdown = (content: string): string => {
 };
 
 // Vrooli pages that show up as special links
-const specialRoutes = ["Api", "Chat", "Comment", "Note", "Organization", "Project", "Question", "Quiz", "Report", "Routine", "SmartContract", "Standard", "Tag", "User"].map(key => LINKS[key]);
+const specialRoutes = [
+    "Api",
+    "Chat",
+    "Code",
+    "Comment",
+    "Note",
+    "Project",
+    "Question",
+    "Quiz",
+    "Report",
+    "Routine",
+    "Standard",
+    "Tag",
+    "Team",
+    "User",
+].map(key => LINKS[key]);
 
 // Maps URL slugs to endpoints
 const routeToEndpoint = {
     [LINKS.Api]: endpointGetApi,
     [LINKS.Chat]: endpointGetChat,
+    [LINKS.Code]: endpointGetCode,
     [LINKS.Comment]: endpointGetComment,
     [LINKS.Note]: endpointGetNote,
-    [LINKS.Organization]: endpointGetOrganization,
     [LINKS.Project]: endpointGetProject,
     [LINKS.Question]: endpointGetQuestion,
     [LINKS.Quiz]: endpointGetQuiz,
     [LINKS.Report]: endpointGetReport,
     [LINKS.Routine]: endpointGetRoutine,
-    [LINKS.SmartContract]: endpointGetSmartContract,
     [LINKS.Standard]: endpointGetStandard,
     [LINKS.Tag]: endpointGetTag,
+    [LINKS.Team]: endpointGetTeam,
     [LINKS.User]: endpointGetUser,
 };
 

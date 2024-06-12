@@ -1,14 +1,14 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, noopSubmit, Reminder, ReminderCreateInput, ReminderUpdateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
-import { Box, Button, Checkbox, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { RichInput } from "components/inputs/RichInput/RichInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -17,11 +17,11 @@ import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { AddIcon, DeleteIcon, DragIcon, ListNumberIcon } from "icons";
+import { AddIcon, DeleteIcon, DragIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
-import { FormContainer } from "styles";
+import { FormContainer, FormSection } from "styles";
 import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -99,7 +99,7 @@ const ReminderForm = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const { handleCancel, handleCreated, handleCompleted, handleDeleted, isCacheOn } = useUpsertActions<Reminder>({
+    const { handleCancel, handleCreated, handleCompleted, handleDeleted } = useUpsertActions<Reminder>({
         display,
         isCreate,
         objectId: values.id,
@@ -117,7 +117,7 @@ const ReminderForm = ({
         endpointCreate: endpointPostReminder,
         endpointUpdate: endpointPutReminder,
     });
-    useSaveToCache({ isCacheOn, isCreate, values, objectId: values.id, objectType: "Reminder" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Reminder" });
 
     const onSubmit = useSubmitHelper<ReminderCreateInput | ReminderUpdateInput, Reminder>({
         disabled,
@@ -226,39 +226,40 @@ const ReminderForm = ({
                     maxWidth={700}
                 >
                     <FormContainer>
-                        <RelationshipList
-                            isEditing={true}
-                            objectType={"Reminder"}
-                        />
-                        <Field
-                            fullWidth
-                            name="name"
-                            label={t("Name")}
-                            placeholder={t("NamePlaceholder")}
-                            as={TextInput}
-                        />
-                        <RichInput
-                            isOptional
-                            maxChars={2048}
-                            maxRows={10}
-                            minRows={4}
-                            name="description"
-                            label={t("Description")}
-                            placeholder={t("DescriptionPlaceholder")}
-                        />
-                        <DateInput
-                            isOptional
-                            name="dueDate"
-                            label={t("DueDate")}
-                            type="datetime-local"
-                        />
-                        {/* Steps to complete reminder */}
-                        <Box display="flex" flexDirection="column">
-                            <Title
-                                Icon={ListNumberIcon}
-                                title={t("Step", { count: 2 })}
-                                variant="subheader"
+                        <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                            <RelationshipList
+                                isEditing={true}
+                                objectType={"Reminder"}
+                                sx={{ marginBottom: 4 }}
                             />
+                            <FormSection sx={{ overflowX: "hidden" }}>
+                                <Field
+                                    autoFocus
+                                    fullWidth
+                                    name="name"
+                                    label={t("Name")}
+                                    placeholder={t("NamePlaceholder")}
+                                    as={TextInput}
+                                />
+                                <RichInput
+                                    isOptional
+                                    maxChars={2048}
+                                    maxRows={10}
+                                    minRows={4}
+                                    name="description"
+                                    label={t("Description")}
+                                    placeholder={t("DescriptionPlaceholder")}
+                                />
+                                <DateInput
+                                    isOptional
+                                    name="dueDate"
+                                    label={t("DueDate")}
+                                    type="datetime-local"
+                                />
+                            </FormSection>
+                        </ContentCollapse>
+                        <Divider />
+                        <ContentCollapse title="Steps to complete" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                             <Droppable droppableId="reminderItems">
                                 {(provided) => (
                                     <div ref={provided.innerRef} {...provided.droppableProps}>
@@ -347,7 +348,7 @@ const ReminderForm = ({
                             >
                                 {t("StepAdd")}
                             </Button>
-                        </Box>
+                        </ContentCollapse>
                     </FormContainer>
                 </BaseForm>
             </DragDropContext>

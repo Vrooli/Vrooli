@@ -4,7 +4,7 @@ import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, Yup
 
 const runProjectStepStatus = enumToYup(RunProjectStepStatus);
 
-export const runProjectStepValidation: YupModel = {
+export const runProjectStepValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),

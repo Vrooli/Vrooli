@@ -1,24 +1,24 @@
-import { Comment, CommentCreateInput, CommentFor, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComment, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session } from "@local/shared";
+import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComments, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session, uuidValidate } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
 import { SendIcon } from "icons";
-import { useContext, useMemo } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay, getYou } from "utils/display/listTools";
+import { defaultYou, getDisplay, getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { CommentShape, shapeComment } from "utils/shape/models/comment";
 import { validateFormValues } from "utils/validateFormValues";
@@ -75,11 +75,10 @@ const CommentForm = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["text"],
-        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: commentTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Comment>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
         isCreate,
         objectType: "Comment",
         ...props,
@@ -94,7 +93,7 @@ const CommentForm = ({
         endpointCreate: endpointPostComment,
         endpointUpdate: endpointPutComment,
     });
-    useSaveToCache({ isCacheOn, isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
+    useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<CommentCreateInput | CommentUpdateInput, Comment>({
@@ -176,13 +175,12 @@ export const CommentDialog = ({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["text"],
-        validationSchema: commentTranslationValidation[isCreate ? "create" : "update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: commentTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
 
-    const { handleCancel, handleCompleted, isCacheOn } = useUpsertActions<Comment>({
+    const { handleCancel, handleCompleted } = useUpsertActions<Comment>({
         isCreate,
         objectType: "Comment",
         ...props,
@@ -197,7 +195,7 @@ export const CommentDialog = ({
         endpointCreate: endpointPostComment,
         endpointUpdate: endpointPutComment,
     });
-    useSaveToCache({ isCacheOn, isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
+    useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<CommentCreateInput | CommentUpdateInput, Comment>({
@@ -283,6 +281,12 @@ export const CommentDialog = ({
     );
 };
 
+const commentFromSearch = (searchResult: CommentSearchResult | undefined): Comment | null => {
+    if (!searchResult) return null;
+    const comment = Array.isArray(searchResult.threads) && searchResult.threads.length > 0 ? searchResult.threads[0].comment : null;
+    return comment;
+}
+
 /**
  * RichInput/CommentContainer wrapper for creating comments
  */
@@ -299,15 +303,20 @@ export const CommentUpsert = ({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Comment, CommentShape>({
-        ...endpointGetComment, // Should never be used, but we still need to pass it
-        isCreate,
-        objectType, // Type of object being commented on, not "Comment"
-        overrideObject,
-        transform: (existing) => commentInitialValues(session, objectType, objectId, language, existing),
-    });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
+    const [getData, { data: fetchedData, loading: isReadLoading }] = useLazyFetch<CommentSearchInput, CommentSearchResult>(endpointGetComments);
+    useEffect(() => {
+        if (!uuidValidate(objectId)) return;
+        getData({ [`${camelCase(objectType)}Id`]: objectId });
+    }, [objectId, objectType]);
 
+    const [existing, setExisting] = useState<CommentShape>(commentInitialValues(session, objectType, objectId, language, {}));
+    useEffect(() => {
+        const comment = commentFromSearch(fetchedData);
+        if (!comment) return;
+        setExisting(commentInitialValues(session, objectType, objectId, language, comment));
+    }, [fetchedData, language, objectType, objectId, session]);
+
+    const permissions = useMemo(() => commentFromSearch(fetchedData) ? getYou(commentFromSearch(fetchedData)) : defaultYou, [fetchedData]);
 
     return (
         <Formik
@@ -318,7 +327,7 @@ export const CommentUpsert = ({
         >
             {(formik) => {
                 if (isMobile) return <CommentDialog
-                    disabled={!(isCreate || canUpdate)}
+                    disabled={!(isCreate || permissions.canUpdate)}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}
@@ -331,7 +340,7 @@ export const CommentUpsert = ({
                     {...formik}
                 />;
                 return <CommentForm
-                    disabled={!(isCreate || canUpdate)}
+                    disabled={!(isCreate || permissions.canUpdate)}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}

@@ -286,6 +286,36 @@ export const endpointPostChatMessage = {
     tag: "chatMessage",
 } as const;
 
+export const endpointPostRegenerateResponse = {
+    endpoint: "/regenerateResponse",
+    method: "POST",
+    tag: "chatMessage",
+} as const;
+
+export const endpointGetAutoFill = {
+    endpoint: "/autoFill",
+    method: "GET",
+    tag: "chatMessage",
+} as const;
+
+export const endpointPostStartTask = {
+    endpoint: "/startTask",
+    method: "POST",
+    tag: "chatMessage",
+} as const;
+
+export const endpointPostCancelTask = {
+    endpoint: "/cancelTask",
+    method: "POST",
+    tag: "chatMessage",
+} as const;
+
+export const endpointGetCheckTaskStatuses = {
+    endpoint: "/checkTaskStatuses",
+    method: "GET",
+    tag: "chatMessage",
+} as const;
+
 export const endpointGetChatParticipant = {
     endpoint: "/chatParticipant/:id",
     method: "GET",
@@ -302,6 +332,54 @@ export const endpointGetChatParticipants = {
     endpoint: "/chatParticipants",
     method: "GET",
     tag: "chatParticipant",
+} as const;
+
+export const endpointGetCode = {
+    endpoint: "/code/:id",
+    method: "GET",
+    tag: "code",
+} as const;
+
+export const endpointPutCode = {
+    endpoint: "/code/:id",
+    method: "PUT",
+    tag: "code",
+} as const;
+
+export const endpointGetCodes = {
+    endpoint: "/codes",
+    method: "GET",
+    tag: "code",
+} as const;
+
+export const endpointPostCode = {
+    endpoint: "/code",
+    method: "POST",
+    tag: "code",
+} as const;
+
+export const endpointGetCodeVersion = {
+    endpoint: "/codeVersion/:id",
+    method: "GET",
+    tag: "codeVersion",
+} as const;
+
+export const endpointPutCodeVersion = {
+    endpoint: "/codeVersion/:id",
+    method: "PUT",
+    tag: "codeVersion",
+} as const;
+
+export const endpointGetCodeVersions = {
+    endpoint: "/codeVersions",
+    method: "GET",
+    tag: "codeVersion",
+} as const;
+
+export const endpointPostCodeVersion = {
+    endpoint: "/codeVersion",
+    method: "POST",
+    tag: "codeVersion",
 } as const;
 
 export const endpointGetComment = {
@@ -712,32 +790,20 @@ export const endpointPostNotificationSubscription = {
     tag: "notificationSubscription",
 } as const;
 
-export const endpointGetOrganization = {
-    endpoint: "/organization/:id",
-    method: "GET",
-    tag: "organization",
-} as const;
-
-export const endpointPutOrganization = {
-    endpoint: "/organization/:id",
-    method: "PUT",
-    tag: "organization",
-} as const;
-
-export const endpointGetOrganizations = {
-    endpoint: "/organizations",
-    method: "GET",
-    tag: "organization",
-} as const;
-
-export const endpointPostOrganization = {
-    endpoint: "/organization",
-    method: "POST",
-    tag: "organization",
-} as const;
-
 export const endpointPostPhone = {
     endpoint: "/phone",
+    method: "POST",
+    tag: "phone",
+} as const;
+
+export const endpointPostPhoneVerificationText = {
+    endpoint: "/phone/verificationText",
+    method: "POST",
+    tag: "phone",
+} as const;
+
+export const endpointPostPhoneValidateText = {
+    endpoint: "/phone/validateText",
     method: "POST",
     tag: "phone",
 } as const;
@@ -820,9 +886,27 @@ export const endpointPostProjectVersion = {
     tag: "projectVersion",
 } as const;
 
+export const endpointGetProjectVersionDirectory = {
+    endpoint: "/projectVersionDirectory/:id",
+    method: "GET",
+    tag: "projectVersionDirectory",
+} as const;
+
+export const endpointPutProjectVersionDirectory = {
+    endpoint: "/projectVersionDirectory/:id",
+    method: "PUT",
+    tag: "projectVersionDirectory",
+} as const;
+
 export const endpointGetProjectVersionDirectories = {
     endpoint: "/projectVersionDirectories",
     method: "GET",
+    tag: "projectVersionDirectory",
+} as const;
+
+export const endpointPostProjectVersionDirectory = {
+    endpoint: "/projectVersionDirectory",
+    method: "POST",
     tag: "projectVersionDirectory",
 } as const;
 
@@ -1384,54 +1468,6 @@ export const endpointPostScheduleRecurrence = {
     tag: "scheduleRecurrence",
 } as const;
 
-export const endpointGetSmartContract = {
-    endpoint: "/smartContract/:id",
-    method: "GET",
-    tag: "smartContract",
-} as const;
-
-export const endpointPutSmartContract = {
-    endpoint: "/smartContract/:id",
-    method: "PUT",
-    tag: "smartContract",
-} as const;
-
-export const endpointGetSmartContracts = {
-    endpoint: "/smartContracts",
-    method: "GET",
-    tag: "smartContract",
-} as const;
-
-export const endpointPostSmartContract = {
-    endpoint: "/smartContract",
-    method: "POST",
-    tag: "smartContract",
-} as const;
-
-export const endpointGetSmartContractVersion = {
-    endpoint: "/smartContractVersion/:id",
-    method: "GET",
-    tag: "smartContractVersion",
-} as const;
-
-export const endpointPutSmartContractVersion = {
-    endpoint: "/smartContractVersion/:id",
-    method: "PUT",
-    tag: "smartContractVersion",
-} as const;
-
-export const endpointGetSmartContractVersions = {
-    endpoint: "/smartContractVersions",
-    method: "GET",
-    tag: "smartContractVersion",
-} as const;
-
-export const endpointPostSmartContractVersion = {
-    endpoint: "/smartContractVersion",
-    method: "POST",
-    tag: "smartContractVersion",
-} as const;
-
 export const endpointGetStandard = {
     endpoint: "/standard/:id",
     method: "GET",
@@ -1486,10 +1522,10 @@ export const endpointGetStatsApi = {
     tag: "statsApi",
 } as const;
 
-export const endpointGetStatsOrganization = {
-    endpoint: "/stats/organization",
+export const endpointGetStatsCode = {
+    endpoint: "/stats/code",
     method: "GET",
-    tag: "statsOrganization",
+    tag: "statsCode",
 } as const;
 
 export const endpointGetStatsProject = {
@@ -1516,16 +1552,16 @@ export const endpointGetStatsSite = {
     tag: "statsSite",
 } as const;
 
-export const endpointGetStatsSmartContract = {
-    endpoint: "/stats/smartContract",
-    method: "GET",
-    tag: "statsSmartContract",
-} as const;
-
 export const endpointGetStatsStandard = {
     endpoint: "/stats/standard",
     method: "GET",
     tag: "statsStandard",
+} as const;
+
+export const endpointGetStatsTeam = {
+    endpoint: "/stats/team",
+    method: "GET",
+    tag: "statsTeam",
 } as const;
 
 export const endpointGetStatsUser = {
@@ -1556,6 +1592,30 @@ export const endpointPostTag = {
     endpoint: "/tag",
     method: "POST",
     tag: "tag",
+} as const;
+
+export const endpointGetTeam = {
+    endpoint: "/team/:id",
+    method: "GET",
+    tag: "team",
+} as const;
+
+export const endpointPutTeam = {
+    endpoint: "/team/:id",
+    method: "PUT",
+    tag: "team",
+} as const;
+
+export const endpointGetTeams = {
+    endpoint: "/teams",
+    method: "GET",
+    tag: "team",
+} as const;
+
+export const endpointPostTeam = {
+    endpoint: "/team",
+    method: "POST",
+    tag: "team",
 } as const;
 
 export const endpointGetTransfer = {
@@ -1618,8 +1678,8 @@ export const endpointGetUnionsProjectOrRoutines = {
     tag: "unions",
 } as const;
 
-export const endpointGetUnionsProjectOrOrganizations = {
-    endpoint: "/unions/projectOrOrganizations",
+export const endpointGetUnionsProjectOrTeams = {
+    endpoint: "/unions/projectOrTeams",
     method: "GET",
     tag: "unions",
 } as const;

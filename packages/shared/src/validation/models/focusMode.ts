@@ -5,7 +5,7 @@ import { reminderListValidation } from "./reminderList";
 import { resourceListValidation } from "./resourceList";
 import { scheduleValidation } from "./schedule";
 
-export const focusModeValidation: YupModel = {
+export const focusModeValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         name: req(name),

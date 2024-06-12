@@ -13,19 +13,19 @@ export const typeDef = gql`
     input MeetingCreateInput {
         id: ID!
         openToAnyoneWithInvite: Boolean
-        showOnOrganizationProfile: Boolean
-        organizationConnect: ID!
-        restrictedToRolesConnect: [ID!]
+        showOnTeamProfile: Boolean
         invitesCreate: [MeetingInviteCreateInput!]
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        restrictedToRolesConnect: [ID!]
         scheduleCreate: ScheduleCreateInput
+        teamConnect: ID!
         translationsCreate: [MeetingTranslationCreateInput!]
     }
     input MeetingUpdateInput {
         id: ID!
         openToAnyoneWithInvite: Boolean
-        showOnOrganizationProfile: Boolean
+        showOnTeamProfile: Boolean
         restrictedToRolesConnect: [ID!]
         restrictedToRolesDisconnect: [ID!]
         invitesCreate: [MeetingInviteCreateInput!]
@@ -45,8 +45,8 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         openToAnyoneWithInvite: Boolean!
-        showOnOrganizationProfile: Boolean!
-        organization: Organization!
+        showOnTeamProfile: Boolean!
+        team: Team!
         restrictedToRoles: [Role!]!
         attendees: [User!]!
         attendeesCount: Int!
@@ -95,12 +95,12 @@ export const typeDef = gql`
         openToAnyoneWithInvite: Boolean
         scheduleStartTimeFrame: TimeFrame
         scheduleEndTimeFrame: TimeFrame
-        showOnOrganizationProfile: Boolean
+        showOnTeamProfile: Boolean
         labelsIds: [ID!]
-        organizationId: ID
         searchString: String
         sortBy: MeetingSortBy
         take: Int
+        teamId: ID
         translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType

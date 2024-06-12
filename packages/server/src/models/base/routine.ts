@@ -5,12 +5,14 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { getLabels } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerShapeHelper, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
+import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
 import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { RoutineFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+
+type RoutinePre = PreShapeRootResult;
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -197,7 +199,7 @@ import { BookmarkModelLogic, OrganizationModelLogic, ReactionModelLogic, Routine
 const __typename = "Routine" as const;
 export const RoutineModel: RoutineModelLogic = ({
     __typename,
-    delegate: (prisma) => prisma.routine,
+    dbTable: "routine",
     display: () => rootObjectDisplay(ModelMap.get<RoutineVersionModelLogic>("RoutineVersion")),
     format: RoutineFormat,
     mutate: {
@@ -205,33 +207,39 @@ export const RoutineModel: RoutineModelLogic = ({
             // TODO for morning 2: need to create helper to handle version pre/post logic. These should 
             // also support calling Trigger, and also version index logic. I started implementing this (the version index logic) somewhere before, 
             // maybe models/routineVersion.
-            pre: async (params) => {
+            pre: async (params): Promise<RoutinePre> => {
                 const maps = await preShapeRoot({ ...params, objectType: __typename });
                 return { ...maps };
             },
-            create: async ({ data, ...rest }) => ({
-                id: data.id,
-                isInternal: noNull(data.isInternal),
-                isPrivate: data.isPrivate,
-                permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", relation: "labels", data, ...rest })),
-            }),
-            update: async ({ data, ...rest }) => ({
-                isInternal: noNull(data.isInternal),
-                isPrivate: noNull(data.isPrivate),
-                permissions: noNull(data.permissions),
-                ...rest.preMap[__typename].versionMap[data.id],
-                ...(await ownerShapeHelper({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
-                ...(await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest })),
-                ...(await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", relation: "tags", data, ...rest })),
-                ...(await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", relation: "labels", data, ...rest })),
-            }),
+            create: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as RoutinePre;
+                return {
+                    id: data.id,
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: data.isPrivate,
+                    permissions: noNull(data.permissions) ?? JSON.stringify({}),
+                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: true, objectType: __typename, data, ...rest })),
+                    parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "forks", data, ...rest }),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
+                };
+            },
+            update: async ({ data, ...rest }) => {
+                const preData = rest.preMap[__typename] as RoutinePre;
+                return {
+                    isInternal: noNull(data.isInternal),
+                    isPrivate: noNull(data.isPrivate),
+                    permissions: noNull(data.permissions),
+                    ...preData.versionMap[data.id],
+                    ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "routines", isCreate: false, objectType: __typename, data, ...rest })),
+                    versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
+                    tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
+                    labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
+                };
+            },
         },
         trigger: {
             afterMutations: async (params) => {
@@ -251,13 +259,14 @@ export const RoutineModel: RoutineModelLogic = ({
             isInternal: true,
             issuesId: true,
             labelsIds: true,
+            latestVersionRoutineType: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,
             minScore: true,
             minBookmarks: true,
             minViews: true,
-            ownedByOrganizationId: true,
+            ownedByTeamId: true,
             ownedByUserId: true,
             parentId: true,
             pullRequestsId: true,
@@ -275,15 +284,15 @@ export const RoutineModel: RoutineModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, prisma, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData)),
-                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(prisma, userData?.id, ids, __typename),
-                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(prisma, userData?.id, ids, __typename),
+                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
+                        isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
+                        reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    "translatedName": await getLabels(ids, __typename, prisma, userData?.languages ?? ["en"], "project.translatedName"),
+                    "translatedName": await getLabels(ids, __typename, userData?.languages ?? ["en"], "project.translatedName"),
                 };
             },
         },
@@ -292,17 +301,21 @@ export const RoutineModel: RoutineModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
-        isPublic: (data, ...rest) => data.isPrivate === false &&
+        isPublic: (data, ...rest) =>
+            data.isPrivate === false &&
             data.isDeleted === false &&
             data.isInternal === false &&
-            oneIsPublic<RoutineModelInfo["PrismaSelect"]>([
-                ["ownedByOrganization", "Organization"],
-                ["ownedByUser", "User"],
-            ], data, ...rest),
+            (
+                (data.ownedByUser === null && data.ownedByTeam === null) ||
+                oneIsPublic<RoutineModelInfo["PrismaSelect"]>([
+                    ["ownedByTeam", "Team"],
+                    ["ownedByUser", "User"],
+                ], data, ...rest)
+            ),
         isTransferable: true,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Organization: data?.ownedByOrganization,
+            Team: data?.ownedByTeam,
             User: data?.ownedByUser,
         }),
         permissionResolvers: defaultPermissions,
@@ -314,17 +327,32 @@ export const RoutineModel: RoutineModelLogic = ({
             isPrivate: true,
             permissions: true,
             createdBy: "User",
-            ownedByOrganization: "Organization",
+            ownedByTeam: "Team",
             ownedByUser: "User",
             versions: ["RoutineVersion", ["root"]],
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: {
+                isDeleted: false,
+                OR: [
+                    { isPrivate: true },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
+                ],
+            },
+            public: {
+                isDeleted: false,
+                isPrivate: false,
+                OR: [
+                    { ownedByTeam: null, ownedByUser: null },
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+                ],
+            },
             owner: (userId) => ({
                 OR: [
+                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },
-                    { ownedByOrganization: ModelMap.get<OrganizationModelLogic>("Organization").query.hasRoleQuery(userId) },
                 ],
             }),
         },

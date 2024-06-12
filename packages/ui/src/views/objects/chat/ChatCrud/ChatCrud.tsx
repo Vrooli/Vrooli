@@ -1,15 +1,13 @@
-import { Chat, ChatCreateInput, ChatMessage, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointGetChatMessageTree, endpointPostChat, endpointPutChat, exists, LINKS, noopSubmit, orDefault, Session, uuid, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, Session, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
-import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse, socket } from "api";
+import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ChatBubbleTree, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
+import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RichInputBase } from "components/inputs/RichInputBase/RichInputBase";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TranslatedRichInput } from "components/inputs/TranslatedRichInput/TranslatedRichInput";
-import { TranslatedTextInput } from "components/inputs/TranslatedTextInput/TranslatedTextInput";
+import { RichInputBase, TranslatedRichInput } from "components/inputs/RichInput/RichInput";
+import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
@@ -17,27 +15,26 @@ import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useDeleter } from "hooks/useDeleter";
+import { useDimensions } from "hooks/useDimensions";
 import { useHistoryState } from "hooks/useHistoryState";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { findTargetMessage, useMessageTree } from "hooks/useMessageTree";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen";
+import { useMessageActions } from "hooks/useMessageActions";
+import { useMessageTree } from "hooks/useMessageTree";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useSocketChat } from "hooks/useSocketChat";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
 import { TFunction } from "i18next";
-import { CopyIcon, ListIcon, SendIcon } from "icons";
+import { AddIcon, CopyIcon, ListIcon, SendIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { parseSearchParams, useLocation } from "route";
+import { useLocation } from "route";
 import { FormContainer, pagePaddingBottom } from "styles";
-import { AssistantTask } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap, getCookieMessageTree, getCookiePartialData, setCookieMatchingChat, setCookieMessageTree } from "utils/cookies";
-import { getYou } from "utils/display/listTools";
+import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
-import { getObjectUrl } from "utils/navigation/openObject";
-import { uuidToBase36 } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { ChatShape, shapeChat } from "utils/shape/models/chat";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
@@ -55,12 +52,12 @@ export const VALYXA_INFO = {
 
 export const chatInitialValues = (
     session: Session | undefined,
-    task: AssistantTask | undefined,
+    task: string | undefined,
     t: TFunction<"common", undefined, "common">,
     language: string,
     existing?: Partial<Chat> | null | undefined,
 ): ChatShape => {
-    const messages: ChatMessageShape[] = existing?.messages ?? [];
+    const messages: ChatMessageShape[] = (existing?.messages ?? []).map(m => ({ ...m, status: "sent" }));
     // If chatting with Valyxa, add start message so that the user 
     // sees something while the chat is loading
     if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatInviteShape) => invite.user.id === VALYXA_ID)) {
@@ -74,7 +71,8 @@ export const chatInitialValues = (
                 __typename: "Chat" as const,
                 id: existing.id ?? DUMMY_ID,
             },
-            isUnsent: true,
+            status: "unsent",
+            versionIndex: 0,
             reactionSummaries: [],
             translations: [{
                 __typename: "ChatMessageTranslation" as const,
@@ -99,24 +97,25 @@ export const chatInitialValues = (
             },
         });
     }
+    const currentUser = getCurrentUser(session);
     return {
         __typename: "Chat" as const,
         id: DUMMY_ID,
         openToAnyoneWithInvite: false,
-        organization: null,
+        team: null,
         invites: [],
         labels: [],
         // Add yourself to the participants list
-        participants: [{
+        participants: (currentUser.id ? [{
             __typename: "ChatParticipant" as const,
             id: uuid(),
             user: {
-                ...getCookiePartialData({ __typename: "User", id: getCurrentUser(session).id! }),
-                id: getCurrentUser(session).id!,
+                ...getCookiePartialData({ __typename: "User", id: currentUser.id }),
+                id: currentUser.id,
                 isBot: false,
-                name: getCurrentUser(session).name!,
+                name: currentUser.id,
             },
-        }] as ChatParticipant[],
+        }] : []) as ChatParticipant[],
         participantsDelete: [],
         ...existing,
         messages,
@@ -137,9 +136,17 @@ export const transformChatValues = (values: ChatShape, existing: ChatShape, isCr
  * Finds messages that are yours or are unsent (i.e. bot's initial message), 
  * to make sure you don't attempt to modify other people's messages
  */
-export const withoutOtherMessages = (chat: ChatShape, session?: Session) => ({
+export const withModifiableMessages = (chat: ChatShape, session?: Session) => ({
     ...chat,
-    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.isUnsent) ?? [],
+    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.status === "unsent") ?? [],
+});
+
+/**
+ * Finds messages that are only yours
+ */
+export const withYourMessages = (chat: ChatShape, session?: Session) => ({
+    ...chat,
+    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id) ?? [],
 });
 
 const ChatForm = ({
@@ -164,9 +171,11 @@ const ChatForm = ({
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
-    const [usersTyping, setUsersTyping] = useState<ChatParticipant[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
 
     const {
         fetch,
@@ -185,11 +194,14 @@ const ChatForm = ({
     useEffect(() => {
         if (isOpen === false || values.id !== DUMMY_ID || chatCreateStatus.current !== "notStarted") return;
         chatCreateStatus.current = "inProgress";
+        // Search params are often used to set chat name, but might not include some fields we need to make the yup validation happy
+        const withSearchParams = { ...values, ...parseSearchParams() };
+        withSearchParams.translations = withSearchParams.translations?.map(t => ({ ...t, id: t.id ?? DUMMY_ID })) ?? [];
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
-            inputs: transformChatValues(withoutOtherMessages({ ...values, ...parseSearchParams() }, session), withoutOtherMessages(existing, session), true),
+            inputs: transformChatValues(withModifiableMessages(withSearchParams, session), withYourMessages(existing, session), true),
             onSuccess: (data) => {
-                handleUpdate(data);
+                handleUpdate({ ...data, messages: [] });
                 if (display === "page") setLocation(getObjectUrl(data), { replace: true });
             },
             onCompleted: () => {
@@ -204,6 +216,9 @@ const ChatForm = ({
         chatCreateStatus.current = "notStarted";
     }, [isOpen]);
 
+    useEffect(() => {
+        setParticipants(existing.participants);
+    }, [existing.participants]);
     // When a chat is loaded, store chat ID by participants and task
     useEffect(() => {
         const userIds = existing.participants?.map(p => p.user?.id);
@@ -211,135 +226,88 @@ const ChatForm = ({
         setCookieMatchingChat(existing.id, userIds, task);
     }, [existing.id, existing.participants, session, task]);
 
-    const { addMessages, clearMessages, editMessage, messagesCount, removeMessages, tree } = useMessageTree<ChatMessageShape>([]);
-    const [branches, setBranches] = useState<BranchMap>(getCookieMessageTree(existing.id)?.branches ?? {});
+    const messageTree = useMessageTree(existing.id);
+    const { dimensions, ref: dimRef } = useDimensions();
 
-    // We query messages separate from the chat, since we must traverse the message tree
-    const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+    const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
-    // When chatId changes, clear the message tree and branches, and fetch new data
-    useEffect(() => {
-        if (existing.id === DUMMY_ID) return;
-        clearMessages();
-        setBranches({});
-        console.log("getting tree dataaaaaaaaaa", existing.id);
-        getTreeData({ chatId: existing.id });
-    }, [existing.id, clearMessages, getTreeData]);
-    useEffect(() => {
-        if (!searchTreeData || searchTreeData.messages.length === 0) return;
-        addMessages(searchTreeData.messages);
-    }, [addMessages, searchTreeData]);
-
-    useEffect(() => {
-        // Update the cookie with current branches
-        setCookieMessageTree(existing.id, { branches, locationId: "someLocationId" }); // TODO locationId should be last chat message in view
-    }, [branches, existing.id]);
-
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isTreeLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useCallback((updatedChat?: ChatShape) => {
-        if (disabled) {
-            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        fetchLazyWrapper<ChatUpdateInput, Chat>({
-            fetch,
-            inputs: transformChatValues(withoutOtherMessages(updatedChat ?? values, session), withoutOtherMessages(existing, session), false),
+    const newChat = useCallback(() => {
+        if (isLoading || existing.id === DUMMY_ID) return;
+        // Create a new chat with the same participants
+        fetchLazyWrapper<ChatCreateInput, Chat>({
+            fetch: fetchCreate,
+            inputs: {
+                id: uuid(),
+                invitesCreate: existing.participants.map(p => ({
+                    id: uuid(),
+                    chatConnect: existing.id,
+                    userConnect: p.user.id,
+                })),
+                translationsCreate: existing.translations?.map(t => ({
+                    ...t,
+                    id: uuid(),
+                })) ?? [],
+            },
             onSuccess: (data) => {
-                console.log("update success!", data);
-                handleUpdate(data);
-                setMessage("");
+                handleUpdate({ ...data, messages: [] });
+                if (display === "page") setLocation(getObjectUrl(data), { replace: true });
+                setUsersTyping([]);
+                //TODO simple update would be ideal, but there is a bug where it switches back to the original chat and messes up message retrieval
+                window.location.reload();
             },
             onCompleted: () => { props.setSubmitting(false); },
-            onError: (data) => {
-                PubSub.get().publish("snack", {
-                    message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
-                    severity: "Error",
-                    data,
-                });
-            },
-            spinnerDelay: null,
+        });
+    }, [display, existing.id, existing.participants, existing.translations, fetchCreate, handleUpdate, isLoading, props, setLocation]);
+
+    const onSubmit = useCallback((updatedChat?: ChatShape) => {
+        return new Promise<Chat>((resolve, reject) => {
+            if (disabled) {
+                PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
+                reject();
+                return;
+            }
+            // Clear typed message
+            let oldMessage: string | undefined;
+            setMessage((m) => {
+                oldMessage = m;
+                return "";
+            });
+            fetchLazyWrapper<ChatUpdateInput, Chat>({
+                fetch,
+                inputs: transformChatValues(withModifiableMessages(updatedChat ?? values, session), withYourMessages(existing, session), false),
+                onSuccess: (data) => {
+                    handleUpdate({ ...data, messages: [] });
+                    resolve(data);
+                },
+                onCompleted: () => { props.setSubmitting(false); },
+                onError: (data) => {
+                    // Put typed message back if there was a problem
+                    setMessage(oldMessage ?? "");
+                    PubSub.get().publish("snack", {
+                        message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
+                        severity: "Error",
+                        data,
+                    });
+                    reject(data);
+                },
+                spinnerDelay: null,
+            });
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
-    // Handle websocket connection/disconnection
-    useEffect(() => {
-        // Only connect to the websocket if the chat exists
-        if (!existing?.id || existing.id === DUMMY_ID) return;
-        socket.emit("joinRoom", existing.id, (response) => {
-            if (response.error) {
-                console.error("Failed to join chat room", response?.error);
-            } else {
-                console.info("Joined chat room");
-            }
-        });
-        // Leave the chat room when the component is unmounted
-        return () => {
-            socket.emit("leaveRoom", existing.id, (response) => {
-                if (response.error) {
-                    console.error("Failed to leave chat room", response?.error);
-                } else {
-                    console.info("Left chat room");
-                }
-            });
-        };
-    }, [existing.id]);
-    // Handle websocket events
-    useEffect(() => {
-        // When a message is received, add it to the chat
-        socket.on("message", (message: ChatMessage) => {
-            addMessages([message]);
-        });
-        // When a message is updated, update it in the chat
-        socket.on("editMessage", (message: ChatMessage) => {
-            editMessage(message);
-        });
-        // When a message is deleted, remove it from the chat
-        socket.on("deleteMessage", (id: string) => {
-            removeMessages([id]);
-        });
-        // Show the status of users typing
-        socket.on("typing", ({ starting, stopping }: { starting?: string[], stopping?: string[] }) => {
-            // Add every user that's typing
-            const newTyping = [...usersTyping];
-            for (const id of starting ?? []) {
-                // Never add yourself
-                if (id === getCurrentUser(session).id) continue;
-                if (newTyping.some(p => p.user.id === id)) continue;
-                const participant = existing.participants?.find(p => p.user.id === id);
-                if (!participant) continue;
-                newTyping.push(participant);
-            }
-            // Remove every user that stopped typing
-            for (const id of stopping ?? []) {
-                const index = newTyping.findIndex(p => p.user.id === id);
-                if (index === -1) continue;
-                newTyping.splice(index, 1);
-            }
-            setUsersTyping(newTyping);
-        });
-        // TODO add participants joining/leaving, making sure to update matching chat cache in cookies
-        return () => {
-            // Remove chat-specific event handlers
-            socket.off("message");
-            socket.off("typing");
-        };
-    }, [addMessages, editMessage, existing.participants, handleUpdate, message, removeMessages, session, usersTyping]);
-
-    const handleReply = useCallback((message: ChatMessageShape) => {
-        // Determine if we should edit an existing message or create a new one
-        const existingMessageId = findTargetMessage(tree, branches, message, existing?.participants?.length ?? 0, session);
-        // If editing an existing message, send pub/sub
-        if (existingMessageId) {
-            PubSub.get().publish("chatMessageEdit", existingMessageId);
-            return;
-        }
-        // Otherwise, set the message input to "@[handle_of_user_youre_replying_to] "
-        else {
-            PubSub.get().publish("chatMessageEdit", false);
-            setMessage(existingText => `@[${message.user?.name}] ${existingText}`);
-        }
-    }, [branches, existing?.participants?.length, session, setMessage, tree]);
+    const { messageStream } = useSocketChat({
+        addMessages: messageTree.addMessages,
+        chat: existing,
+        editMessage: messageTree.editMessage,
+        messageTasks: messageTree.messageTasks,
+        participants,
+        removeMessages: messageTree.removeMessages,
+        setParticipants,
+        setUsersTyping,
+        task,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
+        usersTyping,
+    });
 
     // Handle translations
     const {
@@ -348,40 +316,19 @@ const ChatForm = ({
         language,
         languages,
         setLanguage,
-        translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        fields: ["description", "name"],
-        validationSchema: chatTranslationValidation["update"]({ env: import.meta.env.PROD ? "production" : "development" }),
+        validationSchema: chatTranslationValidation["update"]({ env: process.env.NODE_ENV }),
     });
 
-    const addMessage = useCallback((text: string) => {
-        const newMessage: ChatMessageShape = {
-            __typename: "ChatMessage" as const,
-            id: uuid(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            isUnsent: true,
-            chat: {
-                __typename: "Chat" as const,
-                id: existing.id,
-            },
-            reactionSummaries: [],
-            translations: [{
-                __typename: "ChatMessageTranslation" as const,
-                id: DUMMY_ID,
-                language,
-                text,
-            }],
-            user: {
-                __typename: "User" as const,
-                id: getCurrentUser(session).id ?? "",
-                isBot: false,
-                name: getCurrentUser(session).name ?? undefined,
-            },
-        };
-        onSubmit({ ...values, messages: [...(values.messages ?? []), newMessage] });
-    }, [existing.id, language, onSubmit, session, values]);
+    const messageActions = useMessageActions({
+        chat: values,
+        handleChatUpdate: onSubmit,
+        language,
+        tasks: messageTree.messageTasks,
+        tree: messageTree.tree,
+        updateTasksForMessage: messageTree.updateTasksForMessage,
+    });
 
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {
@@ -417,7 +364,14 @@ const ChatForm = ({
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
-    const showBotWarning = useMemo(() => !disabled && usersTyping.length === 0 && messagesCount <= 2 && existing.participants?.some(i => i?.user?.isBot), [disabled, existing.participants, messagesCount, usersTyping]);
+    const hasBotParticipant = existing?.participants?.some(p => p.user?.isBot) ?? false;
+    const isBotOnlyChat = existing?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
+    const showBotWarning = useMemo(() =>
+        !disabled &&
+        usersTyping.length === 0 &&
+        messageTree.messagesCount <= 2 &&
+        hasBotParticipant
+        , [disabled, usersTyping, messageTree.messagesCount, hasBotParticipant]);
 
     return (
         <>
@@ -436,8 +390,8 @@ const ChatForm = ({
                     flexDirection: "column",
                     overflow: "hidden",
                     ...(display === "page" && {
-                        maxHeight: "100vh",
-                        height: "100vh",
+                        maxHeight: "calc(100vh - env(safe-area-inset-bottom))",
+                        height: "calc(100vh - env(safe-area-inset-bottom))",
                     }),
                 }}>
                     <TopBar
@@ -478,7 +432,7 @@ const ChatForm = ({
                                         }}
                                     >
                                         <FormContainer>
-                                            {/* TODO relationshiplist should be for connecting organization and inviting users. Can invite non-members even if organization specified, but the search should show members first */}
+                                            {/* TODO relationshiplist should be for connecting team and inviting users. Can invite non-members even if team specified, but the search should show members first */}
                                             <RelationshipList
                                                 isEditing={true}
                                                 objectType={"Chat"}
@@ -550,8 +504,27 @@ const ChatForm = ({
                                 </>
                             )}
                         />}
+                        below={existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
+                            display="flex"
+                            flexDirection="row"
+                            justifyContent="space-around"
+                            alignItems="center"
+                            maxWidth="min(100vw, 1000px)"
+                            margin="auto"
+                        >
+                            <Button
+                                color="primary"
+                                onClick={() => { newChat(); }}
+                                variant="contained"
+                                sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
+                                startIcon={<AddIcon />}
+                            >
+                                {t("NewChat")}
+                            </Button>
+                        </Box>}
                     />
                     <Box sx={{
+                        position: "relative",
                         display: "flex",
                         flexDirection: "column",
                         flexGrow: 1,
@@ -560,14 +533,21 @@ const ChatForm = ({
                         width: "min(700px, 100%)",
                     }}>
                         <ChatBubbleTree
-                            branches={branches}
-                            editMessage={editMessage}
-                            handleReply={handleReply}
-                            handleRetry={() => { }}
-                            removeMessages={removeMessages}
-                            setBranches={setBranches}
-                            tree={tree}
+                            branches={messageTree.branches}
+                            dimensions={dimensions}
+                            dimRef={dimRef}
+                            editMessage={messageActions.putMessage}
+                            handleReply={messageTree.replyToMessage}
+                            handleRetry={messageActions.regenerateResponse}
+                            handleTaskClick={messageActions.respondToTask}
+                            isBotOnlyChat={isBotOnlyChat}
+                            messageStream={messageStream}
+                            messageTasks={messageTree.messageTasks}
+                            removeMessages={messageTree.removeMessages}
+                            setBranches={messageTree.setBranches}
+                            tree={messageTree.tree}
                         />
+                        <ScrollToBottomButton containerRef={dimRef} />
                     </Box>
                     {!showBotWarning && <TypingIndicator participants={usersTyping} />}
                     {/* Warning that you are talking to a bot */}
@@ -587,13 +567,11 @@ const ChatForm = ({
                     <RichInputBase
                         actionButtons={[{
                             Icon: SendIcon,
+                            disabled: !existing || isLoading,
                             onClick: () => {
-                                if (!existing) {
-                                    PubSub.get().publish("snack", { message: "Chat not found", severity: "Error" });
-                                    return;
-                                }
-                                if (message.trim() === "") return;
-                                addMessage(message);
+                                const trimmed = message.trim();
+                                if (trimmed.length === 0) return;
+                                messageActions.postMessage(trimmed);
                             },
                         }]}
                         disabled={!existing}
@@ -618,7 +596,14 @@ const ChatForm = ({
                         onBlur={onBlur}
                         onChange={setMessage}
                         onFocus={onFocus}
+                        onSubmit={(m) => {
+                            if (!existing || isLoading) return;
+                            const trimmed = m.trim();
+                            if (trimmed.length === 0) return;
+                            messageActions.postMessage(trimmed);
+                        }}
                         name="newMessage"
+                        placeholder={t("MessagePlaceholder")}
                         sxs={{
                             root: {
                                 background: palette.primary.dark,
@@ -626,11 +611,11 @@ const ChatForm = ({
                                 maxHeight: "min(75vh, 500px)",
                                 width: "min(700px, 100%)",
                                 margin: "auto",
-                                marginBottom: { xs: display === "page" ? pagePaddingBottom : "0", md: "0" },
+                                marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
                             },
                             topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
                             bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            textArea: {
+                            inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
                             },
@@ -656,7 +641,7 @@ export const ChatCrud = ({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
         ...endpointGetChat,
         onError: (errors) => {
             // If the chat doesn't exist, switch to create mode
@@ -665,13 +650,13 @@ export const ChatCrud = ({
                 setExisting(chatInitialValues(session, task, t, getUserLanguages(session)[0]));
             }
         },
+        disabled: display !== "page",
         displayError: display === "page" || isOpen === true, // Suppress errors from closed dialogs
         isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
         transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
     });
-    const { canUpdate } = useMemo(() => getYou(existing), [existing]);
 
     return (
         <Formik
@@ -683,7 +668,7 @@ export const ChatCrud = ({
             {(formik) =>
                 <>
                     <ChatForm
-                        disabled={!(isCreate || canUpdate)}
+                        disabled={!(isCreate || permissions.canUpdate)}
                         display={display}
                         existing={existing}
                         handleUpdate={setExisting}

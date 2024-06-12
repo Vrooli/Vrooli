@@ -160,7 +160,6 @@ export function CommentThreadItem({
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
                         <VoteButton
-                            direction="row"
                             disabled={!canReact}
                             emoji={reaction}
                             objectId={data?.id ?? ""}
