@@ -207,6 +207,7 @@ export const typeDef = gql`
         ownedByUserIdRoot: ID
         reportId: ID
         rootId: ID
+        routineType: RoutineType
         searchString: String
         sortBy: RoutineVersionSortBy
         tagsRoot: [String!]

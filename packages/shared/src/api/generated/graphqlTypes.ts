@@ -7466,6 +7466,7 @@ export type RoutineSearchInput = {
   isInternal?: InputMaybe<Scalars['Boolean']>;
   issuesId?: InputMaybe<Scalars['ID']>;
   labelsIds?: InputMaybe<Array<Scalars['ID']>>;
+  latestVersionRoutineType?: InputMaybe<RoutineType>;
   maxBookmarks?: InputMaybe<Scalars['Int']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   maxViews?: InputMaybe<Scalars['Int']>;
@@ -7766,6 +7767,7 @@ export type RoutineVersionSearchInput = {
   ownedByUserIdRoot?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
+  routineType?: InputMaybe<RoutineType>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineVersionSortBy>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;

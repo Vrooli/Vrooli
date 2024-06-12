@@ -127,11 +127,14 @@ export const readManyHelper = async <Input extends { [x: string]: any }>({
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
-    const customQueries: { [x: string]: unknown }[] = [];
+    const customQueries: object[] = [];
     if (searcher) {
         for (const field of Object.keys(searcher.searchFields)) {
-            if (input[field as string] !== undefined) {
-                customQueries.push(SearchMap[field as string](input[field], userData, model.__typename));
+            const fieldInput = input[field];
+            const searchMapper = SearchMap[field];
+            if (fieldInput !== undefined && searchMapper !== undefined) {
+                const searchData = { objectType: model.__typename, userData, visibility: input.visibility ?? visibility };
+                customQueries.push(searchMapper(fieldInput, searchData));
             }
         }
     }

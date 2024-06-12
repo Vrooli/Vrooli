@@ -120,6 +120,7 @@ export const typeDef = gql`
         isInternal: Boolean
         issuesId: ID
         labelsIds: [ID!]
+        latestVersionRoutineType: RoutineType
         maxScore: Int
         maxBookmarks: Int
         maxViews: Int

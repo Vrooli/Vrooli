@@ -200,7 +200,7 @@ export interface Formatter<
     removeCountFields?: (data: GqlObject) => GqlObject;
 }
 
-type CommonSearchFields = "after" | "take" | "ids" | "searchString" | "visibility";
+type CommonSearchFields = "after" | "take" | "ids" | "offset" | "searchString" | "sortBy" | "visibility";
 
 export type SearchStringQueryParams = {
     insensitive: { contains: string; mode: "default" | "insensitive"; },

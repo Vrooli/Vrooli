@@ -145,7 +145,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "versions", data, ...rest }),
                     // ...(await shapeHelper({ relation: "suggestedNextByRoutineVersion", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'RoutineVersionEndNext', parentRelationshipName: 'fromRoutineVersion', data, ...rest })), needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -189,6 +189,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
+            routineType: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,

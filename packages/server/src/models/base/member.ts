@@ -25,8 +25,10 @@ export const MemberModel: MemberModelLogic = ({
         sortBy: MemberSortBy,
         searchFields: {
             createdTimeFrame: true,
-            updatedTimeFrame: true,
+            isAdmin: true,
+            roles: true,
             teamId: true,
+            updatedTimeFrame: true,
             userId: true,
         },
         searchStringQuery: () => ({

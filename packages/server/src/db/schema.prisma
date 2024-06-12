@@ -89,6 +89,7 @@ model api_version {
     isComplete              Boolean                     @default(false)
     isDeleted               Boolean                     @default(false)
     isLatest                Boolean                     @default(false)
+    isLatestPublic          Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
     rootId                  String                      @db.Uuid
     resourceListId          String?                     @unique @db.Uuid
@@ -296,6 +297,124 @@ model chat_roles {
     role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
     @@unique([chatId, roleId], name: "chat_roles_chatid_roleid_unique")
+}
+
+model code {
+    id                 String                      @id @default(uuid()) @db.Uuid
+    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
+    hasBeenTransferred Boolean                     @default(false)
+    hasCompleteVersion Boolean                     @default(false)
+    completedAt        DateTime?                   @db.Timestamptz(6)
+    isDeleted          Boolean                     @default(false)
+    isPrivate          Boolean                     @default(false)
+    score              Int                         @default(0)
+    bookmarks          Int                         @default(0)
+    views              Int                         @default(0)
+    permissions        String                      @db.VarChar(4096)
+    createdById        String?                     @db.Uuid
+    parentId           String?                     @db.Uuid
+    ownedByTeamId      String?                     @db.Uuid
+    ownedByUserId      String?                     @db.Uuid
+    createdBy          user?                       @relation("code_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    issues             issue[]
+    parent             code_version?               @relation("code_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    ownedByTeam        team?                       @relation("code_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
+    ownedByUser        user?                       @relation("code_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
+    labels             code_labels[]
+    tags               code_tags[]
+    bookmarkedBy       bookmark[]                  @relation("bookmark_code")
+    versions           code_version[]
+    viewedBy           view[]                      @relation("view_code")
+    reactions          reaction[]                  @relation("reaction_code")
+    reactionSummaries  reaction_summary[]          @relation("reaction_summary_code")
+    pullRequests       pull_request[]
+    stats              stats_code[]
+    questions          question[]
+    transfers          transfer[]                  @relation("transfer_code")
+    subscriptions      notification_subscription[]
+}
+
+model code_version {
+    id                      String                      @id @default(uuid()) @db.Uuid
+    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    codeLanguage            String                      @db.VarChar(128)
+    codeType                CodeType                    @default(DataConvert)
+    completedAt             DateTime?                   @db.Timestamptz(6)
+    default                 String?                     @db.VarChar(2048)
+    content                 String                      @db.VarChar(8192)
+    isLatest                Boolean                     @default(false)
+    isLatestPublic          Boolean                     @default(false)
+    resourceListId          String?                     @unique @db.Uuid
+    rootId                  String                      @db.Uuid
+    versionIndex            Int                         @default(0)
+    versionLabel            String                      @default("1.0.0") @db.VarChar(16)
+    versionNotes            String?                     @db.VarChar(4096)
+    intendToPullRequest     Boolean                     @default(false)
+    pullRequestId           String?                     @unique @db.Uuid
+    isComplete              Boolean                     @default(false)
+    isDeleted               Boolean                     @default(false)
+    isPrivate               Boolean                     @default(false)
+    calledByRoutineVersions routine_version[]
+    comments                comment[]
+    contract                code_version_contract?
+    forks                   code[]                      @relation("code_version_fork")
+    pullRequest             pull_request?               @relation("pull_request_from_code_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+    reports                 report[]
+    root                    code                        @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    resourceList            resource_list?              @relation("resource_list_code_version", fields: [resourceListId], references: [id], onDelete: SetNull)
+    translations            code_version_translation[]
+    directoryListings       project_version_directory[]
+
+    @@unique([rootId, versionIndex], name: "code_version_rootId_versionIndex_unique")
+}
+
+model code_version_translation {
+    id                   String                      @id @default(uuid()) @db.Uuid
+    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
+    embedding            Unsupported("vector(768)")?
+    embeddingNeedsUpdate Boolean                     @default(true)
+    name                 String                      @db.VarChar(128)
+    description          String?                     @db.VarChar(2048)
+    jsonVariable         String?                     @db.VarChar(8192)
+    codeVersionId        String                      @db.Uuid
+    language             String                      @db.VarChar(3)
+    codeVersion          code_version                @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
+
+    @@unique([codeVersionId, language])
+}
+
+model code_version_contract {
+    id                String       @id @default(uuid()) @db.Uuid
+    address           String?      @db.VarChar(256)
+    blockchain        String       @db.VarChar(128)
+    codeVersionId     String       @unique @db.Uuid
+    contractType      String?      @db.VarChar(256)
+    hash              String?      @db.VarChar(256)
+    isAddressVerified Boolean      @default(false)
+    isHashVerified    Boolean      @default(false)
+    codeVersion       code_version @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
+}
+
+model code_tags {
+    id       String @id @default(uuid()) @db.Uuid
+    taggedId String @db.Uuid
+    tagTag   String @db.VarChar(128)
+    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
+    tagged   code   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagTag], name: "code_tags_taggedid_tagTag_unique")
+}
+
+model code_labels {
+    id         String @id @default(uuid()) @db.Uuid
+    labelledId String @db.Uuid
+    labelId    String @db.Uuid
+    labelled   code   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
+    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+    @@unique([labelledId, labelId], name: "code_labels_labelledid_labelid_unique")
 }
 
 model comment {
@@ -710,6 +829,7 @@ model note_version {
     isComplete          Boolean                     @default(false)
     isDeleted           Boolean                     @default(false)
     isLatest            Boolean                     @default(false)
+    isLatestPublic      Boolean                     @default(false)
     isPrivate           Boolean                     @default(false)
     rootId              String                      @db.Uuid
     pullRequestId       String?                     @unique @db.Uuid
@@ -1162,6 +1282,7 @@ model project_version {
     isComplete                 Boolean                       @default(true)
     isDeleted                  Boolean                       @default(false)
     isLatest                   Boolean                       @default(false)
+    isLatestPublic             Boolean                       @default(false)
     isPrivate                  Boolean                       @default(false)
     rootId                     String                        @db.Uuid
     simplicity                 Int                           @default(1)
@@ -1796,6 +1917,7 @@ model routine_version {
     isComplete                        Boolean                       @default(true)
     isDeleted                         Boolean                       @default(false)
     isLatest                          Boolean                       @default(false)
+    isLatestPublic                    Boolean                       @default(false)
     isPrivate                         Boolean                       @default(false)
     rootId                            String                        @db.Uuid
     routineType                       RoutineType                   @default(Informational)
@@ -2073,123 +2195,6 @@ model schedule_recurrence {
     duration       Int?
 }
 
-model code {
-    id                 String                      @id @default(uuid()) @db.Uuid
-    created_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                    @default(now()) @db.Timestamptz(6)
-    hasBeenTransferred Boolean                     @default(false)
-    hasCompleteVersion Boolean                     @default(false)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    isDeleted          Boolean                     @default(false)
-    isPrivate          Boolean                     @default(false)
-    score              Int                         @default(0)
-    bookmarks          Int                         @default(0)
-    views              Int                         @default(0)
-    permissions        String                      @db.VarChar(4096)
-    createdById        String?                     @db.Uuid
-    parentId           String?                     @db.Uuid
-    ownedByTeamId      String?                     @db.Uuid
-    ownedByUserId      String?                     @db.Uuid
-    createdBy          user?                       @relation("code_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    issues             issue[]
-    parent             code_version?               @relation("code_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    ownedByTeam        team?                       @relation("code_ownedByTeam", fields: [ownedByTeamId], references: [id], onDelete: SetNull)
-    ownedByUser        user?                       @relation("code_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    labels             code_labels[]
-    tags               code_tags[]
-    bookmarkedBy       bookmark[]                  @relation("bookmark_code")
-    versions           code_version[]
-    viewedBy           view[]                      @relation("view_code")
-    reactions          reaction[]                  @relation("reaction_code")
-    reactionSummaries  reaction_summary[]          @relation("reaction_summary_code")
-    pullRequests       pull_request[]
-    stats              stats_code[]
-    questions          question[]
-    transfers          transfer[]                  @relation("transfer_code")
-    subscriptions      notification_subscription[]
-}
-
-model code_version {
-    id                      String                      @id @default(uuid()) @db.Uuid
-    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
-    codeLanguage            String                      @db.VarChar(128)
-    codeType                CodeType                    @default(DataConvert)
-    completedAt             DateTime?                   @db.Timestamptz(6)
-    default                 String?                     @db.VarChar(2048)
-    content                 String                      @db.VarChar(8192)
-    isLatest                Boolean                     @default(false)
-    resourceListId          String?                     @unique @db.Uuid
-    rootId                  String                      @db.Uuid
-    versionIndex            Int                         @default(0)
-    versionLabel            String                      @default("1.0.0") @db.VarChar(16)
-    versionNotes            String?                     @db.VarChar(4096)
-    intendToPullRequest     Boolean                     @default(false)
-    pullRequestId           String?                     @unique @db.Uuid
-    isComplete              Boolean                     @default(false)
-    isDeleted               Boolean                     @default(false)
-    isPrivate               Boolean                     @default(false)
-    calledByRoutineVersions routine_version[]
-    comments                comment[]
-    contract                code_version_contract?
-    forks                   code[]                      @relation("code_version_fork")
-    pullRequest             pull_request?               @relation("pull_request_from_code_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    reports                 report[]
-    root                    code                        @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    resourceList            resource_list?              @relation("resource_list_code_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    translations            code_version_translation[]
-    directoryListings       project_version_directory[]
-
-    @@unique([rootId, versionIndex], name: "code_version_rootId_versionIndex_unique")
-}
-
-model code_version_translation {
-    id                   String                      @id @default(uuid()) @db.Uuid
-    updated_at           DateTime                    @default(now()) @db.Timestamptz(6)
-    embedding            Unsupported("vector(768)")?
-    embeddingNeedsUpdate Boolean                     @default(true)
-    name                 String                      @db.VarChar(128)
-    description          String?                     @db.VarChar(2048)
-    jsonVariable         String?                     @db.VarChar(8192)
-    codeVersionId        String                      @db.Uuid
-    language             String                      @db.VarChar(3)
-    codeVersion          code_version                @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([codeVersionId, language])
-}
-
-model code_version_contract {
-    id                String       @id @default(uuid()) @db.Uuid
-    address           String?      @db.VarChar(256)
-    blockchain        String       @db.VarChar(128)
-    codeVersionId     String       @unique @db.Uuid
-    contractType      String?      @db.VarChar(256)
-    hash              String?      @db.VarChar(256)
-    isAddressVerified Boolean      @default(false)
-    isHashVerified    Boolean      @default(false)
-    codeVersion       code_version @relation(fields: [codeVersionId], references: [id], onDelete: Cascade)
-}
-
-model code_tags {
-    id       String @id @default(uuid()) @db.Uuid
-    taggedId String @db.Uuid
-    tagTag   String @db.VarChar(128)
-    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
-    tagged   code   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
-
-    @@unique([taggedId, tagTag], name: "code_tags_taggedid_tagTag_unique")
-}
-
-model code_labels {
-    id         String @id @default(uuid()) @db.Uuid
-    labelledId String @db.Uuid
-    labelId    String @db.Uuid
-    labelled   code   @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-    @@unique([labelledId, labelId], name: "code_labels_labelledid_labelid_unique")
-}
-
 model standard {
     id                 String                      @id @default(uuid()) @db.Uuid
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
@@ -2236,6 +2241,7 @@ model standard_version {
     standardType          String
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
+    isLatestPublic        Boolean                        @default(false)
     resourceListId        String?                        @unique @db.Uuid
     rootId                String                         @db.Uuid
     yup                   String?                        @db.VarChar(8192)

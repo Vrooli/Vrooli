@@ -225,7 +225,7 @@ export const RoutineModel: RoutineModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Routine", data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as RoutinePre;
@@ -238,7 +238,7 @@ export const RoutineModel: RoutineModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "RoutineVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Routine", data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -259,6 +259,7 @@ export const RoutineModel: RoutineModelLogic = ({
             isInternal: true,
             issuesId: true,
             labelsIds: true,
+            latestVersionRoutineType: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,

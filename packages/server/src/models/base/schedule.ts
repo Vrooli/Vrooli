@@ -80,6 +80,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
         searchFields: {
             createdTimeFrame: true,
             endTimeFrame: true,
+            scheduleFor: true,
             scheduleForUserId: true,
             startTimeFrame: true,
             updatedTimeFrame: true,
