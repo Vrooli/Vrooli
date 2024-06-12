@@ -1,16 +1,17 @@
 import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, ParseSearchParamsResult, YouInflated, exists, parseSearchParams, uuidValidate } from "@local/shared";
 import { FetchInputOptions } from "api/types";
-import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "route";
 import { PartialWithType } from "types";
 import { getCookieFormData, getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { defaultYou, getYou } from "utils/display/listTools";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
+import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { useLazyFetch } from "./useLazyFetch";
-import { useStableCallback } from "./useStableCallback";
 
 type UrlObject = { __typename: GqlModelType | `${GqlModelType}`, id?: string };
+
+type FetchInput = FindByIdInput | FindVersionInput | FindByIdOrHandleInput;
 
 /** 
  * When transform is provided, we know that all fields of the object must exist. 
@@ -28,6 +29,43 @@ export type UseObjectFromUrlReturn<TData extends UrlObject, TFunc> = {
     permissions: YouInflated;
     setObject: Dispatch<SetStateAction<ObjectReturnType<TData, TFunc>>>;
 }
+
+/** Either applies the transform or returns the input data directly */
+export const applyDataTransform = <
+    PData extends UrlObject,
+    TData extends UrlObject = PartialWithType<PData>
+>(
+    data: Partial<PData>,
+    transform: ((data: Partial<PData>) => TData) | undefined,
+): any => {//ObjectReturnType<TData, (data: Partial<PData>) => TData> => {
+    // If data is malformed, return null and pretend it's the correct type
+    if (!data) return null as unknown as ObjectReturnType<TData, (data: Partial<PData>) => TData>;
+    // Otherwise, apply the transform if it exists
+    return (typeof transform === "function" ? transform(data) : data) as ObjectReturnType<TData, (data: Partial<PData>) => TData>;
+};
+
+/**
+ * Fetches data using identifiers from the url, if they exist.
+ * @param params Item information parsed from URL
+ * @param getData Function for fetching data
+ * @param onError Function for handling errors
+ * @param displayError Boolean to indicate if error snack should be displayed
+ * @returns True if "getData" was called, false otherwise
+ */
+export const fetchDataUsingUrl = (
+    params: UrlInfo,
+    getData: ((input: FetchInput, inputOptions?: FetchInputOptions | undefined) => unknown),
+    onError: FetchInputOptions["onError"],
+    displayError: boolean | undefined,
+) => {
+    const inputOptions = { onError, displayError };
+    if (exists(params.handle)) getData({ handle: params.handle }, inputOptions);
+    else if (exists(params.handleRoot)) getData({ handleRoot: params.handleRoot }, inputOptions);
+    else if (exists(params.id)) getData({ id: params.id }, inputOptions);
+    else if (exists(params.idRoot)) getData({ idRoot: params.idRoot }, inputOptions);
+    else return false;
+    return true;
+};
 
 /**
  * Hook for finding an object from the URL and providing relevant properties and functions
@@ -66,35 +104,35 @@ export function useObjectFromUrl<
     const [{ pathname }] = useLocation();
     const urlParams = useMemo(() => parseSingleItemUrl({ pathname }), [pathname]);
 
-    const stableOnError = useStableCallback(onError);
-    const stableOnInvalidUrlParams = useStableCallback(onInvalidUrlParams);
-    const stableTransform = useStableCallback(transform);
-
-    /** Either applies the transform or returns the input data directly */
-    const applyTransform = useCallback((data: Partial<PData>) => {
-        return typeof stableTransform === "function" ? stableTransform(data) : data;
-    }, [stableTransform]);
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
+    const onInvalidUrlParamsRef = useRef(onInvalidUrlParams);
+    onInvalidUrlParamsRef.current = onInvalidUrlParams;
+    const transformRef = useRef(transform);
+    transformRef.current = transform;
 
     // Fetch data
-    const [getData, { data: fetchedData, errors: fetchedErrors, loading: isLoading }] = useLazyFetch<FindByIdInput | FindVersionInput | FindByIdOrHandleInput, PData>({ endpoint });
+    const [getData, { data: fetchedData, errors: fetchedErrors, loading: isLoading }] = useLazyFetch<FetchInput, PData>({ endpoint });
     const [object, setObject] = useState<ObjectReturnType<TData, TFunc>>(() => {
         // If overrideObject provided, use it. Also use transform if provided
-        if (typeof overrideObject === "object") return applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>;
+        if (typeof overrideObject === "object") return applyDataTransform(overrideObject, transformRef.current);
+        // If disabled, don't try anything else
+        if (disabled) return applyDataTransform({}, transformRef.current);
         // Try to find object in cache
-        const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...(disabled ? {} : urlParams) });
+        const storedData = getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         // If transform provided, use it
-        const data = applyTransform(storedData) as ObjectReturnType<TData, TFunc>;
+        const data = applyDataTransform(storedData, transformRef.current);
         // Try to find form data in cache
-        const storedForm = getCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : urlParams.id}`);
+        const storedForm = getCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : urlParams.id}`) as Partial<PData> | undefined;
         if (storedForm) {
-            if (isCreate) return applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>;
+            if (isCreate) return applyDataTransform(storedForm, transformRef.current);
             else if (JSON.stringify(storedForm) === JSON.stringify(data)) return data;
             PubSub.get().publish("snack", {
                 autoHideDuration: "persist",
                 messageKey: "FormDataFound",
                 buttonKey: "Yes",
                 buttonClicked: () => {
-                    setObject(applyTransform(storedForm as Partial<PData>) as ObjectReturnType<TData, TFunc>);
+                    setObject(applyDataTransform(storedForm, transformRef.current));
                 },
                 severity: "Warning",
             });
@@ -103,32 +141,30 @@ export function useObjectFromUrl<
         else if (isCreate) {
             const searchParams = parseSearchParams();
             if (Object.keys(searchParams).length) {
-                return applyTransform(searchParams as Partial<PData>) as ObjectReturnType<TData, TFunc>;
+                return applyDataTransform(searchParams as Partial<PData>, transformRef.current);
             }
         }
         // Return data
         return data;
     });
     useEffect(() => {
-        // If overrideObject provided, don't fetch
-        if (typeof overrideObject === "object") return;
-        // Objects can be found using a few different unique identifiers
-        if (exists(urlParams.handle)) getData({ handle: urlParams.handle }, { onError: stableOnError, displayError });
-        else if (exists(urlParams.handleRoot)) getData({ handleRoot: urlParams.handleRoot }, { onError: stableOnError, displayError });
-        else if (exists(urlParams.id)) getData({ id: urlParams.id }, { onError: stableOnError, displayError });
-        else if (exists(urlParams.idRoot)) getData({ idRoot: urlParams.idRoot }, { onError: stableOnError, displayError });
+        // If overrideObject provided or disabled, don't fetch
+        if (typeof overrideObject === "object" || disabled) return;
+        // Try to fetch data using URL params
+        const fetched = fetchDataUsingUrl(urlParams, getData, onErrorRef.current, displayError);
+        if (fetched) return;
         // If transform provided, ignore bad URL params. This is because we only use the transform for 
         // upsert forms, which don't have a valid URL if the object doesn't exist yet (i.e. when creating)
-        else if (typeof stableTransform === "function") return;
+        if (typeof transformRef.current === "function") return;
         // Else if onInvalidUrlParams provided, call it
-        else if (exists(stableOnInvalidUrlParams)) stableOnInvalidUrlParams(urlParams);
+        else if (exists(onInvalidUrlParamsRef.current)) onInvalidUrlParamsRef.current(urlParams);
         // Else, show error
         else PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-    }, [stableOnError, getData, objectType, overrideObject, displayError, stableOnInvalidUrlParams, stableTransform, urlParams]);
+    }, [getData, objectType, overrideObject, displayError, urlParams]);
     useEffect(() => {
         // If overrideObject provided, use it
         if (typeof overrideObject === "object") {
-            setObject(applyTransform(overrideObject) as ObjectReturnType<TData, TFunc>);
+            setObject(applyDataTransform(overrideObject, transformRef.current));
             return;
         }
         // If data was queried (i.e. object exists), store it in local state
@@ -137,17 +173,14 @@ export function useObjectFromUrl<
         // we should clear the cookie data and set the object to its default value
         else if (fetchedErrors?.some(e => e.code === "Unauthorized")) {
             removeCookiePartialData({ __typename: objectType, ...urlParams });
-            setObject(applyTransform({}) as ObjectReturnType<TData, TFunc>);
+            setObject(applyDataTransform({}, transformRef.current));
             return;
         }
         const knownData = fetchedData ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         if (knownData && typeof knownData === "object" && uuidValidate(knownData.id)) {
-            // If transform provided, use it
-            const changedData = applyTransform(knownData) as ObjectReturnType<TData, TFunc>;
-            // Set object
-            setObject(changedData as ObjectReturnType<TData, TFunc>);
+            setObject(applyDataTransform(knownData, transformRef.current));
         }
-    }, [applyTransform, fetchedData, fetchedErrors, objectType, overrideObject, urlParams]);
+    }, [fetchedData, fetchedErrors, objectType, overrideObject, urlParams]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);
