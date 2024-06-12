@@ -173,7 +173,6 @@ export interface TimeButtonProps {
 }
 
 export interface VoteButtonProps {
-    direction?: "row" | "column";
     disabled?: boolean;
     score?: number; // Net score - can be negative
     emoji?: string | null; // If not passed, then there is neither an upvote nor a downvote

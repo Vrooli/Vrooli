@@ -13,6 +13,7 @@ import { ChatBubbleProps } from "components/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useDeleter } from "hooks/useDeleter";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { usePopover } from "hooks/usePopover";
 import usePress from "hooks/usePress";
 import { AddIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, PlayIcon, RefreshIcon, ReplyIcon, SearchIcon, SuccessIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -230,15 +231,9 @@ const ChatBubbleReactions = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const handleEmojiMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-    const handleEmojiMenuClose = () => {
-        setAnchorEl(null);
-    };
+    const [anchorEl, openReactionMenu, closeReactionMenu] = usePopover();
     const onReactionAdd = (emoji: string) => {
-        setAnchorEl(null);
+        closeReactionMenu();
         handleReactionAdd(emoji);
     };
 
@@ -284,14 +279,14 @@ const ChatBubbleReactions = ({
                     <IconButton
                         size="small"
                         style={{ borderRadius: 0, background: "transparent" }}
-                        onClick={handleEmojiMenuOpen}
+                        onClick={openReactionMenu}
                     >
                         <AddIcon />
                     </IconButton>
                 )}
                 <EmojiPicker
                     anchorEl={anchorEl}
-                    onClose={handleEmojiMenuClose}
+                    onClose={closeReactionMenu}
                     onSelect={onReactionAdd}
                 />
             </Stack>

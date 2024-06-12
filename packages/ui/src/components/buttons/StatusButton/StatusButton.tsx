@@ -50,14 +50,10 @@ export const StatusButton = ({
 
     const StatusIcon = useMemo(() => STATUS_ICON[status], [status]);
 
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const openPopover = useCallback((event: any) => {
-        console.log("openPopover anchor", event.currentTarget);
-        if (!anchorEl) setAnchorEl(event.currentTarget);
-    }, [anchorEl]);
-    const closePopover = () => {
-        setAnchorEl(null);
-    };
+    const [anchorEl, open, close] = usePopover();
+    const openPopover = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        if (!anchorEl) open(event);
+    }, [anchorEl, open]);
 
     return (
         <>
@@ -90,7 +86,7 @@ export const StatusButton = ({
             </Tooltip>
             <PopoverWithArrow
                 anchorEl={anchorEl}
-                handleClose={closePopover}
+                handleClose={close}
                 sxs={{
                     root: {
                         // Remove horizontal spacing for list items

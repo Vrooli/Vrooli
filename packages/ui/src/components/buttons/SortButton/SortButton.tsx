@@ -1,8 +1,9 @@
 import { CommonKey } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
+import { usePopover } from "hooks/usePopover";
 import i18next from "i18next";
 import { SortIcon } from "icons";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { searchButtonStyle } from "../styles";
 import { SortButtonProps } from "../types";
@@ -62,11 +63,9 @@ export const SortButton = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
-
-    const handleSortOpen = (event: { currentTarget: HTMLElement }) => setSortAnchorEl(event.currentTarget);
+    const [sortAnchorEl, openSort, closeSort] = usePopover();
     const handleSortClose = (_label?: string, selected?: string) => {
-        setSortAnchorEl(null);
+        closeSort();
         if (selected) setSortBy(selected);
     };
 
@@ -91,7 +90,7 @@ export const SortButton = ({
             />
             <Tooltip title={t("SortBy")} placement="top">
                 <Box
-                    onClick={handleSortOpen}
+                    onClick={openSort}
                     sx={searchButtonStyle(palette)}
                 >
                     <SortIcon fill={palette.secondary.main} />

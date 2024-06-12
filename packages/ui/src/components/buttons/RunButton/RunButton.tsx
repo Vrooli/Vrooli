@@ -2,8 +2,9 @@ import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, p
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
+import { usePopover } from "hooks/usePopover";
 import { PlayIcon } from "icons";
-import { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setSearchParams, useLocation } from "route";
 import { Status } from "utils/consts";
@@ -41,7 +42,7 @@ export const RunButton = ({
         const params = parseSearchParams();
         return typeof params.run === "string" && uuidValidate(params.run);
     });
-    const [selectRunAnchor, setSelectRunAnchor] = useState<HTMLElement | null>(null);
+    const [selectRunAnchor, openSelectRunDialog, closeSelectRunDialog] = usePopover();
     const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {
@@ -59,9 +60,8 @@ export const RunButton = ({
         }
         setIsRunOpen(true);
     }, [setLocation]);
-    const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
 
-    const startRun = useCallback((e: any) => {
+    const startRun = useCallback((event: React.MouseEvent<HTMLElement>) => {
         // If editing, don't use a real run
         if (isEditing) {
             setSearchParams(setLocation, {
@@ -71,21 +71,18 @@ export const RunButton = ({
             setIsRunOpen(true);
         }
         else {
-            setSelectRunAnchor(e.currentTarget);
+            openSelectRunDialog(event);
         }
-    }, [isEditing, setLocation]);
+    }, [isEditing, openSelectRunDialog, setLocation]);
 
     // Invalid message popup
-    const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
-    const openError = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+    const [errorAnchorEl, openErrorPopup, closeErrorPopup] = usePopover();
+    const openError = useCallback((ev: React.MouseEvent<HTMLElement>) => {
         ev.preventDefault();
-        setErrorAnchorEl(ev.currentTarget ?? ev.target);
-    }, []);
-    const closeError = useCallback(() => {
-        setErrorAnchorEl(null);
-    }, []);
+        openErrorPopup(ev);
+    }, [openErrorPopup]);
 
-    const runStart = useCallback((event: React.MouseEvent<Element>) => {
+    const runStart = useCallback((event: React.MouseEvent<HTMLElement>) => {
         // If invalid, don't run
         if (status === Status.Invalid) {
             openError(event);
@@ -117,7 +114,7 @@ export const RunButton = ({
             {/* Invalid routine popup */}
             <PopoverWithArrow
                 anchorEl={errorAnchorEl}
-                handleClose={closeError}
+                handleClose={closeErrorPopup}
             >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
             {/* Run dialog */}
             {runnableObject && <RunView
@@ -129,7 +126,7 @@ export const RunButton = ({
             {/* Chooses which run to use */}
             <RunPickerMenu
                 anchorEl={selectRunAnchor}
-                handleClose={handleSelectRunClose}
+                handleClose={closeSelectRunDialog}
                 onAdd={handleRunAdd}
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}

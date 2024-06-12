@@ -1,7 +1,8 @@
 import { Box, IconButton, Menu, Tooltip, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
+import { usePopover } from "hooks/usePopover";
 import { HelpIcon } from "icons";
-import { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { linkColors, noSelect } from "styles";
 import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
 import { HelpButtonProps } from "../types";
@@ -14,16 +15,12 @@ export const HelpButton = ({
     sx,
 }: HelpButtonProps) => {
     const { palette } = useTheme();
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const open = Boolean(anchorEl);
 
-    const openMenu = useCallback((event: any) => {
+    const [anchorEl, handleOpen, handleClose, isOpen] = usePopover();
+    const openMenu = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         if (onClick) onClick(event);
-        if (!anchorEl) setAnchorEl(event.currentTarget);
-    }, [anchorEl, onClick]);
-    const closeMenu = () => {
-        setAnchorEl(null);
-    };
+        if (!anchorEl) handleOpen(event);
+    }, [anchorEl, handleOpen, onClick]);
 
     return (
         <Box
@@ -32,7 +29,7 @@ export const HelpButton = ({
                 ...sxRoot,
             }}
         >
-            <Tooltip placement='top' title={!open ? "Open Help Menu" : ""}>
+            <Tooltip placement='top' title={!isOpen ? "Open Help Menu" : ""}>
                 <IconButton
                     onClick={openMenu}
                     sx={{
@@ -44,10 +41,10 @@ export const HelpButton = ({
                     <HelpIcon fill={palette.secondary.main} {...sx} />
                     <Menu
                         id={id}
-                        open={open}
+                        open={isOpen}
                         disableScrollLock={true}
                         anchorEl={anchorEl}
-                        onClose={closeMenu}
+                        onClose={handleClose}
                         anchorOrigin={{
                             vertical: "bottom",
                             horizontal: "right",
@@ -67,7 +64,7 @@ export const HelpButton = ({
                             },
                         }}
                     >
-                        <MenuTitle onClose={closeMenu} />
+                        <MenuTitle onClose={handleClose} />
                         <Box sx={{
                             padding: 2,
                             minHeight: "50px",

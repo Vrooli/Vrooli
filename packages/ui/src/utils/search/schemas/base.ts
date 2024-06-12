@@ -1,10 +1,15 @@
 import { FormSchema } from "forms/types";
 
 export type SearchParams = {
+    /** Schema to display advanced search dialog */
     advancedSearchSchema: FormSchema | null;
+    /** What sort option to use by default */
     defaultSortBy: any;
+    /** Endpoint to use for findMany */
     findManyEndpoint: string;
+    /** Endpoint to use for findOne */
     findOneEndpoint: string | undefined;
+    /** All possible sort options */
     sortByOptions: any;
 }
 

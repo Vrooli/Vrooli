@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiVersionSortBy, CommentSortBy, RoutineSortBy, stringifySearchParams } from '@local/shared';
+import { ApiVersionSortBy, CommentSortBy, RoutineSortBy, stringifySearchParams } from "@local/shared";
 import { searchTypeToParams } from "../utils/search/objectToSearch";
-import { getUrlSearchParams, parseData, readyToSearch, updateSearchUrl, updateSortBy } from './useFindMany';
+import { getUrlSearchParams, parseData, readyToSearch, updateSearchUrl, updateSortBy } from "./useFindMany";
 
 // Helper function to set window.location.search
 const setWindowSearch = (search) => {
@@ -16,20 +16,20 @@ const setWindowSearch = (search) => {
 
 // Mock setLocation function
 const mockSetLocation = jest.fn((path, { replace, searchParams }) => {
-    console.log("in boop mockSetLocation", path, replace, searchParams)
+    console.log("in boop mockSetLocation", path, replace, searchParams);
     const search = stringifySearchParams(searchParams);
     setWindowSearch(`?${search}`);
 });
 
-describe('parseData', () => {
+describe("parseData", () => {
     // Test 1: No Data
-    test('should return an empty array if data is null undefined', () => {
+    test("should return an empty array if data is null undefined", () => {
         // @ts-ignore: Testing runtime scenario
         expect(parseData(null)).toEqual([]);
         expect(parseData(undefined)).toEqual([]);
     });
 
-    test('should return an empty array if data is not an object', () => {
+    test("should return an empty array if data is not an object", () => {
         // @ts-ignore: Testing runtime scenario
         expect(parseData("string")).toEqual([]);
         // @ts-ignore: Testing runtime scenario
@@ -37,7 +37,7 @@ describe('parseData', () => {
     });
 
     // Test 2: Custom Resolver
-    test('should use custom resolver if provided', () => {
+    test("should use custom resolver if provided", () => {
         const customResolver = jest.fn().mockReturnValue([{ id: 1 }]);
         const data = { items: [{ id: 1 }] };
         expect(parseData(data, customResolver)).toEqual([{ id: 1 }]);
@@ -45,60 +45,60 @@ describe('parseData', () => {
     });
 
     // Test 3: Invalid Custom Resolver
-    test('should handle custom resolver returning non-array values', () => {
+    test("should handle custom resolver returning non-array values", () => {
         const customResolver = jest.fn().mockReturnValue(null);
         const data = { items: [{ id: 1 }] };
         expect(parseData(data, customResolver)).toBeNull();
     });
 
     // Test 4: Paginated Data
-    test('should correctly parse paginated data', () => {
+    test("should correctly parse paginated data", () => {
         const paginatedData = { edges: [{ node: { id: 1 } }, { node: { id: 2 } }] };
         expect(parseData(paginatedData)).toEqual([{ id: 1 }, { id: 2 }]);
     });
 
     // Test 5: Non-Paginated Data
-    test('should return empty array if edges are not present', () => {
+    test("should return empty array if edges are not present", () => {
         const nonPaginatedData = { items: [{ id: 1 }] };
         expect(parseData(nonPaginatedData)).toEqual([]);
     });
 
     // Test 6: Error Handling
-    test('should not throw error with unexpected input types', () => {
+    test("should not throw error with unexpected input types", () => {
         expect(() => parseData([1, 2, 3])).not.toThrow();
     });
 });
 
-describe('updateSortBy', () => {
+describe("updateSortBy", () => {
     const searchParams = {
-        defaultSortBy: 'DateCreatedAsc',
+        defaultSortBy: "DateCreatedAsc",
         sortByOptions: { DateCreatedAsc: true, NameDesc: true },
     };
 
     // Test 1: Valid SortBy
-    test('returns sortBy when it is valid', () => {
-        const sortBy = 'NameDesc';
+    test("returns sortBy when it is valid", () => {
+        const sortBy = "NameDesc";
         const result = updateSortBy(searchParams, sortBy);
         expect(result).toBe(sortBy);
     });
 
     // Test 2: Invalid SortBy
-    test('returns defaultSortBy when sortBy is not valid', () => {
-        const sortBy = 'unknown';
+    test("returns defaultSortBy when sortBy is not valid", () => {
+        const sortBy = "unknown";
         const result = updateSortBy(searchParams, sortBy);
         expect(result).toBe(searchParams.defaultSortBy);
     });
 
     // Test 3: Default Fallback
-    test('returns an empty string if defaultSortBy is undefined and sortBy is not valid', () => {
+    test("returns an empty string if defaultSortBy is undefined and sortBy is not valid", () => {
         const localSearchParams = { sortByOptions: { NameDesc: true }, defaultSortBy: undefined };
-        const sortBy = 'unknown';
+        const sortBy = "unknown";
         const result = updateSortBy(localSearchParams, sortBy);
-        expect(result).toBe('');
+        expect(result).toBe("");
     });
 
     // Test 4: Non-String SortBy
-    test('handles non-string sortBy gracefully', () => {
+    test("handles non-string sortBy gracefully", () => {
         const sortBy = 12345;
         // @ts-ignore: Testing runtime scenario
         const result = updateSortBy(searchParams, sortBy);
@@ -106,65 +106,65 @@ describe('updateSortBy', () => {
     });
 
     // Test 5: Missing sortByOptions
-    test('returns defaultSortBy if sortByOptions is missing', () => {
-        const localSearchParams = { defaultSortBy: 'DateCreatedAsc' };
-        const sortBy = 'NameDesc';
+    test("returns defaultSortBy if sortByOptions is missing", () => {
+        const localSearchParams = { defaultSortBy: "DateCreatedAsc" };
+        const sortBy = "NameDesc";
         // @ts-ignore: Testing runtime scenario
         const result = updateSortBy(localSearchParams, sortBy);
-        expect(result).toBe('DateCreatedAsc');
+        expect(result).toBe("DateCreatedAsc");
     });
 });
 
-describe('readyToSearch', () => {
+describe("readyToSearch", () => {
     const baseParams = {
         canSearch: true,
         loading: false,
         hasMore: true,
-        findManyEndpoint: 'http://api.example.com/search',
-        sortBy: 'date',  // Only one sortBy needed, correctly initialized here
+        findManyEndpoint: "http://api.example.com/search",
+        sortBy: "date",  // Only one sortBy needed, correctly initialized here
         advancedSearchParams: null,
-        searchString: '',
+        searchString: "",
         timeFrame: undefined,
         where: {},
     };
 
     // Test 1: All conditions met
-    test('returns true when all conditions are met', () => {
+    test("returns true when all conditions are met", () => {
         expect(readyToSearch(baseParams)).toBe(true);
     });
 
     // Test 2: canSearch is false
-    test('returns false when canSearch is false', () => {
+    test("returns false when canSearch is false", () => {
         const params = { ...baseParams, canSearch: false };
         expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 3: loading is true
-    test('returns false when loading is true', () => {
+    test("returns false when loading is true", () => {
         const params = { ...baseParams, loading: true };
         expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 4: hasMore is false
-    test('returns false when hasMore is false', () => {
+    test("returns false when hasMore is false", () => {
         const params = { ...baseParams, hasMore: false };
         expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 5: findManyEndpoint is empty
-    test('returns false when findManyEndpoint is empty', () => {
-        const params = { ...baseParams, findManyEndpoint: '' };
+    test("returns false when findManyEndpoint is empty", () => {
+        const params = { ...baseParams, findManyEndpoint: "" };
         expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 6: sortBy is empty
-    test('returns false when sortBy is empty', () => {
-        const params = { ...baseParams, sortBy: '' };
+    test("returns false when sortBy is empty", () => {
+        const params = { ...baseParams, sortBy: "" };
         expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 7: Handling partial searchParams
-    test('returns false when params are partially undefined', () => {
+    test("returns false when params are partially undefined", () => {
         const params = {
             canSearch: true,
             loading: false,
@@ -188,7 +188,7 @@ describe("getUrlSearchParams", () => {
         setWindowSearch(stringifySearchParams({
             search: "query",
             sort: RoutineSortBy.IssuesAsc,
-            time: { after: new Date("2022-01-01") }
+            time: { after: new Date("2022-01-01") },
         }));
         const result = getUrlSearchParams(false, "Routine");
         expect(result).toEqual({
@@ -212,7 +212,7 @@ describe("getUrlSearchParams", () => {
         setWindowSearch(stringifySearchParams({
             time: {
                 after: new Date("2022-01-01").toISOString(),
-            }
+            },
         }));
         const result = getUrlSearchParams(true, "Issue");
         expect(result.timeFrame).toEqual({ after: new Date("2022-01-01") });
@@ -222,7 +222,7 @@ describe("getUrlSearchParams", () => {
         setWindowSearch(stringifySearchParams({
             time: {
                 before: new Date("2022-12-31").toISOString(),
-            }
+            },
         }));
         const result = getUrlSearchParams(true, "User");
         expect(result.timeFrame).toEqual({ before: new Date("2022-12-31") });
@@ -232,13 +232,13 @@ describe("getUrlSearchParams", () => {
         setWindowSearch(stringifySearchParams({
             time: {
                 after: new Date("2022-01-01").toISOString(),
-                before: new Date("2022-12-31").toISOString()
-            }
+                before: new Date("2022-12-31").toISOString(),
+            },
         }));
         const result = getUrlSearchParams(true, "Organization");
         expect(result.timeFrame).toEqual({
             after: new Date("2022-01-01"),
-            before: new Date("2022-12-31")
+            before: new Date("2022-12-31"),
         });
     });
 
@@ -252,7 +252,7 @@ describe("getUrlSearchParams", () => {
             time: {
                 after: new Date("2022-01-01").toISOString(),
                 before: new Date("2022-12-31").toISOString(),
-            }
+            },
         }));
         const result = getUrlSearchParams(true, "ApiVersion");
         expect(result).toEqual({
@@ -260,8 +260,8 @@ describe("getUrlSearchParams", () => {
             sortBy: ApiVersionSortBy.ForksAsc,
             timeFrame: {
                 after: new Date("2022-01-01"),
-                before: new Date("2022-12-31")
-            }
+                before: new Date("2022-12-31"),
+            },
         });
     });
 
@@ -322,13 +322,13 @@ describe("updateSearchUrl", () => {
             timeFrame: undefined,
         }, mockSetLocation);
 
-        expect(mockSetLocation).toHaveBeenCalledWith('/', {
+        expect(mockSetLocation).toHaveBeenCalledWith("/", {
             replace: true,
             searchParams: {
                 search: "query",
                 sort: "name",
-                time: undefined
-            }
+                time: undefined,
+            },
         });
     });
 
@@ -341,13 +341,13 @@ describe("updateSearchUrl", () => {
             timeFrame: { after: afterDate, before: undefined },
         }, mockSetLocation);
 
-        expect(mockSetLocation).toHaveBeenCalledWith('/', {
+        expect(mockSetLocation).toHaveBeenCalledWith("/", {
             replace: true,
             searchParams: {
                 search: undefined,
                 sort: "date",
-                time: { after: afterDate.toISOString(), before: "" }
-            }
+                time: { after: afterDate.toISOString(), before: "" },
+            },
         });
     });
 
@@ -360,13 +360,13 @@ describe("updateSearchUrl", () => {
             timeFrame: { after: undefined, before: beforeDate },
         }, mockSetLocation);
 
-        expect(mockSetLocation).toHaveBeenCalledWith('/', {
+        expect(mockSetLocation).toHaveBeenCalledWith("/", {
             replace: true,
             searchParams: {
                 search: undefined,
                 sort: "date",
-                time: { after: "", before: beforeDate.toISOString() }
-            }
+                time: { after: "", before: beforeDate.toISOString() },
+            },
         });
     });
 
@@ -380,13 +380,13 @@ describe("updateSearchUrl", () => {
             timeFrame: { after: afterDate, before: beforeDate },
         }, mockSetLocation);
 
-        expect(mockSetLocation).toHaveBeenCalledWith('/', {
+        expect(mockSetLocation).toHaveBeenCalledWith("/", {
             replace: true,
             searchParams: {
                 search: undefined,
                 sort: "date",
-                time: { after: afterDate.toISOString(), before: beforeDate.toISOString() }
-            }
+                time: { after: afterDate.toISOString(), before: beforeDate.toISOString() },
+            },
         });
     });
 });

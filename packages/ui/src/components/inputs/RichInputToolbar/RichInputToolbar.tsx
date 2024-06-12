@@ -3,6 +3,7 @@ import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Pa
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { usePopover } from "hooks/usePopover";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -120,22 +121,6 @@ const ActionPopover = ({
         </List>
     </Popover>
 );
-
-const usePopover = (initialState = null) => {
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(initialState);
-
-    const openPopover = (event: React.MouseEvent<HTMLElement>, condition = true) => {
-        console.log("in open popover", event, condition);
-        if (!condition) return;
-        setAnchorEl(event.currentTarget);
-    };
-
-    const closePopover = () => { setAnchorEl(null); };
-
-    const isPopoverOpen = Boolean(anchorEl);
-
-    return [anchorEl, openPopover, closePopover, isPopoverOpen] as const;
-};
 
 const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t }) => {
     const [hoveredRow, setHoveredRow] = useState(1);

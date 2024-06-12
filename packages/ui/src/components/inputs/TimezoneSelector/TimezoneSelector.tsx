@@ -1,6 +1,7 @@
 import { IconButton, ListItem, Popover, Stack, Typography, useTheme } from "@mui/material";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { useField } from "formik";
+import { usePopover } from "hooks/usePopover";
 import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
@@ -58,23 +59,19 @@ export const TimezoneSelector = ({
     }, [timezones]);
 
 
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const open = Boolean(anchorEl);
-    const onOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
-    }, []);
-    const onClose = useCallback(() => {
+    const [anchorEl, onOpen, onClose, isOpen] = usePopover();
+    const handleClose = useCallback(() => {
         setSearchString("");
-        setAnchorEl(null);
-    }, []);
+        onClose();
+    }, [onClose]);
 
     return (
         <>
             {/* Popover virtualized list */}
             <Popover
-                open={open}
+                open={isOpen}
                 anchorEl={anchorEl}
-                onClose={onClose}
+                onClose={handleClose}
                 anchorOrigin={{
                     vertical: "bottom",
                     horizontal: "center",
@@ -93,7 +90,7 @@ export const TimezoneSelector = ({
                 <MenuTitle
                     ariaLabel={""}
                     title={"Select Timezone"}
-                    onClose={onClose}
+                    onClose={handleClose}
                 />
                 <Stack direction="column" spacing={2} p={2}>
                     <TextInput
@@ -120,7 +117,7 @@ export const TimezoneSelector = ({
                                     onClick={() => {
                                         helpers.setValue(timezone);
                                         onChange?.(timezone);
-                                        onClose();
+                                        handleClose();
                                     }}
                                 >
                                     <Stack direction="row" justifyContent="space-between" alignItems="center" width="100%">
@@ -147,7 +144,7 @@ export const TimezoneSelector = ({
                 InputProps={{
                     endAdornment: (
                         <IconButton size="small" aria-label="timezone-select">
-                            {open ?
+                            {isOpen ?
                                 <ArrowDropUpIcon fill={palette.background.textPrimary} /> :
                                 <ArrowDropDownIcon fill={palette.background.textPrimary} />
                             }

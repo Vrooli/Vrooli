@@ -7,10 +7,11 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
 import { useFindMany } from "hooks/useFindMany";
+import { usePopover } from "hooks/usePopover";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, SearchIcon } from "icons";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
@@ -91,20 +92,20 @@ export const MyStuffView = ({
     });
 
     // Menu for selection object type to create
-    const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
-    const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const [selectCreateTypeAnchorEl, openSelectCreateType, closeSelectCreateType] = usePopover();
+    const onCreateStart = useCallback((event: React.MouseEvent<HTMLElement>) => {
         // If tab is 'All', open menu to select type
         if (searchType === SearchType.Popular) {
-            setSelectCreateTypeAnchorEl(e.currentTarget);
+            openSelectCreateType(event);
             return;
         }
         // Navigate to object's add page
         setLocation(`${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`);
-    }, [searchType, setLocation]);
+    }, [openSelectCreateType, searchType, setLocation]);
     const onSelectCreateTypeClose = useCallback((type?: SearchType | `${SearchType}`) => {
         if (type) setLocation(`${getObjectUrlBase({ __typename: type as `${GqlModelType}` })}/add`);
-        else setSelectCreateTypeAnchorEl(null);
-    }, [setLocation]);
+        else closeSelectCreateType();
+    }, [closeSelectCreateType, setLocation]);
 
     const focusSearch = () => { scrollIntoFocusedView("search-bar-my-stuff-list"); };
 

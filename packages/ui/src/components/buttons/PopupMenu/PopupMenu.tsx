@@ -1,5 +1,5 @@
 import { Button, Popover, useTheme } from "@mui/material";
-import { useState } from "react";
+import { usePopover } from "hooks/usePopover";
 import { PopupMenuProps } from "../types";
 
 export const PopupMenu = ({
@@ -8,31 +8,21 @@ export const PopupMenu = ({
     ...props
 }: PopupMenuProps) => {
     const { palette } = useTheme();
+    const [anchorEl, handleOpen, handleClose, isOpen] = usePopover();
+    const id = isOpen ? "simple-popover" : undefined;
 
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-
-    const handleClick = (event: any) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleClose = () => {
-        setAnchorEl(null);
-    };
-
-    const open = Boolean(anchorEl);
-    const id = open ? "simple-popover" : undefined;
     return (
         <>
             <Button
                 aria-describedby={id}
                 {...props}
-                onClick={handleClick}
+                onClick={handleOpen}
             >
                 {text}
             </Button>
             <Popover
                 id={id}
-                open={open}
+                open={isOpen}
                 anchorEl={anchorEl}
                 onClose={handleClose}
                 disableScrollLock={true}
@@ -55,4 +45,4 @@ export const PopupMenu = ({
             </Popover>
         </>
     );
-}
+};

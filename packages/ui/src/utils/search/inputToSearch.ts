@@ -47,7 +47,7 @@ export const nonZeroNumber = (value: unknown): number | undefined => {
  */
 export const nonEmptyString = (value: unknown): string | undefined => {
     return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}
+};
 
 /**
  * Ensures that the value is a valid boolean. 
@@ -70,10 +70,10 @@ export const validBoolean = (value: unknown): boolean | undefined => {
  * @returns The value if it is a URL-encodable primitive type, or undefined otherwise
  */
 export const validPrimitive = (value: unknown): UrlPrimitive | undefined => {
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         // Reuse the existing validation functions for basic types
         return validBoolean(value) ?? nonZeroNumber(value) ?? nonEmptyString(value);
-    } else if (typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date)) {
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Date)) {
         // Allow object if it's not an array or a Date
         return value;
     }
@@ -88,7 +88,7 @@ export const validPrimitive = (value: unknown): UrlPrimitive | undefined => {
 export const tagObjectToString = (tag: unknown): string | undefined => {
     const tagString = tag !== null && typeof tag === "object" && Object.prototype.hasOwnProperty.call(tag, "tag") ? (tag as Tag).tag.trim() : "";
     return tagString.length > 0 ? tagString : undefined;
-}
+};
 
 /**
  * Converts strings to Tag objects
