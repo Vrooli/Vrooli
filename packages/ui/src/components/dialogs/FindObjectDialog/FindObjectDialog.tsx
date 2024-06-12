@@ -54,6 +54,15 @@ export type FindObjectTabOption = "All" |
 
 type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
 
+type Version = {
+    id: string;
+    [key: string]: any;
+}
+type RootObject = {
+    versions?: Version[];
+    [key: string]: any;
+}
+
 /**
  * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
  */
@@ -73,6 +82,48 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
     User: BotUpsert as UpsertView,
 };
 
+/**
+ * Determines which tabs to display
+ * @param limitTo Limits tabs to only these types
+ * @param useVersioned If true, uses tabs for objects that have versions 
+ * @returns The filtered tabs
+ */
+export const getFilteredTabs = (
+    limitTo: FindObjectTabOption[] | undefined,
+    onlyVersioned: boolean | undefined
+) => {
+    let filtered = findObjectTabParams;
+    // Apply limitTo filter
+    if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
+    // If onlyVersioned is true, filter out non-versioned tabs
+    if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
+    return filtered;
+};
+
+/**
+ * Retrieves a versioned view of a root object based on the specified version ID.
+ * In other wrods, this function "flips" the object structure so that the versioned data is the root object.
+ * 
+ * @param rootObject The root object which contains potential versions.
+ * @param versionId - The identifier for the version to retrieve.
+ * @returns The versioned object, or undefined if the version ID is not found.
+ */
+export const convertRootObjectToVersion = (item: RootObject, versionId: string): any => {
+    if (versionId) {
+        // Find the specific version based on versionId
+        const version = item.versions?.find(v => v.id === versionId);
+        if (version) {
+            // Destructure to separate versions array from the rest of the root object
+            const { versions, ...rootData } = item;
+            // Return from the perspective of the version
+            return { ...version, root: rootData };
+        }
+    }
+    // If versionId is not provided or no version matches, return undefined or the original item
+    return undefined;
+}
+
+
 const searchTitleId = "search-vrooli-for-link-title";
 
 /**
@@ -91,14 +142,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const filteredTabs = useMemo(() => {
-        let filtered = findObjectTabParams;
-        // Apply limitTo filter
-        if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
-        // If onlyVersioned, filter tabs which don't have a corresponding versioned search type
-        if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
-        return filtered;
-    }, [limitTo, onlyVersioned]);
+    const filteredTabs = useMemo(() => getFilteredTabs(limitTo, onlyVersioned), [limitTo, onlyVersioned]);
     const {
         currTab,
         handleTabChange,
@@ -113,22 +157,28 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
 
     // Info for querying full object data
-    const [{ advancedSearchSchema, findManyEndpoint, findOneEndpoint }, setSearchParams] = useState<Partial<SearchParams>>({});
+    const advancedSearchSchemaRef = useRef<SearchParams["advancedSearchSchema"] | undefined>();
+    const findOneEndpointRef = useRef<string | undefined>();
     useEffect(() => {
-        if (createObjectType !== null && createObjectType in searchTypeToParams) setSearchParams(searchTypeToParams[createObjectType]());
-        else if (currTab.searchType in searchTypeToParams) setSearchParams(searchTypeToParams[currTab.searchType]());
+        let searchParams: SearchParams | undefined;
+        if (createObjectType !== null && createObjectType in searchTypeToParams) {
+            searchParams = searchTypeToParams[createObjectType]();
+        } else if (currTab.searchType in searchTypeToParams) {
+            searchParams = searchTypeToParams[currTab.searchType]()
+        };
+        if (searchParams) {
+            advancedSearchSchemaRef.current = searchParams.advancedSearchSchema;
+            findOneEndpointRef.current = searchParams.findOneEndpoint;
+        }
     }, [createObjectType, currTab.searchType]);
     /**
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
         // Clear search params
-        removeSearchParams(setLocation, [
-            ...(advancedSearchSchema?.fields.map(f => f.fieldName) ?? []),
-            "advanced",
-            "sort",
-            "time",
-        ]);
+        const advancedSearchFields = advancedSearchSchemaRef.current?.fields.map(f => f.fieldName) ?? [];
+        const basicSearchFields = ["advanced", "sort", "time"];
+        removeSearchParams(setLocation, [...advancedSearchFields, ...basicSearchFields]);
         // If no item, close dialog
         if (!item) handleCancel();
         // If url requested, return url
@@ -145,16 +195,11 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         }
         // Otherwise, return object
         else {
-            // If versionId is set, return the version
-            if (versionId) {
-                const version = (item as any).versions?.find(v => v.id === versionId);
-                const { versions, ...rest } = item as any;
-                handleComplete({ ...version, root: rest } as any);
-            }
-            // Otherwise, return the item
-            else handleComplete(item as any);
+            // Reshape item if needed
+            const shapedItem = versionId ? convertRootObjectToVersion(item as RootObject, versionId) : item;
+            handleComplete(shapedItem as any);
         }
-    }, [advancedSearchSchema?.fields, find, handleCancel, handleComplete, setLocation]);
+    }, [find, handleCancel, handleComplete, setLocation]);
 
     const [selectedObject, setSelectedObject] = useState<{
         versions: { id: string; versionIndex: number, versionLabel: string }[];
@@ -184,7 +229,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, []);
 
     // If item selected from search AND find is 'Object', query for full data
-    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({ endpoint: findOneEndpoint });
+    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({});
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
         const appendVersion = typeof versionId === "string" && !item.__typename.endsWith("Version");
@@ -217,12 +262,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [onClose, selectedObject, fetchFullData, find]);
 
     useEffect(() => {
-        if (!findOneEndpoint) return;
+        console.log('in close hook?', itemData, find, queryingRef.current)
+        if (!findOneEndpointRef.current) return;
         if (itemData && find === "Full" && queryingRef.current) {
+            console.log('calling onclose', itemData)
             onClose(itemData);
         }
         queryingRef.current = false;
-    }, [onClose, handleCreateClose, itemData, find, findOneEndpoint]);
+    }, [onClose, handleCreateClose, itemData, find]);
 
     /**
      * Handles selecting an object. A few things can happen:
