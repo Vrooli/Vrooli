@@ -1,6 +1,6 @@
-import { Session } from "@local/shared";
+import { GqlModelType, Session } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
-import { FocusModeButton, IsCompleteButton, IsPrivateButton, MeetingButton, MembersButton, OwnerButton, ParentButton, ProjectButton, QuestionForButton, RunProjectButton, RunRoutineButton } from "components/buttons/relationships";
+import { FocusModeButton, IsCompleteButton, IsPrivateButton, MeetingButton, MembersButton, OwnerButton, QuestionForButton, RunProjectButton, RunRoutineButton } from "components/buttons/relationships";
 import { ParticipantsButton } from "components/buttons/relationships/ParticipantsButton/ParticipantsButton";
 import { TeamButton } from "components/buttons/relationships/TeamButton/TeamButton";
 import { UserButton } from "components/buttons/relationships/UserButton/UserButton";
@@ -20,6 +20,42 @@ export const userFromSession = (session: Session): Exclude<OwnerShape, null> => 
     handle: null,
     name: "Self",
 });
+
+//TODO: working on a way to be able to know how many buttons will be shown, to display it differently in some cases.
+//If it's public, not your own, and only the public button is shown, we can hide it altogether
+
+/** Available relationship buttions, in display order */
+const buttonTypes: RelationshipButtonType[] = [
+    "Owner", // Who owns the object (when it can be you or a team)
+    "Parent", // Parent object (when forked)
+    "IsPrivate", // Whether the object is private
+    "IsComplete", // Whether the object is complete, if versioned
+    "FocusMode", // Associated focus mode
+    "Meeting", // Associated meeting
+    "RunProject", // Associated RunProject
+    "RunRoutine", // Associated RunRoutine
+    "QuestionFor", // Associated question
+    "Members", // Members of a team object
+    "Participants", // Participants of a chat object
+    "Team", // Associated team object (NOT for owner)
+    "User", // Associated user object (NOT for owner)
+];
+
+/** Map of button types to objects they're shown on */
+const buttonTypeMap: Record<RelationshipButtonType, (GqlModelType | `${GqlModelType}`)[]> = {
+    Owner: ["Api", "Code", "Comment", "Label", "Note", "Project", "Routine", "Standard"],
+    IsPrivate: ["all"],
+    IsComplete: ["all"],
+    FocusMode: ["all"],
+    Meeting: ["all"],
+    RunProject: ["all"],
+    RunRoutine: ["all"],
+    QuestionFor: ["all"],
+    Members: ["all"],
+    Participants: ["all"],
+    Team: ["all"],
+    User: ["all"],
+} as any;// TODO complete and implement
 
 /**
  * Horizontal button list for assigning owner, project, and parent 
@@ -57,8 +93,6 @@ export function RelationshipList({
             }}
         >
             {shouldShowButton("Owner") && <OwnerButton {...props} />}
-            {shouldShowButton("Project") && <ProjectButton {...props} />}
-            {shouldShowButton("Parent") && <ParentButton {...props} />}
             {shouldShowButton("IsPrivate") && <IsPrivateButton {...props} />}
             {shouldShowButton("IsComplete") && <IsCompleteButton {...props} />}
             {shouldShowButton("FocusMode") && <FocusModeButton {...props} />}

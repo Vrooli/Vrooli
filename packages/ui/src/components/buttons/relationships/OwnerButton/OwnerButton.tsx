@@ -8,6 +8,7 @@ import { RelationshipItemTeam, RelationshipItemUser } from "components/lists/typ
 import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
+import { usePopover } from "hooks/usePopover";
 import { TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -43,8 +44,6 @@ export const OwnerButton = ({
     const [versionField, , versionHelpers] = useField("owner");
     const [rootField, , rootHelpers] = useField("root.owner");
 
-    const isAvailable = useMemo(() => ["Project", "Routine", "Standard"].includes(objectType), [objectType]);
-
     // Team/User owner dialogs (displayed after selecting owner dialog)
     const [isTeamDialogOpen, setTeamDialogOpen] = useState<boolean>(false);
     const openTeamDialog = useCallback(() => { setTeamDialogOpen(true); }, [setTeamDialogOpen]);
@@ -58,9 +57,8 @@ export const OwnerButton = ({
     }, [versionField?.value?.id, rootField?.value?.id, versionHelpers, rootHelpers, closeTeamDialog]);
 
     // Owner list dialog (select self, team, or another user)
-    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<HTMLElement | null>(null);
-    const handleOwnerClick = useCallback((ev: React.MouseEvent<Element>) => {
-        if (!isAvailable) return;
+    const [ownerDialogAnchor, openOwnerDialog, closeOwnerDialog] = usePopover();
+    const handleOwnerClick = useCallback((ev: React.MouseEvent<HTMLElement>) => {
         ev.stopPropagation();
         const owner = versionField?.value ?? rootField?.value;
         // If not editing, navigate to owner
@@ -68,9 +66,8 @@ export const OwnerButton = ({
             if (owner) openObject(owner, setLocation);
         }
         // Otherwise, open dialog
-        else setOwnerDialogAnchor(ev.currentTarget as HTMLElement);
-    }, [isEditing, isAvailable, versionField?.value, rootField?.value, setLocation]);
-    const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
+        else openOwnerDialog(ev);
+    }, [versionField?.value, rootField?.value, isEditing, openOwnerDialog, setLocation]);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
         if (ownerType === OwnerTypesEnum.Team) {
             openTeamDialog();
@@ -115,7 +112,7 @@ export const OwnerButton = ({
     }, [isEditing, languages, rootField?.value, session, t, versionField?.value]);
 
     // If not available, return null
-    if (!isAvailable || (!isEditing && !Icon)) return null;
+    if (!isEditing && !Icon) return null;
     // Return button with label on top
     return (
         <>

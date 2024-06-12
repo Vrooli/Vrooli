@@ -126,7 +126,6 @@ export type RelationshipItemRunRoutine = Pick<RunRoutine, "id" | "name"> &
 
 export type RelationshipButtonType =
     "Owner" |
-    "Project" |
     "Parent" |
     "IsPrivate" |
     "IsComplete" |
