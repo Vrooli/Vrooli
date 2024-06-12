@@ -1,4 +1,4 @@
-import { LlmTaskInfo, ServerLlmTaskInfo } from "@local/shared";
+import { LlmTask, LlmTaskInfo, ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
@@ -25,8 +25,13 @@ export const executeLlmTask = async ({
             emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskInfo.id, status: "Running" }] });
         }
 
+        // Disallow "Start" task
+        const task = taskInfo.task;
+        if (task === "Start") {
+            throw new Error("Cannot execute Start task");
+        }
         // Convert command to task and execute
-        const taskExec = await generateTaskExec(taskInfo.task, language, userData);
+        const taskExec = await generateTaskExec(task as Exclude<LlmTask, "Start">, language, userData);
         const taskResult = await taskExec(taskInfo.properties ?? {});
         resultLabel = taskResult.label ?? undefined;
         resultLink = taskResult.link ?? undefined;

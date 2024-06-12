@@ -1,4 +1,4 @@
-import { PageInfo, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrTeam, ProjectOrTeamSearchInput, ProjectOrTeamSearchResult, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy, TeamSortBy } from "@local/shared";
+import { PageInfo, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrTeam, ProjectOrTeamSearchInput, ProjectOrTeamSearchResult, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy, TeamSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { getUser } from "../../auth/request";
 import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
@@ -34,6 +34,10 @@ export const UnionsEndpoints: EndpointsUnions = {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
             };
+            // Collect search data
+            const userData = getUser(req.session);
+            const searchData = { userData, visibility: input.visibility ?? VisibilityType.Public };
+            const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -45,7 +49,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     hasCompleteVersion: input.hasCompleteVersion,
                     hasCompleteExceptions: input.hasCompleteVersionExceptions,
                     ids: input.ids,
-                    languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Project" }) : undefined,
                     maxBookmarks: input.maxBookmarks,
                     maxScore: input.maxScore,
                     minBookmarks: input.minBookmarks,
@@ -60,7 +64,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     take,
                     teamId: input.teamId,
                     updatedTimeFrame: input.updatedTimeFrame,
-                    userId: getUser(req.session)?.id,
+                    userId: userData?.id,
                     visibility: input.visibility,
                 },
                 objectType: "Project",
@@ -77,7 +81,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     isInternal: false,
                     hasCompleteVersion: input.hasCompleteVersion,
                     hasCompleteExceptions: input.hasCompleteVersionExceptions,
-                    languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Routine" }) : undefined,
                     minComplexity: input.routineMinComplexity,
                     maxComplexity: input.routineMaxComplexity,
                     maxBookmarks: input.maxBookmarks,
@@ -98,7 +102,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     take,
                     teamId: input.teamId,
                     updatedTimeFrame: input.updatedTimeFrame,
-                    userId: getUser(req.session)?.id,
+                    userId: userData?.id,
                     visibility: input.visibility,
                 },
                 objectType: "Routine",
@@ -107,7 +111,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, routines }, {
                 projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
                 routines: { type: "Routine", ...(partial.Routine as PartialGraphQLInfo) },
-            }, getUser(req.session));
+            }, userData);
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));
@@ -143,6 +147,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
             };
+            const userData = getUser(req.session);
             // Query run projects
             const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -161,7 +166,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
                     take,
                     updatedTimeFrame: input.updatedTimeFrame,
-                    userId: getUser(req.session)?.id,
+                    userId: userData?.id,
                     visibility: input.visibility,
                 },
                 objectType: "RunProject",
@@ -184,7 +189,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
                     take,
                     updatedTimeFrame: input.updatedTimeFrame,
-                    userId: getUser(req.session)?.id,
+                    userId: userData?.id,
                     visibility: input.visibility,
                 },
                 objectType: "RunRoutine",
@@ -193,7 +198,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             const withSupplemental = await addSupplementalFieldsMultiTypes({ runProjects, runRoutines }, {
                 runProjects: { type: "RunProject", ...(partial.RunProject as PartialGraphQLInfo) },
                 runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as PartialGraphQLInfo) },
-            }, getUser(req.session));
+            }, userData);
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));
@@ -229,6 +234,10 @@ export const UnionsEndpoints: EndpointsUnions = {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
             };
+            // Collect search data
+            const userData = getUser(req.session);
+            const searchData = { userData, visibility: input.visibility ?? VisibilityType.Public };
+            const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -240,7 +249,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     ids: input.ids,
                     isComplete: input.projectIsComplete,
                     isCompleteExceptions: input.projectIsCompleteExceptions,
-                    languages: input.translationLanguagesLatestVersion ? SearchMap.translationLanguagesLatestVersion(input.translationLanguagesLatestVersion) : undefined,
+                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Project" }) : undefined,
                     maxBookmarks: input.maxBookmarks,
                     maxScore: input.projectMaxScore,
                     maxViews: input.maxViews,
@@ -256,7 +265,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     take,
                     teamId: input.projectTeamId,
                     updatedTimeFrame: input.updatedTimeFrame,
-                    userId: getUser(req.session)?.id,
+                    userId: userData?.id,
                     visibility: input.visibility,
                 },
                 objectType: "Project",
@@ -285,7 +294,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     tags: input.tags,
                     take,
                     updatedTimeFrame: input.updatedTimeFrame,
-                    userId: getUser(req.session)?.id,
+                    userId: userData?.id,
                     visibility: input.visibility,
                 },
                 objectType: "Team",
@@ -294,7 +303,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, teams }, {
                 projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
                 teams: { type: "Team", ...(partial.Team as PartialGraphQLInfo) },
-            }, getUser(req.session));
+            }, userData);
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));

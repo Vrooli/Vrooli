@@ -229,6 +229,12 @@ export const convert: LlmTaskConverters = {
         id: validUuid(data.id) ?? "",
         //...
     }),
+    RunProjectStart: (data) => ({
+        //...
+    } as any),
+    RunRoutineStart: (data) => ({
+        //...
+    } as any),
     ScheduleAdd: (data) => ({
         id: uuid(),
         timezone: "", //TODO need timezone from user session

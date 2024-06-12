@@ -45,6 +45,8 @@ export const typeDef = gql`
         RoutineDelete
         RoutineFind
         RoutineUpdate
+        RunProjectStart
+        RunRoutineStart
         ScheduleAdd
         ScheduleDelete
         ScheduleFind
