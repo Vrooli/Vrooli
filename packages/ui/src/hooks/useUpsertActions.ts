@@ -37,12 +37,9 @@ export const useUpsertActions = <T extends TType>({
     /** Helper function to navigate back or to a specific URL */
     const goBack = useCallback((targetUrl?: string) => {
         const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
-        console.log("in goback a", targetUrl, hasPreviousPage, sessionStorage.getItem("lastPath"));
         if (!targetUrl && hasPreviousPage) {
-            console.log("in goback history.back!");
             window.history.back();
         } else {
-            console.log("in goback setlocation! replacing?", !hasPreviousPage);
             setLocation(targetUrl ?? LINKS.Home, { replace: !hasPreviousPage });
         }
     }, [setLocation]);
@@ -96,10 +93,9 @@ export const useUpsertActions = <T extends TType>({
                 if (item && !Array.isArray(item)) handleAddOrUpdate("Created");
                 break;
             case ObjectDialogAction.Cancel:
-                console.log("in useupsertactions cancel", canStore, objectType, objectId);
                 // Remove form backup data from cache
                 if (canStore) {
-                    removeCookieFormData(`${objectType}-${objectId}`);
+                    removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`);
                     setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
                 }
                 if (display === "page") goBack(isCreate ? undefined : viewUrl);
