@@ -1,25 +1,30 @@
 import { Button, Checkbox, FormControlLabel, Grid, Tooltip, Typography } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SessionContext } from "contexts/SessionContext";
-import { AddIcon, CompleteIcon } from "icons";
+import { CompleteIcon } from "icons";
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { StandardInput } from "../standards/StandardInput/StandardInput";
-import { StandardVersionSelectSwitchProps } from "../types";
+import { ObjectVersionSelectPayloads, ObjectVersionSelectSwitchProps } from "../types";
 
-export function StandardVersionSelectSwitch({
-    canUpdateStandardVersion,
-    selected,
-    onChange,
+/**
+ * Simple component for optionally connecting or creating a versioned object to some other object 
+ */
+export const ObjectVersionSelectSwitch = <T extends keyof ObjectVersionSelectPayloads>({
+    canUpdate,
     disabled,
-}: StandardVersionSelectSwitchProps) {
+    label,
+    selected,
+    objectType,
+    onChange,
+    tooltip,
+}: ObjectVersionSelectSwitchProps<T>) => {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    console.log("StandardVersionSelectSwitch", selected, onChange, disabled);
 
-    const [usingStandard, setUsingStandard] = useState<boolean>(selected !== null);
+    const [usingObject, setusingObject] = useState<boolean>(selected !== null);
 
     // Create dialog
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
@@ -42,34 +47,35 @@ export function StandardVersionSelectSwitch({
 
     return (
         <>
-            {/* Popup for adding/connecting a new standardVersion */}
+            {/* Popup for adding/connecting a new object */}
             <FindObjectDialog
                 find="Full"
                 isOpen={isCreateDialogOpen}
-                handleComplete={onChange as any}
+                handleComplete={onChange as (value: ObjectVersionSelectPayloads[T]) => unknown}
                 handleCancel={closeCreateDialog}
-                limitTo={["StandardVersion"]}
+                limitTo={[objectType]}
+                onlyVersioned={true}
             />
             {/* Main component */}
             <Grid container spacing={1}>
                 <Grid item xs={12} md={6}>
-                    <Tooltip placement={"right"} title='Should this be in a specific format?'>
+                    <Tooltip placement={"right"} title={tooltip}>
                         <FormControlLabel
                             disabled={disabled}
-                            label='Use standard'
+                            label={label}
                             control={
                                 <Checkbox
                                     size="small"
-                                    name='usingStandard'
+                                    name='usingObject'
                                     color='secondary'
-                                    checked={usingStandard}
-                                    onChange={(e) => setUsingStandard(e.target.checked)}
+                                    checked={usingObject}
+                                    onChange={(e) => setusingObject(e.target.checked)}
                                 />
                             }
                         />
                     </Tooltip>
                 </Grid>
-                {usingStandard && (
+                {usingObject && (
                     <>
                         <Grid item xs={6} md={3}>
                             <Button
@@ -92,18 +98,18 @@ export function StandardVersionSelectSwitch({
                     </>
                 )}
                 <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ ...noSelect }}>{selected ? getTranslation(selected, getUserLanguages(session)).name : t("Custom")}</Typography>
+                    <Typography variant="h6" sx={{ ...noSelect }}>{selected ? getTranslation<any>(selected, getUserLanguages(session)).name : t("Custom")}</Typography>
                 </Grid>
                 {(selected && isConnecting === false) && (
                     <Grid item xs={12}>
                         <StandardInput
-                            disabled={!canUpdateStandardVersion}
+                            disabled={!canUpdate}
                             fieldName="preview"
                         />
                     </Grid>
                 )}
-                {/* Show button to open connect dialog, if closed without selecting a standard */}
-                {!selected && isConnecting === true && (
+                {/* Show button to open connect dialog, if closed without selecting an object */}
+                {/* {!selected && isConnecting === true && (
                     <Button
                         fullWidth
                         color="secondary"
@@ -111,7 +117,7 @@ export function StandardVersionSelectSwitch({
                         variant="contained"
                         startIcon={<AddIcon />}
                     >{t("Add")}</Button>
-                )}
+                )} */}
             </Grid>
         </>
     );
