@@ -372,17 +372,20 @@ if [[ "$USE_KUBERNETES" =~ ^[Yy]([Ee][Ss])?$ ]]; then
 elif [[ "$DEPLOY_VPS" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
-    BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
-    prompt "Going to copy build and .env-prod to ${BUILD_DIR}. Press any key to continue..."
+    BUILD_DIR="/var/tmp/${VERSION}/"
+    prompt "Going to copy build and .env-prod to ${SITE_IP}:${BUILD_DIR}. Press any key to continue..."
     read -n1 -r -s
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz root@${BUILD_DIR}
+    # Ensure that target directory exists
+    ssh -i ~/.ssh/id_rsa_${SITE_IP} root@${SITE_IP} "mkdir -p ${BUILD_DIR}"
+    # Copy everything except ENV_FILE
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" build.tar.gz production-docker-images.tar.gz root@${SITE_IP}:${BUILD_DIR}
     # ENV_FILE must be copied as .env-prod since that's what deploy.sh expects
-    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" ${ENV_FILE} root@${BUILD_DIR}/.env-prod
+    rsync -ri --info=progress2 -e "ssh -i ~/.ssh/id_rsa_${SITE_IP}" ${ENV_FILE} root@${SITE_IP}:${BUILD_DIR}/.env-prod
     if [ $? -ne 0 ]; then
-        error "Failed to copy files to ${BUILD_DIR}"
+        error "Failed to copy files to ${SITE_IP}:${BUILD_DIR}"
         exit 1
     fi
-    success "Files copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
+    success "Files copied to ${SITE_IP}:${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
 else
     # Copy build locally
     BUILD_DIR="/var/tmp/${VERSION}"
