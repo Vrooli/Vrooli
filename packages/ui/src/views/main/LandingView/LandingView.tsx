@@ -305,7 +305,7 @@ export const LandingView = ({
                     <SlideContent id={slide5Id}>
                         <SlideTitle variant='h2' mb={4} sx={{ zIndex: 6 }}>The Sky is the Limit</SlideTitle>
                         <SlideText sx={{ zIndex: 6 }}>
-                            By combining bots, routines, and teams, we're paving the way for an automated and transparent economy - accessible to all.
+                            By combining bots, routines, and teams, we&apos;re paving the way for an automated and transparent economy - accessible to all.
                         </SlideText>
                     </SlideContent>
                     <SlideContent id={slide6Id}>

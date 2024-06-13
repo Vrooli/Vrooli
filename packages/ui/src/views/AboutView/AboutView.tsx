@@ -91,7 +91,7 @@ export const AboutView = ({
                         Hello there! <RotatedBox sx={{ display: "inline-block" }}>👋</RotatedBox>
                     </Typography>
                     <Typography variant="body1">
-                        Welcome to Vrooli, a platform designed to tackle the challenges of transparency and reliability in autonomous systems. We're passionate about creating a cooperative organizational layer that fosters collaboration between humans and digital actors in a decentralized manner. Our top priority is developing systems that are both ethical and beneficial to society, instead of just chasing profit or power.
+                        Welcome to Vrooli, a platform designed to tackle the challenges of transparency and reliability in autonomous systems. We&apos;re passionate about creating a cooperative organizational layer that fosters collaboration between humans and digital actors in a decentralized manner. Our top priority is developing systems that are both ethical and beneficial to society, instead of just chasing profit or power.
                     </Typography>
                 </Box>
                 <Box>
@@ -115,7 +115,7 @@ export const AboutView = ({
                         Integrating Human and Bot Employees
                     </Typography>
                     <Typography variant="body1">
-                        Vrooli's platform is designed with both human and bot employees in mind, ensuring seamless integration within a team. We're excited to be launching a messaging feature later this year that allows users to interact with bots for guidance, feedback, and task assignments within your team. This feature will promote better communication and collaboration between human employees and bots, leading to a more efficient and cohesive work environment.
+                        Vrooli&apos;s platform is designed with both human and bot employees in mind, ensuring seamless integration within a team. We&apos;re excited to be launching a messaging feature later this year that allows users to interact with bots for guidance, feedback, and task assignments within your team. This feature will promote better communication and collaboration between human employees and bots, leading to a more efficient and cohesive work environment.
                     </Typography>
                 </Box>
                 <Box>
@@ -123,7 +123,7 @@ export const AboutView = ({
                         Reducing Costs
                     </Typography>
                     <Typography variant="body1">
-                        Starting and maintaining an organization can be expensive, but Vrooli has a solution. Since the hypergraph is publicly defined and shared, humans and bots can collaborate to improve all teams simultaneously. As teams become more automated, the cost of running businesses that don't rely heavily on physical labor will drop significantly. These savings can benefit consumers, support business growth and development, or even enhance employee benefits. The upcoming adoption of humanoid robots and autonomous vehicles will further unlock the potential of this system and increase individual productivity.
+                        Starting and maintaining an organization can be expensive, but Vrooli has a solution. Since the hypergraph is publicly defined and shared, humans and bots can collaborate to improve all teams simultaneously. As teams become more automated, the cost of running businesses that don&apos;t rely heavily on physical labor will drop significantly. These savings can benefit consumers, support business growth and development, or even enhance employee benefits. The upcoming adoption of humanoid robots and autonomous vehicles will further unlock the potential of this system and increase individual productivity.
                     </Typography>
                 </Box>
                 <Box>
@@ -131,7 +131,7 @@ export const AboutView = ({
                         Our Commitment
                     </Typography>
                     <Typography variant="body1">
-                        At Vrooli, we're committed to ethical and beneficial outcomes in the development of autonomous systems. By concentrating on responsible and sustainable development, our platform champions a collaborative and distributed approach to promoting transparency and reliability across diverse industries.
+                        At Vrooli, we&apos;re committed to ethical and beneficial outcomes in the development of autonomous systems. By concentrating on responsible and sustainable development, our platform champions a collaborative and distributed approach to promoting transparency and reliability across diverse industries.
                     </Typography>
                 </Box>
                 <Box>
@@ -139,7 +139,7 @@ export const AboutView = ({
                         Get Involved
                     </Typography>
                     <Typography variant="body1">
-                        We'd love for you to join us in learning more about Vrooli and how our platform can contribute to creating transparent and reliable autonomous systems. Together, we can build a future where technology serves society in the most ethical and transparent way possible. To get started, visit our <Link href="https://github.com/Vrooli/Vrooli#-join-the-team" target="_blank" rel="noopener">GitHub page</Link>. We're looking forward to embarking on this exciting journey with you!
+                        We&apos;d love for you to join us in learning more about Vrooli and how our platform can contribute to creating transparent and reliable autonomous systems. Together, we can build a future where technology serves society in the most ethical and transparent way possible. To get started, visit our <Link href="https://github.com/Vrooli/Vrooli#-join-the-team" target="_blank" rel="noopener">GitHub page</Link>. We&apos;re looking forward to embarking on this exciting journey with you!
                     </Typography>
                 </Box>
             </Stack>
@@ -148,6 +148,7 @@ export const AboutView = ({
             <Stack id="members-stack" direction="column" spacing={10}>
                 {teamMembers.map((member, key) => (
                     <Box
+                        key={key}
                         sx={{
                             display: "flex",
                             alignItems: "center",
