@@ -1,5 +1,5 @@
 # Stage 0. Copy required files
-FROM node:21-alpine as stage0
+FROM node:22-alpine as stage0
 
 # Set working directory
 ARG PROJECT_DIR
@@ -16,7 +16,7 @@ COPY --chown=node:node scripts/* scripts/
 RUN chown -R node:node .
 
 # Stage 1. Copy files from stage 0, and install yarn packages
-FROM node:21-alpine as stage1
+FROM node:22-alpine as stage1
 
 # Set working directory
 ARG PROJECT_DIR
@@ -26,10 +26,10 @@ WORKDIR ${PROJECT_DIR}
 COPY --from=stage0 ${PROJECT_DIR} ./
 
 # Install global packages
-RUN yarn global add vite@5.0.8
+RUN yarn global add vite@5.2.13
 
 # Stage 2. Copy files from stage 1
-FROM node:21-alpine as stage2
+FROM node:22-alpine as stage2
 
 # Set working directory
 ARG PROJECT_DIR

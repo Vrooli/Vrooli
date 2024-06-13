@@ -316,7 +316,7 @@ if [ "${ENVIRONMENT}" = "development" ]; then
     # check_and_add_to_install_list "ts-node" "4.7.0"
     check_and_add_to_install_list "nodemon" "3.0.2"
     check_and_add_to_install_list "prisma" "5.7.1"
-    check_and_add_to_install_list "vite" "4.4.4"
+    check_and_add_to_install_list "vite" "5.2.13"
     # Install all at once if there are packages to install
     if [ ! -z "$toInstall" ]; then
         yarn global add $toInstall

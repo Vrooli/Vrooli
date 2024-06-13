@@ -17,7 +17,7 @@ type Dimensions = {
     height: number;
 };
 
-export const RandomBlobs = ({ numberOfBlobs }) => {
+export const RandomBlobs = ({ numberOfBlobs }: { numberOfBlobs: number }) => {
     const [viewport, setViewport] = useState<Dimensions>({ width: window.innerWidth, height: window.innerHeight });
     const [blobs, setBlobs] = useState<BlobInfo[]>([]);
 
