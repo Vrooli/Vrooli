@@ -160,6 +160,9 @@ data/redis/
 data/stats/
 data/uploads/
 
+#Backups
+backups/
+
 .eslintcache
 package-lock.json
 *dump.rdb
