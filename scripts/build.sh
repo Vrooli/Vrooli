@@ -89,6 +89,10 @@ if [ ! -z "$VERSION" ] && [ "$VERSION" != "$CURRENT_VERSION" ]; then
         # Go back to packages directory
         cd ${HERE}/../packages
     done
+    # Update root package.json file too
+    cd ${HERE}/..
+    info "Updating root package.json"
+    yarn version patch --new-version ${VERSION} --no-git-tag-version
 else
     info "No version supplied, or version supplied is the current version. Sticking with version ${CURRENT_VERSION}."
     VERSION=$CURRENT_VERSION
