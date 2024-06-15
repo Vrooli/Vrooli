@@ -96,13 +96,14 @@ fi
 header "Setting script permissions"
 chmod +x "${HERE}/"*.sh
 
-# If this script is being run on a remote server, enable PasswordAuthentication
+# If this script is being run on a remote server
 if [ -z "${ON_REMOTE}" ]; then
     prompt "Is this script being run on a remote server? (Y/n)"
     read -n1 -r ON_REMOTE
     echo
 fi
 if [[ "$ON_REMOTE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    # enable PasswordAuthentication for ssh
     header "Enabling PasswordAuthentication"
     sudo sed -i 's/#\?PasswordAuthentication .*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
     sudo sed -i 's/#\?PubkeyAuthentication .*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
@@ -129,13 +130,14 @@ if [[ "$ON_REMOTE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
         fi
     fi
 else
-    # Otherwise, make sure mailx is installed. This may be used by some scripts which
+    # Make sure mailx is installed. This may be used by some scripts which
     # track errors on a remote server and notify the developer via email.
     header "Installing mailx"
     # TODO - Not working for some reason
     # info "Select option 2 (Internet Site) then enter \"http://mirrors.kernel.org/ubuntu\" when prompted."
     #sudo apt-get install -y mailutils
-    # While we're here, also check if .env and .env-prod exist. If not, create them using .env-example.
+
+    # Check if .env and .env-prod exist. If not, create them using .env-example.
     if [ ! -f "${HERE}/../.env" ]; then
         header "Creating .env file"
         cp "${HERE}/../.env-example" "${HERE}/../.env"
@@ -145,6 +147,18 @@ else
         header "Creating .env-prod file"
         cp "${HERE}/../.env-example" "${HERE}/../.env-prod"
         warning "Please update the .env-prod file with your own values."
+    fi
+
+    # Check for keytool and install JDK if it's not available. This is 
+    # used for signing the app in the Google Play store
+    if ! command -v keytool &> /dev/null
+    then
+        header "Installing JDK for keytool"
+        sudo apt update
+        sudo apt install -y default-jdk
+        success "JDK installed. keytool should now be available."
+    else
+        info "keytool is already installed"
     fi
 fi
 

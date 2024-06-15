@@ -181,3 +181,7 @@ jwt_priv.pem
 
 # Vault keys
 .vault*
+
+# Upload keys (for Google Play Store)
+upload_certificate.pem
+upload-keystore.jks
