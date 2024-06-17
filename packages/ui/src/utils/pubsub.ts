@@ -53,6 +53,8 @@ export type SideMenuPub = {
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
+    /** Can be used to move content based on the appearance of a banner ad */
+    banner: { isDisplayed: boolean };
     celebration: CelebrationPub;
     commandPalette: void;
     cookies: void;

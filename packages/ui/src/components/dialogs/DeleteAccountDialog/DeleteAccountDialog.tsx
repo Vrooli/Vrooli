@@ -75,7 +75,7 @@ export const DeleteAccountDialog = ({
             >
                 {(formik) => <DialogContent>
                     <Stack direction="column" spacing={2} mt={2}>
-                        <Typography variant="h6">Are you absolutely certain you want to delete the account of "{name}"?</Typography>
+                        <Typography variant="h6">Are you absolutely certain you want to delete the account of &quot;{name}&quot;?</Typography>
                         <Typography variant="h6" sx={{ color: palette.error.main, paddingBottom: 3 }}><b>This action cannot be undone.</b></Typography>
                         <Typography variant="h6">Enter your password to confirm.</Typography>
                         <PasswordTextInput

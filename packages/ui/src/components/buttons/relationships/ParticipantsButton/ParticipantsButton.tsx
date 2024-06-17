@@ -45,6 +45,7 @@ export const ParticipantsButton = ({
         newIcons = (participantsField.value ?? []).slice(0, maxUserIcons).map((p: ChatParticipant) => {
             const colors = placeholderColor();
             return <Avatar
+                key={p.id}
                 src={extractImageUrl(p.user?.profileImage, p.user?.updated_at, 50)}
                 alt={`${getDisplay(p.user).title}'s profile picture`}
                 sx={{

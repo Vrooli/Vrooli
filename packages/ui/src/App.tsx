@@ -112,31 +112,11 @@ export const App = () => {
         setCookie("Theme", theme.palette.mode);
     }, [fontSize, isLeftHanded]);
 
-    /** Sets up google adsense */
+    // Handle component mount
     useEffect(() => {
+        // Set up Google Adsense
         ((window as { adsbygoogle?: object[] }).adsbygoogle = (window as { adsbygoogle?: object[] }).adsbygoogle || []).push({});
-    }, []);
-
-    // If anchor tag in url, scroll to element
-    const hash = useReactHash();
-    useEffect(() => {
-        // if not a hash link, scroll to top
-        if (window.location.hash === "") {
-            window.scrollTo(0, 0);
-        }
-        // else scroll to id
-        else {
-            setTimeout(() => {
-                const id = window.location.hash.replace("#", "");
-                const element = document.getElementById(id);
-                if (element) {
-                    element.scrollIntoView();
-                }
-            }, 0);
-        }
-    }, [hash]);
-
-    useEffect(() => {
+        // Clear loading state
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsLoading(false);
         // Add help wanted to console logs
@@ -163,7 +143,45 @@ export const App = () => {
          Consider developing with us!                                         
        https://github.com/Vrooli/Vrooli                            
 `);
+        // Detect online/offline status
+        const onlineStatusId = "online-status"; // Use same ID for both so both can't be displayed at the same time
+        const handleOnline = () => {
+            PubSub.get().publish("snack", { id: onlineStatusId, messageKey: "NowOnline", severity: "Success" });
+        };
+        const handleOffline = () => {
+            PubSub.get().publish("snack", { autoHideDuration: "persist", id: onlineStatusId, messageKey: "NoInternet", severity: "Error" });
+        };
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+        // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
+        const cookiePreferences = getStorageItem("Preferences", () => true);
+        if (!cookiePreferences) {
+            PubSub.get().publish("cookies");
+        }
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
     }, []);
+
+    // If anchor tag in url, scroll to element
+    const hash = useReactHash();
+    useEffect(() => {
+        // if not a hash link, scroll to top
+        if (window.location.hash === "") {
+            window.scrollTo(0, 0);
+        }
+        // else scroll to id
+        else {
+            setTimeout(() => {
+                const id = window.location.hash.replace("#", "");
+                const element = document.getElementById(id);
+                if (element) {
+                    element.scrollIntoView();
+                }
+            }, 0);
+        }
+    }, [hash]);
 
     useEffect(() => {
         // Determine theme
@@ -176,21 +194,6 @@ export const App = () => {
         setThemeAndMeta(theme);
     }, [session, setThemeAndMeta]);
 
-    // Detect online/offline status, as well as "This site uses cookies" banner
-    useEffect(() => {
-        window.addEventListener("online", () => {
-            PubSub.get().publish("snack", { id: "online-status", messageKey: "NowOnline", severity: "Success" });
-        });
-        window.addEventListener("offline", () => {
-            // ID is the same so there is ever only one online/offline snack displayed at a time
-            PubSub.get().publish("snack", { autoHideDuration: "persist", id: "online-status", messageKey: "NoInternet", severity: "Error" });
-        });
-        // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
-        const cookiePreferences = getStorageItem("Preferences", () => true);
-        if (!cookiePreferences) {
-            PubSub.get().publish("cookies");
-        }
-    }, []);
 
     // Handle site-wide keyboard shortcuts
     useHotkeys([

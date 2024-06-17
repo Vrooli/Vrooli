@@ -10,6 +10,7 @@ import { DateDisplayProps } from "../types";
  */
 export const DateDisplay = ({
     loading = false,
+    showDateAndTime = false,
     showIcon = false,
     textBeforeDate = "",
     timestamp,
@@ -35,7 +36,7 @@ export const DateDisplay = ({
             >
                 {showIcon && <ScheduleIcon fill={palette.background.textSecondary} style={{ marginRight: "4px" }} />}
                 <Typography variant="body2" color={palette.background.textSecondary}>
-                    {`${textBeforeDate} ${displayDate(timestamp, true)}`}
+                    {`${textBeforeDate} ${displayDate(timestamp, showDateAndTime)}`}
                 </Typography>
             </Box>
         </>

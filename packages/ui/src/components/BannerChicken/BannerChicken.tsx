@@ -1,6 +1,7 @@
 import { SessionContext } from "contexts/SessionContext";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { getCurrentUser } from "utils/authentication/session";
+import { PubSub } from "utils/pubsub";
 
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
@@ -11,7 +12,6 @@ import { getCurrentUser } from "utils/authentication/session";
  */
 export const BannerChicken = () => {
     const session = useContext(SessionContext);
-    const [adDisplayed, setAdDisplayed] = useState<boolean | null>(null);
 
     const adFrequency = useMemo(() => {
         const user = getCurrentUser(session);
@@ -30,26 +30,36 @@ export const BannerChicken = () => {
         return random < 0.5;
     }, [adFrequency]);
 
+    useEffect(() => {
+        if (!shouldDisplayAd || !process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID) {
+            console.warn("Conditions not met for displaying ads.");
+            return;
+        }
+
+        const script = document.createElement("script");
+        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`;
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        script.onload = () => PubSub.get().publish("banner", { isDisplayed: true });
+        script.onerror = () => PubSub.get().publish("banner", { isDisplayed: false });
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, [shouldDisplayAd]);
+
     if (!shouldDisplayAd) return null;
+
     return (
-        <>
-            {/* AdSense script */}
-            <script
-                async
-                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
-                crossOrigin="anonymous"
-                onLoad={() => setAdDisplayed(true)}
-                onError={() => setAdDisplayed(false)}
-            ></script>
-            <ins className="adsbygoogle"
-                style={{ display: "block" }}
-                // Disable ads for local development. Ads only work on live domains. 
-                // You can use a test domain to test ads before deploying.
-                data-adtest={window.location.host.includes("localhost")}
-                data-ad-client={`ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
-                data-ad-slot="9649766873"
-                data-ad-format="auto"
-                data-full-width-responsive="true"></ins>
-        </>
+        <ins className="adsbygoogle"
+            style={{ display: "block" }}
+            // Disable ads for local development. Ads only work on live domains. 
+            // You can use a test domain to test ads before deploying.
+            data-adtest={window.location.host.includes("localhost")}
+            data-ad-client={`ca-${process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID}`}
+            data-ad-slot="9649766873"
+            data-ad-format="auto"
+            data-full-width-responsive="true"></ins>
     );
 };

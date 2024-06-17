@@ -64,3 +64,4 @@ export const DialogTitle = forwardRef(({
         </Box>
     );
 });
+DialogTitle.displayName = "DialogTitle";

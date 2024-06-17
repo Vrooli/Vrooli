@@ -259,6 +259,7 @@ export const RoutineView = ({
                         >
                             {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
                                 <GeneratedInputComponentWithLabel
+                                    key={fieldData.fieldName}
                                     copyInput={copyInput}
                                     disabled={false}
                                     fieldData={fieldData}

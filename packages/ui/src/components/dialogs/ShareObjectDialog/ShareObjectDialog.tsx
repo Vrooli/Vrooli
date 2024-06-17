@@ -24,8 +24,9 @@ const postTitle: { [key in ObjectType]?: string } = {
     "User": "Check out this user on Vrooli",
 };
 
-const sanitizeFilename = (filename) => {
+export const sanitizeFilename = (filename: string) => {
     const invalidChars = /[<>:"/\\|?*]/g;
+    // eslint-disable-next-line no-control-regex
     const controlChars = /[\x00-\x1f\x80-\x9f]/g;
     const reservedWords = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
 

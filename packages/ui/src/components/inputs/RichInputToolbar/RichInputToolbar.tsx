@@ -1,9 +1,10 @@
 import { noop } from "@local/shared";
-import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Theme, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { usePopover } from "hooks/usePopover";
+import { TFunction } from "i18next";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,6 +21,26 @@ type PopoverActionItem = {
 
 /** Determines how many options should be displayed directly */
 type ViewSize = "minimal" | "partial" | "full";
+
+type ActionPopoverProps = {
+    activeStates: Omit<RichInputActiveStates, "SetValue">;
+    anchorEl: HTMLElement | null;
+    handleAction: (action: string, data?: unknown) => unknown;
+    idPrefix: string;
+    isOpen: boolean;
+    items: PopoverActionItem[];
+    onClose: () => unknown;
+    palette: Theme["palette"];
+}
+
+type TablePopoverProps = {
+    anchorEl: HTMLElement | null;
+    handleTableInsert: (rows: number, cols: number) => unknown;
+    isOpen: boolean;
+    onClose: () => unknown;
+    palette: Theme["palette"];
+    t: TFunction<"common", undefined, "common">;
+}
 
 export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {
     Bold: false,
@@ -81,17 +102,18 @@ const ToolButton = forwardRef(({
         </IconButton>
     </Tooltip>
 ));
+ToolButton.displayName = "ToolButton";
 
 const ActionPopover = ({
     activeStates,
+    anchorEl,
+    handleAction,
     idPrefix,
     isOpen,
-    anchorEl,
-    onClose,
     items,
-    handleAction,
+    onClose,
     palette,
-}) => (
+}: ActionPopoverProps) => (
     <Popover
         id={`markdown-input-${idPrefix}-popover`}
         open={isOpen}
@@ -122,7 +144,14 @@ const ActionPopover = ({
     </Popover>
 );
 
-const TablePopover = ({ isOpen, anchorEl, onClose, handleTableInsert, palette, t }) => {
+const TablePopover = ({
+    anchorEl,
+    handleTableInsert,
+    isOpen,
+    onClose,
+    palette,
+    t,
+}: TablePopoverProps) => {
     const [hoveredRow, setHoveredRow] = useState(1);
     const [hoveredCol, setHoveredCol] = useState(1);
     const [canHover, setCanHover] = useState(true);

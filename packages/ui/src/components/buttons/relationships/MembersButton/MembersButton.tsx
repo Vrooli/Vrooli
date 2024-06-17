@@ -50,6 +50,7 @@ export const MembersButton = ({
         // Add the first X members
         newIcons = (membersField.value ?? []).slice(0, maxUserIcons).map((user: User) => (
             <Avatar
+                key={user.id}
                 src={extractImageUrl(user.profileImage, user.updated_at, 50)}
                 alt={`${getDisplay(user).title}'s profile picture`}
                 sx={{

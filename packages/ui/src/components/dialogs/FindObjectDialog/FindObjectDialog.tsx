@@ -90,7 +90,7 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
  */
 export const getFilteredTabs = (
     limitTo: FindObjectTabOption[] | undefined,
-    onlyVersioned: boolean | undefined
+    onlyVersioned: boolean | undefined,
 ) => {
     let filtered = findObjectTabParams;
     // Apply limitTo filter
@@ -121,7 +121,7 @@ export const convertRootObjectToVersion = (item: RootObject, versionId: string):
     }
     // If versionId is not provided or no version matches, return undefined or the original item
     return undefined;
-}
+};
 
 
 const searchTitleId = "search-vrooli-for-link-title";
@@ -164,8 +164,8 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         if (createObjectType !== null && createObjectType in searchTypeToParams) {
             searchParams = searchTypeToParams[createObjectType]();
         } else if (currTab.searchType in searchTypeToParams) {
-            searchParams = searchTypeToParams[currTab.searchType]()
-        };
+            searchParams = searchTypeToParams[currTab.searchType]();
+        }
         if (searchParams) {
             advancedSearchSchemaRef.current = searchParams.advancedSearchSchema;
             findOneEndpointRef.current = searchParams.findOneEndpoint;
@@ -262,10 +262,8 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     }, [onClose, selectedObject, fetchFullData, find]);
 
     useEffect(() => {
-        console.log('in close hook?', itemData, find, queryingRef.current)
         if (!findOneEndpointRef.current) return;
         if (itemData && find === "Full" && queryingRef.current) {
-            console.log('calling onclose', itemData)
             onClose(itemData);
         }
         queryingRef.current = false;

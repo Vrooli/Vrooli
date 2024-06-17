@@ -27,3 +27,4 @@ export const TopBar = forwardRef(({
         />
     );
 });
+TopBar.displayName = "TopBar";

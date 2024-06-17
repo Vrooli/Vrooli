@@ -16,14 +16,18 @@ export function TextCollapse({
     const lines = useMemo(() => {
         if (!loading) return null;
         return Array.from({ length: loadingLines ?? 1 }, (_, i) => (
-            <LinearProgress color="inherit" sx={{
-                borderRadius: 2,
-                width: "100%",
-                height: 12,
-                marginTop: 1,
-                marginBottom: 2,
-                opacity: 0.5,
-            }} />
+            <LinearProgress
+                key={`loading-line-${i}`} // Fine to use index as key here
+                color="inherit"
+                sx={{
+                    borderRadius: 2,
+                    width: "100%",
+                    height: 12,
+                    marginTop: 1,
+                    marginBottom: 2,
+                    opacity: 0.5,
+                }}
+            />
         ));
     }, [loading, loadingLines]);
 

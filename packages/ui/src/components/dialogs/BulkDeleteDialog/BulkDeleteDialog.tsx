@@ -2,6 +2,7 @@ import { Button, Checkbox, DialogContent, FormControlLabel, Grid, List, ListItem
 import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useWindowSize } from "hooks/useWindowSize";
 import { CancelIcon, DeleteIcon } from "icons";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,7 +10,6 @@ import { pagePaddingBottom } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { BulkDeleteDialogProps } from "../types";
-import { useWindowSize } from "hooks/useWindowSize";
 
 // Delete confirmation prompt is 2 random bunny words
 const BUNNY_WORDS = ["bunny", "rabbit", "boop", "binky", "zoom", "ears", "fluffy", "hop", "tail", "whiskers", "burrow", "nose", "grass", "meadow"];
@@ -102,7 +102,7 @@ export const BulkDeleteDialog = ({
                     ))}
                 </List>
                 <Typography variant="body2">
-                    Type the words "{randomWords}" to confirm deletion:
+                    Type the words &quot;{randomWords}&quot; to confirm deletion:
                 </Typography>
                 <TextInput
                     fullWidth

@@ -155,6 +155,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
         </Tooltip>
     );
 });
+ResourceCard.displayName = "ResourceCard";
 
 const LoadingCard = () => {
     return (

@@ -61,4 +61,4 @@ export const EllipsisActionButton = ({
             {!isLeftHanded && button}
         </>
     );
-}
+};

@@ -130,4 +130,4 @@ export const QuestionForButton = ({
             </Stack>
         </>
     );
-}
+};

@@ -6,6 +6,7 @@ import { ObjectType } from "utils/navigation/openObject";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     loading?: boolean;
+    showDateAndTime?: boolean;
     showIcon?: boolean;
     textBeforeDate?: string;
     timestamp?: number;

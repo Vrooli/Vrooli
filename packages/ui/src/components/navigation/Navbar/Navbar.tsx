@@ -228,3 +228,4 @@ export const Navbar = forwardRef(({
         </Box>
     );
 });
+Navbar.displayName = "Navbar";

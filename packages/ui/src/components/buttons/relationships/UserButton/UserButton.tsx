@@ -123,4 +123,4 @@ export const UserButton = ({
             </Stack>
         </>
     );
-}
+};
