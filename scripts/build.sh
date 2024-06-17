@@ -322,7 +322,15 @@ if [ -f "${KEYSTORE_PATH}" ]; then
         echo "    \"target\": {" >> assetlinks.json
         echo "      \"namespace\": \"android_app\"," >> assetlinks.json
         echo "      \"package_name\": \"com.vrooli.twa\"," >> assetlinks.json
-        echo "      \"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]" >> assetlinks.json
+        # Check if the GOOGLE_PLAY_DOMAIN_FINGERPRINT variable is set and append it to the array
+        if [ ! -z "${GOOGLE_PLAY_DOMAIN_FINGERPRINT}" ]; then
+            echo "      \"sha256_cert_fingerprints\": [" >> assetlinks.json
+            echo "          \"${GOOGLE_PLAY_FINGERPRINT}\"," >> assetlinks.json
+            echo "          \"${GOOGLE_PLAY_DOMAIN_FINGERPRINT}\"" >> assetlinks.json
+            echo "      ]" >> assetlinks.json
+        else
+            echo "      \"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]" >> assetlinks.json
+        fi
         echo "    }" >> assetlinks.json
         echo "}]" >> assetlinks.json
         cd ${HERE}/..

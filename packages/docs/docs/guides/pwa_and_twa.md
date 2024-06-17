@@ -9,6 +9,11 @@ Use the [PWABuilder tool](https://www.pwabuilder.com/) to check if your PWA is e
 ## Trusted Web Activity (TWA)
 A trusted web activity is a PWA that runs natively on Android devices. They can also be listed on the Google Play store, making them almost identical to traditional apps. 
 
+### Environment Variables
+There are a few environment variables related to setting up a TWA:
+- `GOOGLE_PLAY_KEYSTORE_PASSWORD`: This is a password for the keystore file used to sign the TWA. It can be any string (preferably without special characters), but it should be secure.
+- `GOOGLE_PLAY_DOMAIN_FINGERPRINT`: This is the SHA-256 fingerprint provided by Google Play Console, typically in the "Deep links" section. It's used to verify the domain of the TWA.
+
 ### Creating a TWA
 First, make sure that the `packages/ui/public/site.manifest` or `packages/ui/public/manifest.json` file has the following data:  
 1. orientation and display to define how the app should feel (likely "any" and "standalone" to feel like a native app)
