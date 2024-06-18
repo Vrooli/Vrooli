@@ -1,6 +1,5 @@
 // NOTE: Much of this file is taken from the lexical package, which is licensed under the MIT license. 
 // We have copied the code here for customization purposes, such as replacing the default code block component
-import "highlight.js/styles/monokai-sublime.css";
 import { LexicalEditor } from "./editor";
 import { type ElementNode } from "./nodes/ElementNode";
 import { type LexicalNode } from "./nodes/LexicalNode";

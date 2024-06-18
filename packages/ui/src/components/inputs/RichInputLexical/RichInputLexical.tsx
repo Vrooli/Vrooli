@@ -1,6 +1,5 @@
 import { ListObject } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import "highlight.js/styles/monokai-sublime.css";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Headers } from "utils/display/stringTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
@@ -198,7 +197,6 @@ export function ContentEditable({
     }, [editor]);
 
     return (
-        // eslint-disable-next-line jsx-a11y/aria-activedescendant-has-tabindex
         <div
             {...rest}
             aria-activedescendant={(!isEditable || tabIndex === undefined) ? undefined : ariaActiveDescendant}

@@ -1,4 +1,3 @@
-import hljs from "highlight.js";
 import { copyIconPath } from "icons";
 import { PubSub } from "utils/pubsub";
 import { CODE_BLOCK_COMMAND } from "../commands";
@@ -112,11 +111,6 @@ export class CodeBlockNode extends ElementNode {
         preElement.appendChild(codeElement);
 
         topElement.appendChild(preElement);
-
-        // Highlight.js syntax highlighting
-        setTimeout(() => {
-            hljs.highlightBlock(codeElement);
-        }, 0);
 
         return topElement;
     }
