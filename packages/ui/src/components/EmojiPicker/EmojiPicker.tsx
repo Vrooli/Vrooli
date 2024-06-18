@@ -1,25 +1,22 @@
-import { EmojisKey } from "@local/shared";
 import { Box, Button, IconButton, Input, Palette, Paper, Popover, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { useTabs } from "hooks/useTabs";
 import { useZIndex } from "hooks/useZIndex";
-import i18next from "i18next";
 import { AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TabParam } from "utils/search/objectToSearch";
-import emojis from "./data/emojis";
+// import emojis from "./data/emojis";
 
-const MINIMUM_VERSION: number | null = null;
 const KNOWN_FAILING_EMOJIS = ["2640-fe0f", "2642-fe0f", "2695-fe0f"];
 
 enum CategoryTabOption {
     Suggested = "Suggested",
-    SmileysPeople = "SmileysPeople",
-    AnimalsNature = "AnimalsNature",
-    FoodDrink = "FoodDrink",
-    TravelPlaces = "TravelPlaces",
+    Smileys = "Smileys",
+    Nature = "Nature",
+    Food = "Food",
+    Places = "Places",
     Activities = "Activities",
     Objects = "Objects",
     Symbols = "Symbols",
@@ -43,23 +40,23 @@ const categoryTabParams: TabParam<EmojiTabsInfo>[] = [{
 }, {
     color: iconColor,
     Icon: RoutineValidIcon,
-    key: "SmileysPeople",
-    titleKey: "EmojisSmileysPeople",
+    key: "Smileys",
+    titleKey: "EmojisSmileys",
 }, {
     color: iconColor,
     Icon: VrooliIcon,
-    key: "AnimalsNature",
-    titleKey: "EmojisAnimalsNature",
+    key: "Nature",
+    titleKey: "EmojisNature",
 }, {
     color: iconColor,
     Icon: FoodIcon,
-    key: "FoodDrink",
-    titleKey: "EmojisFoodDrink",
+    key: "Food",
+    titleKey: "EmojisFood",
 }, {
     color: iconColor,
     Icon: AirplaneIcon,
-    key: "TravelPlaces",
-    titleKey: "EmojisTravelPlaces",
+    key: "Places",
+    titleKey: "EmojisPlaces",
 }, {
     color: iconColor,
     Icon: AwardIcon,
@@ -82,26 +79,21 @@ const categoryTabParams: TabParam<EmojiTabsInfo>[] = [{
     titleKey: "EmojisFlags",
 }];
 
-enum EmojiProperties {
-    name = "name",
+export enum EmojiProperties {
     unified = "u",
     variations = "v",
-    added_in = "a",
-    imgUrl = "imgUrl"
 }
 
-interface DataEmoji extends WithName {
+export interface DataEmoji extends WithName {
     [EmojiProperties.unified]: string;
     [EmojiProperties.variations]?: string[];
-    [EmojiProperties.added_in]: number;
-    [EmojiProperties.imgUrl]?: string;
 }
 
 type WithName = {
     name: string[];
 };
 
-enum SkinTone {
+export enum SkinTone {
     Neutral = "neutral",
     Light = "1f3fb",
     MediumLight = "1f3fc",
@@ -109,6 +101,7 @@ enum SkinTone {
     MediumDark = "1f3fe",
     Dark = "1f3ff"
 }
+const skinTones = Object.values(SkinTone);
 
 const toneToHex: Record<SkinTone, string> = {
     [SkinTone.Neutral]: "#ffd225",
@@ -119,48 +112,110 @@ const toneToHex: Record<SkinTone, string> = {
     [SkinTone.Dark]: "#60463a",
 };
 
-function parseNativeEmoji(unified: string): string {
+/**
+ * Parses a unified emoji string and converts it to a native emoji character. The unified string is a
+ * sequence of Unicode code points (hexadecimal numbers) separated by hyphens. Each code point is converted
+ * to its corresponding character, and the resulting characters are combined into a single emoji.
+ * 
+ * @param unified A string representing the unified code of an emoji.
+ * @returns The native emoji character.
+ * 
+ * Example:
+ * - Input: "1f1fa-1f1f8"
+ * - Output: "🇺🇸"
+ * This example takes the unified code for the U.S. flag emoji, splits it into "1f1fa" and "1f1f8",
+ * converts these hex codes into their corresponding characters, and then combines them to form the flag emoji.
+ */
+export const parseNativeEmoji = (unified: string): string => {
+    if (typeof unified !== "string" || unified.length === 0) {
+        return "";
+    }
     return unified
         .split("-")
         .map(hex => String.fromCodePoint(parseInt(hex, 16)))
         .join("");
-}
+};
 
-const emojiNames = (emoji: WithName): string[] => emoji[EmojiProperties.name] ?? [];
-
-const allEmojis = Object.values(emojis).map(category => category.map(emoji => ({
-    ...emoji,
-    name: (i18next.t(`emojis:${emoji.u.toLowerCase() as unknown as EmojisKey}`, { ns: "emojis" }) ?? "").split(", "),
-}))) as unknown as Record<CategoryTabOption, DataEmoji[]>;
-
-const allEmojisByUnified = new Map<string, DataEmoji>();
-const allEmojisByName = new Map<string, DataEmoji>();
-
-function indexEmoji(emoji: DataEmoji): void {
-    emojiNames(emoji).forEach(name => {
-        allEmojisByName.set(name, emoji);
-    });
-}
-
-setTimeout(() => {
-    Object.values(allEmojis).forEach(emojis => emojis.forEach(emoji => {
-        indexEmoji(emoji);
-        allEmojisByUnified.set(emoji[EmojiProperties.unified], emoji);
-    }));
-});
-
-function unifiedWithoutSkinTone(unified: string): string {
-    const splat = unified.split("-");
-    const [skinTone] = splat.splice(1, 1);
-
-    if (SkinTone[skinTone]) {
-        return splat.join("-");
+let namesByCode: Record<string, string[] | undefined> = {};
+const codeByName: Record<string, string | undefined> = {};
+/**
+ * Loads emoji names
+ */
+const fetchEmojiNames = async () => {
+    const response = await fetch("/emojis/locales/en.json");
+    if (!response.ok) {
+        console.error("Failed to fetch emoji names: response was not ok");
+        return;
     }
-
-    return unified;
+    const data = await response.json();
+    if (typeof data !== "object") {
+        console.error("Failed to fetch emoji names: response was not an object");
+        return;
+    }
+    namesByCode = data;
+    // Iterate over the namesByCode to create the codeByName mapping
+    for (const code in namesByCode) {
+        const names = namesByCode[code];
+        if (Array.isArray(names)) {
+            names.forEach(name => {
+                codeByName[name] = code;
+            });
+        }
+    }
+};
+if (process.env.NODE_ENV !== "test") {
+    fetchEmojiNames();
 }
 
-function emojiUnified(emoji: DataEmoji, skinTone?: string): string {
+let emojisByCategory: Record<Exclude<CategoryTabOption, "Suggested">, DataEmoji[] | undefined> = {} as any;
+const emojiByCode: Record<string, DataEmoji | undefined> = {};
+/**
+ * Loads emoji data
+ */
+const fetchEmojiData = async () => {
+    const response = await fetch("/emojis/data.json");
+    if (!response.ok) {
+        console.error("Failed to fetch emoji data: response was not ok");
+        return;
+    }
+    const data = await response.json();
+    if (typeof data !== "object") {
+        console.error("Failed to fetch emoji data: response was not an object");
+        return;
+    }
+    emojisByCategory = data;
+    // Iterate over categories to create the emojiByCode mapping
+    Object.entries(emojisByCategory).forEach(([category, emojis]) => {
+        if (!(category in CategoryTabOption) || !Array.isArray(emojis)) {
+            console.warn(`Invalid category "${category}" or emojis data for category`);
+            return;
+        }
+        emojis.map((emojiData: DataEmoji) => {
+            const unified = emojiData[EmojiProperties.unified];
+            emojiByCode[unified] = emojiData;
+        });
+    });
+};
+if (process.env.NODE_ENV !== "test") {
+    fetchEmojiData();
+}
+
+/**
+ * Removes any skin tone data from a unified emoji code to normalize it.
+ * @param unified - The unified string of an emoji code, potentially including skin tones.
+ * @returns The unified code without any skin tone information.
+ */
+export const unifiedWithoutSkinTone = (unified: string): string => {
+    return unified.split("-").filter((section) => !skinTones.includes(section as SkinTone)).join("-");
+};
+
+/**
+ * Computes the unified string for an emoji, optionally applying a specified skin tone.
+ * @param emoji The emoji data object.
+ * @param Optional skin tone modifier.
+ * @returns The unified string with or without a skin tone modification.
+ */
+export const emojiUnified = (emoji: DataEmoji, skinTone?: string): string => {
     const unified = emoji[EmojiProperties.unified];
 
     if (!skinTone || !Array.isArray(emoji[EmojiProperties.variations]) || emoji[EmojiProperties.variations].length === 0) {
@@ -168,60 +223,71 @@ function emojiUnified(emoji: DataEmoji, skinTone?: string): string {
     }
 
     return emojiVariationUnified(emoji, skinTone) ?? unified;
-}
+};
 
-function emojiVariationUnified(
+/**
+ * Selects the appropriate emoji variation based on the given skin tone.
+ * @param emoji The base emoji data object.
+ * @param Optional skin tone to apply.
+ * @returns The unified string of the emoji with the applied skin tone, if available.
+ */
+export const emojiVariationUnified = (
     emoji: DataEmoji,
     skinTone?: string,
-): string | undefined {
+): string | undefined => {
     return skinTone
         ? (emoji[EmojiProperties.variations] ?? []).find(variation => variation.includes(skinTone))
         : emojiUnified(emoji);
-}
+};
 
-function emojiByUnified(unified?: string): DataEmoji | undefined {
+/**
+ * Retrieves an emoji object by its unified code.
+ * @param unified The unified string of an emoji.
+ * @returns The emoji object corresponding to the unified code.
+ */
+export const emojiByUnified = (unified?: string): DataEmoji | undefined => {
     if (!unified) {
         return;
     }
 
-    if (allEmojisByUnified.has(unified)) {
-        return allEmojisByUnified.get(unified);
+    if (emojiByCode[unified]) {
+        return emojiByCode[unified];
     }
 
     const withoutSkinTone = unifiedWithoutSkinTone(unified);
-    return allEmojisByUnified.get(withoutSkinTone);
-}
-
-type BaseEmojiProps = {
-    emoji?: DataEmoji;
-    unified: string;
+    return emojiByCode[withoutSkinTone];
 };
 
-function ClickableEmoji({
-    emoji,
-    unified,
-    hiddenOnSearch,
+/**
+ * Component representing a clickable emoji button in the UI.
+ */
+const ClickableEmoji = memo(({
     onSelect,
-}: Readonly<BaseEmojiProps & {
-    hiddenOnSearch?: boolean;
-    emoji: DataEmoji;
+    unified,
+    setHoveredEmoji,
+}: {
     onSelect: (emoji: string) => unknown;
-}>) {
+    unified: string;
+    setHoveredEmoji: (emoji: string | null) => unknown;
+}) => {
+    const names = namesByCode[unified];
+    const name = Array.isArray(names) && names.length > 0 ? names[0] : "";
+
     return (
         <Button
             data-unified={unified}
-            aria-label={emojiNames[0]}
-            data-full-name={emojiNames}
+            aria-label={name}
+            data-full-name={names}
             onClick={() => { onSelect(parseNativeEmoji(unified)); }}
-            sx={{
-                fontSize: "1.5rem",
-            }}
+            onMouseEnter={() => { setHoveredEmoji(unified); }}
+            onMouseLeave={() => { setHoveredEmoji(null); }}
+            sx={{ fontSize: "1.5rem" }}
         >
             {parseNativeEmoji(unified)}
         </Button>
     );
-}
-
+});
+ClickableEmoji.displayName = "ClickableEmoji";
 
 const SUGGESTED_LS_KEY = "epr_suggested";
 
@@ -244,105 +310,110 @@ function getSuggested(): SuggestedItem[] {
     }
 }
 
-function Suggested({
+const Suggested = memo(({
     category,
     onSelect,
+    setHoveredEmoji,
 }: {
     category: CategoryTabOption | `${CategoryTabOption}`;
     onSelect: (emoji: string) => unknown;
-}) {
+    setHoveredEmoji: (emoji: string | null) => unknown;
+}) => {
     const suggested = useMemo(() => getSuggested(), []);
+    if (suggested.length === 0) {
+        return null;
+    }
     return (
         <EmojiCategory
             category={category}
-            hidden={suggested.length === 0}
         >
             {suggested.map((suggestedItem) => {
+                // Don't render emoji if it fails to parse
                 const emoji = emojiByUnified(suggestedItem.original);
-
                 if (!emoji) {
                     return null;
                 }
 
                 return (
                     <ClickableEmoji
-                        unified={suggestedItem.unified}
-                        emoji={emoji}
                         key={suggestedItem.unified}
+                        unified={suggestedItem.unified}
                         onSelect={onSelect}
+                        setHoveredEmoji={setHoveredEmoji}
                     />
                 );
             })}
         </EmojiCategory>
     );
-}
+});
+Suggested.displayName = "Suggested";
 
-function EmojiCategory({
+const EmojiCategory = memo(({
     category,
     children,
-    hidden,
 }: {
     category: CategoryTabOption | `${CategoryTabOption}`;
     children: React.ReactNode;
-    hidden: boolean;
-}) {
+}) => {
     const { t } = useTranslation();
 
-    // if (hidden) {
-    //     return null;
-    // }
     return (
         <li
             data-name={category}
             aria-label={t(`Emojis${category}`, { ns: "common", defaultValue: category })}
             style={{ listStyleType: "none" }}
         >
-            <div>{t(`Emojis${category}`, { ns: "common", defaultValue: category })}</div>
-            {!hidden && <div>{children}</div>}
+            <div style={{ paddingLeft: "8px" }}>{t(`Emojis${category}`, { ns: "common", defaultValue: category })}</div>
+            <div>{children}</div>
         </li>
     );
-}
+});
+EmojiCategory.displayName = "EmojiCategory";
 
-const RenderCategory = ({
+const RenderCategory = memo(({
     activeSkinTone,
     index,
     isInView,
     category,
     onSelect,
+    setHoveredEmoji,
 }: {
     activeSkinTone: SkinTone;
     index: number;
     isInView: boolean;
     category: CategoryTabOption | `${CategoryTabOption}`;
     onSelect: (emoji: string) => unknown;
+    setHoveredEmoji: (emoji: string | null) => unknown;
 }) => {
     const emojis = useMemo(() => {
-        const emojisToPush = isInView ? (allEmojis[index] ?? []) : [];
+        const emojisToPush = isInView ? (emojisByCategory[category] ?? []) : [];
         return emojisToPush
-            .filter(emoji => (!emoji.a || !MINIMUM_VERSION) || (emoji.a >= MINIMUM_VERSION))
+            // .filter(emoji => (!emoji.a || !MINIMUM_VERSION) || (emoji.a >= MINIMUM_VERSION)) TODO search filter
             .map(emoji => {
                 const unified = emojiUnified(emoji, activeSkinTone);
                 return (
                     <ClickableEmoji
                         key={unified}
-                        emoji={emoji}
                         unified={unified}
-                        hiddenOnSearch={false} //TODO
                         onSelect={onSelect}
+                        setHoveredEmoji={setHoveredEmoji}
                     />
                 );
             });
     }, [index, isInView, activeSkinTone, onSelect]);
 
+    if (emojis.length === 0) {
+        return null;
+    }
     return (
         <EmojiCategory
             category={category}
-            hidden={emojis.length === 0}
         >
             {emojis}
         </EmojiCategory>
     );
-};
+});
+RenderCategory.displayName = "RenderCategory";
 
 export const EmojiPicker = ({
     anchorEl,
@@ -358,9 +429,9 @@ export const EmojiPicker = ({
     const zIndex = useZIndex(Boolean(anchorEl), false, 1000);
 
     const [searchString, setSearchString] = useState("");
-    const handleChange = (value: string) => {
-        setSearchString(value);
-    };
+    const handleChange = (value: string) => { setSearchString(value); };
+
+    const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
 
     const {
         currTab: activeCategory,
@@ -423,7 +494,6 @@ export const EmojiPicker = ({
             newVisibleCategories.add(index);
         });
         setVisibleCategories(newVisibleCategories);
-        console.log("visible categories", newVisibleCategories);
     };
 
     return (
@@ -436,6 +506,7 @@ export const EmojiPicker = ({
                 "& .MuiPopover-paper": {
                     background: palette.background.default,
                     border: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
+                    borderRadius: 2,
                     width: "min(100%, 410px)",
                     height: "min(100%, 410px)",
                 },
@@ -448,11 +519,9 @@ export const EmojiPicker = ({
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    borderRadius: 2,
                     width: "100%",
                     height: "100%",
                 }}>
-                {/* Header */}
                 <Box sx={{ position: "relative" }}>
                     <Box display="flex" flexDirection="row" alignItems="center" sx={{ padding: 1, gap: 1 }}>
                         {/* Search bar */}
@@ -465,6 +534,7 @@ export const EmojiPicker = ({
                                 borderRadius: "10px",
                                 boxShadow: 0,
                                 width: "-webkit-fill-available",
+                                flex: 1,
                                 border: palette.mode === "light" ? `1px solid ${palette.divider}` : "none",
                             }}
                         >
@@ -473,7 +543,7 @@ export const EmojiPicker = ({
                                 disableUnderline={true}
                                 fullWidth={true}
                                 value={searchString}
-                                onChange={(e) => handleChange(e.target.value)}
+                                onChange={(e) => { handleChange(e.target.value); }}
                                 placeholder={t("Search") + "..."}
                                 autoFocus={true}
                                 sx={{ marginLeft: 1 }}
@@ -494,6 +564,7 @@ export const EmojiPicker = ({
                             transition: "width 0.2s ease-in-out",
                             display: "flex",
                             flexDirection: "row",
+                            flexShrink: 0, // Prevent shrinking
                             gap: "2px",
                         }}>
                             {Object.entries(SkinTone).map(([skinToneKey, skinToneValue], i) => {
@@ -502,27 +573,33 @@ export const EmojiPicker = ({
                                     <Box
                                         onClick={() => {
                                             if (isSkinTonePickerOpen) {
-                                                setActiveSkinTone(skinToneValue);
-                                                // focusSearchInput();
+                                                if (!active) {
+                                                    setActiveSkinTone(skinToneValue);
+                                                }
                                                 setIsSkinTonePickerOpen(false);
                                             } else {
                                                 setIsSkinTonePickerOpen(true);
                                             }
-                                            // closeAllOpenToggles();
                                         }}
                                         key={skinToneKey}
                                         tabIndex={isSkinTonePickerOpen ? 0 : -1}
                                         aria-pressed={active}
-                                        aria-label={`Skin tone ${t(`SkinTone${skinToneKey}`, { ns: "emojis", defaultValue: skinToneKey })}`}
+                                        aria-label={`Skin tone ${t(`EmojiSkinTone${skinToneKey}`, { defaultValue: skinToneKey })}`}
                                         sx={{
                                             background: toneToHex[skinToneValue],
-                                            borderRadius: 2,
+                                            borderRadius: active ? 2 : "100%",
                                             cursor: "pointer",
-                                            width: "24px",
-                                            height: "24px",
+                                            width: active ? "24px" : "20px",
+                                            height: active ? "24px" : "20px",
                                             position: "absolute",
-                                            left: isSkinTonePickerOpen ? `${i * 28}px` : "0px",
+                                            left: isSkinTonePickerOpen ?
+                                                `${i * 28}px` :
+                                                active ?
+                                                    "0px" :
+                                                    "2px",
+                                            top: active ? "0px" : "2px",
                                             transition: "left 0.2s ease-in-out",
+                                            zIndex: active ? 1 : 0, // Ensure selected is on top
                                         }}
                                     ></Box>
                                 );
@@ -543,18 +620,23 @@ export const EmojiPicker = ({
                 <Box
                     id="emoji-picker-body"
                     ref={scrollRef}
-                    p={1}
                     onScroll={onScroll}
-                    sx={{ overflow: "scroll" }}
+                    sx={{
+                        overflow: "scroll",
+                        "&::-webkit-scrollbar": {
+                            display: "none",
+                        },
+                    }}
                 >
                     {/* Emoji list */}
-                    <ul style={{ padding: 0, margin: 0 }}>
+                    <ul style={{ padding: 1, margin: 0 }}>
                         {categoryTabParams.map((category, index) => {
                             if (category.key === CategoryTabOption.Suggested) {
                                 return <Suggested
                                     key={category.key}
                                     category={category.key}
                                     onSelect={onSelect}
+                                    setHoveredEmoji={(emoji) => { setHoveredEmoji(emoji); }}
                                 />;
                             }
                             return (
@@ -565,10 +647,30 @@ export const EmojiPicker = ({
                                     category={category.key}
                                     isInView={visibleCategories.has(index)}
                                     onSelect={onSelect}
+                                    setHoveredEmoji={(emoji) => { setHoveredEmoji(emoji); }}
                                 />
                             );
                         })}
                     </ul>
+                    {/* Display hovered emoji name */}
+                    <Box sx={{
+                        position: "absolute",
+                        display: "flex",
+                        bottom: 0,
+                        width: "100%",
+                        textAlign: "start",
+                        background: palette.background.paper,
+                        paddingLeft: 2,
+                        paddingRight: 2,
+                    }}>
+                        <div style={{ display: "contents", fontSize: "2.5rem" }}>
+                            {hoveredEmoji ? parseNativeEmoji(hoveredEmoji) : "‎"}
+                        </div>
+                        <div style={{ display: "inline", alignSelf: "center", marginLeft: 1 }}>
+                            {/* eslint-disable-next-line @typescript-eslint/no-non-null-assertion */}
+                            {hoveredEmoji && Array.isArray(namesByCode[hoveredEmoji]) && namesByCode[hoveredEmoji]!.length > 0 ? namesByCode[hoveredEmoji]![0] : ""}
+                        </div>
+                    </Box>
                 </Box>
             </Box>
         </Popover>

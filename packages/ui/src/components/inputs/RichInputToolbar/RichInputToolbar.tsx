@@ -1,5 +1,5 @@
 import { noop } from "@local/shared";
-import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Theme, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
@@ -30,7 +30,7 @@ type ActionPopoverProps = {
     isOpen: boolean;
     items: PopoverActionItem[];
     onClose: () => unknown;
-    palette: Theme["palette"];
+    palette: any;//Theme["palette"];
 }
 
 type TablePopoverProps = {
@@ -38,7 +38,7 @@ type TablePopoverProps = {
     handleTableInsert: (rows: number, cols: number) => unknown;
     isOpen: boolean;
     onClose: () => unknown;
-    palette: Theme["palette"];
+    palette: any;//Theme["palette"];
     t: TFunction<"common", undefined, "common">;
 }
 
