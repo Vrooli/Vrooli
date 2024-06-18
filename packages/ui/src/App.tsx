@@ -27,6 +27,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/cookies";
+import { getDeviceInfo } from "utils/display/device";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { PubSub, SideMenuPub } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
@@ -155,7 +156,8 @@ export const App = () => {
         window.addEventListener("offline", handleOffline);
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getStorageItem("Preferences", () => true);
-        if (!cookiePreferences) {
+        const { isStandalone } = getDeviceInfo();
+        if (!cookiePreferences && !isStandalone) {
             PubSub.get().publish("cookies");
         }
         return () => {

@@ -46,30 +46,29 @@ export const CookiesSnack = ({
             <CookieSettingsDialog handleClose={handleCustomizeCookies} isOpen={isCustomizeOpen} />
             {/* Snack */}
             <Box sx={{
-                width: "min(100%, 500px)",
+                width: "min(95vw, 300px)",
                 zIndex: 20000,
                 background: palette.background.paper,
                 color: palette.background.textPrimary,
-                padding: 2,
+                padding: 1,
                 borderRadius: 2,
                 boxShadow: 8,
                 pointerEvents: "auto",
                 ...noSelect,
             }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    {/* Cookie icon */}
-                    <LargeCookieIcon width="48px" height="48px" fill={palette.background.textPrimary} />
-                    {/* Close Icon */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center" pb={1}>
+                    <Box display="flex" alignItems="center">
+                        <LargeCookieIcon width="48px" height="48px" fill={palette.background.textPrimary} />
+                        <Typography variant="body1" ml={1}>
+                            {t("CookiesDetails")}
+                        </Typography>
+                    </Box>
                     <IconButton onClick={handleClose}>
                         <CloseIcon width="32px" height="32px" fill={palette.background.textPrimary} />
                     </IconButton>
                 </Stack>
-                {/* Title */}
-                <Typography variant="body1" sx={{ mt: 1 }}>
-                    {t("CookiesDetails")}
-                </Typography>
                 {/* Buttons */}
-                <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid container spacing={2}>
                     <Grid item xs={6}>
                         <Button
                             fullWidth

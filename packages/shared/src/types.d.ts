@@ -16,7 +16,6 @@ declare module "i18next" {
         resources: {
             award: typeof award;
             common: typeof common;
-            emojis: typeof emojis;
             // validate: typeof validate;
             error: typeof error;
             langs: typeof langs;
