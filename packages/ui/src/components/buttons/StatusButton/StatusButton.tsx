@@ -1,14 +1,11 @@
-/**
- * Shows valid/invalid/incomplete status of some object
- */
 import { Stack, Tooltip, Typography } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { usePopover } from "hooks/usePopover";
 import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { noSelect } from "styles";
-import { Status } from "utils/consts";
-import { MarkdownDisplay } from "../../../../../../packages/ui/src/components/text/MarkdownDisplay/MarkdownDisplay";
+import { Status } from "../../../utils/consts";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay/MarkdownDisplay";
 import { StatusButtonProps } from "../types";
 
 /**
@@ -42,6 +39,9 @@ export const formatStatusMessages = (messages: string[]) => {
     return messages.map(message => `* ${message}`).join("\n");
 };
 
+/**
+ * Shows valid/invalid/incomplete status of some object
+ */
 export const StatusButton = ({
     status,
     messages,

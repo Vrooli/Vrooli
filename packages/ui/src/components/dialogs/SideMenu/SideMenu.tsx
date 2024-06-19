@@ -165,6 +165,7 @@ export const SideMenu = () => {
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => {
                 removeCookie("FormData"); // Clear old form data cache
+                localStorage.removeItem("isLoggedIn");
                 PubSub.get().publish("session", data);
                 PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
             },

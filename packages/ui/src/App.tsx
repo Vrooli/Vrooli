@@ -216,11 +216,13 @@ export const App = () => {
                 //TODO store in local storage. validateSession will only return full data for the current user.
                 //Other logged in users will not have their full data returned (will be in shape SessionUserToken
                 //instead of SessionUser). Not sure if this is a problem yet.
+                localStorage.setItem("isLoggedIn", "true");
                 setSession(data);
             },
             showDefaultErrorSnack: false,
             onError: (error) => {
                 let isInvalidSession = false;
+                localStorage.removeItem("isLoggedIn");
                 // Check if error is expired/invalid session
                 if (hasErrorCode(error, "SessionExpired")) {
                     isInvalidSession = true;
