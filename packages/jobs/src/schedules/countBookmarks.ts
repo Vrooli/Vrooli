@@ -1,8 +1,5 @@
 import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
-import { GqlModelType, uppercaseFirstLetter } from "@local/shared";
-import pkg from "lodash";
-
-const { camelCase } = pkg;
+import { GqlModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
 
 const processTableInBatches = async (tableName: string): Promise<void> => {
     try {
