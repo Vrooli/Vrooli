@@ -1,5 +1,53 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { findLatestPublicVersionIndex, getChangedVersions, prepareVersionUpdates } from "./afterMutationsVersion";
+import { findLatestPublicVersionIndex, getChangedVersions, prepareVersionUpdates, sortVersions } from "./afterMutationsVersion";
+
+describe("sortVersions", () => {
+    it("should correctly sort an array of versions by major, moderate, and minor", () => {
+        const versions = [
+            { versionLabel: "1.2.3" },
+            { versionLabel: "1.2.1" },
+            { versionLabel: "2.1.1" },
+            { versionLabel: "1.3.1" },
+            { versionLabel: "0.9.9" },
+        ];
+        const sorted = sortVersions(versions);
+        expect(sorted.map(v => v.versionLabel)).toEqual(["0.9.9", "1.2.1", "1.2.3", "1.3.1", "2.1.1"]);
+    });
+
+    it("should return an empty array when provided with a non-array input", () => {
+        const invalidInput = "not an array";
+        // @ts-ignore: Testing runtime scenario
+        const sorted = sortVersions(invalidInput);
+        expect(sorted).toEqual([]);
+    });
+
+    it("should return an empty array when provided with an empty array", () => {
+        const emptyArray = [];
+        const sorted = sortVersions(emptyArray);
+        expect(sorted).toEqual([]);
+    });
+
+    it("should sort versions that are identical", () => {
+        const versions = [
+            { versionLabel: "1.1.1" },
+            { versionLabel: "1.1.1" },
+            { versionLabel: "1.1.1" },
+        ];
+        const sorted = sortVersions(versions);
+        expect(sorted.map(v => v.versionLabel)).toEqual(["1.1.1", "1.1.1", "1.1.1"]);
+    });
+
+    it("should maintain the order of elements with the same version", () => {
+        // Assuming stable sort
+        const versions = [
+            { versionLabel: "1.1.1", name: "A" },
+            { versionLabel: "1.1.1", name: "B" },
+            { versionLabel: "1.1.1", name: "C" },
+        ];
+        const sorted = sortVersions(versions);
+        expect(sorted.map(v => v.name)).toEqual(["A", "B", "C"]);
+    });
+});
 
 describe("findLatestPublicVersionIndex", () => {
     it("returns -1 if no versions are available", () => {

@@ -1,4 +1,29 @@
 export const projectVersionDirectory_findOne = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "childOrder": true,
+  "isRoot": true,
+  "projectVersion": {
+    "id": true,
+    "complexity": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "root": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Project"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "name": true
+    },
+    "__typename": "ProjectVersion"
+  },
   "children": {
     "id": true,
     "created_at": true,
@@ -28,6 +53,27 @@ export const projectVersionDirectory_findOne = {
     "__typename": "ProjectVersionDirectory"
   },
   "childApiVersions": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "callLink": true,
+    "commentsCount": true,
+    "documentationLink": true,
+    "forksCount": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "reportsCount": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
     "root": {
       "id": true,
       "created_at": true,
@@ -164,18 +210,26 @@ export const projectVersionDirectory_findOne = {
       "name": true,
       "summary": true
     },
+    "__typename": "ApiVersion"
+  },
+  "childCodeVersions": {
     "id": true,
     "created_at": true,
     "updated_at": true,
-    "callLink": true,
-    "commentsCount": true,
-    "documentationLink": true,
-    "forksCount": true,
+    "isComplete": true,
+    "isDeleted": true,
     "isLatest": true,
     "isPrivate": true,
-    "reportsCount": true,
+    "codeLanguage": true,
+    "codeType": true,
+    "default": true,
     "versionIndex": true,
     "versionLabel": true,
+    "calledByRoutineVersionsCount": true,
+    "commentsCount": true,
+    "directoryListingsCount": true,
+    "forksCount": true,
+    "reportsCount": true,
     "you": {
       "canComment": true,
       "canCopy": true,
@@ -185,9 +239,6 @@ export const projectVersionDirectory_findOne = {
       "canUse": true,
       "canRead": true
     },
-    "__typename": "ApiVersion"
-  },
-  "childCodeVersions": {
     "root": {
       "id": true,
       "created_at": true,
@@ -324,23 +375,17 @@ export const projectVersionDirectory_findOne = {
       "jsonVariable": true,
       "name": true
     },
+    "__typename": "CodeVersion"
+  },
+  "childNoteVersions": {
     "id": true,
     "created_at": true,
     "updated_at": true,
-    "isComplete": true,
-    "isDeleted": true,
     "isLatest": true,
     "isPrivate": true,
-    "codeLanguage": true,
-    "codeType": true,
-    "default": true,
+    "reportsCount": true,
     "versionIndex": true,
     "versionLabel": true,
-    "calledByRoutineVersionsCount": true,
-    "commentsCount": true,
-    "directoryListingsCount": true,
-    "forksCount": true,
-    "reportsCount": true,
     "you": {
       "canComment": true,
       "canCopy": true,
@@ -350,9 +395,6 @@ export const projectVersionDirectory_findOne = {
       "canUse": true,
       "canRead": true
     },
-    "__typename": "CodeVersion"
-  },
-  "childNoteVersions": {
     "root": {
       "id": true,
       "created_at": true,
@@ -493,26 +535,20 @@ export const projectVersionDirectory_findOne = {
         "text": true
       }
     },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "reportsCount": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
     "__typename": "NoteVersion"
   },
   "childProjectVersions": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "directoriesCount": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "reportsCount": true,
+    "runProjectsCount": true,
+    "simplicity": true,
+    "versionIndex": true,
+    "versionLabel": true,
     "root": {
       "id": true,
       "created_at": true,
@@ -648,20 +684,32 @@ export const projectVersionDirectory_findOne = {
       "description": true,
       "name": true
     },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "directoriesCount": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "reportsCount": true,
-    "runProjectsCount": true,
-    "simplicity": true,
-    "versionIndex": true,
-    "versionLabel": true,
     "__typename": "ProjectVersion"
   },
   "childRoutineVersions": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "completedAt": true,
+    "isAutomatable": true,
+    "isComplete": true,
+    "isDeleted": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "routineType": true,
+    "simplicity": true,
+    "timesStarted": true,
+    "timesCompleted": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "commentsCount": true,
+    "directoryListingsCount": true,
+    "forksCount": true,
+    "inputsCount": true,
+    "nodesCount": true,
+    "nodeLinksCount": true,
+    "outputsCount": true,
+    "reportsCount": true,
     "root": {
       "id": true,
       "created_at": true,
@@ -799,32 +847,35 @@ export const projectVersionDirectory_findOne = {
       "instructions": true,
       "name": true
     },
+    "__typename": "RoutineVersion"
+  },
+  "childStandardVersions": {
     "id": true,
     "created_at": true,
     "updated_at": true,
-    "completedAt": true,
-    "isAutomatable": true,
     "isComplete": true,
-    "isDeleted": true,
+    "isFile": true,
     "isLatest": true,
     "isPrivate": true,
-    "routineType": true,
-    "simplicity": true,
-    "timesStarted": true,
-    "timesCompleted": true,
+    "default": true,
+    "standardType": true,
+    "props": true,
+    "yup": true,
     "versionIndex": true,
     "versionLabel": true,
     "commentsCount": true,
     "directoryListingsCount": true,
     "forksCount": true,
-    "inputsCount": true,
-    "nodesCount": true,
-    "nodeLinksCount": true,
-    "outputsCount": true,
     "reportsCount": true,
-    "__typename": "RoutineVersion"
-  },
-  "childStandardVersions": {
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
     "root": {
       "id": true,
       "created_at": true,
@@ -961,32 +1012,6 @@ export const projectVersionDirectory_findOne = {
       "jsonVariable": true,
       "name": true
     },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "isComplete": true,
-    "isFile": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "default": true,
-    "standardType": true,
-    "props": true,
-    "yup": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "commentsCount": true,
-    "directoryListingsCount": true,
-    "forksCount": true,
-    "reportsCount": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
     "__typename": "StandardVersion"
   },
   "childTeams": {
@@ -1076,31 +1101,6 @@ export const projectVersionDirectory_findOne = {
     "language": true,
     "description": true,
     "name": true
-  },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "childOrder": true,
-  "isRoot": true,
-  "projectVersion": {
-    "id": true,
-    "complexity": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "root": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Project"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "name": true
-    },
-    "__typename": "ProjectVersion"
   },
   "__typename": "ProjectVersionDirectory"
 } as const;

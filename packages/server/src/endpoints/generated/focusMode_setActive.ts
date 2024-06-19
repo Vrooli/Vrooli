@@ -1,5 +1,13 @@
 export const focusMode_setActive = {
   "mode": {
+    "id": true,
+    "name": true,
+    "description": true,
+    "you": {
+      "canDelete": true,
+      "canRead": true,
+      "canUpdate": true
+    },
     "filters": {
       "id": true,
       "filterType": true,
@@ -19,6 +27,14 @@ export const focusMode_setActive = {
         }
       },
       "focusMode": {
+        "id": true,
+        "name": true,
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        },
         "labels": {
           "id": true,
           "color": true,
@@ -93,14 +109,6 @@ export const focusMode_setActive = {
             "month": true,
             "endDate": true
           }
-        },
-        "id": true,
-        "name": true,
-        "description": true,
-        "you": {
-          "canDelete": true,
-          "canRead": true,
-          "canUpdate": true
         }
       }
     },
@@ -178,14 +186,6 @@ export const focusMode_setActive = {
         "month": true,
         "endDate": true
       }
-    },
-    "id": true,
-    "name": true,
-    "description": true,
-    "you": {
-      "canDelete": true,
-      "canRead": true,
-      "canUpdate": true
     }
   },
   "stopCondition": true,

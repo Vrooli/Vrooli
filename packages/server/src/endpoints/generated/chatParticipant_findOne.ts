@@ -1,4 +1,7 @@
 export const chatParticipant_findOne = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
   "user": {
     "id": true,
     "created_at": true,
@@ -11,8 +14,5 @@ export const chatParticipant_findOne = {
     "profileImage": true,
     "__typename": "User"
   },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
   "__typename": "ChatParticipant"
 } as const;

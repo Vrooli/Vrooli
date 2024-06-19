@@ -1,4 +1,15 @@
 export const role_update = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "name": true,
+  "permissions": true,
+  "membersCount": true,
+  "translations": {
+    "id": true,
+    "language": true,
+    "description": true
+  },
   "members": {
     "id": true,
     "created_at": true,
@@ -48,17 +59,6 @@ export const role_update = {
       "canUpdate": true
     },
     "__typename": "Member"
-  },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "name": true,
-  "permissions": true,
-  "membersCount": true,
-  "translations": {
-    "id": true,
-    "language": true,
-    "description": true
   },
   "__typename": "Role"
 } as const;

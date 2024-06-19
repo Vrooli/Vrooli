@@ -1,126 +1,4 @@
 export const standard_update = {
-  "versionsCount": true,
-  "parent": {
-    "id": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "root": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Standard"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "jsonVariable": true,
-      "name": true
-    },
-    "__typename": "StandardVersion"
-  },
-  "versions": {
-    "versionNotes": true,
-    "pullRequest": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "mergedOrRejectedAt": true,
-      "commentsCount": true,
-      "status": true,
-      "createdBy": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "you": {
-        "canComment": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true
-      },
-      "__typename": "PullRequest"
-    },
-    "resourceList": {
-      "id": true,
-      "created_at": true,
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "name": true
-      },
-      "resources": {
-        "id": true,
-        "index": true,
-        "link": true,
-        "usedFor": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "name": true
-        },
-        "__typename": "Resource"
-      },
-      "__typename": "ResourceList"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "jsonVariable": true,
-      "name": true
-    },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "isComplete": true,
-    "isFile": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "default": true,
-    "standardType": true,
-    "props": true,
-    "yup": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "commentsCount": true,
-    "directoryListingsCount": true,
-    "forksCount": true,
-    "reportsCount": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
-    "__typename": "StandardVersion"
-  },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "linksToInputs": true,
-    "linksToOutputs": true
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -246,6 +124,128 @@ export const standard_update = {
     "isBookmarked": true,
     "isViewed": true,
     "reaction": true
+  },
+  "versionsCount": true,
+  "parent": {
+    "id": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "root": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Standard"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "jsonVariable": true,
+      "name": true
+    },
+    "__typename": "StandardVersion"
+  },
+  "versions": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "isComplete": true,
+    "isFile": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "default": true,
+    "standardType": true,
+    "props": true,
+    "yup": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "commentsCount": true,
+    "directoryListingsCount": true,
+    "forksCount": true,
+    "reportsCount": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
+    "versionNotes": true,
+    "pullRequest": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "mergedOrRejectedAt": true,
+      "commentsCount": true,
+      "status": true,
+      "createdBy": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
+      },
+      "you": {
+        "canComment": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      },
+      "__typename": "PullRequest"
+    },
+    "resourceList": {
+      "id": true,
+      "created_at": true,
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "name": true
+      },
+      "resources": {
+        "id": true,
+        "index": true,
+        "link": true,
+        "usedFor": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "name": true
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "jsonVariable": true,
+      "name": true
+    },
+    "__typename": "StandardVersion"
+  },
+  "stats": {
+    "id": true,
+    "periodStart": true,
+    "periodEnd": true,
+    "periodType": true,
+    "linksToInputs": true,
+    "linksToOutputs": true
   },
   "__typename": "Standard"
 } as const;

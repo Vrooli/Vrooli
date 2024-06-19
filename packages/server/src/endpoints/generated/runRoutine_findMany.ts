@@ -2,29 +2,6 @@ export const runRoutine_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "routineVersion": {
-        "id": true,
-        "complexity": true,
-        "isAutomatable": true,
-        "isComplete": true,
-        "isDeleted": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "root": {
-          "id": true,
-          "isInternal": true,
-          "isPrivate": true
-        },
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "instructions": true,
-          "name": true
-        },
-        "versionIndex": true,
-        "versionLabel": true
-      },
       "id": true,
       "isPrivate": true,
       "completedComplexity": true,
@@ -75,6 +52,29 @@ export const runRoutine_findMany = {
         "canDelete": true,
         "canUpdate": true,
         "canRead": true
+      },
+      "routineVersion": {
+        "id": true,
+        "complexity": true,
+        "isAutomatable": true,
+        "isComplete": true,
+        "isDeleted": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "root": {
+          "id": true,
+          "isInternal": true,
+          "isPrivate": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "instructions": true,
+          "name": true
+        },
+        "versionIndex": true,
+        "versionLabel": true
       }
     }
   },

@@ -9,7 +9,22 @@ import * as yup from "yup";
 import { enumToYup } from "./builders";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex";
-import { minVersionTest } from "./versions";
+import { meetsMinVersion } from "./versions";
+
+/**
+ * Test for minimum version
+ */
+export const minVersionTest = (minVersion: string): [string, string, (value: string | undefined) => boolean] => {
+    const versionRegex = /^\d+\.\d+\.\d+$/;
+    return [
+        "version",
+        `Minimum version is ${minVersion}`,
+        (value: string | undefined) => {
+            if (!value) return true;
+            return versionRegex.test(value) && meetsMinVersion(value, minVersion);
+        },
+    ];
+};
 
 yup.addMethod(yup.string, "removeEmptyString", function () {
     return this.transform((value: unknown) => {

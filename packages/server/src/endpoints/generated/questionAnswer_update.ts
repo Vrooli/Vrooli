@@ -1,10 +1,24 @@
 export const questionAnswer_update = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "createdBy": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "bannerImage": true,
+    "handle": true,
+    "isBot": true,
+    "isBotDepictingPerson": true,
+    "name": true,
+    "profileImage": true,
+    "__typename": "User"
+  },
+  "score": true,
+  "bookmarks": true,
+  "isAccepted": true,
+  "commentsCount": true,
   "comments": {
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -58,6 +72,11 @@ export const questionAnswer_update = {
       "canReact": true,
       "isBookmarked": true,
       "reaction": true
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
     },
     "__typename": "Comment"
   },
@@ -167,24 +186,5 @@ export const questionAnswer_update = {
     "language": true,
     "text": true
   },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "createdBy": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "bannerImage": true,
-    "handle": true,
-    "isBot": true,
-    "isBotDepictingPerson": true,
-    "name": true,
-    "profileImage": true,
-    "__typename": "User"
-  },
-  "score": true,
-  "bookmarks": true,
-  "isAccepted": true,
-  "commentsCount": true,
   "__typename": "QuestionAnswer"
 } as const;

@@ -2,11 +2,6 @@ export const pullRequest_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -29,6 +24,11 @@ export const pullRequest_findMany = {
         "canDelete": true,
         "canReport": true,
         "canUpdate": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
       }
     }
   },

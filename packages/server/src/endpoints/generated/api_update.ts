@@ -1,99 +1,4 @@
 export const api_update = {
-  "versionsCount": true,
-  "parent": {
-    "id": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "root": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Api"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "details": true,
-      "name": true,
-      "summary": true
-    },
-    "__typename": "ApiVersion"
-  },
-  "versions": {
-    "pullRequest": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "mergedOrRejectedAt": true,
-      "commentsCount": true,
-      "status": true,
-      "createdBy": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "you": {
-        "canComment": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true
-      },
-      "__typename": "PullRequest"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "details": true,
-      "name": true,
-      "summary": true
-    },
-    "schemaText": true,
-    "versionNotes": true,
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "callLink": true,
-    "commentsCount": true,
-    "documentationLink": true,
-    "forksCount": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "reportsCount": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
-    "__typename": "ApiVersion"
-  },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "calls": true,
-    "routineVersions": true,
-    "__typename": "StatsApi"
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -219,6 +124,101 @@ export const api_update = {
     "isBookmarked": true,
     "isViewed": true,
     "reaction": true
+  },
+  "versionsCount": true,
+  "parent": {
+    "id": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "root": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Api"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "details": true,
+      "name": true,
+      "summary": true
+    },
+    "__typename": "ApiVersion"
+  },
+  "versions": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "callLink": true,
+    "commentsCount": true,
+    "documentationLink": true,
+    "forksCount": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "reportsCount": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
+    "pullRequest": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "mergedOrRejectedAt": true,
+      "commentsCount": true,
+      "status": true,
+      "createdBy": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
+      },
+      "you": {
+        "canComment": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      },
+      "__typename": "PullRequest"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "details": true,
+      "name": true,
+      "summary": true
+    },
+    "schemaText": true,
+    "versionNotes": true,
+    "__typename": "ApiVersion"
+  },
+  "stats": {
+    "id": true,
+    "periodStart": true,
+    "periodEnd": true,
+    "periodType": true,
+    "calls": true,
+    "routineVersions": true,
+    "__typename": "StatsApi"
   },
   "__typename": "Api"
 } as const;

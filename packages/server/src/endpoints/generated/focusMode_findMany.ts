@@ -2,6 +2,14 @@ export const focusMode_findMany = {
   "edges": {
     "cursor": true,
     "node": {
+      "id": true,
+      "name": true,
+      "description": true,
+      "you": {
+        "canDelete": true,
+        "canRead": true,
+        "canUpdate": true
+      },
       "labels": {
         "id": true,
         "color": true,
@@ -76,14 +84,6 @@ export const focusMode_findMany = {
           "month": true,
           "endDate": true
         }
-      },
-      "id": true,
-      "name": true,
-      "description": true,
-      "you": {
-        "canDelete": true,
-        "canRead": true,
-        "canUpdate": true
       }
     }
   },

@@ -1,4 +1,4 @@
-import { GqlModelType, sortVersions } from "@local/shared";
+import { GqlModelType, calculateVersionsFromString } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { ModelMap } from "../../models/base";
@@ -11,6 +11,24 @@ type Version = {
     versionIndex: number;
     versionLabel: string;
 }
+
+/**
+ * Sorts versions from lowest to highest
+ */
+export const sortVersions = <T extends { versionLabel: string }>(versions: T[]): T[] => {
+    if (!Array.isArray(versions)) return [];
+    return versions.sort((a, b) => {
+        const { major: majorA, moderate: moderateA, minor: minorA } = calculateVersionsFromString(a.versionLabel);
+        const { major: majorB, moderate: moderateB, minor: minorB } = calculateVersionsFromString(b.versionLabel);
+        if (majorA > majorB) return 1;
+        if (majorA < majorB) return -1;
+        if (moderateA > moderateB) return 1;
+        if (moderateA < moderateB) return -1;
+        if (minorA > minorB) return 1;
+        if (minorA < minorB) return -1;
+        return 0;
+    });
+};
 
 /**
  * Finds the index of the latest public version in a sorted list of versions.

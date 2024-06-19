@@ -53,36 +53,3 @@ export const meetsMinVersion = (version: string, minimumVersion: string): boolea
     // Otherwise, return true
     return true;
 };
-
-/**
- * Test for minimum version
- */
-export const minVersionTest = (minVersion: string): [string, string, (value: string | undefined) => boolean] => {
-    const versionRegex = /^\d+\.\d+\.\d+$/;
-    return [
-        "version",
-        `Minimum version is ${minVersion}`,
-        (value: string | undefined) => {
-            if (!value) return true;
-            return versionRegex.test(value) && meetsMinVersion(value, minVersion);
-        },
-    ];
-};
-
-/**
- * Sorts versions from lowest to highest
- */
-export const sortVersions = <T extends { versionLabel: string }>(versions: T[]): T[] => {
-    if (!Array.isArray(versions)) return [];
-    return versions.sort((a, b) => {
-        const { major: majorA, moderate: moderateA, minor: minorA } = calculateVersionsFromString(a.versionLabel);
-        const { major: majorB, moderate: moderateB, minor: minorB } = calculateVersionsFromString(b.versionLabel);
-        if (majorA > majorB) return 1;
-        if (majorA < majorB) return -1;
-        if (moderateA > moderateB) return 1;
-        if (moderateA < moderateB) return -1;
-        if (minorA > minorB) return 1;
-        if (minorA < minorB) return -1;
-        return 0;
-    });
-};

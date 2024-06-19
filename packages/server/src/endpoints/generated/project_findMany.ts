@@ -2,25 +2,6 @@ export const project_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "name": true
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "directoriesCount": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "reportsCount": true,
-        "runProjectsCount": true,
-        "simplicity": true,
-        "versionIndex": true,
-        "versionLabel": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -140,6 +121,25 @@ export const project_findMany = {
         "isBookmarked": true,
         "isViewed": true,
         "reaction": true
+      },
+      "versions": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "directoriesCount": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "reportsCount": true,
+        "runProjectsCount": true,
+        "simplicity": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "name": true
+        }
       }
     }
   },

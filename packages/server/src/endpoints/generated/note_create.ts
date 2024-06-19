@@ -1,93 +1,4 @@
 export const note_create = {
-  "versionsCount": true,
-  "parent": {
-    "id": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "root": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Note"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "name": true,
-      "pages": {
-        "id": true,
-        "pageIndex": true,
-        "text": true
-      }
-    },
-    "__typename": "NoteVersion"
-  },
-  "versions": {
-    "pullRequest": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "mergedOrRejectedAt": true,
-      "commentsCount": true,
-      "status": true,
-      "createdBy": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "bannerImage": true,
-        "handle": true,
-        "isBot": true,
-        "isBotDepictingPerson": true,
-        "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      },
-      "you": {
-        "canComment": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true
-      },
-      "__typename": "PullRequest"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "name": true,
-      "pages": {
-        "id": true,
-        "pageIndex": true,
-        "text": true
-      }
-    },
-    "versionNotes": true,
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "reportsCount": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "you": {
-      "canComment": true,
-      "canCopy": true,
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canUse": true,
-      "canRead": true
-    },
-    "__typename": "NoteVersion"
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -213,6 +124,95 @@ export const note_create = {
     "isBookmarked": true,
     "isViewed": true,
     "reaction": true
+  },
+  "versionsCount": true,
+  "parent": {
+    "id": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "root": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Note"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "name": true,
+      "pages": {
+        "id": true,
+        "pageIndex": true,
+        "text": true
+      }
+    },
+    "__typename": "NoteVersion"
+  },
+  "versions": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "reportsCount": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
+    "pullRequest": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "mergedOrRejectedAt": true,
+      "commentsCount": true,
+      "status": true,
+      "createdBy": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "bannerImage": true,
+        "handle": true,
+        "isBot": true,
+        "isBotDepictingPerson": true,
+        "name": true,
+        "profileImage": true,
+        "__typename": "User"
+      },
+      "you": {
+        "canComment": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      },
+      "__typename": "PullRequest"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "name": true,
+      "pages": {
+        "id": true,
+        "pageIndex": true,
+        "text": true
+      }
+    },
+    "versionNotes": true,
+    "__typename": "NoteVersion"
   },
   "__typename": "Note"
 } as const;

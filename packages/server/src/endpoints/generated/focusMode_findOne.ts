@@ -1,4 +1,12 @@
 export const focusMode_findOne = {
+  "id": true,
+  "name": true,
+  "description": true,
+  "you": {
+    "canDelete": true,
+    "canRead": true,
+    "canUpdate": true
+  },
   "filters": {
     "id": true,
     "filterType": true,
@@ -19,6 +27,14 @@ export const focusMode_findOne = {
       "__typename": "Tag"
     },
     "focusMode": {
+      "id": true,
+      "name": true,
+      "description": true,
+      "you": {
+        "canDelete": true,
+        "canRead": true,
+        "canUpdate": true
+      },
       "labels": {
         "id": true,
         "color": true,
@@ -100,14 +116,6 @@ export const focusMode_findOne = {
           "__typename": "ScheduleRecurrence"
         },
         "__typename": "Schedule"
-      },
-      "id": true,
-      "name": true,
-      "description": true,
-      "you": {
-        "canDelete": true,
-        "canRead": true,
-        "canUpdate": true
       },
       "__typename": "FocusMode"
     },
@@ -194,14 +202,6 @@ export const focusMode_findOne = {
       "__typename": "ScheduleRecurrence"
     },
     "__typename": "Schedule"
-  },
-  "id": true,
-  "name": true,
-  "description": true,
-  "you": {
-    "canDelete": true,
-    "canRead": true,
-    "canUpdate": true
   },
   "__typename": "FocusMode"
 } as const;

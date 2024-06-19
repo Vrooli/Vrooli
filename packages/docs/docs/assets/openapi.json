@@ -10415,6 +10415,11 @@
             "nullable": true,
             "type": "string"
           },
+          "calledByRoutineVersionId": {
+            "title": "CodeVersionSearchInput.calledByRoutineVersionId",
+            "nullable": true,
+            "type": "string"
+          },
           "completedTimeFrame": {
             "anyOf": [
               {
@@ -34746,6 +34751,29 @@
             ],
             "title": "RoutineSearchInput.labelsIds"
           },
+          "latestVersionRoutineType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Action",
+                  "Api",
+                  "Code",
+                  "Data",
+                  "Generate",
+                  "Informational",
+                  "MultiStep",
+                  "SmartContract"
+                ],
+                "title": "RoutineSearchInput.latestVersionRoutineType",
+                "type": "string"
+              },
+              {
+                "title": "RoutineSearchInput.latestVersionRoutineType",
+                "nullable": true
+              }
+            ],
+            "title": "RoutineSearchInput.latestVersionRoutineType"
+          },
           "maxBookmarks": {
             "title": "RoutineSearchInput.maxBookmarks",
             "nullable": true,
@@ -36317,6 +36345,11 @@
             "nullable": true,
             "type": "string"
           },
+          "codeVersionId": {
+            "title": "RoutineVersionSearchInput.codeVersionId",
+            "nullable": true,
+            "type": "string"
+          },
           "createdByIdRoot": {
             "title": "RoutineVersionSearchInput.createdByIdRoot",
             "nullable": true,
@@ -36496,6 +36529,29 @@
             "title": "RoutineVersionSearchInput.rootId",
             "nullable": true,
             "type": "string"
+          },
+          "routineType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Action",
+                  "Api",
+                  "Code",
+                  "Data",
+                  "Generate",
+                  "Informational",
+                  "MultiStep",
+                  "SmartContract"
+                ],
+                "title": "RoutineVersionSearchInput.routineType",
+                "type": "string"
+              },
+              {
+                "title": "RoutineVersionSearchInput.routineType",
+                "nullable": true
+              }
+            ],
+            "title": "RoutineVersionSearchInput.routineType"
           },
           "searchString": {
             "title": "RoutineVersionSearchInput.searchString",
@@ -42670,6 +42726,11 @@
           },
           "isCompleteWithRoot": {
             "title": "StandardVersionSearchInput.isCompleteWithRoot",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "isInternalWithRoot": {
+            "title": "StandardVersionSearchInput.isInternalWithRoot",
             "nullable": true,
             "type": "boolean"
           },

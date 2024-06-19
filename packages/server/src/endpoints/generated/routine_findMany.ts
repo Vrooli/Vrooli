@@ -2,38 +2,6 @@ export const routine_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "instructions": true,
-          "name": true
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "completedAt": true,
-        "isAutomatable": true,
-        "isComplete": true,
-        "isDeleted": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "routineType": true,
-        "simplicity": true,
-        "timesStarted": true,
-        "timesCompleted": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "commentsCount": true,
-        "directoryListingsCount": true,
-        "forksCount": true,
-        "inputsCount": true,
-        "nodesCount": true,
-        "nodeLinksCount": true,
-        "outputsCount": true,
-        "reportsCount": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -154,6 +122,38 @@ export const routine_findMany = {
         "isBookmarked": true,
         "isViewed": true,
         "reaction": true
+      },
+      "versions": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "completedAt": true,
+        "isAutomatable": true,
+        "isComplete": true,
+        "isDeleted": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "routineType": true,
+        "simplicity": true,
+        "timesStarted": true,
+        "timesCompleted": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "commentsCount": true,
+        "directoryListingsCount": true,
+        "forksCount": true,
+        "inputsCount": true,
+        "nodesCount": true,
+        "nodeLinksCount": true,
+        "outputsCount": true,
+        "reportsCount": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "instructions": true,
+          "name": true
+        }
       }
     }
   },

@@ -1,9 +1,4 @@
 export const pullRequest_accept = {
-  "translations": {
-    "id": true,
-    "language": true,
-    "text": true
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -27,6 +22,11 @@ export const pullRequest_accept = {
     "canDelete": true,
     "canReport": true,
     "canUpdate": true
+  },
+  "translations": {
+    "id": true,
+    "language": true,
+    "text": true
   },
   "__typename": "PullRequest"
 } as const;

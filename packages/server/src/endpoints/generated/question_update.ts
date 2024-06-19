@@ -1,99 +1,4 @@
 export const question_update = {
-  "answers": {
-    "comments": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "owner": {
-        "Team": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          },
-          "__typename": "Team"
-        },
-        "User": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        }
-      },
-      "score": true,
-      "bookmarks": true,
-      "reportsCount": true,
-      "you": {
-        "canDelete": true,
-        "canBookmark": true,
-        "canReply": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canReact": true,
-        "isBookmarked": true,
-        "reaction": true
-      },
-      "__typename": "Comment"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "createdBy": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "bannerImage": true,
-      "handle": true,
-      "isBot": true,
-      "isBotDepictingPerson": true,
-      "name": true,
-      "profileImage": true,
-      "__typename": "User"
-    },
-    "score": true,
-    "bookmarks": true,
-    "isAccepted": true,
-    "commentsCount": true,
-    "__typename": "QuestionAnswer"
-  },
-  "translations": {
-    "id": true,
-    "language": true,
-    "description": true,
-    "name": true
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -191,6 +96,101 @@ export const question_update = {
   },
   "you": {
     "reaction": true
+  },
+  "answers": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "createdBy": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "bannerImage": true,
+      "handle": true,
+      "isBot": true,
+      "isBotDepictingPerson": true,
+      "name": true,
+      "profileImage": true,
+      "__typename": "User"
+    },
+    "score": true,
+    "bookmarks": true,
+    "isAccepted": true,
+    "commentsCount": true,
+    "comments": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "owner": {
+        "Team": {
+          "id": true,
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Team"
+        },
+        "User": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
+        }
+      },
+      "score": true,
+      "bookmarks": true,
+      "reportsCount": true,
+      "you": {
+        "canDelete": true,
+        "canBookmark": true,
+        "canReply": true,
+        "canReport": true,
+        "canUpdate": true,
+        "canReact": true,
+        "isBookmarked": true,
+        "reaction": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      },
+      "__typename": "Comment"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
+    },
+    "__typename": "QuestionAnswer"
+  },
+  "translations": {
+    "id": true,
+    "language": true,
+    "description": true,
+    "name": true
   },
   "__typename": "Question"
 } as const;

@@ -1,14 +1,4 @@
 export const label_findOne = {
-  "apisCount": true,
-  "codesCount": true,
-  "focusModesCount": true,
-  "issuesCount": true,
-  "meetingsCount": true,
-  "notesCount": true,
-  "projectsCount": true,
-  "routinesCount": true,
-  "schedulesCount": true,
-  "standardsCount": true,
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -56,5 +46,15 @@ export const label_findOne = {
     "canDelete": true,
     "canUpdate": true
   },
+  "apisCount": true,
+  "codesCount": true,
+  "focusModesCount": true,
+  "issuesCount": true,
+  "meetingsCount": true,
+  "notesCount": true,
+  "projectsCount": true,
+  "routinesCount": true,
+  "schedulesCount": true,
+  "standardsCount": true,
   "__typename": "Label"
 } as const;

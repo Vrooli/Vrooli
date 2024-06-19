@@ -1,10 +1,26 @@
 export const apiVersion_create = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "callLink": true,
+  "commentsCount": true,
+  "documentationLink": true,
+  "forksCount": true,
+  "isLatest": true,
+  "isPrivate": true,
+  "reportsCount": true,
+  "versionIndex": true,
+  "versionLabel": true,
+  "you": {
+    "canComment": true,
+    "canCopy": true,
+    "canDelete": true,
+    "canReport": true,
+    "canUpdate": true,
+    "canUse": true,
+    "canRead": true
+  },
   "pullRequest": {
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -29,39 +45,14 @@ export const apiVersion_create = {
       "canReport": true,
       "canUpdate": true
     },
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
+    },
     "__typename": "PullRequest"
   },
   "root": {
-    "versionsCount": true,
-    "parent": {
-      "id": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "root": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Api"
-      },
-      "translations": {
-        "id": true,
-        "language": true,
-        "details": true,
-        "name": true,
-        "summary": true
-      },
-      "__typename": "ApiVersion"
-    },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "calls": true,
-      "routineVersions": true,
-      "__typename": "StatsApi"
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -188,6 +179,36 @@ export const apiVersion_create = {
       "isViewed": true,
       "reaction": true
     },
+    "versionsCount": true,
+    "parent": {
+      "id": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "root": {
+        "id": true,
+        "isPrivate": true,
+        "__typename": "Api"
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "details": true,
+        "name": true,
+        "summary": true
+      },
+      "__typename": "ApiVersion"
+    },
+    "stats": {
+      "id": true,
+      "periodStart": true,
+      "periodEnd": true,
+      "periodType": true,
+      "calls": true,
+      "routineVersions": true,
+      "__typename": "StatsApi"
+    },
     "__typename": "Api"
   },
   "translations": {
@@ -199,26 +220,5 @@ export const apiVersion_create = {
   },
   "schemaText": true,
   "versionNotes": true,
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "callLink": true,
-  "commentsCount": true,
-  "documentationLink": true,
-  "forksCount": true,
-  "isLatest": true,
-  "isPrivate": true,
-  "reportsCount": true,
-  "versionIndex": true,
-  "versionLabel": true,
-  "you": {
-    "canComment": true,
-    "canCopy": true,
-    "canDelete": true,
-    "canReport": true,
-    "canUpdate": true,
-    "canUse": true,
-    "canRead": true
-  },
   "__typename": "ApiVersion"
 } as const;

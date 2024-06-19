@@ -1,34 +1,4 @@
 export const issue_close = {
-  "closedBy": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "bannerImage": true,
-    "handle": true,
-    "isBot": true,
-    "isBotDepictingPerson": true,
-    "name": true,
-    "profileImage": true,
-    "__typename": "User"
-  },
-  "createdBy": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "bannerImage": true,
-    "handle": true,
-    "isBot": true,
-    "isBotDepictingPerson": true,
-    "name": true,
-    "profileImage": true,
-    "__typename": "User"
-  },
-  "translations": {
-    "id": true,
-    "language": true,
-    "description": true,
-    "name": true
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -157,6 +127,36 @@ export const issue_close = {
     "canReact": true,
     "isBookmarked": true,
     "reaction": true
+  },
+  "closedBy": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "bannerImage": true,
+    "handle": true,
+    "isBot": true,
+    "isBotDepictingPerson": true,
+    "name": true,
+    "profileImage": true,
+    "__typename": "User"
+  },
+  "createdBy": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "bannerImage": true,
+    "handle": true,
+    "isBot": true,
+    "isBotDepictingPerson": true,
+    "name": true,
+    "profileImage": true,
+    "__typename": "User"
+  },
+  "translations": {
+    "id": true,
+    "language": true,
+    "description": true,
+    "name": true
   },
   "__typename": "Issue"
 } as const;

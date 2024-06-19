@@ -2,36 +2,6 @@ export const note_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "name": true,
-          "pages": {
-            "id": true,
-            "pageIndex": true,
-            "text": true
-          }
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "reportsCount": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "you": {
-          "canComment": true,
-          "canCopy": true,
-          "canDelete": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canUse": true,
-          "canRead": true
-        }
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -151,6 +121,36 @@ export const note_findMany = {
         "isBookmarked": true,
         "isViewed": true,
         "reaction": true
+      },
+      "versions": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "reportsCount": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "name": true,
+          "pages": {
+            "id": true,
+            "pageIndex": true,
+            "text": true
+          }
+        }
       }
     }
   },

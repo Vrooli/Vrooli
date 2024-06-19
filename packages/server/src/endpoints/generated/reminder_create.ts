@@ -23,6 +23,14 @@ export const reminder_create = {
     "created_at": true,
     "updated_at": true,
     "focusMode": {
+      "id": true,
+      "name": true,
+      "description": true,
+      "you": {
+        "canDelete": true,
+        "canRead": true,
+        "canUpdate": true
+      },
       "labels": {
         "id": true,
         "color": true,
@@ -76,14 +84,6 @@ export const reminder_create = {
           "__typename": "ScheduleRecurrence"
         },
         "__typename": "Schedule"
-      },
-      "id": true,
-      "name": true,
-      "description": true,
-      "you": {
-        "canDelete": true,
-        "canRead": true,
-        "canUpdate": true
       },
       "__typename": "FocusMode"
     },

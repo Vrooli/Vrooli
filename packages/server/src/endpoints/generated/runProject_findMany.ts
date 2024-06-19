@@ -2,24 +2,6 @@ export const runProject_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "projectVersion": {
-        "id": true,
-        "complexity": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "root": {
-          "id": true,
-          "isPrivate": true
-        },
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "name": true
-        }
-      },
       "id": true,
       "isPrivate": true,
       "completedComplexity": true,
@@ -68,6 +50,24 @@ export const runProject_findMany = {
         "canDelete": true,
         "canUpdate": true,
         "canRead": true
+      },
+      "projectVersion": {
+        "id": true,
+        "complexity": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "root": {
+          "id": true,
+          "isPrivate": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "name": true
+        }
       }
     }
   },

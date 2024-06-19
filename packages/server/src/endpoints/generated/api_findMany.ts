@@ -2,36 +2,6 @@ export const api_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "details": true,
-          "name": true,
-          "summary": true
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "callLink": true,
-        "commentsCount": true,
-        "documentationLink": true,
-        "forksCount": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "reportsCount": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "you": {
-          "canComment": true,
-          "canCopy": true,
-          "canDelete": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canUse": true,
-          "canRead": true
-        }
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -151,6 +121,36 @@ export const api_findMany = {
         "isBookmarked": true,
         "isViewed": true,
         "reaction": true
+      },
+      "versions": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "callLink": true,
+        "commentsCount": true,
+        "documentationLink": true,
+        "forksCount": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "reportsCount": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "details": true,
+          "name": true,
+          "summary": true
+        }
       }
     }
   },

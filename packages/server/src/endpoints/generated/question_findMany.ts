@@ -2,12 +2,6 @@ export const question_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "name": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -96,6 +90,12 @@ export const question_findMany = {
       },
       "you": {
         "reaction": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "name": true
       }
     }
   },

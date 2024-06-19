@@ -1,11 +1,32 @@
 export const standardVersion_update = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "isComplete": true,
+  "isFile": true,
+  "isLatest": true,
+  "isPrivate": true,
+  "default": true,
+  "standardType": true,
+  "props": true,
+  "yup": true,
+  "versionIndex": true,
+  "versionLabel": true,
+  "commentsCount": true,
+  "directoryListingsCount": true,
+  "forksCount": true,
+  "reportsCount": true,
+  "you": {
+    "canComment": true,
+    "canCopy": true,
+    "canDelete": true,
+    "canReport": true,
+    "canUpdate": true,
+    "canUse": true,
+    "canRead": true
+  },
   "versionNotes": true,
   "pullRequest": {
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -29,6 +50,11 @@ export const standardVersion_update = {
       "canDelete": true,
       "canReport": true,
       "canUpdate": true
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
     },
     "__typename": "PullRequest"
   },
@@ -57,35 +83,6 @@ export const standardVersion_update = {
     "__typename": "ResourceList"
   },
   "root": {
-    "versionsCount": true,
-    "parent": {
-      "id": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "root": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Standard"
-      },
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "jsonVariable": true,
-        "name": true
-      },
-      "__typename": "StandardVersion"
-    },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "linksToInputs": true,
-      "linksToOutputs": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -212,6 +209,35 @@ export const standardVersion_update = {
       "isViewed": true,
       "reaction": true
     },
+    "versionsCount": true,
+    "parent": {
+      "id": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "root": {
+        "id": true,
+        "isPrivate": true,
+        "__typename": "Standard"
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "jsonVariable": true,
+        "name": true
+      },
+      "__typename": "StandardVersion"
+    },
+    "stats": {
+      "id": true,
+      "periodStart": true,
+      "periodEnd": true,
+      "periodType": true,
+      "linksToInputs": true,
+      "linksToOutputs": true
+    },
     "__typename": "Standard"
   },
   "translations": {
@@ -220,32 +246,6 @@ export const standardVersion_update = {
     "description": true,
     "jsonVariable": true,
     "name": true
-  },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "isComplete": true,
-  "isFile": true,
-  "isLatest": true,
-  "isPrivate": true,
-  "default": true,
-  "standardType": true,
-  "props": true,
-  "yup": true,
-  "versionIndex": true,
-  "versionLabel": true,
-  "commentsCount": true,
-  "directoryListingsCount": true,
-  "forksCount": true,
-  "reportsCount": true,
-  "you": {
-    "canComment": true,
-    "canCopy": true,
-    "canDelete": true,
-    "canReport": true,
-    "canUpdate": true,
-    "canUse": true,
-    "canRead": true
   },
   "__typename": "StandardVersion"
 } as const;

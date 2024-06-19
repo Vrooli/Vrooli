@@ -1,10 +1,22 @@
 export const noteVersion_findOne = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "isLatest": true,
+  "isPrivate": true,
+  "reportsCount": true,
+  "versionIndex": true,
+  "versionLabel": true,
+  "you": {
+    "canComment": true,
+    "canCopy": true,
+    "canDelete": true,
+    "canReport": true,
+    "canUpdate": true,
+    "canUse": true,
+    "canRead": true
+  },
   "pullRequest": {
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -29,34 +41,14 @@ export const noteVersion_findOne = {
       "canReport": true,
       "canUpdate": true
     },
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
+    },
     "__typename": "PullRequest"
   },
   "root": {
-    "versionsCount": true,
-    "parent": {
-      "id": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "root": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Note"
-      },
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "name": true,
-        "pages": {
-          "id": true,
-          "pageIndex": true,
-          "text": true
-        }
-      },
-      "__typename": "NoteVersion"
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -183,6 +175,31 @@ export const noteVersion_findOne = {
       "isViewed": true,
       "reaction": true
     },
+    "versionsCount": true,
+    "parent": {
+      "id": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "root": {
+        "id": true,
+        "isPrivate": true,
+        "__typename": "Note"
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "name": true,
+        "pages": {
+          "id": true,
+          "pageIndex": true,
+          "text": true
+        }
+      },
+      "__typename": "NoteVersion"
+    },
     "__typename": "Note"
   },
   "translations": {
@@ -197,22 +214,5 @@ export const noteVersion_findOne = {
     }
   },
   "versionNotes": true,
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "isLatest": true,
-  "isPrivate": true,
-  "reportsCount": true,
-  "versionIndex": true,
-  "versionLabel": true,
-  "you": {
-    "canComment": true,
-    "canCopy": true,
-    "canDelete": true,
-    "canReport": true,
-    "canUpdate": true,
-    "canUse": true,
-    "canRead": true
-  },
   "__typename": "NoteVersion"
 } as const;

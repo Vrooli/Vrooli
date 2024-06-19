@@ -1,11 +1,8 @@
-import { exists } from "@local/shared";
-import pkg from "lodash";
+import { exists, mergeDeep } from "@local/shared";
 import { DeepPartialBooleanWithFragments, GqlPartial, SelectionType } from "../types";
 import { findSelection } from "./findSelection";
 import { partialShape } from "./partialShape";
 import { removeValuesUsingDot } from "./removeValuesUsingDot";
-
-const { merge } = pkg;
 
 /**
  * Adds a relation to an GraphQL selection set, while optionally omitting one or more fields.
@@ -39,7 +36,7 @@ export const rel = async <
         // Shape common selection
         commonData = await partialShape(commonData);
         // Merge common selection into selection data
-        selectionData = merge(selectionData, commonData);
+        selectionData = mergeDeep(selectionData, commonData);
     }
     return { __typename: partial.__typename, __selectionType: actualSelectionType, ...selectionData } as any;
 };

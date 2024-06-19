@@ -2,12 +2,6 @@ export const issue_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "name": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -126,6 +120,12 @@ export const issue_findMany = {
         "canReact": true,
         "isBookmarked": true,
         "reaction": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "name": true
       }
     }
   },
