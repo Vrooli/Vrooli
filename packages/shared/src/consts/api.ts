@@ -1,7 +1,7 @@
 import { ValueOf } from ".";
 
 export const COOKIE = {
-    Jwt: "session-f234y7fdiafhdja2",
+    Jwt: "XNVj2", // Random string
 } as const;
 export type COOKIE = ValueOf<typeof COOKIE>;
 

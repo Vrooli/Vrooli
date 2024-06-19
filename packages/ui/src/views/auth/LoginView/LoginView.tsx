@@ -53,6 +53,7 @@ const LoginForm = ({
                     onSuccess: (data) => {
                         PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
                         PubSub.get().publish("session", data);
+                        localStorage.setItem("isLoggedIn", "true");
                         setLocation(redirect ?? LINKS.Home);
                     },
                     onError: (response) => {

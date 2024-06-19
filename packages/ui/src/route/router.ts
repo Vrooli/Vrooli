@@ -1,6 +1,7 @@
 import { parseSearchParams } from "@local/shared";
 import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
+import { SetLocationOptions } from "./types";
 import locationHook, { HookNavigationOptions, Pathname, UseLocationHook, UseLocationResult } from "./useLocation";
 
 export type ExtractRouteOptionalParam<PathType extends Pathname> =
@@ -85,11 +86,11 @@ export const useRoute = <
 };
 
 // internal hook used by Link and Redirect in order to perform navigation
-const useNavigate = (options: any) => {
+const useNavigate = (options: NavigationalProps & SetLocationOptions) => {
     const navRef = useRef<any>();
     const [, navigate] = useLocation();
 
-    navRef.current = () => navigate(options.to || options.href, options);
+    navRef.current = () => navigate((options.to || options.href) as string, options);
     return navRef;
 };
 
@@ -243,7 +244,7 @@ export const Switch = ({ children, location, fallback }: SwitchProps) => {
     return null;
 };
 
-export const Redirect = (props: any): JSX.Element | null => {
+export const Redirect = (props: NavigationalProps): JSX.Element | null => {
     const navRef = useNavigate(props);
 
     // empty array means running the effect once, navRef is a ref so it never changes

@@ -1,6 +1,6 @@
-import { COOKIE, uuidValidate } from "@local/shared";
+import { COOKIE, mergeDeep, uuidValidate } from "@local/shared";
 import cookie from "cookie";
-import { NextFunction, Request, Response } from "express";
+import { CookieOptions, NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Socket } from "socket.io";
 import { ExtendedError } from "socket.io/dist/namespace";
@@ -194,6 +194,72 @@ const basicToken = (): BasicToken => ({
     exp: Date.now() + SESSION_MILLI,
 });
 
+const TOKEN_LENGTH_LIMIT = 4096;
+// Options for the jwt cookie
+const tokenOptions: CookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: SESSION_MILLI,
+};
+// Size of the header and signature of a JWT token
+let tokenHeaderSize = 0;
+let tokenSignatureSize = 0;
+// Maximum size of the payload of a JWT token
+let maxPayloadSize = 0;
+
+/**
+ * Calculates token and signature size for JWT tokens
+ */
+const calculateTokenSizes = () => {
+    if (tokenHeaderSize <= 0 || tokenSignatureSize <= 0 || maxPayloadSize <= 0) {
+        const emptyToken = jwt.sign({}, getJwtKeys().privateKey, { algorithm: "RS256" });
+        const [header, , signature] = emptyToken.split(".");
+        tokenHeaderSize = Buffer.byteLength(header, "utf8");
+        tokenSignatureSize = Buffer.byteLength(signature, "utf8");
+        // Total allowed size (both name and jwt value) - name - jwt header size - jwt payload size - jwt signature size - options size - buffer for additional data (e.g. "=" between name and value, ";" after value, path, expires)
+        maxPayloadSize = TOKEN_LENGTH_LIMIT - COOKIE.Jwt.length - tokenHeaderSize - tokenSignatureSize - JSON.stringify(tokenOptions).length - 200;
+    }
+};
+
+/**
+ * Calculates the length of a base64url encoded string (without padding, as that's added to the 
+ * full JWT [i.e. with header and signature]) from a given JWT payload.
+ * @param payload The payload to be encoded. If an object is provided, it will be stringified.
+ * @returns The length of the base64url encoded string without padding.
+ */
+const calculateBase64Length = (payload: string | object) => {
+    // Calculate base64 string from payload
+    const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
+    // Remove padding
+    const withoutPadding = base64Payload.replace(/=/g, "");
+    // Return size of base64 string
+    return withoutPadding.length;
+};
+
+/**
+ * Creates user payload for session token
+ */
+const createUserPayload = (user: SessionUserToken): SessionUserToken => ({
+    id: user.id,
+    activeFocusMode: user.activeFocusMode ? {
+        mode: {
+            id: user.activeFocusMode.mode?.id,
+            reminderList: user.activeFocusMode?.mode?.reminderList ? {
+                id: user.activeFocusMode.mode.reminderList.id,
+            } : undefined,
+        },
+        stopCondition: user.activeFocusMode.stopCondition,
+        stopTime: user.activeFocusMode.stopTime,
+    } : undefined,
+    credits: user.credits + "", // Convert to string because BigInt cannot be serialized
+    handle: user.handle,
+    hasPremium: user.hasPremium ?? false,
+    languages: user.languages ?? [],
+    name: user.name ?? undefined,
+    profileImage: user.profileImage ?? undefined,
+    updated_at: user.updated_at,
+});
+
 /**
  * Generates a JSON Web Token (JWT) for user authentication (including guest access).
  * The token is added to the "res" object as a cookie.
@@ -201,34 +267,44 @@ const basicToken = (): BasicToken => ({
  * @param session 
  * @returns 
  */
-export async function generateSessionJwt(
+export const generateSessionJwt = async (
     res: Response,
     session: RecursivePartialNullable<Pick<SessionData, "isLoggedIn" | "languages" | "timeZone" | "users">>,
-): Promise<void> {
+): Promise<void> => {
+    const languages = getUser(session)?.languages ?? ["en"];
+    // Make token sizes and limits have been calculated
+    calculateTokenSizes();
+    // Start with minimal token data
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
         timeZone: session.timeZone ?? undefined,
-        // Make sure users are unique by id
-        users: [...new Map((session.users ?? []).map((user) => [user.id, {
-            id: user.id,
-            activeFocusMode: user.activeFocusMode ? {
-                mode: {
-                    id: user.activeFocusMode.mode?.id,
-                    reminderList: user.activeFocusMode?.mode?.reminderList,
-                },
-                stopCondition: user.activeFocusMode.stopCondition,
-                stopTime: user.activeFocusMode.stopTime,
-            } : undefined,
-            credits: user.credits + "", // Convert to string because BigInt cannot be serialized
-            handle: user.handle,
-            hasPremium: user.hasPremium ?? false,
-            languages: user.languages ?? [],
-            name: user.name ?? undefined,
-            profileImage: user.profileImage ?? undefined,
-            updated_at: user.updated_at,
-        }])).values()],
+        users: [],
     };
+    // Track current payload size
+    let currPayloadSize = calculateBase64Length(tokenContents);
+    // If payload is too large, throw an error. We cannot return a token without at least one user.
+    if (currPayloadSize > maxPayloadSize) {
+        throw new CustomError("0545", "ErrorUnknown", languages);
+    }
+    // Create array of users, unique by id
+    let users = [...new Map((session.users ?? []).map((user) => [user.id, user])).values()];
+    // Make sure current user is first
+    const currentUserId = getUser(session)?.id;
+    const currentUser = users.find((user) => user.id === currentUserId);
+    if (currentUser) {
+        users = [currentUser, ...users.filter((user) => user.id !== currentUser.id)];
+    }
+    // Add users until we run out of users or reach the limit
+    for (const user of users) {
+        const userPayload = createUserPayload(user);
+        currPayloadSize += calculateBase64Length(userPayload);
+        if (currPayloadSize > maxPayloadSize) {
+            logger.warning(`Could not add user ${user.id} to session token due to size limit`, { trace: "0546" });
+            break;
+        }
+        tokenContents.users.push(userPayload);
+    }
     const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
     if (!res.headersSent) {
         res.cookie(COOKIE.Jwt, token, {
@@ -237,7 +313,7 @@ export async function generateSessionJwt(
             maxAge: SESSION_MILLI,
         });
     }
-}
+};
 
 /**
  * Generates a JSON Web Token (JWT) for API authentication.
@@ -311,34 +387,36 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         if (!isFinite(payload.exp) || payload.exp < Date.now()) {
             throw new Error("Token expiration is invalid");
         }
+        // Make token sizes and limits have been calculated
+        calculateTokenSizes();
+        // Start with minimal token data
         const tokenContents: SessionToken = {
             ...payload,
-            users: payload.users?.length > 0 ? [{
-                ...payload.users[0], ...{
-                    activeFocusMode: user.activeFocusMode ? {
-                        mode: {
-                            id: user.activeFocusMode.mode?.id,
-                            reminderList: user.activeFocusMode?.mode?.reminderList,
-                        },
-                        stopCondition: user.activeFocusMode.stopCondition,
-                        stopTime: user.activeFocusMode.stopTime,
-                    } : undefined,
-                    handle: user.handle,
-                    hasPremium: user.hasPremium ?? false,
-                    languages: user.languages ?? [],
-                    name: user.name ?? undefined,
-                    profileImage: user.profileImage ?? undefined,
-                    updated_at: user.updated_at,
-                },
-            }, ...payload.users.slice(1)] : [],
+            users: [],
         };
+        let currPayloadSize = calculateBase64Length(tokenContents);
+        // If payload is too large, throw an error
+        if (currPayloadSize > maxPayloadSize) {
+            throw new CustomError("0545", "ErrorUnknown", ["en"]);
+        }
+        // Add users until we run out of users or reach the limit
+        for (let i = 0; i < payload.users.length; i++) {
+            const currUser = payload.users[i];
+            // Use new user data if it's the first user
+            const userPayload = i === 0 ? createUserPayload(mergeDeep(currUser, user) as SessionUserToken) : currUser;
+            currPayloadSize += calculateBase64Length(userPayload);
+            if (currPayloadSize > maxPayloadSize) {
+                logger.warning(`Could not add user ${user.id} to session token due to size limit`, { trace: "0547" });
+                break;
+            }
+            tokenContents.users.push(userPayload);
+        }
         const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
 
         if (!res.headersSent) {
             res.cookie(COOKIE.Jwt, newToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                maxAge: payload.exp - Date.now(),
+                ...tokenOptions,
+                maxAge: payload.exp - Date.now(), // Make sure token expires at the same time
             });
         }
     } catch (error) {
@@ -360,7 +438,7 @@ export async function requireLoggedIn(req: Request, _: unknown, next: NextFuncti
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
-export const getUser = (session: { users?: SessionData["users"] }): SessionUserToken | null => {
+export const getUser = (session: RecursivePartialNullable<Pick<SessionData, "users">>): SessionUserToken | null => {
     if (!session || !Array.isArray(session?.users) || session.users.length === 0) return null;
     const user = session.users[0];
     return user !== undefined && typeof user.id === "string" && uuidValidate(user.id) ? user : null;
