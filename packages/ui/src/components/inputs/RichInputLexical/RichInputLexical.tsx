@@ -97,12 +97,12 @@ const ALL_TRANSFORMERS: LexicalTransformer[] = [
     ...TEXT_MATCH_TRANSFORMERS,
 ];
 
-const applyStyles = (
+function applyStyles(
     text: string,
     format: number,
     parentNode: LexicalNode | null,
     canApplyHeader = true,
-) => {
+) {
     text = applyTextTransformers(text, format);
     if (!parentNode) return text;
 
@@ -112,22 +112,22 @@ const applyStyles = (
     }
 
     return text;
-};
+}
 
-export const MarkdownShortcutPlugin = ({
+export function MarkdownShortcutPlugin({
     transformers,
 }: Readonly<{
     transformers: LexicalTransformer[];
-}>): null => {
+}>): null {
     const editor = useLexicalComposerContext();
 
-    useEffect(() => {
+    useEffect(function registerMarkdownShortcutsEffect() {
         if (!editor) return;
         return registerMarkdownShortcuts(editor, transformers);
     }, [editor, transformers]);
 
     return null;
-};
+}
 
 export type ContentEditableProps = {
     ariaActiveDescendant?: React.AriaAttributes["aria-activedescendant"];
@@ -231,14 +231,16 @@ export function ContentEditable({
     );
 }
 
+const DEFAULT_MIN_ROWS = 4;
+
 /** TextInput for entering WYSIWYG text */
-export const RichInputLexicalComponents = ({
+export function RichInputLexicalComponents({
     autoFocus = false,
     error = false,
     getTaggableItems,
     id,
     maxRows,
-    minRows = 4,
+    minRows = DEFAULT_MIN_ROWS,
     name,
     onActiveStatesChange,
     onBlur,
@@ -253,7 +255,7 @@ export const RichInputLexicalComponents = ({
     undo,
     value,
     sxs,
-}: RichInputLexicalProps) => {
+}: RichInputLexicalProps) {
     const { palette, typography } = useTheme();
     const editor = useLexicalComposerContext();
 
@@ -330,7 +332,7 @@ export const RichInputLexicalComponents = ({
             onActiveStatesChange({ ...updatedStates });
         }
     }, [activeEditor, onActiveStatesChange]);
-    useEffect(() => {
+    useEffect(function registerSelectionChangeEffect() {
         return editor?.registerCommand(
             SELECTION_CHANGE_COMMAND,
             (_payload, newEditor) => {
@@ -368,7 +370,7 @@ export const RichInputLexicalComponents = ({
         });
     }, [activeStates, editor]);
 
-    useEffect(() => {
+    useEffect(function setHandleActionEffect() {
         if (!setHandleAction || !editor) return;
         setHandleAction((action, data) => {
             const actionMap = {
@@ -475,7 +477,7 @@ export const RichInputLexicalComponents = ({
                 fontSize: typography.fontSize + 2,
                 lineHeight: `${lineHeight}px`,
                 minHeight: lineHeight * minRows + 16.5,
-                maxHeight: maxRows ? (lineHeight * (maxRows ?? 4) + 16.5) : "none",
+                maxHeight: maxRows ? (lineHeight * (maxRows ?? DEFAULT_MIN_ROWS) + 16.5) : "none",
                 overflow: "auto",
                 backgroundColor: "transparent",
                 color: palette.text.primary,
@@ -521,19 +523,19 @@ export const RichInputLexicalComponents = ({
             <CodeBlockPlugin />
         </Box>
     );
-};
+}
 
 /** TextInput for entering WYSIWYG text */
-export const RichInputLexical = ({
+export function RichInputLexical({
     disabled,
     value,
     ...props
-}: RichInputLexicalProps) => {
+}: RichInputLexicalProps) {
 
     // Set up Lexical editor
     const [editor, setEditor] = useState<LexicalEditor | null>(null);
-    useEffect(() => {
-        const initializeAsync = async () => {
+    useEffect(function initLexicalEditorEffect() {
+        async function initializeAsync() {
             // Asynchronously create the editor instance
             const newEditor = await createEditor({ namespace: "RichInputEditor" });
 
@@ -541,7 +543,7 @@ export const RichInputLexical = ({
             newEditor.update(() => { $convertFromMarkdownString(value, ALL_TRANSFORMERS); }, HISTORY_MERGE_OPTIONS);
 
             setEditor(newEditor);
-        };
+        }
 
         initializeAsync();
         // Purposely only run once
@@ -558,4 +560,4 @@ export const RichInputLexical = ({
             <RichInputLexicalComponents value={value} {...props} />
         </LexicalComposerContext.Provider>
     );
-};
+}

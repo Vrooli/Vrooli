@@ -25,6 +25,7 @@ import { openLink, useLocation } from "route";
 import { CardBox, multiLineEllipsis } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "utils/consts";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -157,7 +158,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
 });
 ResourceCard.displayName = "ResourceCard";
 
-const LoadingCard = () => {
+function LoadingCard() {
     return (
         <CardBox>
             <Stack
@@ -173,9 +174,9 @@ const LoadingCard = () => {
             </Stack>
         </CardBox>
     );
-};
+}
 
-export const ResourceListHorizontal = ({
+export function ResourceListHorizontal({
     canUpdate = true,
     handleUpdate,
     id,
@@ -188,7 +189,7 @@ export const ResourceListHorizontal = ({
     openUpdateDialog,
     title,
     sxs,
-}: ResourceListHorizontalProps) => {
+}: ResourceListHorizontalProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -270,7 +271,7 @@ export const ResourceListHorizontal = ({
                     alignItems="center"
                     sx={boxSx}
                 >
-                    {Array.from(Array(3).keys()).map((i) => (
+                    {Array.from(Array(DUMMY_LIST_LENGTH_SHORT).keys()).map((i) => (
                         <LoadingCard key={`resource-card-${i}`} />
                     ))}
                 </Box>
@@ -283,11 +284,11 @@ export const ResourceListHorizontal = ({
             {menu}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="resource-list" direction="horizontal">
-                    {(provided) => (
+                    {(providedDrop) => (
                         <Box
-                            ref={provided.innerRef}
+                            ref={providedDrop.innerRef}
                             id={id}
-                            {...provided.droppableProps}
+                            {...providedDrop.droppableProps}
                             justifyContent="center"
                             alignItems="center"
                             sx={boxSx}>
@@ -299,11 +300,11 @@ export const ResourceListHorizontal = ({
                                     index={index}
                                     isDragDisabled={!isEditing}
                                 >
-                                    {(provided) => (
+                                    {(providedDrag) => (
                                         <ResourceCard
-                                            ref={provided.innerRef}
-                                            dragProps={provided.draggableProps}
-                                            dragHandleProps={provided.dragHandleProps}
+                                            ref={providedDrag.innerRef}
+                                            dragProps={providedDrag.draggableProps}
+                                            dragHandleProps={providedDrag.dragHandleProps}
                                             key={`resource-card-${index}`}
                                             isEditing={isEditing}
                                             data={{ ...c, list }}
@@ -316,7 +317,7 @@ export const ResourceListHorizontal = ({
                             ))}
                             {/* Dummy cards when loading */}
                             {
-                                loading && !Array.isArray(list?.resources) && Array.from(Array(3).keys()).map((i) => (
+                                loading && !Array.isArray(list?.resources) && Array.from(Array(DUMMY_LIST_LENGTH_SHORT).keys()).map((i) => (
                                     <LoadingCard key={`resource-card-${i}`} />
                                 ))
                             }
@@ -334,16 +335,16 @@ export const ResourceListHorizontal = ({
                                     <LinkIcon fill={palette.secondary.contrastText} width='56px' height='56px' />
                                 </CardBox>
                             </Tooltip> : null}
-                            {provided.placeholder}
+                            {providedDrop.placeholder}
                         </Box>
                     )}
                 </Droppable>
             </DragDropContext>
         </>
     );
-};
+}
 
-export const ResourceListVertical = ({
+export function ResourceListVertical({
     canUpdate = true,
     handleToggleSelect,
     isEditing,
@@ -354,14 +355,14 @@ export const ResourceListVertical = ({
     onClick,
     openAddDialog,
     selectedData,
-}: ResourceListVerticalProps) => {
+}: ResourceListVerticalProps) {
     const { t } = useTranslation();
 
     return (
         <>
             <ObjectList
                 canNavigate={() => !isEditing}
-                dummyItems={new Array(5).fill("Resource")}
+                dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Resource")}
                 handleToggleSelect={handleToggleSelect as (item: ListObject) => unknown}
                 hideUpdateButton={isEditing}
                 isSelecting={isSelecting}
@@ -386,9 +387,9 @@ export const ResourceListVertical = ({
             </Box>}
         </>
     );
-};
+}
 
-export const ResourceList = (props: ResourceListProps) => {
+export function ResourceList(props: ResourceListProps) {
     const { canUpdate, handleUpdate, horizontal, list, mutate, parent, title } = props;
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -565,16 +566,16 @@ export const ResourceList = (props: ResourceListProps) => {
             }
         </>
     );
-};
+}
 
-export const ResourceListInput = ({
+export function ResourceListInput({
     disabled = false,
     horizontal,
     isCreate,
     isLoading = false,
     parent,
     ...props
-}: ResourceListInputProps) => {
+}: ResourceListInputProps) {
     const [field, , helpers] = useField("resourceList");
 
     const handleUpdate = useCallback((newList: ResourceListType) => {
@@ -593,4 +594,4 @@ export const ResourceListInput = ({
             {...props}
         />
     );
-};
+}

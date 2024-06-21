@@ -3,7 +3,7 @@ import { useLocation } from "route";
 
 export const ScrollToTop = () => {
     const [location] = useLocation();
-    useEffect(() => {
+    useEffect(function scrollEffect() {
         if (window.location.hash !== "") {
             setTimeout(() => {
                 const id = window.location.hash.replace("#", "");

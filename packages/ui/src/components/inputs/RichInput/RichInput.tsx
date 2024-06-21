@@ -23,7 +23,7 @@ import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputPr
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
-export const RichInputBase = ({
+export function RichInputBase({
     actionButtons,
     autoFocus = false,
     disabled = false,
@@ -43,7 +43,7 @@ export const RichInputBase = ({
     tabIndex,
     value,
     sxs,
-}: RichInputBaseProps) => {
+}: RichInputBaseProps) {
     const { palette } = useTheme();
     const session = useContext(SessionContext);
     const isLeftHanded = useIsLeftHanded();
@@ -62,7 +62,7 @@ export const RichInputBase = ({
             return false;
         },
     });
-    useEffect(() => {
+    useEffect(function resetValueEffect() {
         resetInternalValue(value);
     }, [value, resetInternalValue]);
 
@@ -135,9 +135,9 @@ export const RichInputBase = ({
     // This is currently ignored when markdown mode is on, since it's 
     // a bitch to keep track of
     const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>(defaultActiveStates);
-    const handleActiveStatesChange = (newActiveStates) => {
+    function handleActiveStatesChange(newActiveStates) {
         setActiveStates(newActiveStates);
-    };
+    }
 
     const [enterWillSubmit, setEnterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
     useEffect(() => {
@@ -229,13 +229,13 @@ export const RichInputBase = ({
                             flexDirection: isLeftHanded ? "row-reverse" : "row",
                             gap: 1,
                             justifyContent: "space-between",
-                            alitnItems: "center",
+                            alignItems: "center",
                             ...sxs?.bottomBar,
                         }}
                     >
-                        <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
-                            {helperText}
-                        </Typography>
+                        {helperText && <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
+                            {typeof helperText === "string" ? helperText : JSON.stringify(helperText)}
+                        </Typography>}
                         <Box sx={{
                             display: "flex",
                             gap: 2,
@@ -258,7 +258,7 @@ export const RichInputBase = ({
                                     }}
                                 >
                                     <Typography variant="body2" mt="auto" mb="auto" sx={{ fontSize: "0.5em" }}>
-                                        '{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}' for new line
+                                        &apos;{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}&apos; for new line
                                     </Typography>
                                 </IconButton>
                             }
@@ -273,8 +273,8 @@ export const RichInputBase = ({
                             }
                             {/* Action buttons */}
                             {
-                                actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }, index) => (
-                                    <Tooltip key={index} title={tooltip} placement="top">
+                                actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }) => (
+                                    <Tooltip key={tooltip} title={tooltip} placement="top">
                                         <IconButton
                                             disabled={disabled || buttonDisabled}
                                             size="medium"
@@ -296,17 +296,17 @@ export const RichInputBase = ({
             </Box>
         </>
     );
-};
+}
 
-export const RichInput = ({
+export function RichInput({
     name,
     ...props
-}: RichInputProps) => {
+}: RichInputProps) {
     const [field, meta, helpers] = useField(name);
 
-    const handleChange = (value) => {
+    function handleChange(value) {
         helpers.setValue(value);
-    };
+    }
 
     return (
         <RichInputBase
@@ -319,13 +319,13 @@ export const RichInput = ({
             onChange={handleChange}
         />
     );
-};
+}
 
-export const TranslatedRichInput = ({
+export function TranslatedRichInput({
     language,
     name,
     ...props
-}: TranslatedRichInputProps) => {
+}: TranslatedRichInputProps) {
     const [field, meta, helpers] = useField("translations");
     const translationData = getTranslationData(field, meta, language);
 
@@ -333,11 +333,11 @@ export const TranslatedRichInput = ({
     const fieldError = getDotNotationValue(translationData.error, name);
     const fieldTouched = getDotNotationValue(translationData.touched, name);
 
-    const handleBlur = (event) => {
+    function handleBlur(event) {
         field.onBlur(event);
-    };
+    }
 
-    const handleChange = (newText: string) => {
+    function handleChange(newText: string) {
         // Only use dot notation if the name has a dot in it
         if (name.includes(".")) {
             const updatedValue = setDotNotationValue(translationData.value ?? {}, name, newText);
@@ -347,7 +347,7 @@ export const TranslatedRichInput = ({
             }));
         }
         else handleTranslationChange(field, meta, helpers, { target: { name, value: newText } }, language);
-    };
+    }
 
     return (
         <RichInputBase
@@ -360,4 +360,4 @@ export const TranslatedRichInput = ({
             onChange={handleChange}
         />
     );
-};
+}

@@ -25,7 +25,7 @@ const { NotificationListItem } = lazily(() => import("../NotificationListItem/No
 const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem"));
 const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem"));
 const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem"));
-const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") => {
+function getListItemComponent(objectType: `${GqlModelType}` | "CalendarEvent") {
     switch (objectType) {
         case "BookmarkList": return BookmarkListListItem;
         case "Chat": return ChatListItem;
@@ -40,7 +40,7 @@ const getListItemComponent = (objectType: `${GqlModelType}` | "CalendarEvent") =
         case "RunRoutine": return RunRoutineListItem;
         default: return ObjectListItemBase;
     }
-};
+}
 
 function ObjectListItem<T extends ListObject>({
     objectType,
@@ -82,7 +82,7 @@ export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItem
     selectedItems?: readonly ListObject[],
 };
 
-export const ObjectList = <T extends OrArray<ListObject>>({
+export function ObjectList<T extends OrArray<ListObject>>({
     canNavigate,
     dummyItems,
     keyPrefix,
@@ -95,7 +95,7 @@ export const ObjectList = <T extends OrArray<ListObject>>({
     onAction,
     onClick,
     selectedItems,
-}: ObjectListProps<T>) => {
+}: ObjectListProps<T>) {
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const stableItems = useStableObject(items);
@@ -180,4 +180,4 @@ export const ObjectList = <T extends OrArray<ListObject>>({
             {dummyListItems}
         </Box>
     );
-};
+}

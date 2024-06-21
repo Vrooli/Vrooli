@@ -30,7 +30,7 @@ export const BannerChicken = () => {
         return random < 0.5;
     }, [adFrequency]);
 
-    useEffect(() => {
+    useEffect(function renderAdEffect() {
         if (!shouldDisplayAd || !process.env.VITE_GOOGLE_ADSENSE_PUBLISHER_ID) {
             console.warn("Conditions not met for displaying ads.");
             return;

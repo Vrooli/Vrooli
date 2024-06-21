@@ -14,7 +14,7 @@ import { NavbarProps } from "../types";
 
 const zIndex = 300;
 
-const LogoComponent = ({
+function LogoComponent({
     isLeftHanded,
     onClick,
     state,
@@ -22,7 +22,7 @@ const LogoComponent = ({
     isLeftHanded: boolean;
     onClick: () => unknown;
     state: "full" | "icon" | "none";
-}) => {
+}) {
     const { palette } = useTheme();
     // Logo isn't always shown
     if (state === "none") return null;
@@ -100,9 +100,9 @@ const LogoComponent = ({
             </Box>
         </Box>
     );
-};
+}
 
-const TitleDisplay = ({ isMobile, title, titleComponent, help, options, shouldHideTitle, showOnMobile }) => {
+function TitleDisplay({ isMobile, title, titleComponent, help, options, shouldHideTitle, showOnMobile }) {
     // Check if title should be displayed here, based on screen size
     if ((isMobile && !showOnMobile) || (!isMobile && showOnMobile)) return null;
     // Desktop title can be hidden
@@ -117,9 +117,9 @@ const TitleDisplay = ({ isMobile, title, titleComponent, help, options, shouldHi
     // Otherwise, use custom title component
     if (titleComponent) return titleComponent;
     return null;
-};
+}
 
-const NavListComponent = ({ isLeftHanded }) => {
+function NavListComponent({ isLeftHanded }) {
     return <Box sx={{
         marginLeft: isLeftHanded ? 0 : "auto",
         marginRight: isLeftHanded ? "auto" : 0,
@@ -127,7 +127,7 @@ const NavListComponent = ({ isLeftHanded }) => {
     }}>
         <NavList />
     </Box>;
-};
+}
 
 /**
  * Navbar displayed at the top of the page. Has a few different 

@@ -6,7 +6,9 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { TextInput } from "../TextInput/TextInput";
 import { VersionInputProps } from "../types";
 
-export const VersionInput = ({
+const COMPONENT_HEIGHT_PX = 56;
+
+export function VersionInput({
     autoFocus = false,
     fullWidth = true,
     isOptional = true,
@@ -14,7 +16,7 @@ export const VersionInput = ({
     name = "versionLabel",
     versions,
     ...props
-}: VersionInputProps) => {
+}: VersionInputProps) {
     const { palette } = useTheme();
 
     const textFieldRef = useRef<HTMLDivElement | null>(null);
@@ -98,7 +100,7 @@ export const VersionInput = ({
                         borderRadius: "0",
                         background: palette.secondary.main,
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
-                        height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
+                        height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
                     }}>
                     <BumpMajorIcon fill="white" />
                 </IconButton>
@@ -111,7 +113,7 @@ export const VersionInput = ({
                         borderRadius: "0",
                         background: palette.secondary.main,
                         borderRight: `1px solid ${palette.secondary.contrastText}`,
-                        height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
+                        height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
                     }}>
                     <BumpModerateIcon fill="white" />
                 </IconButton>
@@ -123,11 +125,11 @@ export const VersionInput = ({
                     sx={{
                         borderRadius: "0 5px 5px 0",
                         background: palette.secondary.main,
-                        height: `${textFieldRef.current?.clientHeight ?? 56}px)`,
+                        height: `${textFieldRef.current?.clientHeight ?? COMPONENT_HEIGHT_PX}px)`,
                     }}>
                     <BumpMinorIcon fill="white" />
                 </IconButton>
             </Tooltip>
         </Stack>
     );
-};
+}

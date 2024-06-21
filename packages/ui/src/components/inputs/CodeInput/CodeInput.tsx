@@ -546,7 +546,7 @@ export const CodeInputBase = ({
 
     const [extensions, setExtensions] = useState<Extension[]>([]);
     const [supportsValidation, setSupportsValidation] = useState<boolean>(false);
-    useEffect(() => {
+    useEffect(function codeExtensionsEffect() {
         let isMounted = true;
 
         const loadGutter = async () => {
@@ -756,10 +756,10 @@ export const CodeInputBase = ({
         setShowRefresh(false); // Hide the refresh icon so it can appear again after a delay
     };
     // Show the refresh icon after a short delay
-    useEffect(() => {
+    useEffect(function clearCodeTimeoutEffect() {
         const timer = setTimeout(() => { setShowRefresh(true); }, 3000);
         return () => clearTimeout(timer);
-    }, [editorKey])
+    }, [editorKey]);
 
     return (
         <>

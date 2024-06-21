@@ -8,11 +8,11 @@ import { SettingsTopBarProps } from "../types";
 /**
  * Generates an app bar for both pages and dialogs
  */
-export const SettingsTopBar = ({
+export function SettingsTopBar({
     display,
     onClose,
     ...rest
-}: SettingsTopBarProps) => {
+}: SettingsTopBarProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -42,4 +42,4 @@ export const SettingsTopBar = ({
             </IconButton>}
         />
     );
-};
+}

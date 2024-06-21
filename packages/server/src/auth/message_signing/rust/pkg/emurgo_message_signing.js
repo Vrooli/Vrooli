@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-var-requires */
 const imports = {};

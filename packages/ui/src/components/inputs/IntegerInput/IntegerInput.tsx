@@ -2,37 +2,37 @@ import { Box, FormControl, FormHelperText, Input, InputLabel, Palette, Tooltip, 
 import { useField } from "formik";
 import { IntegerInputBaseProps, IntegerInputProps } from "../types";
 
-export const getNumberInRange = (
+export function getNumberInRange(
     updatedNumber: number,
     max: number,
     min: number,
-) => {
+) {
     let result = updatedNumber;
     if (result > max) result = max;
     if (result < min) result = min;
     return result;
-};
+}
 
-export const calculateUpdatedNumber = (
+export function calculateUpdatedNumber(
     updatedNumber: string,
     max: number,
     min: number,
-    allowDecimal: boolean = false,
-) => {
+    allowDecimal = false,
+) {
     let asNumber = Number(updatedNumber);
     if (!Number.isFinite(asNumber)) asNumber = 0;
     let result = getNumberInRange(asNumber, max, min);
     if (!allowDecimal) result = Math.round(result);
     return result;
-};
+}
 
-export const getColorForLabel = (
+export function getColorForLabel(
     value: number | string,
     min: number,
     max: number,
     palette: Palette,
     zeroText: string | undefined,
-) => {
+) {
     let asNumber = zeroText && value === zeroText ? 0 : Number(value);
     if (!Number.isFinite(asNumber)) {
         asNumber = Number.MIN_SAFE_INTEGER;
@@ -44,9 +44,9 @@ export const getColorForLabel = (
     } else {
         return palette.background.textSecondary;
     }
-};
+}
 
-export const IntegerInputBase = ({
+export function IntegerInputBase({
     allowDecimal = false,
     autoFocus = false,
     disabled = false,
@@ -66,17 +66,17 @@ export const IntegerInputBase = ({
     value,
     zeroText,
     ...props
-}: IntegerInputBaseProps) => {
+}: IntegerInputBaseProps) {
     const { palette } = useTheme();
 
     const offsetValue = (value ?? 0) + offset;
-    const displayValue = offsetValue === 0 && zeroText ? zeroText : offsetValue
+    const displayValue = offsetValue === 0 && zeroText ? zeroText : offsetValue;
 
     return (
         <Tooltip title={tooltip}>
             <Box key={key} {...props} sx={{
                 display: "flex",
-                justifyContent: "center",
+                justifyContent: "flex-start",
                 ...props?.sx ?? {},
             }}>
                 <FormControl sx={{
@@ -120,17 +120,17 @@ export const IntegerInputBase = ({
             </Box>
         </Tooltip >
     );
-};
+}
 
-export const IntegerInput = ({
+export function IntegerInput({
     name,
     ...props
-}: IntegerInputProps) => {
+}: IntegerInputProps) {
     const [field, meta, helpers] = useField<number>(name);
 
-    const handleChange = (value) => {
+    function handleChange(value) {
         helpers.setValue(value);
-    };
+    }
 
     return (
         <IntegerInputBase
@@ -143,4 +143,4 @@ export const IntegerInput = ({
             onChange={handleChange}
         />
     );
-};
+}

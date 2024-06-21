@@ -34,7 +34,7 @@ export const PhoneNumberInputBase = ({
     const closePopover = () => { setAnchorEl(null); };
 
     // Validate phone number
-    useEffect(() => {
+    useEffect(function validatePhoneNumberEffect() {
         const libphonenumber = import("libphonenumber-js");
         libphonenumber.then((lib) => {
             try {

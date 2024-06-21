@@ -26,6 +26,7 @@ import { useLocation } from "route";
 import { CardBox, multiLineEllipsis } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -38,7 +39,8 @@ type DirectorySearchButtonsProps = Omit<SearchButtonsProps, "advancedSearchParam
     setSortBy: (sortBy: DirectoryListSortBy) => unknown;
     setViewMode: (mode: ViewMode) => unknown;
 }
-const DirectorySearchButtons = ({
+
+function DirectorySearchButtons({
     setSortBy,
     setTimeFrame,
     setViewMode,
@@ -46,7 +48,7 @@ const DirectorySearchButtons = ({
     sx,
     timeFrame,
     viewMode,
-}: DirectorySearchButtonsProps) => {
+}: DirectorySearchButtonsProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -73,18 +75,18 @@ const DirectorySearchButtons = ({
             </Tooltip>
         </Box>
     );
-};
+}
 
 /**
  * Unlike ResourceCard, these aren't draggable. This is because the objects 
  * are not stored in an order - they are stored by object type
  */
-export const DirectoryCard = ({
+export function DirectoryCard({
     canUpdate,
     data,
     onContextMenu,
     onDelete,
-}: DirectoryCardProps) => {
+}: DirectoryCardProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -188,9 +190,9 @@ export const DirectoryCard = ({
             </CardBox>
         </Tooltip>
     );
-};
+}
 
-const LoadingCard = () => {
+function LoadingCard() {
     return (
         <CardBox>
             <Stack
@@ -206,9 +208,9 @@ const LoadingCard = () => {
             </Stack>
         </CardBox>
     );
-};
+}
 
-export const DirectoryListHorizontal = ({
+export function DirectoryListHorizontal({
     canUpdate = true,
     isEditing,
     list,
@@ -216,7 +218,7 @@ export const DirectoryListHorizontal = ({
     onAction,
     onDelete,
     openAddDialog,
-}: DirectoryListHorizontalProps) => {
+}: DirectoryListHorizontalProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -264,7 +266,7 @@ export const DirectoryListHorizontal = ({
                 ))}
                 {/* Dummy cards when loading */}
                 {
-                    loading && !Array.isArray(list) && Array.from(Array(3).keys()).map((i) => (
+                    loading && !Array.isArray(list) && Array.from(Array(DUMMY_LIST_LENGTH_SHORT).keys()).map((i) => (
                         <LoadingCard key={`directory-item-card-${i}`} />
                     ))
                 }
@@ -285,9 +287,9 @@ export const DirectoryListHorizontal = ({
             </Box>
         </>
     );
-};
+}
 
-export const DirectoryListVertical = ({
+export function DirectoryListVertical({
     canUpdate = true,
     handleToggleSelect,
     isEditing,
@@ -298,7 +300,7 @@ export const DirectoryListVertical = ({
     onClick,
     openAddDialog,
     selectedData,
-}: DirectoryListVerticalProps) => {
+}: DirectoryListVerticalProps) {
     const { t } = useTranslation();
 
     return (
@@ -308,7 +310,7 @@ export const DirectoryListVertical = ({
             >
                 <ObjectList
                     canNavigate={() => !isEditing}
-                    dummyItems={new Array(5).fill("Project")}
+                    dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Project")}
                     handleToggleSelect={handleToggleSelect as (item: ListObject) => unknown}
                     hideUpdateButton={isEditing}
                     isSelecting={isSelecting}
@@ -333,9 +335,9 @@ export const DirectoryListVertical = ({
             </Box>}
         </>
     );
-};
+}
 
-export const DirectoryList = (props: DirectoryListProps) => {
+export function DirectoryList(props: DirectoryListProps) {
     const { canUpdate, directory, handleUpdate, mutate } = props;
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -535,4 +537,4 @@ export const DirectoryList = (props: DirectoryListProps) => {
             </Box>
         </>
     );
-};
+}
