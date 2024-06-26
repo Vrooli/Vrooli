@@ -1,6 +1,9 @@
 {
     "root": true,
     "ignorePatterns": [
+        "backups/",
+        "coverage/",
+        "data/",
         "dist/",
         "node_modules/",
         "coverage/",
@@ -94,5 +97,18 @@
                 "detectObjects": false
             }
         ]
-    }
+    },
+    "overrides": [
+        {
+            "files": [
+                "**/*.test.js",
+                "**/*.test.jsx",
+                "**/*.test.ts",
+                "**/*.test.tsx"
+            ],
+            "rules": {
+                "no-magic-numbers": "off",
+            }
+        }
+    ],
 }
