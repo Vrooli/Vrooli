@@ -11,6 +11,7 @@ export const runProjectSearchSchema = (): FormSchema => ({
     fields: [
         {
             fieldName: "status",
+            id: "status",
             label: "Status",
             type: InputType.Radio,
             props: {

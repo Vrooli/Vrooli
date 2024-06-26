@@ -19,16 +19,17 @@ import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
 
 type InboxObject = Chat | Notification;
 
-export const InboxView = ({
+export function InboxView({
     display,
     isOpen,
     onClose,
-}: InboxViewProps) => {
+}: InboxViewProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -148,7 +149,7 @@ export const InboxView = ({
                 sx={{ marginBottom: pagePaddingBottom }}
             >
                 <ObjectList
-                    dummyItems={new Array(5).fill(searchType)}
+                    dummyItems={new Array(DUMMY_LIST_LENGTH).fill(searchType)}
                     handleToggleSelect={handleToggleSelect}
                     isSelecting={isSelecting}
                     items={allData as ListObject[]}
@@ -177,4 +178,4 @@ export const InboxView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

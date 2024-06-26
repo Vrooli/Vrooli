@@ -6,7 +6,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectorBaseProps, SelectorProps } from "../types";
 
-export const SelectorBase = <T extends string | number | { [x: string]: any }>({
+export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,
     autoFocus = false,
     color,
@@ -28,7 +28,7 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
     sxs,
     tabIndex,
     value,
-}: SelectorBaseProps<T>) => {
+}: SelectorBaseProps<T>) {
     const { palette, typography } = useTheme();
     const { t } = useTranslation();
 
@@ -41,7 +41,7 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
 
     // Render all labels
     const labels = useMemo(() => options.map((option) => {
-        const labelText = getOptionLabel(option);
+        const labelText = getOptionLabel(option) ?? "";
         const description = getOptionDescription ? getOptionDescription(option) : null;
         const Icon = getOptionIcon ? getOptionIcon(option) : null;
         return (
@@ -77,7 +77,8 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
      */
     const shrinkLabel = useMemo(() => {
         if (!exists(value)) return false;
-        return getOptionLabel(value)?.length > 0;
+        const labelText = getOptionLabel(value);
+        return typeof labelText === "string" && labelText.length > 0;
     }, [value, getOptionLabel]);
 
     return (
@@ -133,7 +134,7 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                 renderValue={(value) => {
                     const option = findOption(value as string);
                     if (!exists(option)) return null;
-                    const labelText = getOptionLabel(option);
+                    const labelText = getOptionLabel(option) ?? "";
                     const Icon = getOptionIcon ? getOptionIcon(option) : null;
                     return (
                         <Stack direction="row" alignItems="center">
@@ -170,16 +171,16 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                     ) : null
                 }
             </Select>
-            {helperText && <FormHelperText id={`helper-text-${name}`}>{helperText}</FormHelperText>}
+            {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
         </FormControl>
     );
-};
+}
 
-export const Selector = <T extends string | number | { [x: string]: any }>({
+export function Selector<T extends string | number | { [x: string]: any }>({
     name,
     onChange,
     ...props
-}: SelectorProps<T>) => {
+}: SelectorProps<T>) {
     const [field, meta, helpers] = useField(name);
 
     return (
@@ -196,4 +197,4 @@ export const Selector = <T extends string | number | { [x: string]: any }>({
             }}
         />
     );
-};
+}

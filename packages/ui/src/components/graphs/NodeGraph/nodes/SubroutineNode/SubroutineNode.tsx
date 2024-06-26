@@ -17,12 +17,12 @@ import { SubroutineNodeProps } from "../types";
  * Decides if a clicked element should trigger opening the subroutine dialog 
  * @param id ID of the clicked element
  */
-const shouldOpen = (id: string | null | undefined): boolean => {
+function shouldOpen(id: string | null | undefined): boolean {
     // Only collapse if clicked on name bar or name
     return Boolean(id && (id.startsWith("subroutine-name-")));
-};
+}
 
-export const SubroutineNode = ({
+export function SubroutineNode({
     data,
     scale = 1,
     labelVisible = true,
@@ -31,7 +31,7 @@ export const SubroutineNode = ({
     handleAction,
     handleUpdate,
     language,
-}: SubroutineNodeProps) => {
+}: SubroutineNodeProps) {
     const { palette } = useTheme();
 
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
@@ -53,7 +53,7 @@ export const SubroutineNode = ({
     }, [onAction]);
     const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine); }, [onAction]);
 
-    const onOptionalChange = useCallback((checked: boolean) => {
+    const onOptionalChange = useCallback(function onOptionalChangeCallback(checked: boolean) {
         if (!isEditing) return;
         handleUpdate(data.id, {
             ...data,
@@ -70,7 +70,7 @@ export const SubroutineNode = ({
         if (!isEditing) return;
         setContextAnchor(target);
     }, [isEditing]);
-    const closeContext = useCallback(() => { setContextAnchor(null); }, []);
+    const closeContext = useCallback(function closeContextCallback() { setContextAnchor(null); }, []);
     const pressEvents = usePress({
         onLongPress: openContext,
         onClick: openSubroutine,
@@ -176,4 +176,4 @@ export const SubroutineNode = ({
             </Box>
         </>
     );
-};
+}

@@ -18,6 +18,7 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
     fields: [
         {
             fieldName: "objectType",
+            id: "objectType",
             label: "Object Type",
             type: InputType.Radio,
             props: {

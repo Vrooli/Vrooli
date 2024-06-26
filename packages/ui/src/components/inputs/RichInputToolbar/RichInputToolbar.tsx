@@ -104,7 +104,7 @@ const ToolButton = forwardRef(({
 ));
 ToolButton.displayName = "ToolButton";
 
-const ActionPopover = ({
+function ActionPopover({
     activeStates,
     anchorEl,
     handleAction,
@@ -113,45 +113,47 @@ const ActionPopover = ({
     items,
     onClose,
     palette,
-}: ActionPopoverProps) => (
-    <Popover
-        id={`markdown-input-${idPrefix}-popover`}
-        open={isOpen}
-        anchorEl={anchorEl}
-        onClose={onClose}
-        anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "center",
-        }}
-    >
-        <List sx={{ background: palette.background.paper, color: palette.background.contrastText }}>
-            {items.map(({ action, icon, label }) => (
-                <ListItem
-                    button
-                    key={action}
-                    onClick={() => { handleAction(action); }}
-                    sx={{
-                        background: activeStates[action] ? palette.secondary.light : "transparent",
-                    }}
-                >
-                    <ListItemIcon>
-                        {icon}
-                    </ListItemIcon>
-                    <ListItemText primary={label} />
-                </ListItem>
-            ))}
-        </List>
-    </Popover>
-);
+}: ActionPopoverProps) {
+    return (
+        <Popover
+            id={`markdown-input-${idPrefix}-popover`}
+            open={isOpen}
+            anchorEl={anchorEl}
+            onClose={onClose}
+            anchorOrigin={{
+                vertical: "bottom",
+                horizontal: "center",
+            }}
+        >
+            <List sx={{ background: palette.background.paper, color: palette.background.contrastText }}>
+                {items.map(({ action, icon, label }) => (
+                    <ListItem
+                        button
+                        key={action}
+                        onClick={() => { handleAction(action); }}
+                        sx={{
+                            background: activeStates[action] ? palette.secondary.light : "transparent",
+                        }}
+                    >
+                        <ListItemIcon>
+                            {icon}
+                        </ListItemIcon>
+                        <ListItemText primary={label} />
+                    </ListItem>
+                ))}
+            </List>
+        </Popover>
+    );
+}
 
-const TablePopover = ({
+function TablePopover({
     anchorEl,
     handleTableInsert,
     isOpen,
     onClose,
     palette,
     t,
-}: TablePopoverProps) => {
+}: TablePopoverProps) {
     const [hoveredRow, setHoveredRow] = useState(1);
     const [hoveredCol, setHoveredCol] = useState(1);
     const [canHover, setCanHover] = useState(true);
@@ -269,9 +271,9 @@ const TablePopover = ({
             </Stack>
         </Popover>
     );
-};
+}
 
-export const RichInputToolbar = ({
+export function RichInputToolbar({
     activeStates,
     canRedo,
     canUndo,
@@ -295,7 +297,7 @@ export const RichInputToolbar = ({
     isMarkdownOn: boolean;
     name: string,
     sx?: SxType;
-}) => {
+}) {
     const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -308,7 +310,7 @@ export const RichInputToolbar = ({
     }, [breakpoints, dimensions]);
     const isLeftHanded = useIsLeftHanded();
 
-    const handleToggleAction = (action: string, data?: unknown) => {
+    function handleToggleAction(action: string, data?: unknown) {
         // Update action's active state, if we're not using markdown mode
         if (!isMarkdownOn && action in activeStates) {
             handleActiveStatesChange({
@@ -318,7 +320,7 @@ export const RichInputToolbar = ({
         }
         // Trigger handleAction
         handleAction(action as RichInputAction, data);
-    };
+    }
     useEffect(() => {
         if (isMarkdownOn) {
             handleActiveStatesChange(defaultActiveStates);
@@ -329,13 +331,13 @@ export const RichInputToolbar = ({
     const [formatAnchorEl, openFormatSelect, closeFormat, formatSelectOpen] = usePopover();
     const [listAnchorEl, openListSelect, closeList, listSelectOpen] = usePopover();
     const [tableAnchorEl, openTableSelect, closeTable, tableSelectOpen] = usePopover();
-    const handleTableInsert = (rows: number, cols: number) => {
+    function handleTableInsert(rows: number, cols: number) {
         handleToggleAction("Table", { rows, cols });
         closeTable();
-    };
+    }
     const combinedButtonRef = useRef(null);
     const [combinedAnchorEl, openCombinedSelect, closeCombined, combinedSelectOpen] = usePopover();
-    const handleCombinedAction = (action: string, data?: unknown) => {
+    function handleCombinedAction(action: string, data?: unknown) {
         if (action === "Table") {
             closeCombined();
             const syntheticEvent = { currentTarget: combinedButtonRef.current };
@@ -343,7 +345,7 @@ export const RichInputToolbar = ({
         } else {
             handleToggleAction(action, data);
         }
-    };
+    }
 
     const headerItems: PopoverActionItem[] = [
         { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
@@ -379,6 +381,8 @@ export const RichInputToolbar = ({
         <Box
             id={id}
             ref={dimRef}
+            component="section"
+            aria-label="Rich text editor toolbar"
             sx={{
                 display: "flex",
                 flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
@@ -559,4 +563,4 @@ export const RichInputToolbar = ({
             </Box>
         </Box>
     );
-};
+}

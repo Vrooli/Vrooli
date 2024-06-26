@@ -11,7 +11,7 @@ const COMPONENT_HEIGHT_PX = 56;
 export function VersionInput({
     autoFocus = false,
     fullWidth = true,
-    isOptional = true,
+    isRequired = false,
     label = "Version",
     name = "versionLabel",
     versions,
@@ -78,7 +78,7 @@ export function VersionInput({
                 autoFocus={autoFocus}
                 id="versionLabel"
                 name="versionLabel"
-                isOptional={isOptional}
+                isRequired={isRequired}
                 label={label}
                 value={internalValue}
                 onBlur={handleBlur}

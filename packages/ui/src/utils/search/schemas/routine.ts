@@ -61,12 +61,14 @@ export const routineSearchSchema = (): FormSchema => ({
     fields: [
         {
             fieldName: "latestVersionRoutineType",
+            id: "latestVersionRoutineType",
             label: "Routine Type",
             type: InputType.Selector,
             props: {
                 defaultValue: null,
                 getOptionDescription: (option) => option.description,
                 getOptionLabel: (option) => option.label,
+                getOptionValue: (option) => option.label,
                 name: "routineType",
                 options: [
                     {

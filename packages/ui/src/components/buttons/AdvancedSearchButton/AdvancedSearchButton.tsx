@@ -1,11 +1,11 @@
 import { parseSearchParams, ParseSearchParamsResult } from "@local/shared";
 import { Box, Button, Grid, Tooltip, Typography, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { GeneratedGrid } from "components/inputs/generated";
+import { GeneratedGrid } from "components/inputs/form";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { generateDefaultProps, generateYupSchema } from "forms/generators";
-import { FieldData, FormSchema } from "forms/types";
+import { FormInputType, FormSchema } from "forms/types";
 import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +18,7 @@ import { AdvancedSearchButtonProps } from "../types";
 
 const titleId = "advanced-search-dialog-title";
 
-const AdvancedSearchDialog = ({
+function AdvancedSearchDialog({
     handleClose,
     handleSearch,
     isOpen,
@@ -28,7 +28,7 @@ const AdvancedSearchDialog = ({
     handleSearch: (searchQuery: ParseSearchParamsResult) => unknown;
     isOpen: boolean;
     searchType: SearchType | `${SearchType}`;
-}) => {
+}) {
     const theme = useTheme();
     const { t } = useTranslation();
 
@@ -39,9 +39,9 @@ const AdvancedSearchDialog = ({
     }, [searchType]);
 
     // Parse default values to use in formik
-    const initialValues = useMemo(() => {
+    const initialValues = useMemo(function advancedSearchInitialValuesMemo() {
         // Calculate initial values from schema, to use if values not already in URL
-        const fieldInputs: FieldData[] = generateDefaultProps(schema?.fields ?? []);
+        const fieldInputs: FormInputType[] = generateDefaultProps(schema?.fields ?? []);
         // Parse search params from URL, and filter out search fields that are not in schema
         const urlValues = schema ? convertSearchForFormik(parseSearchParams(), schema) : {} as { [key: string]: object | string | number | boolean | null };
         // Filter out search params that are not in schema
@@ -104,8 +104,6 @@ const AdvancedSearchDialog = ({
                             childContainers={schema.containers}
                             fields={schema.fields}
                             layout={schema.formLayout}
-                            // eslint-disable-next-line @typescript-eslint/no-empty-function
-                            onUpload={() => { }}
                             theme={theme}
                         />}
                     </Box>
@@ -133,15 +131,15 @@ const AdvancedSearchDialog = ({
             </Formik>
         </LargeDialog>
     );
-};
+}
 
-export const AdvancedSearchButton = ({
+export function AdvancedSearchButton({
     advancedSearchParams,
     advancedSearchSchema,
     controlsUrl,
     searchType,
     setAdvancedSearchParams,
-}: AdvancedSearchButtonProps) => {
+}: AdvancedSearchButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -205,4 +203,4 @@ export const AdvancedSearchButton = ({
             </Tooltip>}
         </>
     );
-};
+}

@@ -1,5 +1,5 @@
 import { ListObject, getObjectUrl } from "@local/shared";
-import { FC, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "utils/display/stringTools";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
@@ -8,28 +8,30 @@ import { RichInputAction, RichInputMarkdownProps } from "../types";
 
 type TextStyle = Extract<RichInputAction, "Bold" | "Code" | "Header1" | "Header2" | "Header3" | "Header4" | "Header5" | "Header6" | "Italic" | "Link" | "ListBullet" | "ListCheckbox" | "ListNumber" | "Quote" | "Spoiler" | "Strikethrough" | "Underline">;
 
-const styleMap = (common: [string, number, number]): Record<TextStyle, () => TextStyleResult> => ({
-    "Bold": () => padSelection("**", "**", ...common),
-    "Code": () => insertCode(...common),
-    "Header1": () => insertHeader(Headers.h1, ...common),
-    "Header2": () => insertHeader(Headers.h2, ...common),
-    "Header3": () => insertHeader(Headers.h3, ...common),
-    "Header4": () => insertHeader(Headers.h4, ...common),
-    "Header5": () => insertHeader(Headers.h5, ...common),
-    "Header6": () => insertHeader(Headers.h6, ...common),
-    "Italic": () => padSelection("*", "*", ...common),
-    "Link": () => insertLink(...common),
-    "ListBullet": () => insertBulletList(...common),
-    "ListCheckbox": () => insertCheckboxList(...common),
-    "ListNumber": () => insertNumberList(...common),
-    "Quote": () => insertQuote(...common),
-    "Spoiler": () => padSelection("||", "||", ...common),
-    "Strikethrough": () => padSelection("~~", "~~", ...common),
-    "Underline": () => padSelection("<u>", "</u>", ...common),
-});
+function styleMap(common: [string, number, number]): Record<TextStyle, () => TextStyleResult> {
+    return {
+        "Bold": () => padSelection("**", "**", ...common),
+        "Code": () => insertCode(...common),
+        "Header1": () => insertHeader(Headers.h1, ...common),
+        "Header2": () => insertHeader(Headers.h2, ...common),
+        "Header3": () => insertHeader(Headers.h3, ...common),
+        "Header4": () => insertHeader(Headers.h4, ...common),
+        "Header5": () => insertHeader(Headers.h5, ...common),
+        "Header6": () => insertHeader(Headers.h6, ...common),
+        "Italic": () => padSelection("*", "*", ...common),
+        "Link": () => insertLink(...common),
+        "ListBullet": () => insertBulletList(...common),
+        "ListCheckbox": () => insertCheckboxList(...common),
+        "ListNumber": () => insertNumberList(...common),
+        "Quote": () => insertQuote(...common),
+        "Spoiler": () => padSelection("||", "||", ...common),
+        "Strikethrough": () => padSelection("~~", "~~", ...common),
+        "Underline": () => padSelection("<u>", "</u>", ...common),
+    };
+}
 
 /** TextInput for entering markdown text */
-export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
+export function RichInputMarkdown({
     autoFocus = false,
     disabled = false,
     enterWillSubmit,
@@ -52,7 +54,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
     undo,
     value,
     sxs,
-}: RichInputMarkdownProps) => {
+}: RichInputMarkdownProps) {
     const textAreaRef = useRef<HTMLElement>(null);
 
     const insertStyle = useCallback((style: TextStyle | `${TextStyle}`) => {
@@ -75,7 +77,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
         onChange(result.text);
     }, [disabled, id, onChange]);
 
-    const addTable = useCallback(({ rows, cols }: { rows: number, cols: number }) => {
+    const addTable = useCallback(function addTableCallback({ rows, cols }: { rows: number, cols: number }) {
         if (disabled) return;
         const { start, end, inputElement } = getTextSelection(id);
         if (!inputElement) return;
@@ -167,7 +169,7 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             "y": () => redo(), // CTRL + Y = Redo
         };
         // Handle key press events for textarea
-        const handleTextareaKeyDown = (e: any) => {
+        function handleTextareaKeyDown(e: any) {
             // Check if either alt or ctrl key is pressed
             if (e.altKey || e.ctrlKey) {
                 const action = keyMappings[e.key]; // Find the function mapped to the key press
@@ -264,16 +266,16 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
                 e.stopPropagation();
             }
             console.log("made it to the end");
-        };
+        }
         // Handle key press events for preview
-        const handleFullComponentKeyDown = (e: any) => {
+        function handleFullComponentKeyDown(e: any) {
             // Only check for the toggle preview shortcut
             if (e.altKey && e.key === "6") {
                 console.log("fullcomponent action triggered");
                 e.preventDefault();
                 toggleMarkdown();
             }
-        };
+        }
         // Find textarea or full component
         const textarea = document.getElementById(id);
         const fullComponent = document.getElementById(`markdown-input-base-${name}`);
@@ -328,4 +330,4 @@ export const RichInputMarkdown: FC<RichInputMarkdownProps> = ({
             />
         </>
     );
-};
+}

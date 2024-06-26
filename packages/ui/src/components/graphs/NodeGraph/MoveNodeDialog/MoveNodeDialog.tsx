@@ -12,13 +12,13 @@ import { MoveNodeMenuProps } from "../types";
 
 const titleId = "move-node-dialog-title";
 
-export const MoveNodeMenu = ({
+export function MoveNodeMenu({
     handleClose,
     isOpen,
     language,
     node,
     routineVersion,
-}: MoveNodeMenuProps) => {
+}: MoveNodeMenuProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -193,4 +193,4 @@ export const MoveNodeMenu = ({
             </DialogContent>
         </LargeDialog>
     );
-};
+}

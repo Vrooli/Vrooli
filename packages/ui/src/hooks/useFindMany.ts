@@ -103,7 +103,7 @@ export const readyToSearch = ({ canSearch, findManyEndpoint, hasMore, loading, s
         !loading &&
         hasMore &&
         findManyEndpoint && findManyEndpoint.length > 0 &&
-        sortBy && sortBy.length > 0
+        sortBy && sortBy.length > 0,
     );
 };
 
@@ -123,7 +123,7 @@ export const readyToSearch = ({ canSearch, findManyEndpoint, hasMore, loading, s
  *         - timeFrame: Optional object containing 'after' and/or 'before' date limits; included if either
  *                      date is validly specified in the URL.
  */
-export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): GetUrlSearchParamsResult => {
+export function getUrlSearchParams(controlsUrl: boolean, searchType: string): GetUrlSearchParamsResult {
     const result: GetUrlSearchParamsResult = {
         searchString: "",
         sortBy: "",
@@ -135,14 +135,14 @@ export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): Ge
     if (typeof searchParams.search === "string") result.searchString = searchParams.search;
     // Find sortBy
     const searchParamsConfig = searchTypeToParams[searchType];
-    if (typeof searchParamsConfig === 'function') {
+    if (typeof searchParamsConfig === "function") {
         result.sortBy = updateSortBy(searchParamsConfig(), typeof searchParams.sort === "string" ? searchParams.sort : "");
     } else {
         console.warn(`Invalid search type provided: ${searchType}`);
     }
     // Find timeFrame
     if (typeof searchParams.time === "object" && !Array.isArray(searchParams.time)) {
-        let timeFrame: TimeFrame = {};
+        const timeFrame: TimeFrame = {};
         if (Object.prototype.hasOwnProperty.call(searchParams.time, "after")) {
             timeFrame.after = new Date((searchParams.time as { after: string }).after);
         }
@@ -154,7 +154,7 @@ export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): Ge
         }
     }
     return result;
-};
+}
 
 /**
  * The opposite of getUrlSearchParams. Updates the URL with the current search parameters.
@@ -165,11 +165,11 @@ export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): Ge
  * @param timeFrame The current time frame.
  * @param setLocation Function for updating the URL.
  */
-export const updateSearchUrl = (
+export function updateSearchUrl(
     controlsUrl: boolean,
     { searchString, sortBy, timeFrame }: FullSearchParams,
     setLocation: SetLocation,
-) => {
+) {
     if (!controlsUrl) return;
     addSearchParams(setLocation, {
         search: searchString.length > 0 ? searchString : undefined,
@@ -179,19 +179,19 @@ export const updateSearchUrl = (
             before: timeFrame.before?.toISOString() ?? "",
         } : undefined,
     });
-};
+}
 
 /**
  * Logic for displaying search options and querying a findMany endpoint
  */
-export const useFindMany = <DataType extends Record<string, any>>({
+export function useFindMany<DataType extends Record<string, any>>({
     canSearch,
     controlsUrl = true,
     searchType,
     resolve,
     take = 20,
     where,
-}: UseFindManyProps): UseFindManyResult<DataType> => {
+}: UseFindManyProps): UseFindManyResult<DataType> {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
@@ -422,4 +422,4 @@ export const useFindMany = <DataType extends Record<string, any>>({
         timeFrame: params?.current?.timeFrame,
         updateItem,
     };
-};
+}

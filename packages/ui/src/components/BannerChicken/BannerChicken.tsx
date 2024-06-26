@@ -3,6 +3,8 @@ import { useContext, useEffect, useMemo } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 
+const HALF = 0.5;
+
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
  * Uses session to display no ads for premium users, and less ads if logged in.
@@ -10,7 +12,7 @@ import { PubSub } from "utils/pubsub";
  * NOTE: If we call this "BannerAd", ad blockers will cause the whole bundle to break. 
  * Hence the name "BannerChicken".
  */
-export const BannerChicken = () => {
+export function BannerChicken() {
     const session = useContext(SessionContext);
 
     const adFrequency = useMemo(() => {
@@ -27,7 +29,7 @@ export const BannerChicken = () => {
         // Pick a random number between 0 and 1
         const random = Math.random();
         // If the random number is less than 0.5, display the ad
-        return random < 0.5;
+        return random < HALF;
     }, [adFrequency]);
 
     useEffect(function renderAdEffect() {
@@ -62,4 +64,4 @@ export const BannerChicken = () => {
             data-ad-format="auto"
             data-full-width-responsive="true"></ins>
     );
-};
+}

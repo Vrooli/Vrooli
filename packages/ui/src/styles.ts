@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { Avatar, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
 export const pagePaddingBottom = "calc(56px + env(safe-area-inset-bottom))";
@@ -207,22 +208,35 @@ export const BaseSection = styled(Box)(({ theme }) => ({
     ...baseSection(theme),
 }));
 
-export const formSection = (theme: Theme) => ({
-    ...baseSection(theme),
-    overflowX: "auto",
-    gap: theme.spacing(2),
-} as const);
+export function formSection(theme: Theme) {
+    return {
+        ...baseSection(theme),
+        overflowX: "auto",
+        gap: theme.spacing(2),
+        padding: theme.spacing(2),
+        // Smaller padding on mobile
+        [theme.breakpoints.down("sm")]: {
+            padding: theme.spacing(1.5),
+        },
+    } as const;
+}
 export const FormSection = styled(Stack)(({ theme }) => ({
     ...noSelect,
     ...formSection(theme),
 }));
 
 
-export const formContainer = (theme: Theme): SxProps => ({
-    flexDirection: "column",
-    margin: theme.spacing(2),
-    gap: theme.spacing(3),
-});
+export function formContainer(theme: Theme): SxProps {
+    return {
+        flexDirection: "column",
+        gap: theme.spacing(3),
+        margin: theme.spacing(2),
+        // Smaller margin on mobile
+        [theme.breakpoints.down("sm")]: {
+            margin: theme.spacing(1),
+        },
+    };
+}
 export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),
 }));

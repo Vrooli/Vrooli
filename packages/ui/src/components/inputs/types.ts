@@ -97,7 +97,7 @@ export interface CodeInputBaseProps {
 export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables">
 
 export interface DateInputProps {
-    isOptional?: boolean;
+    isRequired?: boolean;
     label: string;
     name: string;
     type?: "date" | "datetime-local";
@@ -132,13 +132,25 @@ export type LanguageInputProps = {
     sx?: SxType
 }
 
-export interface LinkInputProps {
+export interface LinkInputBaseProps {
     autoFocus?: boolean;
+    disabled?: boolean;
+    error?: boolean;
+    fullWidth?: boolean;
+    helperText?: string | boolean | null | undefined;
+    key?: string;
     label?: string;
-    name?: string;
+    name: string;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
+    onChange: (newLink: string) => unknown;
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
+    placeholder?: string;
+    sxs?: { root?: SxType };
     tabIndex?: number;
+    value: string;
 }
+
+export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     actionButtons?: Array<{
@@ -180,7 +192,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
 
 export type RichInputProps = Omit<RichInputBaseProps, "onChange" | "value">
 
-export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "disableAssistant" | "helperText" | "maxChars" | "sxs"> {
+export interface RichInputChildProps extends Omit<RichInputBaseProps, "actionButtons" | "helperText" | "maxChars" | "sxs"> {
     enterWillSubmit?: boolean;
     id: string;
     openAssistantDialog: (selected: string, fullText: string) => unknown;
@@ -313,7 +325,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     fullWidth?: boolean;
     getOptionDescription?: (option: T) => string | null | undefined;
     getOptionIcon?: (option: T) => SvgComponent | JSX.Element;
-    getOptionLabel: (option: T) => string;
+    getOptionLabel: (option: T) => string | null | undefined;
     inputAriaLabel?: string;
     label?: string;
     multiple?: false;
@@ -362,7 +374,7 @@ export type ObjectVersionSelectSwitchProps<T extends keyof ObjectVersionSelectPa
 export type TagSelectorBaseProps = {
     disabled?: boolean;
     handleTagsUpdate: (tags: (TagShape | Tag)[]) => unknown;
-    isOptional?: boolean;
+    isRequired?: boolean;
     placeholder?: string;
     tags: (TagShape | Tag)[];
     sx?: SxType;
@@ -375,7 +387,7 @@ export type TagSelectorProps = Pick<TagSelectorBaseProps, "disabled" | "placehol
 export type TextInputProps = Omit<TextFieldProps, "ref"> & {
     enterWillSubmit?: boolean;
     onSubmit?: () => unknown;
-    isOptional?: boolean;
+    isRequired?: boolean;
     ref?: RefObject<HTMLElement>;
 }
 
@@ -402,7 +414,7 @@ export interface TranslatedRichInputProps {
     }>;
     autoFocus?: boolean;
     disabled?: boolean;
-    isOptional?: boolean;
+    isRequired?: boolean;
     language: string;
     maxChars?: number;
     maxRows?: number;
@@ -421,7 +433,7 @@ export interface TranslatedRichInputProps {
 export interface TranslatedTextInputProps {
     autoFocus?: boolean;
     fullWidth?: boolean;
-    isOptional?: boolean;
+    isRequired?: boolean;
     label?: string;
     language: string;
     maxRows?: number;

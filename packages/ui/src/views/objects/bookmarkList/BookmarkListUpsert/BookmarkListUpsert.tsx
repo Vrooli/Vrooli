@@ -29,6 +29,7 @@ import { useLocation } from "route";
 import { FormContainer } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { BookmarkShape } from "utils/shape/models/bookmark";
@@ -36,21 +37,24 @@ import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmar
 import { validateFormValues } from "utils/validateFormValues";
 import { BookmarkListFormProps, BookmarkListUpsertProps } from "../types";
 
-const bookmarkListInitialValues = (
+function bookmarkListInitialValues(
     session: Session | undefined,
     existing?: Partial<BookmarkList> | null | undefined,
-): BookmarkListShape => ({
-    __typename: "BookmarkList" as const,
-    id: DUMMY_ID,
-    label: "Bookmark List",
-    bookmarks: [],
-    ...existing,
-});
+): BookmarkListShape {
+    return {
+        __typename: "BookmarkList" as const,
+        id: DUMMY_ID,
+        label: "Bookmark List",
+        bookmarks: [],
+        ...existing,
+    };
+}
 
-const transformBookmarkListValues = (values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) =>
-    isCreate ? shapeBookmarkList.create(values) : shapeBookmarkList.update(existing, values);
+function transformBookmarkListValues(values: BookmarkListShape, existing: BookmarkListShape, isCreate: boolean) {
+    return isCreate ? shapeBookmarkList.create(values) : shapeBookmarkList.update(existing, values);
+}
 
-const BookmarkListForm = ({
+function BookmarkListForm({
     disabled,
     dirty,
     display,
@@ -65,7 +69,7 @@ const BookmarkListForm = ({
     onDeleted,
     values,
     ...props
-}: BookmarkListFormProps) => {
+}: BookmarkListFormProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
@@ -133,7 +137,7 @@ const BookmarkListForm = ({
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback(() => {
-        const performDelete = () => {
+        function performDelete() {
             fetchLazyWrapper<DeleteOneInput, Success>({
                 fetch: deleteMutation,
                 inputs: { id: values.id, objectType: DeleteType.BookmarkList },
@@ -142,7 +146,7 @@ const BookmarkListForm = ({
                 onSuccess: () => { handleDeleted(values as BookmarkList); },
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
-        };
+        }
         PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [{
@@ -303,7 +307,7 @@ const BookmarkListForm = ({
                     isEmpty={bookmarksField.value.length === 0 && !isLoading}
                 >
                     <ObjectList
-                        dummyItems={new Array(5).fill("BookmarkList")}
+                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill("BookmarkList")}
                         handleToggleSelect={handleToggleSelect}
                         isSelecting={isSelecting}
                         items={bookmarksField.value as ListObject[]}
@@ -334,14 +338,14 @@ const BookmarkListForm = ({
             </Box>
         </MaybeLargeDialog>
     );
-};
+}
 
-export const BookmarkListUpsert = ({
+export function BookmarkListUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: BookmarkListUpsertProps) => {
+}: BookmarkListUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
@@ -371,4 +375,4 @@ export const BookmarkListUpsert = ({
             />}
         </Formik>
     );
-};
+}

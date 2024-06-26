@@ -18,6 +18,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ObjectAction } from "utils/actions/objectActions";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { listToAutocomplete } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -26,11 +27,11 @@ import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
-export const BookmarkListView = ({
+export function BookmarkListView({
     display,
     isOpen,
     onClose,
-}: BookmarkListViewProps) => {
+}: BookmarkListViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -167,7 +168,7 @@ export const BookmarkListView = ({
                 isEmpty={bookmarks.length === 0 && !isLoading}
             >
                 <ObjectList
-                    dummyItems={new Array(5).fill("Routine")}
+                    dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Routine")}
                     items={bookmarks}
                     keyPrefix="bookmark-list-item"
                     loading={isLoading}
@@ -184,4 +185,4 @@ export const BookmarkListView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

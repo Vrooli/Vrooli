@@ -115,7 +115,7 @@ export function IntegerInputBase({
                             marginLeft: 1,
                         }}
                     />
-                    {helperText && <FormHelperText id={`helper-text-${name}`}>{helperText}</FormHelperText>}
+                    {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
                 </FormControl>
             </Box>
         </Tooltip >

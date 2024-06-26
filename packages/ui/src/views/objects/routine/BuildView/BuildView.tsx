@@ -35,6 +35,12 @@ import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem
 import { NodeWithRoutineListShape } from "views/objects/node/types";
 import { BuildViewProps } from "../types";
 
+/** Maximum number of nodes allowed in a column */
+const MAX_ROW_SIZE = 100;
+
+const MIN_SCALE = -3;
+const MAX_SCALE = 0.5;
+
 /**
  * Generates a new link object, but doesn't add it to the routine
  * @param fromId - The ID of the node the link is coming from
@@ -42,18 +48,20 @@ import { BuildViewProps } from "../types";
  * @param routineVersionId - The ID of the overall routine version
  * @returns The new link object
  */
-const generateNewLink = (fromId: string, toId: string, routineVersionId: string): NodeLinkShape => ({
-    __typename: "NodeLink",
-    id: uuid(),
-    from: { __typename: "Node", id: fromId },
-    to: { __typename: "Node", id: toId },
-    routineVersion: { __typename: "RoutineVersion", id: routineVersionId },
-});
+function generateNewLink(fromId: string, toId: string, routineVersionId: string): NodeLinkShape {
+    return {
+        __typename: "NodeLink",
+        id: uuid(),
+        from: { __typename: "Node", id: fromId },
+        to: { __typename: "Node", id: toId },
+        routineVersion: { __typename: "RoutineVersion", id: routineVersionId },
+    };
+}
 
 // RoutineVersion with fields required for the build view
 type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
 
-export const BuildView = ({
+export function BuildView({
     display,
     handleCancel,
     handleSubmit,
@@ -63,7 +71,7 @@ export const BuildView = ({
     onClose,
     routineVersion,
     translationData,
-}: BuildViewProps) => {
+}: BuildViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -77,8 +85,7 @@ export const BuildView = ({
     const [scale, setScale] = useState<number>(-1);
     const handleScaleChange = useCallback((delta: number) => {
         PubSub.get().publish("fastUpdate", { duration: 1000 });
-        // Limit to -3 to 0.5. These are determined by finding where the nodes stop shrinking/growing
-        setScale(s => Math.min(Math.max(s + delta, -3), 0.5));
+        setScale(s => Math.min(Math.max(s + delta, MIN_SCALE), MAX_SCALE));
     }, []);
 
     // Stores previous routineVersion states for undo/redo
@@ -263,7 +270,7 @@ export const BuildView = ({
 
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
-        const revert = () => {
+        function revert() {
             setCookieAllowFormCache("RoutineVersion", id, false);
             // If updating routineVersion, revert to original routineVersion
             if (id) {
@@ -272,7 +279,7 @@ export const BuildView = ({
             }
             // If adding new routineVersion, go back
             else window.history.back();
-        };
+        }
         // Confirm if changes have been made
         if (changeStack.length > 1) {
             PubSub.get().publish("alertDialog", {
@@ -335,18 +342,18 @@ export const BuildView = ({
      * @param row - The preferred row
      * @returns a node position in the same column, with the first available row starting at the given row
      */
-    const closestOpenPosition = useCallback((
+    const closestOpenPosition = useCallback(function closestOpenPositionCallback(
         column: number | null | undefined,
         row: number | null | undefined,
-    ): { columnIndex: number, rowIndex: number } => {
+    ): { columnIndex: number, rowIndex: number } {
         if (column === null || column === undefined || row === null || row === undefined) return { columnIndex: -1, rowIndex: -1 };
         const columnNodes = changedRoutineVersion.nodes?.filter(n => n.columnIndex === column) ?? [];
         let rowIndex: number = row;
         // eslint-disable-next-line no-loop-func
-        while (columnNodes.some(n => n.rowIndex !== null && n.rowIndex === rowIndex) && rowIndex <= 100) {
+        while (columnNodes.some(n => n.rowIndex !== null && n.rowIndex === rowIndex) && rowIndex <= MAX_ROW_SIZE) {
             rowIndex++;
         }
-        if (rowIndex > 100) return { columnIndex: -1, rowIndex: -1 };
+        if (rowIndex > MAX_ROW_SIZE) return { columnIndex: -1, rowIndex: -1 };
         return { columnIndex: column, rowIndex };
     }, [changedRoutineVersion.nodes]);
 
@@ -355,7 +362,10 @@ export const BuildView = ({
      * @param column Suggested column for the node
      * @param row Suggested row for the node
      */
-    const createRoutineListNode = useCallback((column: number | null | undefined, row: number | null | undefined) => {
+    const createRoutineListNode = useCallback(function createRoutineListNodeCallback(
+        column: number | null | undefined,
+        row: number | null | undefined,
+    ) {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
@@ -389,7 +399,10 @@ export const BuildView = ({
      * @param column Suggested column for the node
      * @param row Suggested row for the node
      */
-    const createEndNode = useCallback((column: number | null, row: number | null) => {
+    const createEndNode = useCallback(function createEndNodeCallback(
+        column: number | null,
+        row: number | null,
+    ) {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
@@ -1167,4 +1180,4 @@ export const BuildView = ({
             </Box>
         </MaybeLargeDialog>
     );
-};
+}

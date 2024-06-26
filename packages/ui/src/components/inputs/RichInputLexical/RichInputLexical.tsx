@@ -503,7 +503,7 @@ export function RichInputLexicalComponents({
                     } as CSSProperties}
                 />}
             />
-            {(!editor || value.length === 0) && <div style={{
+            {(!editor || (typeof value === "string" && value.length === 0)) && <div style={{
                 color: palette.background.textSecondary,
                 position: "absolute",
                 padding: "16.5px 14px",

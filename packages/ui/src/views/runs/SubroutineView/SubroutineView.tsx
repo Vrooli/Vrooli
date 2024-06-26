@@ -4,7 +4,7 @@ import { CommentContainer } from "components/containers/CommentContainer/Comment
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
+import { FormInput } from "components/inputs/form";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceList } from "components/lists/resource";
@@ -14,7 +14,8 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
-import { FieldData } from "forms/types";
+import { createFormInput } from "forms/generators";
+import { FormInputType } from "forms/types";
 import { useObjectActions } from "hooks/useObjectActions";
 import { SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -24,24 +25,26 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsToFormik } from "utils/runUtils";
-import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { routineInitialValues } from "views/objects/routine";
 import { SubroutineViewProps } from "../types";
 
-const containerProps = (palette: Palette) => ({
-    boxShadow: 1,
-    background: palette.background.paper,
-    borderRadius: 1,
-    overflow: "overlay",
-    marginTop: 4,
-    marginBottom: 4,
-    padding: 2,
-});
+function containerProps(palette: Palette) {
+    return {
+        boxShadow: 1,
+        background: palette.background.paper,
+        borderRadius: 1,
+        overflow: "overlay",
+        marginTop: 4,
+        marginBottom: 4,
+        padding: 2,
+    };
+}
 
-export const SubroutineView = ({
+//TODO update to latest from RoutineView
+export function SubroutineView({
     loading,
     handleUserInputsUpdate,
     handleSaveProgress,
@@ -49,7 +52,7 @@ export const SubroutineView = ({
     owner,
     routineVersion,
     run,
-}: SubroutineViewProps) => {
+}: SubroutineViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -99,19 +102,19 @@ export const SubroutineView = ({
     }, [handleSaveProgress]);
 
     // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
+    const formValueMap = useMemo<{ [fieldName: string]: FormInputType }>(() => {
         if (!internalRoutineVersion) return {};
-        const schemas: { [fieldName: string]: FieldData } = {};
+        const schemas: { [fieldName: string]: FormInputType } = {};
         for (let i = 0; i < internalRoutineVersion.inputs?.length; i++) {
             const currInput = internalRoutineVersion.inputs[i];
             if (!currInput.standardVersion) continue;
-            const currSchema = standardVersionToFieldData({
+            const currSchema = createFormInput({
                 description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
-                standardType: currInput.standardVersion.standardType,
+                label: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
+                type: currInput.standardVersion.standardType as FormInputType["type"],
                 yup: currInput.standardVersion.yup,
             });
             if (currSchema) {
@@ -133,15 +136,11 @@ export const SubroutineView = ({
      * Update formik values with the current user inputs, if any
      */
     useEffect(() => {
-        console.log("useeffect1 calculating preview formik values", run);
         if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
-        console.log("useeffect 1calling runInputsToFormik", run.inputs);
         const updatedValues = runInputsToFormik(run.inputs);
-        console.log("useeffect1 updating formik, values", updatedValues);
         formik.setValues(updatedValues);
-    },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [formik.setValues, run?.inputs]);
+    }, [formik.setValues, run?.inputs]);
 
     /**
      * Update run with updated user inputs
@@ -170,14 +169,13 @@ export const SubroutineView = ({
         if (!internalRoutineVersion?.inputs || !Array.isArray(internalRoutineVersion?.inputs) || internalRoutineVersion.inputs.length === 0) return null;
         return (
             <Box>
-                {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
-                    <GeneratedInputComponentWithLabel
+                {Object.values(formValueMap).map((fieldData: FormInputType, index: number) => (
+                    <FormInput
+                        key={fieldData.id}
                         copyInput={copyInput}
-                        disabled={false}
                         fieldData={fieldData}
                         index={index}
                         textPrimary={palette.background.textPrimary}
-                        onUpload={noop}
                     />
                 ))}
             </Box>
@@ -348,4 +346,4 @@ export const SubroutineView = ({
             </Box>
         </>
     );
-};
+}

@@ -118,3 +118,8 @@ export const InputTypeOptions: InputTypeOption[] = [
     //     value: InputType.Dropzone,
     // },
 ];
+
+/** Number of dummy items in a list for full page, typically */
+export const DUMMY_LIST_LENGTH = 5;
+/** Number of dummy items on mobile or shorter components */
+export const DUMMY_LIST_LENGTH_SHORT = 3;

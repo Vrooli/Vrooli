@@ -1,3 +1,4 @@
+/* eslint-disable func-style */
 import { SvgProps } from "../types";
 import { SvgPath } from "./base";
 
@@ -723,6 +724,13 @@ export const NotificationsOffIcon = (props: SvgProps) => (
     />
 );
 
+export const NumberIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M19.01 3h-14c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-4 7.5c0 .83-.67 1.5-1.5 1.5.83 0 1.5.67 1.5 1.5V15c0 1.11-.9 2-2 2h-4v-2h4v-2h-2v-2h2V9h-4V7h4c1.1 0 2 .89 2 2z"
+    />
+);
+
 export const ObjectIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -983,6 +991,13 @@ export const ShortcutIcon = (props: SvgProps) => (
     />
 );
 
+export const SliderIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M19.5 9.5c-1.03 0-1.9.62-2.29 1.5h-2.92c-.39-.88-1.26-1.5-2.29-1.5s-1.9.62-2.29 1.5H6.79c-.39-.88-1.26-1.5-2.29-1.5C3.12 9.5 2 10.62 2 12s1.12 2.5 2.5 2.5c1.03 0 1.9-.62 2.29-1.5h2.92c.39.88 1.26 1.5 2.29 1.5s1.9-.62 2.29-1.5h2.92c.39.88 1.26 1.5 2.29 1.5 1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5"
+    />
+);
+
 export const SmartContractIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
@@ -1050,6 +1065,13 @@ export const SuccessIcon = (props: SvgProps) => (
     <SvgPath
         props={props}
         d="M12 2.422c-5.281 0-9.578 4.297-9.578 9.578S6.719 21.578 12 21.578c4.37 0 8.061-2.942 9.207-6.95-.549.007-1.063-.038-1.57-.024A8.054 8.054 0 0 1 12 20.066 8.054 8.054 0 0 1 3.934 12 8.054 8.054 0 0 1 12 3.934a8.04 8.04 0 0 1 4.205 1.177c.433-.35.817-.65 1.184-1.023A9.522 9.522 0 0 0 12 2.422Zm7.57 5.473-7.492 6.552-4.293-4.244c-.929-.906-2.215.485-1.357 1.317l5.65 5.642 8.85-7.953c.64-.7-.633-1.913-1.358-1.314Z"
+    />
+);
+
+export const SwitchIcon = (props: SvgProps) => (
+    <SvgPath
+        props={props}
+        d="M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5m0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3"
     />
 );
 

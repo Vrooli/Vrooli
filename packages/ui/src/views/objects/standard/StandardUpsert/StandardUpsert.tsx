@@ -1,14 +1,15 @@
-import { DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, LINKS, noopSubmit, orDefault, Session, StandardVersion, StandardVersionCreateInput, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
+import { DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, InputType, LINKS, noopSubmit, orDefault, Session, StandardVersion, StandardVersionCreateInput, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
+import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
@@ -21,67 +22,69 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { SearchIcon } from "icons";
-import { useContext, useMemo } from "react";
+import { BuildIcon, HelpIcon, SearchIcon, VisibleIcon } from "icons";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { InputTypeOptions } from "utils/consts";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/standardVersion";
 import { validateFormValues } from "utils/validateFormValues";
 import { StandardFormProps, StandardUpsertProps } from "../types";
 
-export const standardInitialValues = (
+export function standardInitialValues(
     session: Session | undefined,
     existing?: Partial<StandardVersion> | null | undefined,
-): StandardVersionShape => ({
-    __typename: "StandardVersion" as const,
-    id: DUMMY_ID,
-    directoryListings: [],
-    isComplete: false,
-    isPrivate: false,
-    isFile: false,
-    standardType: InputTypeOptions[0].value,
-    props: JSON.stringify({}),
-    default: JSON.stringify({}),
-    yup: JSON.stringify({}),
-    resourceList: {
-        __typename: "ResourceList" as const,
+): StandardVersionShape {
+    return {
+        __typename: "StandardVersion" as const,
         id: DUMMY_ID,
-        listFor: {
-            __typename: "StandardVersion" as const,
-            id: DUMMY_ID,
-        },
-    },
-    versionLabel: "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Standard" as const,
-        id: DUMMY_ID,
-        isInternal: false,
+        directoryListings: [],
+        isComplete: false,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-        parent: null,
-        permissions: JSON.stringify({}),
-        tags: [],
-        ...existing?.root,
-    },
-    translations: orDefault(existing?.translations, [{
-        __typename: "StandardVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        jsonVariable: null, //TODO
-        name: "",
-    }]),
-});
+        isFile: false,
+        standardType: InputType.JSON,
+        props: JSON.stringify({}),
+        default: JSON.stringify({}),
+        yup: JSON.stringify({}),
+        resourceList: {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            listFor: {
+                __typename: "StandardVersion" as const,
+                id: DUMMY_ID,
+            },
+        },
+        versionLabel: "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Standard" as const,
+            id: DUMMY_ID,
+            isInternal: false,
+            isPrivate: false,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+            parent: null,
+            permissions: JSON.stringify({}),
+            tags: [],
+            ...existing?.root,
+        },
+        translations: orDefault(existing?.translations, [{
+            __typename: "StandardVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            jsonVariable: null, //TODO
+            name: "",
+        }]),
+    };
+}
 
-const transformStandardVersionValues = (values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) =>
-    isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
+function transformStandardVersionValues(values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) {
+    return isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
+}
 
-const StandardForm = ({
+function StandardForm({
     disabled,
     dirty,
     display,
@@ -97,7 +100,7 @@ const StandardForm = ({
     values,
     versions,
     ...props
-}: StandardFormProps) => {
+}: StandardFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -145,6 +148,14 @@ const StandardForm = ({
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
     });
+
+    // Toggle preview/edit mode
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    const onPreviewChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => { setIsPreviewOn(event.target.checked); }, []);
+
+    function showExample() {
+        console.log("TODO");
+    }
 
     return (
         <MaybeLargeDialog
@@ -224,8 +235,46 @@ const StandardForm = ({
                         />
                     </ContentCollapse>
                     <Divider />
-                    <ContentCollapse title="Standard" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <StandardInput fieldName="preview" />
+                    <ContentCollapse
+                        title="Standard"
+                        titleVariant="h4"
+                        isOpen={true}
+                        toTheRight={
+                            <>
+                                <ToggleSwitch
+                                    checked={isPreviewOn}
+                                    onChange={onPreviewChange}
+                                    OffIcon={BuildIcon}
+                                    OnIcon={VisibleIcon}
+                                    label={isPreviewOn ? "Preview" : "Edit"}
+                                    tooltip={isPreviewOn ? "Switch to edit" : "Switch to preview"}
+                                    sx={{ marginBottom: 2 }}
+                                />
+                                <Button
+                                    variant="outlined"
+                                    onClick={showExample}
+                                    startIcon={<HelpIcon />}
+                                    sx={{ marginLeft: 2 }}
+                                >
+                                    Show example
+                                </Button>
+                                {/* <IconButton
+                                    onClick={toggleFullscreen}
+                                    sx={{ marginLeft: 2 }}
+                                >
+                                    {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                </IconButton> */}
+                            </>
+                        }
+                        sxs={{ titleContainer: { marginBottom: 1 } }}
+                    >
+                        {/* TODO replace with FormInputStandard */}
+                        <CodeInput
+                            disabled={false}
+                            // format={isPreviewOn ? "TODO" : undefined}
+                            limitTo={isPreviewOn ? [CodeLanguage.JsonStandard] : [CodeLanguage.Json]}
+                            name="content"
+                        />
                     </ContentCollapse>
                 </FormContainer>
             </BaseForm>
@@ -241,14 +290,14 @@ const StandardForm = ({
             />
         </MaybeLargeDialog >
     );
-};
+}
 
-export const StandardUpsert = ({
+export function StandardUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: StandardUpsertProps) => {
+}: StandardUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
@@ -279,4 +328,4 @@ export const StandardUpsert = ({
             />}
         </Formik>
     );
-};
+}

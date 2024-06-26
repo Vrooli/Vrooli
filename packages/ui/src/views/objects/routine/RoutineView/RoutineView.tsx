@@ -7,7 +7,7 @@ import { CommentContainer, containerProps } from "components/containers/CommentC
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { GeneratedInputComponentWithLabel } from "components/inputs/generated";
+import { FormInput } from "components/inputs/form";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TagList } from "components/lists/TagList/TagList";
@@ -19,7 +19,8 @@ import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useFormik } from "formik";
-import { FieldData } from "forms/types";
+import { createFormInput } from "forms/generators";
+import { FormInputType } from "forms/types";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
@@ -34,7 +35,6 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
-import { standardVersionToFieldData } from "utils/shape/general";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
@@ -45,11 +45,11 @@ import { RoutineViewProps } from "../types";
 const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
-export const RoutineView = ({
+export function RoutineView({
     display,
     isOpen,
     onClose,
-}: RoutineViewProps) => {
+}: RoutineViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -109,19 +109,19 @@ export const RoutineView = ({
     });
 
     // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
+    const formValueMap = useMemo<{ [fieldName: string]: FormInputType } | null>(() => {
         if (!existing.inputs || !Array.isArray(existing.inputs)) return null;
-        const schemas: { [fieldName: string]: FieldData } = {};
+        const schemas: { [fieldName: string]: FormInputType } = {};
         for (let i = 0; i < existing.inputs?.length; i++) {
             const currInput = existing.inputs[i];
             if (!currInput.standardVersion) continue;
-            const currSchema = standardVersionToFieldData({
+            const currSchema = createFormInput({
                 description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
-                standardType: currInput.standardVersion.standardType,
+                label: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
+                type: currInput.standardVersion.standardType as FormInputType["type"],
                 yup: currInput.standardVersion.yup,
             });
             if (currSchema) {
@@ -196,7 +196,7 @@ export const RoutineView = ({
                 initialValues={initialValues}
                 onSubmit={noopSubmit}
             >
-                {(formik) => <Stack direction="column" spacing={4} sx={{
+                {() => <Stack direction="column" spacing={4} sx={{
                     marginLeft: "auto",
                     marginRight: "auto",
                     width: "min(100%, 700px)",
@@ -257,15 +257,13 @@ export const RoutineView = ({
                             isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
                             title="Inputs"
                         >
-                            {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                                <GeneratedInputComponentWithLabel
+                            {Object.values(formValueMap ?? {}).map((fieldData: FormInputType, index: number) => (
+                                <FormInput
                                     key={fieldData.fieldName}
                                     copyInput={copyInput}
-                                    disabled={false}
                                     fieldData={fieldData}
                                     index={index}
                                     textPrimary={palette.background.textPrimary}
-                                    onUpload={() => { }}
                                 />
                             ))}
                             {getCurrentUser(session).id && <Button
@@ -362,4 +360,4 @@ export const RoutineView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

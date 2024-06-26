@@ -38,23 +38,23 @@ function formatForDateTimeLocal(dateStr, type) {
     }
 }
 
-export const DateInput = ({
-    isOptional,
+export function DateInput({
+    isRequired,
     label,
     name,
     type = "datetime-local",
-}: DateInputProps) => {
+}: DateInputProps) {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField(name);
 
-    const clearDate = useCallback(() => {
+    const clearDate = useCallback(function clearDateCallback() {
         helpers.setValue("");
     }, [helpers]);
 
     return (
         <TextInput
-            isOptional={isOptional}
+            isRequired={isRequired}
             label={label}
             type={type}
             InputProps={{
@@ -78,4 +78,4 @@ export const DateInput = ({
             }}
         />
     );
-};
+}

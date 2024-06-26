@@ -2,7 +2,7 @@ import { Form } from "formik";
 import { ReactNode } from "react";
 import { ViewDisplayType } from "views/types";
 
-export const BaseForm = ({
+export function BaseForm({
     children,
     display,
     isLoading = false,
@@ -14,7 +14,7 @@ export const BaseForm = ({
     isLoading?: boolean;
     maxWidth?: number;
     style?: { [x: string]: string | number | null };
-}) => {
+}) {
 
     return (
         <Form style={{
@@ -22,7 +22,7 @@ export const BaseForm = ({
             margin: "auto",
             alignItems: "center",
             justifyContent: "center",
-            width: maxWidth ? `min(${maxWidth}px, 100vw - 16px)` : "-webkit-fill-available",
+            width: maxWidth ? `min(${maxWidth}px, 100vw)` : "-webkit-fill-available",
             maxWidth: "100%",
             paddingBottom: display === "dialog" ? "16px" : "64px", // Make room for the submit buttons
             paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,
@@ -42,4 +42,4 @@ export const BaseForm = ({
             {children}
         </Form>
     );
-};
+}

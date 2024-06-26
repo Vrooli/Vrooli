@@ -14,6 +14,7 @@ export const teamSearchSchema = (): FormSchema => ({
     fields: [
         {
             fieldName: "isOpenToNewMembers",
+            id: "isOpenToNewMembers",
             label: "Accepting new members?",
             ...yesNoDontCare(),
         },

@@ -162,7 +162,7 @@ export const PhoneNumberInputBase = ({
                         }}
                     />
                 </FormControl>
-                {helperText && <FormHelperText id={`helper-text-${name}`}>{helperText}</FormHelperText>}
+                {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
             </Box>
             <Popover
                 open={Boolean(anchorEl)}

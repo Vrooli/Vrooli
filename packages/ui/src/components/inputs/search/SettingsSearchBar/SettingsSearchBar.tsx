@@ -76,7 +76,7 @@ const FullWidthPopper = function (props: PopperProps) {
     }} placement="bottom-start" /> as JSX.Element;
 };
 
-export const SettingsSearchBar = ({
+export function SettingsSearchBar({
     debounce = 200,
     id = "search-bar",
     onChange,
@@ -84,7 +84,7 @@ export const SettingsSearchBar = ({
     placeholder,
     value,
     ...props
-}: SettingsSearchBarProps) => {
+}: SettingsSearchBarProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -279,4 +279,4 @@ export const SettingsSearchBar = ({
             }}
         />
     );
-};
+}

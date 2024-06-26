@@ -12,24 +12,26 @@ import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps, TagSelectorProps } from "../types";
 
 /** Removes invalid characters from tag string */
-const withoutInvalidChars = (str: string) => str.replace(/[,;]/g, "");
+function withoutInvalidChars(str: string) {
+    return str.replace(/[,;]/g, "");
+}
 
 /** Custom Popper component to add scroll handling */
-const PopperComponent = ({
+function PopperComponent({
     onScrollBottom,
     ...props
-}: PopperProps & { onScrollBottom: () => unknown }) => {
+}: PopperProps & { onScrollBottom: () => unknown }) {
     const popperRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const handleScroll = (event) => {
+        function handleScroll(event) {
             const target = event.target;
             // Check if we've scrolled to the bottom
             if (target.scrollTop + target.clientHeight >= target.scrollHeight - 10) {
                 // Trigger load more function
                 onScrollBottom();
             }
-        };
+        }
 
         // The grandchild of the Popper is the scrollable element
         const popperNode = popperRef.current;
@@ -46,18 +48,20 @@ const PopperComponent = ({
     }, [onScrollBottom, props.open]); // Re-run effect when open state changes
 
     return <Popper {...props} ref={popperRef} />;
-};
+}
 
 const PAGE_SIZE = 25;
+const MIN_TAG_LENGTH = 2;
+const MAX_TAG_LENGTH = 30;
 
-export const TagSelectorBase = ({
+export function TagSelectorBase({
     disabled,
     handleTagsUpdate,
-    isOptional = true,
+    isRequired = false,
     tags,
     placeholder,
     sx,
-}: TagSelectorBaseProps) => {
+}: TagSelectorBaseProps) {
     console.log("tagselectorbase tags", tags);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -81,11 +85,8 @@ export const TagSelectorBase = ({
             : (t as TagShape).tag !== tag.tag));
     }, [handleTagsUpdate, tags]);
 
-    const clearText = useCallback(() => { setInputValue(""); }, []);
-
     const onChange = useCallback((change: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const sanitized = withoutInvalidChars(change.target.value);
-        console.log("onchange", change.target.value, sanitized);
         setInputValue(sanitized);
     }, []);
 
@@ -96,11 +97,11 @@ export const TagSelectorBase = ({
         // Remove invalid characters
         const tagLabel = withoutInvalidChars(inputValue);
         // Check if tag is valid length
-        if (tagLabel.length < 2) {
+        if (tagLabel.length < MIN_TAG_LENGTH) {
             PubSub.get().publish("snack", { messageKey: "TagTooShort", severity: "Error" });
             return;
         }
-        if (tagLabel.length > 30) {
+        if (tagLabel.length > MAX_TAG_LENGTH) {
             PubSub.get().publish("snack", { messageKey: "TagTooLong", severity: "Error" });
             return;
         }
@@ -113,8 +114,8 @@ export const TagSelectorBase = ({
         // Add tag
         handleTagAdd({ __typename: "Tag", id: DUMMY_ID, tag: tagLabel });
         // Clear input
-        clearText();
-    }, [clearText, handleTagAdd, inputValue, tags]);
+        setInputValue("");
+    }, [handleTagAdd, inputValue, tags]);
 
     const onInputSelect = useCallback((tag: TagShape | Tag) => {
         console.log("onInputSelect", tag);
@@ -216,7 +217,7 @@ export const TagSelectorBase = ({
                     return (
                         <Chip
                             {...getTagProps({ index })}
-                            id={`tag-chip-${index}`}
+                            id={`tag-chip-${typeof option === "string" ? option : option.tag}`}
                             key={typeof option === "string" ? option : option.tag}
                             variant="filled"
                             label={typeof option === "string" ? option : option.tag}
@@ -255,7 +256,7 @@ export const TagSelectorBase = ({
                 <TextInput
                     value={inputValue}
                     onChange={onChange}
-                    isOptional={isOptional}
+                    isRequired={isRequired}
                     label={t("Tag", { count: 2 })}
                     placeholder={placeholder ?? t("TagSelectorPlaceholder")}
                     InputProps={{
@@ -284,12 +285,12 @@ export const TagSelectorBase = ({
             sx={sx}
         />
     );
-};
+}
 
-export const TagSelector = ({
+export function TagSelector({
     name,
     ...props
-}: TagSelectorProps) => {
+}: TagSelectorProps) {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
     const handleTagsUpdate = useCallback((tags: (TagShape | Tag)[]) => {
@@ -303,5 +304,5 @@ export const TagSelector = ({
             {...props}
         />
     );
-};
+}
 

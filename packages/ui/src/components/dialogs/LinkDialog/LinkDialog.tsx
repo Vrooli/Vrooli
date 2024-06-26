@@ -19,7 +19,7 @@ const helpText =
 
 const titleId = "link-dialog-title";
 
-export const LinkDialog = ({
+export function LinkDialog({
     handleClose,
     handleDelete,
     isAdd,
@@ -29,7 +29,7 @@ export const LinkDialog = ({
     nodeFrom,
     nodeTo,
     routineVersion,
-}: LinkDialogProps) => {
+}: LinkDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -211,4 +211,4 @@ export const LinkDialog = ({
             />
         </LargeDialog>
     );
-};
+}

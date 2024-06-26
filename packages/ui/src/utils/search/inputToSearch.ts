@@ -7,14 +7,17 @@ import { FormSchema } from "forms/types";
  * @param convert The function to convert each item to a search URL value
  * @returns The items of the array converted, or undefined if the array is empty or undefined
  */
-export const arrayToSearch = (array: unknown, convert: (item: unknown) => UrlPrimitive | undefined): UrlPrimitive[] | undefined => {
+export function arrayToSearch(
+    array: unknown,
+    convert: (item: unknown) => UrlPrimitive | undefined,
+): UrlPrimitive[] | undefined {
     if (!Array.isArray(array)) return undefined;
     const shaped = array.map(convert);
     // Filter out any values that weren't converted
     const filtered = shaped.filter((value) => value !== undefined) as UrlPrimitive[];
     // Return undefined if the array is empty
     return filtered.length > 0 ? filtered : undefined;
-};
+}
 
 /**
  * Converts a valued parsed from the URL into an array of form items.
@@ -22,32 +25,35 @@ export const arrayToSearch = (array: unknown, convert: (item: unknown) => UrlPri
  * @param convert The function to convert each search URL value to a form item
  * @returns The items of the array converted, or undefined if the value is undefined (we don't check for empty array)
  */
-export const searchToArray = (value: OrArray<UrlPrimitive>, convert: (value: UrlPrimitive) => unknown): unknown => {
+export function searchToArray(
+    value: OrArray<UrlPrimitive>,
+    convert: (value: UrlPrimitive) => unknown,
+): unknown {
     if (!Array.isArray(value)) return undefined;
     const shaped = value.map(convert);
     // Filter out any values that weren't converted
     const filtered = shaped.filter((value) => value !== undefined);
     return filtered;
-};
+}
 
 /**
  * Ensures that the value is a non-zero number
  * @param value The value to check
  * @returns The value if it is a non-zero number, or undefined otherwise
  */
-export const nonZeroNumber = (value: unknown): number | undefined => {
+export function nonZeroNumber(value: unknown): number | undefined {
     const num = typeof value === "number" ? value : parseFloat(value as string);
     return num !== undefined && Number.isFinite(num) && num !== 0 ? num : undefined;
-};
+}
 
 /**
  * Ensures that the value is a non-empty string
  * @param value The value to check
  * @returns The value if it is a non-empty string, or undefined otherwise
  */
-export const nonEmptyString = (value: unknown): string | undefined => {
+export function nonEmptyString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-};
+}
 
 /**
  * Ensures that the value is a valid boolean. 
@@ -55,21 +61,21 @@ export const nonEmptyString = (value: unknown): string | undefined => {
  * @param value The value to check
  * @returns The value if it is a boolean, or undefined otherwise
  */
-export const validBoolean = (value: unknown): boolean | undefined => {
+export function validBoolean(value: unknown): boolean | undefined {
     if (typeof value === "boolean") return value;
     if (typeof value === "string") {
         if (value === "true") return true;
         if (value === "false") return false;
     }
     return undefined;
-};
+}
 
 /**
  * Ensures that the value is any URL-encodable primitive type
  * @param value The value to check
  * @returns The value if it is a URL-encodable primitive type, or undefined otherwise
  */
-export const validPrimitive = (value: unknown): UrlPrimitive | undefined => {
+export function validPrimitive(value: unknown): UrlPrimitive | undefined {
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         // Reuse the existing validation functions for basic types
         return validBoolean(value) ?? nonZeroNumber(value) ?? nonEmptyString(value);
@@ -78,27 +84,27 @@ export const validPrimitive = (value: unknown): UrlPrimitive | undefined => {
         return value;
     }
     return undefined;
-};
+}
 
 /**
  * Converts Tag objects to their tag property
  * @param tag The tag object
  * @returns The tag property of the object
  */
-export const tagObjectToString = (tag: unknown): string | undefined => {
+export function tagObjectToString(tag: unknown): string | undefined {
     const tagString = tag !== null && typeof tag === "object" && Object.prototype.hasOwnProperty.call(tag, "tag") ? (tag as Tag).tag.trim() : "";
     return tagString.length > 0 ? tagString : undefined;
-};
+}
 
 /**
  * Converts strings to Tag objects
  * @param tag The tag string
  * @returns The tag object with the tag property
  */
-export const stringToTagObject = (tag: unknown): Tag | undefined => {
+export function stringToTagObject(tag: unknown): Tag | undefined {
     if (typeof tag !== "string" || tag.trim().length === 0) return undefined;
     return { __typename: "Tag" as const, tag: tag.trim() } as Tag;
-};
+}
 
 /**
  * Map for converting input type values to search URL values
@@ -109,6 +115,8 @@ export const inputTypeToSearch: { [key in InputType]: (value: unknown) => OrArra
     [InputType.IntegerInput]: (value) => nonZeroNumber(value),
     [InputType.JSON]: (value) => nonEmptyString(value),
     [InputType.LanguageInput]: (value) => arrayToSearch(value, nonEmptyString),
+    [InputType.LinkItem]: (value) => nonEmptyString(value),
+    [InputType.LinkUrl]: (value) => nonEmptyString(value),
     [InputType.Radio]: (value) => nonEmptyString(value),
     [InputType.Selector]: (value) => validPrimitive(value),
     [InputType.Slider]: (value) => nonZeroNumber(value),
@@ -130,6 +138,8 @@ export const searchToInputType: { [key in InputType]: (value: OrArray<UrlPrimiti
     [InputType.IntegerInput]: (value) => nonZeroNumber(value),
     [InputType.JSON]: (value) => nonEmptyString(value),
     [InputType.LanguageInput]: (value) => searchToArray(value, nonEmptyString),
+    [InputType.LinkItem]: (value) => nonEmptyString(value),
+    [InputType.LinkUrl]: (value) => nonEmptyString(value),
     [InputType.Radio]: (value) => nonEmptyString(value),
     [InputType.Selector]: (value) => validPrimitive(value),
     [InputType.Slider]: (value) => nonZeroNumber(value),
@@ -152,7 +162,7 @@ export const searchToInputType: { [key in InputType]: (value: OrArray<UrlPrimiti
  * @returns An object where each key corresponds to a form field and each value is in a 
  *          format ready to be encoded into a URL query string.
  */
-export const convertFormikForSearch = (values: { [x: string]: any }, schema: FormSchema): ParseSearchParamsResult => {
+export function convertFormikForSearch(values: { [x: string]: any }, schema: FormSchema): ParseSearchParamsResult {
     // Initialize result
     const result: { [x: string]: any } = {};
     // Loop through all fields in the schema
@@ -165,7 +175,7 @@ export const convertFormikForSearch = (values: { [x: string]: any }, schema: For
     }
     // Return result
     return result;
-};
+}
 
 /**
  * Converts URL search parameters back to Formik values according to a form schema.
@@ -180,7 +190,7 @@ export const convertFormikForSearch = (values: { [x: string]: any }, schema: For
  * @returns An object formatted for Formik where each key corresponds to a form field 
  *          and each value is derived from the corresponding URL parameter.
  */
-export const convertSearchForFormik = (values: ParseSearchParamsResult, schema: FormSchema): { [x: string]: any } => {
+export function convertSearchForFormik(values: ParseSearchParamsResult, schema: FormSchema): { [x: string]: any } {
     // Initialize result
     const result: { [x: string]: any } = {};
     // Loop through all fields in the schema
@@ -196,4 +206,4 @@ export const convertSearchForFormik = (values: ParseSearchParamsResult, schema: 
     }
     // Return result
     return result;
-};
+}

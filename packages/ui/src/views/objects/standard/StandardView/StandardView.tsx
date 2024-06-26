@@ -4,7 +4,6 @@ import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideAc
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { StandardInput } from "components/inputs/standards/StandardInput/StandardInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceList } from "components/lists/resource";
@@ -29,20 +28,22 @@ import { TagShape } from "utils/shape/models/tag";
 import { standardInitialValues } from "../StandardUpsert/StandardUpsert";
 import { StandardViewProps } from "../types";
 
-const containerProps = (palette: Palette) => ({
-    boxShadow: 1,
-    background: palette.background.paper,
-    borderRadius: 1,
-    overflow: "overlay",
-    marginTop: 4,
-    marginBottom: 4,
-    padding: 2,
-});
+function containerProps(palette: Palette) {
+    return {
+        boxShadow: 1,
+        background: palette.background.paper,
+        borderRadius: 1,
+        overflow: "overlay",
+        marginTop: 4,
+        marginBottom: 4,
+        padding: 2,
+    };
+}
 
-export const StandardView = ({
+export function StandardView({
     display,
     onClose,
-}: StandardViewProps) => {
+}: StandardViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -130,10 +131,11 @@ export const StandardView = ({
                     </Box>
                     {/* Box with standard */}
                     <Stack direction="column" spacing={4} sx={containerProps(palette)}>
-                        <StandardInput
+                        {/* <StandardInput
                             disabled={true}
                             fieldName="preview"
-                        />
+                        /> */}
+                        TODO
                     </Stack>
                     {/* Tags */}
                     {Array.isArray(tags) && tags!.length > 0 && <TagList
@@ -189,4 +191,4 @@ export const StandardView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

@@ -115,7 +115,7 @@ export enum CodeLanguage {
     Yaml = "yaml",
 }
 
-const loadDecorations = async () => {
+async function loadDecorations() {
     const { Decoration, EditorView, showTooltip } = await import("@codemirror/view");
     const { StateField } = await import("@codemirror/state");
     const underlineMarkVariable = Decoration.mark({ class: "variable-decoration" });
@@ -177,7 +177,7 @@ const loadDecorations = async () => {
         provide: f => EditorView.decorations.from(f),
     });
 
-    const getCursorTooltips = (state) => {
+    function getCursorTooltips(state) {
         const tooltips: any[] = [];
         const docText = state.doc.sliceString(0, state.doc.length);
         const regex = /("<[a-zA-Z0-9_]+>")|("\?[a-zA-Z0-9_]+":)|("\[[a-zA-Z0-9_]+\]")/g;
@@ -220,7 +220,7 @@ const loadDecorations = async () => {
         }
 
         return tooltips;
-    };
+    }
 
     const cursorTooltipField = StateField.define({
         create: getCursorTooltips,
@@ -234,7 +234,7 @@ const loadDecorations = async () => {
     });
 
     return [cursorTooltipField, underlineDecorationField];
-};
+}
 
 /**
  * Dynamically imports language packages.
@@ -420,7 +420,7 @@ const languageMap: { [x in CodeLanguage]: (() => Promise<{
     },
 };
 
-const getSeverityForLine = (line: BlockInfo, errors: Diagnostic[], view: EditorView) => {
+function getSeverityForLine(line: BlockInfo, errors: Diagnostic[], view: EditorView) {
     const linePosStart = line.from;
     const linePosEnd = line.to;
     for (const error of errors) {
@@ -429,7 +429,7 @@ const getSeverityForLine = (line: BlockInfo, errors: Diagnostic[], view: EditorV
         }
     }
     return null;
-};
+}
 
 /**
  * Maps languages to their labels and help texts.
@@ -480,7 +480,7 @@ const languageDisplayMap: { [x in CodeLanguage]: [LangsKey, LangsKey] } = {
 // new language option. Also need to add support for format (which is JSON Standard) which, if provided, limits the language to JSON 
 // and only makes input valid if it matches the format. Doing this will make this component stand out from the other 
 // "standard input" components, but the duplicate code prevention may be worth it.
-export const CodeInputBase = ({
+export function CodeInputBase({
     codeLanguage,
     content,
     defaultValue,
@@ -491,7 +491,7 @@ export const CodeInputBase = ({
     limitTo,
     name,
     variables,
-}: CodeInputBaseProps) => {
+}: CodeInputBaseProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -502,13 +502,13 @@ export const CodeInputBase = ({
     const codeMirrorRef = useRef<ReactCodeMirrorRef | null>(null);
     const commandFunctionsRef = useRef<{ undo: ((view: EditorView) => unknown) | null, redo: ((view: EditorView) => unknown) | null }>({ undo: null, redo: null });
 
-    const loadCommandFunctions = async () => {
+    async function loadCommandFunctions() {
         if (!commandFunctionsRef.current.undo || !commandFunctionsRef.current.redo) {
             const commands = await import("@codemirror/commands");
             commandFunctionsRef.current.undo = commands.undo as unknown as ((view: EditorView) => unknown);
             commandFunctionsRef.current.redo = commands.redo as unknown as ((view: EditorView) => unknown);
         }
-    };
+    }
 
     // // Last valid schema format
     // const [internalValue, setInternalValue] = useState<string>(jsonToString(format) ?? "");
@@ -549,7 +549,7 @@ export const CodeInputBase = ({
     useEffect(function codeExtensionsEffect() {
         let isMounted = true;
 
-        const loadGutter = async () => {
+        async function loadGutter() {
             const { gutter } = await import("@codemirror/view");
             const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers");
             return gutter({
@@ -564,9 +564,9 @@ export const CodeInputBase = ({
                 },
                 class: "cm-errorGutter",
             });
-        };
+        }
 
-        const updateExtensions = async () => {
+        async function updateExtensions() {
             try {
                 const updatedExtensions: Extension[] = [];
 
@@ -625,7 +625,7 @@ export const CodeInputBase = ({
             } catch (error) {
                 console.error("Error updating extensions:", error);
             }
-        };
+        }
 
         updateExtensions();
 
@@ -751,10 +751,10 @@ export const CodeInputBase = ({
     // Handle refreshing the editor (in case is fails to appear, which happens occasionally)
     const [editorKey, setEditorKey] = useState(0);
     const [showRefresh, setShowRefresh] = useState(false);
-    const refreshEditor = () => {
+    function refreshEditor() {
         setEditorKey(prevKey => prevKey + 1); // Increment the key to force re-render
         setShowRefresh(false); // Hide the refresh icon so it can appear again after a delay
-    };
+    }
     // Show the refresh icon after a short delay
     useEffect(function clearCodeTimeoutEffect() {
         const timer = setTimeout(() => { setShowRefresh(true); }, 3000);
@@ -901,16 +901,16 @@ export const CodeInputBase = ({
             </Stack>
         </>
     );
-};
+}
 
 const DEFAULT_CODE_LANGUAGE = CodeLanguage.Javascript;
 const DEFAULT_CONTENT = "";
 const DEFAULT_NAME = "content";
 
-export const CodeInput = ({
+export function CodeInput({
     name,
     ...props
-}: CodeInputProps) => {
+}: CodeInputProps) {
     const [codeLanguageField, , codeLanguageHelpers] = useField<CodeInputBaseProps["codeLanguage"]>("codeLanguage");
     const [contentField, , contentHelpers] = useField<CodeInputBaseProps["content"]>(name ?? DEFAULT_NAME);
     const [defaultValueField] = useField<CodeInputBaseProps["defaultValue"]>("defaultValue");
@@ -932,4 +932,4 @@ export const CodeInput = ({
             variables={variablesField.value}
         />
     );
-};
+}

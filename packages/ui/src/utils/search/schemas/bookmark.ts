@@ -17,6 +17,7 @@ export const bookmarkSearchSchema = (): FormSchema => ({
     fields: [
         {
             fieldName: "excludeLinkedToTag",
+            id: "excludeLinkedToTag",
             label: i18next.t("ExcludeLinkedToTagLabel"),
             ...yesNoDontCare(),
         },

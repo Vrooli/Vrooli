@@ -20,7 +20,7 @@ type OptionHistory = { timestamp: number, option: AutocompleteOption };
  * @param searchBarId The search bar ID
  * @param userId The user ID
  */
-const getSearchHistory = (searchBarId: string, userId: string): { [label: string]: OptionHistory } => {
+function getSearchHistory(searchBarId: string, userId: string): { [label: string]: OptionHistory } {
     const existingHistoryString: string = localStorage.getItem(`search-history-${searchBarId}-${userId}`) ?? "{}";
     let existingHistory: { [label: string]: OptionHistory } = {};
     // Try to parse existing history
@@ -33,7 +33,7 @@ const getSearchHistory = (searchBarId: string, userId: string): { [label: string
         existingHistory = {};
     }
     return existingHistory;
-};
+}
 
 /**
  * For a list of options, checks if they are stored in local storage and need their bookmarks/isBookmarked updated. If so, updates them.
@@ -41,7 +41,7 @@ const getSearchHistory = (searchBarId: string, userId: string): { [label: string
  * @param userId The user ID
  * @param options The options to check
  */
-const updateHistoryItems = (searchBarId: string, userId: string, options: AutocompleteOption[]) => {
+function updateHistoryItems(searchBarId: string, userId: string, options: AutocompleteOption[]) {
     // Find all search history objects in localStorage
     const searchHistoryKeys = getLocalStorageKeys({
         prefix: "search-history-",
@@ -88,7 +88,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
             localStorage.setItem(key, JSON.stringify(existingHistory));
         }
     });
-};
+}
 
 const IconMap = {
     Action: ActionIcon,
@@ -110,10 +110,10 @@ const IconMap = {
 /**
  * Maps object types to icons
  */
-const typeToIcon = (type: string, fill: string): JSX.Element | null => {
+function typeToIcon(type: string, fill: string): JSX.Element | null {
     const Icon: SvgComponent | undefined = IconMap[type];
     return Icon ? <Icon fill={fill} /> : null;
-};
+}
 
 const FullWidthPopper = function (props: PopperProps) {
     const parentWidth = props.anchorEl && (props.anchorEl as HTMLElement).parentElement ? (props.anchorEl as HTMLElement).parentElement?.clientWidth : null;

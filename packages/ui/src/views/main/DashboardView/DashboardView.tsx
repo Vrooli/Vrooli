@@ -1,4 +1,4 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -57,11 +58,11 @@ type DashboardTabsInfo = {
 }
 
 /** View displayed for Home page when logged in */
-export const DashboardView = ({
+export function DashboardView({
     display,
     isOpen,
     onClose,
-}: DashboardViewProps) => {
+}: DashboardViewProps) {
     const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -260,13 +261,13 @@ export const DashboardView = ({
     useEffect(() => {
         let isCancelled = false;
 
-        const fetchUpcomingEvents = async () => {
+        async function fetchUpcomingEvents() {
             const result: CalendarEvent[] = [];
             for (const schedule of schedules) {
                 const occurrences = await calculateOccurrences(
                     schedule,
                     new Date(),
-                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                    new Date(Date.now() + DAYS_30_MS),
                 );
                 const events: CalendarEvent[] = occurrences.map(occurrence => ({
                     __typename: "CalendarEvent",
@@ -286,7 +287,7 @@ export const DashboardView = ({
                 result.sort((a, b) => a.start.getTime() - b.start.getTime());
                 setUpcomingEvents(result.slice(0, 10));
             }
-        };
+        }
 
         fetchUpcomingEvents();
 
@@ -501,7 +502,7 @@ export const DashboardView = ({
                         }]}
                     >
                         <ObjectList
-                            dummyItems={new Array(5).fill("Event")}
+                            dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Event")}
                             items={upcomingEvents}
                             keyPrefix="event-list-item"
                             loading={isFeedLoading}
@@ -527,7 +528,7 @@ export const DashboardView = ({
                         }]}
                     >
                         <ObjectList
-                            dummyItems={new Array(5).fill("Reminder")}
+                            dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Reminder")}
                             items={reminders}
                             keyPrefix="reminder-list-item"
                             loading={isFeedLoading}
@@ -602,4 +603,4 @@ export const DashboardView = ({
             <ChatSideMenu />
         </Box>
     );
-};
+}

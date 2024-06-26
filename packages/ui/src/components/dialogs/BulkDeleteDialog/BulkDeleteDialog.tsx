@@ -18,11 +18,11 @@ function getRandomConfirmationWords() {
     return `${shuffled[0]} ${shuffled[1]}`;
 }
 
-export const BulkDeleteDialog = ({
+export function BulkDeleteDialog({
     handleClose,
     isOpen,
     selectedData,
-}: BulkDeleteDialogProps) => {
+}: BulkDeleteDialogProps) {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
@@ -133,4 +133,4 @@ export const BulkDeleteDialog = ({
             </BottomActionsGrid>
         </LargeDialog>
     );
-};
+}

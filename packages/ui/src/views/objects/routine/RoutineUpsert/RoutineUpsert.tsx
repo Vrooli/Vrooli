@@ -10,7 +10,6 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -45,54 +44,57 @@ import { validateFormValues } from "utils/validateFormValues";
 import { BuildView } from "views/objects/routine/BuildView/BuildView";
 import { RoutineFormProps, RoutineUpsertProps } from "../types";
 
-export const routineInitialValues = (
+export function routineInitialValues(
     session: Session | undefined,
     existing?: Partial<RoutineVersion> | null | undefined,
-): RoutineVersionShape => ({
-    __typename: "RoutineVersion" as const,
-    id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
-    inputs: [],
-    isComplete: false,
-    isPrivate: false,
-    directoryListings: [],
-    nodeLinks: [],
-    nodes: [],
-    outputs: [],
-    routineType: RoutineType.Informational,
-    versionLabel: "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Routine" as const,
-        id: DUMMY_ID,
+): RoutineVersionShape {
+    return {
+        __typename: "RoutineVersion" as const,
+        id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
+        inputs: [],
+        isComplete: false,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-        parent: null,
-        permissions: JSON.stringify({}),
-        tags: [],
-        ...existing?.root,
-    },
-    resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-        listFor: {
-            __typename: "RoutineVersion" as const,
+        directoryListings: [],
+        nodeLinks: [],
+        nodes: [],
+        outputs: [],
+        routineType: RoutineType.Informational,
+        versionLabel: "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Routine" as const,
             id: DUMMY_ID,
+            isPrivate: false,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+            parent: null,
+            permissions: JSON.stringify({}),
+            tags: [],
+            ...existing?.root,
         },
-    }),
-    translations: orDefault(existing?.translations, [{
-        __typename: "RoutineVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        instructions: "",
-        name: "",
-    }]),
-});
+        resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            listFor: {
+                __typename: "RoutineVersion" as const,
+                id: DUMMY_ID,
+            },
+        }),
+        translations: orDefault(existing?.translations, [{
+            __typename: "RoutineVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            instructions: "",
+            name: "",
+        }]),
+    };
+}
 
-const transformRoutineVersionValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
-    isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
+function transformRoutineVersionValues(values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) {
+    return isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
+}
 
-const RoutineForm = ({
+function RoutineForm({
     disabled,
     dirty,
     display,
@@ -109,7 +111,7 @@ const RoutineForm = ({
     values,
     versions,
     ...props
-}: RoutineFormProps) => {
+}: RoutineFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -186,7 +188,7 @@ const RoutineForm = ({
             [RoutineType.SmartContract]: (typeof configCallDataField.value === "string" && configCallDataField.value.length > 0) || typeof codeVersionField.value === "object",
         };
         // Helper function to remove all type-specific data on switch
-        const performSwitch = () => {
+        function performSwitch() {
             apiVersionHelpers.setValue(null);
             codeVersionHelpers.setValue(null);
             configCallDataHelpers.setValue("");
@@ -197,7 +199,7 @@ const RoutineForm = ({
             setRoutineType(newType);
             // If we switch to a multi-step routine, open the graph
             if (newType === RoutineType.MultiStep) handleGraphOpen();
-        };
+        }
         // If we're losing data, confirm with user
         const losingData = loseDataCheck[routineType];
         if (losingData) {
@@ -261,25 +263,9 @@ const RoutineForm = ({
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
                         />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
+                        {/* TODO inputs/outputs */}
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
                     </>
                 );
             case RoutineType.Code:
@@ -292,37 +278,16 @@ const RoutineForm = ({
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
                         />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
+                        {/* TODO inputs/outputs */}
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
                     </>
                 );
             case RoutineType.Data:
                 return (
                     <>
-                        <InputOutputContainer
-                            isEditing={true}
-                            handleUpdate={outputsHelpers.setValue as any}
-                            isInput={false}
-                            language={language}
-                            list={outputsField.value}
-                        />
+                        {/* TODO outputs */}
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
                     </>
                 );
             case RoutineType.Generate:
@@ -341,37 +306,14 @@ const RoutineForm = ({
                             }}
                             value={model}
                         />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
+                        {/* TODO inputs/outputs */}
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
                     </>
                 );
             case RoutineType.Informational:
                 // Allow inputs to be entered. Since nothing else is connected to the routine, these inputs 
                 // will have to be filled out manually by a user or bot
-                //  {/* <InputOutputContainer
-                //             isEditing={true}
-                //             handleUpdate={inputsHelpers.setValue as any}
-                //             isInput={true}
-                //             language={language}
-                //             list={inputsField.value}
-                //         /> */}
                 return <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
             case RoutineType.MultiStep:
                 // Display graph editor
@@ -421,25 +363,9 @@ const RoutineForm = ({
                             variant="subsection"
                             sxs={{ stack: { paddingLeft: 0 } }}
                         />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
+                        {/* TODO inputs/outputs */}
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
                     </>
                 );
         }
@@ -490,9 +416,11 @@ const RoutineForm = ({
                             sxs={{ list: { marginBottom: 2 } }}
                         />
                         <FormSection sx={{ overflowX: "hidden", marginBottom: 2 }}>
+                            {/* TODO: work on fix for autoFocus accessibility issue. Probably need to use ref and useEffect, which also requires making RichInput a forwardRef. If doing this, then we can autoFocus in the helpbutton edit mode as well */}
                             <TranslatedTextInput
                                 autoFocus
                                 fullWidth
+                                isRequired
                                 label={t("Name")}
                                 language={language}
                                 name="name"
@@ -563,7 +491,6 @@ const RoutineForm = ({
                             value={routineTypes.find(r => r.type === routineType) ?? routineTypes[0]}
                         />
                         {routineTypeComponents}
-
                     </FormSection>
                 </FormContainer>
             </BaseForm>
@@ -579,15 +506,15 @@ const RoutineForm = ({
             />
         </MaybeLargeDialog >
     );
-};
+}
 
-export const RoutineUpsert = ({
+export function RoutineUpsert({
     isCreate,
     isOpen,
     isSubroutine = false,
     overrideObject,
     ...props
-}: RoutineUpsertProps) => {
+}: RoutineUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
@@ -619,4 +546,4 @@ export const RoutineUpsert = ({
             />}
         </Formik>
     );
-};
+}

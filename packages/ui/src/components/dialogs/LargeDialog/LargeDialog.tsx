@@ -3,7 +3,7 @@ import { useZIndex } from "hooks/useZIndex";
 import { UpTransition } from "../../transitions";
 import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
 
-export const LargeDialog = ({
+export function LargeDialog({
     children,
     id,
     isOpen,
@@ -11,7 +11,7 @@ export const LargeDialog = ({
     titleId,
     sxs,
     zIndexOffset = 1000,
-}: LargeDialogProps) => {
+}: LargeDialogProps) {
     const { palette, spacing } = useTheme();
     const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, zIndexOffset);
 
@@ -44,6 +44,12 @@ export const LargeDialog = ({
                         "& > .MuiDialogContent-root": {
                             position: "relative",
                         },
+                        "& > .MuiBox-root": {
+                            "& > .MuiDialogTitle-root": {
+                                paddingTop: 1,
+                                paddingBottom: 1,
+                            },
+                        },
                         ...sxs?.paper,
                     },
                 },
@@ -52,16 +58,16 @@ export const LargeDialog = ({
             {children}
         </Dialog>
     );
-};
+}
 
 /** Wraps children in a dialog is display is dialog */
-export const MaybeLargeDialog = ({
+export function MaybeLargeDialog({
     children,
     display,
     isOpen,
     onClose,
     ...props
-}: MaybeLargeDialogProps) => {
+}: MaybeLargeDialogProps) {
     return display === "dialog" ? (
         <LargeDialog
             onClose={onClose ?? (() => {
@@ -75,4 +81,4 @@ export const MaybeLargeDialog = ({
     ) : (
         <>{children}</>
     );
-};
+}

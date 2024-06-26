@@ -6,8 +6,8 @@
  * be safe than sorry.
  */
 import { ActiveFocusMode, FocusMode, GqlModelType, LlmTaskInfo, NavigableObject } from "@local/shared";
+import { chatMatchHash } from "./codes";
 import { getDeviceInfo } from "./display/device";
-import { chatMatchHash } from "./hash";
 import { LocalStorageLruCache } from "./localStorageLruCache";
 
 const MAX_CACHE_SIZE = 300;
@@ -56,10 +56,10 @@ type CacheStoragePayloads = {
 }
 type CacheStorageType = keyof CacheStoragePayloads;
 
-export const getStorageItem = <T extends SimpleStorageType | string>(
+export function getStorageItem<T extends SimpleStorageType | string>(
     name: T,
     typeCheck: (value: unknown) => boolean,
-): (T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown) | undefined => {
+): (T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown) | undefined {
     const cookie = localStorage.getItem(name);
     // Try to parse
     try {
@@ -71,14 +71,14 @@ export const getStorageItem = <T extends SimpleStorageType | string>(
         console.warn(`Failed to parse cookie ${name}`, cookie);
     }
     return undefined;
-};
+}
 
-export const setStorageItem = <T extends SimpleStorageType | string>(
+export function setStorageItem<T extends SimpleStorageType | string>(
     name: T,
     value: T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown,
-) => {
+) {
     localStorage.setItem(name, JSON.stringify(value));
-};
+}
 
 /**
  * Gets a cookie if it exists, otherwise sets it to the default value. 

@@ -44,23 +44,26 @@ const ReportReasons = {
 /** New resources must include a createdFor __typename and ID */
 export type NewReportShape = Partial<Omit<Report, "createdFor">> & { createdFor: { __typename: ReportFor, id: string } };
 
-export const reportInitialValues = (
+export function reportInitialValues(
     session: Session | undefined,
     existing: NewReportShape,
-): ReportShape => ({
-    __typename: "Report" as const,
-    id: DUMMY_ID,
-    reason: "",
-    otherReason: "",
-    details: "",
-    language: getUserLanguages(session)[0],
-    ...existing,
-});
+): ReportShape {
+    return {
+        __typename: "Report" as const,
+        id: DUMMY_ID,
+        reason: "",
+        otherReason: "",
+        details: "",
+        language: getUserLanguages(session)[0],
+        ...existing,
+    };
+}
 
-export const transformReportValues = (values: ReportShape, existing: ReportShape, isCreate: boolean) =>
-    isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
+export function transformReportValues(values: ReportShape, existing: ReportShape, isCreate: boolean) {
+    return isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
+}
 
-const ReportForm = ({
+function ReportForm({
     disabled,
     dirty,
     display,
@@ -75,7 +78,7 @@ const ReportForm = ({
     onDeleted,
     values,
     ...props
-}: ReportFormProps) => {
+}: ReportFormProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
@@ -182,7 +185,7 @@ const ReportForm = ({
                         as={TextInput}
                     />}
                     <RichInput
-                        isOptional
+                        isRequired={false}
                         maxChars={8192}
                         maxRows={10}
                         minRows={4}
@@ -203,14 +206,14 @@ const ReportForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ReportUpsert = ({
+export function ReportUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: ReportUpsertProps) => {
+}: ReportUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Report, ReportShape>({
@@ -240,4 +243,4 @@ export const ReportUpsert = ({
             />}
         </Formik>
     );
-};
+}

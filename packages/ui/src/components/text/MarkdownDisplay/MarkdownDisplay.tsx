@@ -12,7 +12,7 @@ import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 
 /** Pretty code block with copy button */
-const CodeBlock = ({ children }) => {
+function CodeBlock({ children }) {
     const textRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
@@ -59,10 +59,10 @@ const CodeBlock = ({ children }) => {
             </pre>
         </div>
     );
-};
+}
 
 /** Custom Blockquote component */
-const Blockquote = ({ children }) => {
+function Blockquote({ children }) {
     return (
         <blockquote style={{
             position: "relative",
@@ -73,7 +73,7 @@ const Blockquote = ({ children }) => {
             {children}
         </blockquote>
     );
-};
+}
 
 
 /**
@@ -85,7 +85,7 @@ const Blockquote = ({ children }) => {
  * @param {string} content - The input Markdown text.
  * @returns {string} - The processed Markdown text.
  */
-const processMarkdown = (content: string): string => {
+function processMarkdown(content: string): string {
     // Initialize state variables
     let isInCodeBlock = false;
     let result = "";
@@ -116,7 +116,7 @@ const processMarkdown = (content: string): string => {
         }
     }
     return result;
-};
+}
 
 // Vrooli pages that show up as special links
 const specialRoutes = [
@@ -155,7 +155,7 @@ const routeToEndpoint = {
 };
 
 /** Creates custom links for Vrooli objects, and normal links otherwise */
-const CustomLink = ({ children, href }) => {
+function CustomLink({ children, href }) {
     // Check if this is a special link
     let linkUrl, windowUrl;
     try {
@@ -229,30 +229,30 @@ const CustomLink = ({ children, href }) => {
     } else {
         return <Link href={href}>{children}</Link>;
     }
-};
+}
 
 /** HOC for rendering links */
-const withCustomLinkProps = (additionalProps) => {
+function withCustomLinkProps(additionalProps) {
     return ({ href, children }) => {
         return <CustomLink href={href} {...additionalProps}>{children}</CustomLink>;
     };
-};
+}
 
 /** Custom checkbox component editable checkboxes */
-const CustomCheckbox = ({ checked, onChange, ...otherProps }) => {
+function CustomCheckbox({ checked, onChange, ...otherProps }) {
     const id = useMemo(() => uuid(), []);
     return <Checkbox checked={checked} id={id} onChange={() => { onChange(id, !checked); }} {...otherProps} />;
-};
+}
 
 /** HOC for rendering inputs. Required so we can pass onChange handler */
-const withCustomCheckboxProps = (additionalProps) => {
+function withCustomCheckboxProps(additionalProps) {
     return ({ type, checked, onChange }) => {
         if (type === "checkbox") {
             return <CustomCheckbox checked={checked} onChange={onChange} {...additionalProps} />;
         }
         return null;
     };
-};
+}
 
 /** State machine to locate checkboxes */
 function parseMarkdownCheckboxes(content: string) {
@@ -314,7 +314,7 @@ const hiddenStyles = {
     color: "transparent",
     background: "black",
 };
-const Spoiler = ({ children }) => {
+function Spoiler({ children }) {
     const [revealed, setRevealed] = useState(false);
     const currentStyles = revealed ? revealedStyles : hiddenStyles;
     return (
@@ -325,9 +325,9 @@ const Spoiler = ({ children }) => {
             {children}
         </span>
     );
-};
+}
 
-export const MarkdownDisplay = ({
+export function MarkdownDisplay({
     content,
     isEditable,
     onChange,
@@ -339,7 +339,7 @@ export const MarkdownDisplay = ({
     onChange?: (content: string) => unknown;
     sx?: SxType;
     variant?: TypographyProps["variant"];
-}) => {
+}) {
     const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
 
@@ -412,4 +412,4 @@ export const MarkdownDisplay = ({
             {processedContent}
         </Markdown>
     );
-};
+}

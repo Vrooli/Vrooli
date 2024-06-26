@@ -33,34 +33,38 @@ import { PubSub, SideMenuPub } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
 /** Adds font size to theme */
-export const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
-    ...theme,
-    typography: {
-        fontSize,
-    },
-});
+export function withFontSize(theme: Theme, fontSize: number): Theme {
+    return createTheme({
+        ...theme,
+        typography: {
+            fontSize,
+        },
+    });
+}
 
 /** Sets "isLeftHanded" property on theme */
-export const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
-    ...theme,
-    isLeftHanded,
-});
+export function withIsLeftHanded(theme: Theme, isLeftHanded: boolean): Theme {
+    return createTheme({
+        ...theme,
+        isLeftHanded,
+    });
+}
 
 /** Attempts to find theme without using session */
-const findThemeWithoutSession = (): Theme => {
+function findThemeWithoutSession(): Theme {
     const fontSize = getCookie("FontSize");
     const isLefthanded = getCookie("IsLeftHanded");
     const theme = getCookie("Theme");
     // Return theme object
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
-};
+}
 
 const menusDisplayData: { [key in SideMenuPub["id"]]: { persistentOnDesktop: boolean, sideForRightHanded: "left" | "right" } } = {
     "side-menu": sideMenuDisplayData,
     "chat-side-menu": chatSideMenuDisplayData,
 };
 
-export const App = () => {
+export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
@@ -103,7 +107,7 @@ export const App = () => {
      * Sets theme state and meta tags. Meta tags allow standalone apps to
      * use the theme color as the status bar color.
      */
-    const setThemeAndMeta = useCallback((theme: Theme) => {
+    const setThemeAndMeta = useCallback(function setThemeAndMetaCallback(theme: Theme) {
         // Update state
         setTheme(withIsLeftHanded(withFontSize(theme, fontSize), isLeftHanded));
         // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
@@ -146,12 +150,12 @@ export const App = () => {
 `);
         // Detect online/offline status
         const onlineStatusId = "online-status"; // Use same ID for both so both can't be displayed at the same time
-        const handleOnline = () => {
+        function handleOnline() {
             PubSub.get().publish("snack", { id: onlineStatusId, messageKey: "NowOnline", severity: "Success" });
-        };
-        const handleOffline = () => {
+        }
+        function handleOffline() {
             PubSub.get().publish("snack", { autoHideDuration: "persist", id: onlineStatusId, messageKey: "NoInternet", severity: "Error" });
-        };
+        }
         window.addEventListener("online", handleOnline);
         window.addEventListener("offline", handleOffline);
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
@@ -203,7 +207,7 @@ export const App = () => {
         { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("findInPage"); } },
     ]);
 
-    const checkSession = useCallback((data?: Session) => {
+    const checkSession = useCallback(function checkSessionCallback(data?: Session) {
         if (data) {
             setSession(data);
             return;
@@ -506,4 +510,4 @@ export const App = () => {
             </StyledEngineProvider>
         </>
     );
-};
+}

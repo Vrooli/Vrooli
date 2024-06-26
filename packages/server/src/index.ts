@@ -37,7 +37,7 @@ const debug = process.env.NODE_ENV === "development";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const main = async () => {
+async function main() {
     logger.info("Starting server...");
 
     // Check for required .env variables
@@ -174,7 +174,7 @@ const main = async () => {
     server.listen(5329);
 
     logger.info(`🚀 Server running at ${SERVER_URL}`);
-};
+}
 
 // Only call this from the "server" package
 if (process.env.npm_package_name === "@local/server") {

@@ -19,7 +19,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
     return true;
 }
 
-type NonFunction<T> = T extends (...args: any[]) => any ? never : T;
+type NonFunction<T> = T extends (...args: never[]) => never ? never : T;
 
 /**
  * Only triggers a re-render if the object has actually changed. 
@@ -27,11 +27,11 @@ type NonFunction<T> = T extends (...args: any[]) => any ? never : T;
  * 
  * NOTE: Does not work for functions. Use useStableCallback for that.
  */
-export const useStableObject = <T extends string | number | object | null | undefined>(obj: NonFunction<T>): NonFunction<T> => {
+export function useStableObject<T extends string | number | object | null | undefined>(obj: NonFunction<T>): NonFunction<T> {
     const prevObjRef = useRef<NonFunction<T>>(obj as NonFunction<T>);
     const [, forceUpdate] = useState({});
 
-    useEffect(() => {
+    useEffect(function stableObjectEffect() {
         if (!deepEqual(prevObjRef.current, obj)) {
             prevObjRef.current = obj;
             forceUpdate({}); // Force a re-render
@@ -39,4 +39,4 @@ export const useStableObject = <T extends string | number | object | null | unde
     }, [obj]);
 
     return prevObjRef.current;
-};
+}

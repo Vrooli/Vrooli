@@ -1,73 +1,65 @@
-import { TextField, Typography } from "@mui/material";
+import { TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { RefObject } from "react";
-import { useTranslation } from "react-i18next";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
 import { TextInputProps, TranslatedTextInputProps } from "../types";
 
-export const TextInput = ({
+export function TextInput({
     enterWillSubmit,
+    helperText,
     label,
-    isOptional,
+    isRequired,
     onSubmit,
     placeholder,
     ref,
     ...props
-}: TextInputProps) => {
-    const { t } = useTranslation();
+}: TextInputProps) {
+    const { palette } = useTheme();
 
-    // Custom label component with optional styling
-    const LabelWithOptional = () => (
-        <>
-            {label}
-            {isOptional && (
-                <>
-                    <Typography component="span" variant="body1" style={{ marginLeft: "4px" }}>
-                        -
-                    </Typography>
-                    <Typography component="span" variant="body1" style={{ margin: "0 4px", fontStyle: "italic" }}>
-                        {t("Optional")}
-                    </Typography>
-                </>
-            )}
-        </>
-    );
+    function StyledLabel() {
+        return (
+            <>
+                {label}
+                {isRequired && <Typography component="span" variant="h6" sx={{ color: palette.error.main, paddingLeft: "4px" }}>*</Typography>}
+            </>
+        );
+    }
 
-    const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
         if (enterWillSubmit !== true || typeof onSubmit !== "function") return;
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
             onSubmit();
         }
-    };
-
+    }
 
     return <TextField
-        label={label ? <LabelWithOptional /> : ""}
+        helperText={helperText ? typeof helperText === "string" ? helperText : JSON.stringify(helperText) : undefined}
+        InputLabelProps={(label && placeholder) ? { shrink: true } : {}}
+        label={label ? <StyledLabel /> : ""}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         ref={ref as RefObject<HTMLInputElement>}
-        InputLabelProps={(label && placeholder) ? { shrink: true } : {}}
         variant="outlined"
         {...props}
     />;
-};
+}
 
-export const TranslatedTextInput = ({
+export function TranslatedTextInput({
     language,
     name,
     ...props
-}: TranslatedTextInputProps) => {
+}: TranslatedTextInputProps) {
     const [field, meta, helpers] = useField("translations");
     const { value, error, touched } = getTranslationData(field, meta, language);
 
-    const handleBlur = (event) => {
+    function handleBlur(event) {
         field.onBlur(event);
-    };
+    }
 
-    const handleChange = (event) => {
+    function handleChange(event) {
         handleTranslationChange(field, meta, helpers, event, language);
-    };
+    }
 
     return (
         <TextInput
@@ -81,4 +73,4 @@ export const TranslatedTextInput = ({
             onChange={handleChange}
         />
     );
-};
+}

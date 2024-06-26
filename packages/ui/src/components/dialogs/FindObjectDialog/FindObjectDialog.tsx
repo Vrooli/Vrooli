@@ -88,17 +88,17 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
  * @param useVersioned If true, uses tabs for objects that have versions 
  * @returns The filtered tabs
  */
-export const getFilteredTabs = (
+export function getFilteredTabs(
     limitTo: FindObjectTabOption[] | undefined,
     onlyVersioned: boolean | undefined,
-) => {
+) {
     let filtered = findObjectTabParams;
     // Apply limitTo filter
     if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
     // If onlyVersioned is true, filter out non-versioned tabs
     if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
     return filtered;
-};
+}
 
 /**
  * Retrieves a versioned view of a root object based on the specified version ID.
@@ -108,7 +108,7 @@ export const getFilteredTabs = (
  * @param versionId - The identifier for the version to retrieve.
  * @returns The versioned object, or undefined if the version ID is not found.
  */
-export const convertRootObjectToVersion = (item: RootObject, versionId: string): any => {
+export function convertRootObjectToVersion(item: RootObject, versionId: string): any {
     if (versionId) {
         // Find the specific version based on versionId
         const version = item.versions?.find(v => v.id === versionId);
@@ -121,7 +121,7 @@ export const convertRootObjectToVersion = (item: RootObject, versionId: string):
     }
     // If versionId is not provided or no version matches, return undefined or the original item
     return undefined;
-};
+}
 
 
 const searchTitleId = "search-vrooli-for-link-title";
@@ -129,7 +129,7 @@ const searchTitleId = "search-vrooli-for-link-title";
 /**
  * Dialog for selecting or creating an object
  */
-export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
+export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
     find,
     handleCancel,
     handleComplete,
@@ -137,7 +137,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     limitTo,
     onlyVersioned,
     where,
-}: FindObjectDialogProps<Find, ObjectType>) => {
+}: FindObjectDialogProps<Find, ObjectType>) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -316,7 +316,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-find-object-search-list"); };
+    function focusSearch() { scrollIntoFocusedView("search-bar-find-object-search-list"); }
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: false,
@@ -436,4 +436,4 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             </LargeDialog>
         </>
     );
-};
+}

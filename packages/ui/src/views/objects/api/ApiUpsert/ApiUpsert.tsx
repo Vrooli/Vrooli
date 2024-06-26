@@ -76,7 +76,7 @@ const apiInitialValues = (
 const transformApiVersionValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
     isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
 
-const ApiForm = ({
+function ApiForm({
     disabled,
     dirty,
     display,
@@ -89,7 +89,7 @@ const ApiForm = ({
     values,
     versions,
     ...props
-}: ApiFormProps) => {
+}: ApiFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -188,12 +188,14 @@ const ApiForm = ({
                             <TranslatedTextInput
                                 autoFocus
                                 fullWidth
+                                isRequired={true}
                                 label={t("Name")}
                                 language={language}
                                 name="name"
                                 placeholder={t("NamePlaceholder")}
                             />
                             <TranslatedRichInput
+                                isRequired={false}
                                 language={language}
                                 name="summary"
                                 maxChars={1024}
@@ -202,6 +204,7 @@ const ApiForm = ({
                                 placeholder={t("Summary")}
                             />
                             <TranslatedRichInput
+                                isRequired={false}
                                 language={language}
                                 name="details"
                                 maxChars={8192}
@@ -309,14 +312,14 @@ const ApiForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ApiUpsert = ({
+export function ApiUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: ApiUpsertProps) => {
+}: ApiUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
@@ -347,4 +350,4 @@ export const ApiUpsert = ({
             />}
         </Formik>
     );
-};
+}

@@ -1,81 +1,114 @@
-import { InputType } from "@local/shared";
-import { CodeProps, FieldData } from "forms/types";
-import { CheckboxProps, DropzoneProps, IntegerInputProps, LanguageInputProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TagSelectorProps, TextProps, YupField } from "../types";
+import { InputType, isObject, uuid } from "@local/shared";
+import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormInputType, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField } from "forms/types";
+
+const DEFAULT_SLIDER_MIN = 0;
+const DEFAULT_SLIDER_MAX = 100;
+const DEFAULT_SLIDER_STEP = 20;
+
+function isNumeric(n: any) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+function nearest(value: number, min: number, max: number, steps: number) {
+    let zerone = Math.round((value - min) * steps / (max - min)) / steps; // bring to 0-1 range    
+    zerone = Math.min(Math.max(zerone, 0), 1); // keep in range in case value is off limits
+    return zerone * (max - min) + min;
+}
 
 /**
- * Maps a data input type to a function that calculates its default values.
- * Values already set have precedence. 
- * Assumes that any key in props might be missing.
- * @returns The passed-in props object with default values added
+ * Maps a form input type to a function that sets/repairs its type-specific props
+ * @returns The properly-shaped props for the given input type
  */
-export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any } = {
-    [InputType.Checkbox]: (props: Partial<CheckboxProps>): CheckboxProps => ({
+export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } = {
+    [InputType.Checkbox]: (props: Partial<CheckboxFormInputProps>): CheckboxFormInputProps => ({
         color: "secondary",
         defaultValue: new Array(props.options?.length ?? 0).fill(false),
         options: [],
-        row: true,
+        maxSelection: 0,
+        minSelection: 0,
+        row: false,
         ...props,
     }),
-    [InputType.Dropzone]: (props: Partial<DropzoneProps>): DropzoneProps => ({
+    [InputType.Dropzone]: (props: Partial<DropzoneFormInputProps>): DropzoneFormInputProps => ({
         defaultValue: [],
         ...props,
     }),
-    [InputType.JSON]: (props: Partial<Omit<CodeProps, "id">>): Omit<CodeProps, "id" | "name"> => ({
+    [InputType.JSON]: (props: Partial<Omit<CodeFormInputProps, "id">>): Omit<CodeFormInputProps, "id" | "name"> => ({
         defaultValue: "",
         ...props,
     }),
-    [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
+    [InputType.LanguageInput]: (props: Partial<LanguageFormInputProps>): LanguageFormInputProps => ({
         defaultValue: [],
         ...props,
     }),
-    [InputType.IntegerInput]: (props: Partial<Omit<IntegerInputProps, "name">>): Omit<IntegerInputProps, "name"> => ({
+    [InputType.LinkItem]: (props: Partial<LinkItemFormInputProps>): LinkItemFormInputProps => ({
+        defaultValue: "",
+        limitTo: [],
+        ...props,
+    }),
+    [InputType.LinkUrl]: (props: Partial<LinkUrlFormInputProps>): LinkUrlFormInputProps => ({
+        acceptedHosts: [],
+        defaultValue: "",
+        ...props,
+    }),
+    [InputType.IntegerInput]: (props: Partial<Omit<IntegerFormInputProps, "name">>): Omit<IntegerFormInputProps, "name"> => ({
         defaultValue: 0,
         max: Number.MAX_SAFE_INTEGER,
         min: Number.MIN_SAFE_INTEGER,
         step: 1,
         ...props,
     }),
-    [InputType.Radio]: (props: Partial<RadioProps>) => ({
+    [InputType.Radio]: (props: Partial<RadioFormInputProps>): RadioFormInputProps => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : "",
-        ...props,
-    }),
-    [InputType.Selector]: (props: Partial<SelectorProps<any>>): Omit<SelectorProps<any>, "name"> => ({
         options: [],
-        getOptionLabel: (option: any) => option,
         ...props,
     }),
-    [InputType.Slider]: (props: SliderProps) => {
-        // eslint-disable-next-line prefer-const
-        let { defaultValue, min, max, step, ...otherProps } = props;
-        const isNumeric = (n: any) => !isNaN(parseFloat(n)) && isFinite(n);
-        const nearest = (value: number, min: number, max: number, steps: number) => {
-            let zerone = Math.round((value - min) * steps / (max - min)) / steps; // bring to 0-1 range    
-            zerone = Math.min(Math.max(zerone, 0), 1); // keep in range in case value is off limits
-            return zerone * (max - min) + min;
-        };
-        if (!isNumeric(min)) min = 0;
-        if (!isNumeric(max)) max = 100;
-        if (!isNumeric(step)) step = (max - min) / 20; // Default to 20 steps
-        if (!isNumeric(defaultValue)) defaultValue = nearest((min + max) / 2, min, max, step || 1);
+    [InputType.Selector]: (props: Partial<SelectorFormInputProps<any>>): Omit<SelectorFormInputProps<any>, "name"> => ({
+        options: [],
+        getOptionDescription: (option: SelectorFormInputOption) =>
+            typeof option === "object"
+                && Object.prototype.hasOwnProperty.call(option, "description")
+                && typeof option.description === "string"
+                ? option.description
+                : null,
+        getOptionLabel: (option: SelectorFormInputOption) =>
+            typeof option === "object"
+                && Object.prototype.hasOwnProperty.call(option, "label")
+                && typeof option.label === "string"
+                ? option.label
+                : null,
+        getOptionValue: (option: SelectorFormInputOption) =>
+            typeof option === "object"
+                && Object.prototype.hasOwnProperty.call(option, "value")
+                ? option.value
+                : null,
+        ...props,
+    }),
+    [InputType.Slider]: (props: Partial<SliderFormInputProps>): SliderFormInputProps => {
+        const max = (isNumeric(props.max) ? props.max : DEFAULT_SLIDER_MAX) as number;
+        const min = (isNumeric(props.min) ? props.min : DEFAULT_SLIDER_MIN) as number;
+        const step = (isNumeric(props.step) ? props.step : (max - min) / DEFAULT_SLIDER_STEP) as number; // Default to 20 steps
+        const defaultValue = (isNumeric(props.defaultValue) ? props.defaultValue : nearest((min + max) / 2, min, max, step)) as number;
         return {
+            ...props, // Props go first this time because we're fixing invalid values
             defaultValue,
             min,
             max,
             step,
-            ...otherProps,
         };
     },
-    [InputType.Switch]: (props: Partial<SwitchProps>): SwitchProps => ({
+    [InputType.Switch]: (props: Partial<SwitchFormInputProps>): SwitchFormInputProps => ({
         defaultValue: false,
         color: "secondary",
+        label: "",
         size: "medium",
         ...props,
     }),
-    [InputType.TagSelector]: (props: Partial<TagSelectorProps>): TagSelectorProps => ({
+    [InputType.TagSelector]: (props: Partial<TagSelectorFormInputProps>): TagSelectorFormInputProps => ({
         defaultValue: [],
         ...props,
     }),
-    [InputType.Text]: (props: Partial<TextProps>): TextProps => ({
+    [InputType.Text]: (props: Partial<TextFormInputProps>): TextFormInputProps => ({
         autoComplete: "off",
         defaultValue: "",
         isMarkdown: true,
@@ -87,45 +120,77 @@ export const defaultStandardPropsMap: { [key in InputType]: (props: any) => any 
 };
 
 /**
- * Populates a FieldData array with unset default values
+ * Populates a form input array with unset default values
  * @param fields The form's field data
  */
-export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
-    if (!fields) return [];
-    return fields.map(field => {
+export function generateDefaultProps(fields: FormInputType[]): FormInputType[] {
+    if (!Array.isArray(fields)) return [];
+    // Remove invalid types
+    let result = fields.filter(field => field.type in healFormInputPropsMap);
+    // Heal each field
+    result = result.map(field => {
         const { props, ...otherKeys } = field;
         return {
-            props: defaultStandardPropsMap[field.type](props as any),
+            props: healFormInputPropsMap[field.type](props as any),
             ...otherKeys,
         };
     });
-};
-
-interface CreateDefaultFieldDataProps {
-    fieldName?: string;
-    label?: string;
-    type: InputType;
-    yup?: YupField
+    // Return the result
+    return result;
 }
+
+export type CreateFormInputProps = Omit<Partial<FormInputType>, "props" | "type" | "yup"> & {
+    props: Partial<FormInputType["props"]> | string | null | undefined;
+    type: FormInputType["type"]; // Required
+    yup: Partial<FormInputType["yup"]> | string | null | undefined;
+}
+
 /**
- * Creates default FieldData for a given input type
+ * Creates FormInputType for a given input type, which may have stringified values 
+ * if it's coming from the server
  * @param type The input type
- * @returns A FieldData object with default values
+ * @returns A FormInputType object with default values
  */
-export const createDefaultFieldData = ({
+export function createFormInput({
     fieldName,
+    id,
     label,
+    props,
     type,
     yup,
-}: CreateDefaultFieldDataProps): FieldData | null => {
-    if (!type || !defaultStandardPropsMap[type]) return null;
+    ...rest
+}: CreateFormInputProps): FormInputType | null {
+    // Return null if the type is invalid
+    if (typeof type !== "string" || !healFormInputPropsMap[type]) return null;
+    // Non-primitive props might be stringified from the server, so we need to parse them
+    try {
+        if (typeof props === "string") {
+            const parsedProps = JSON.parse(props ?? "{}");
+            props = isObject(parsedProps) ? parsedProps : {};
+        }
+        if (typeof yup === "string") {
+            const parsedYup = JSON.parse(yup ?? "{}");
+            yup = isObject(parsedYup) ? parsedYup : {};
+        }
+    } catch (error) {
+        console.error("Error parsing props/yup", error);
+        return null;
+    }
+    // Handle fallbacks
+    if (!props) {
+        props = {};
+    }
+    if (!yup) {
+        yup = ({ checks: [] });
+    }
+    // Return the FormInputType object
     return ({
-        type: type as any,
-        props: defaultStandardPropsMap[type]({}),
+        type,
+        props: healFormInputPropsMap[type](props),
         fieldName: fieldName ?? "",
+        id: id ?? uuid(),
         label: label ?? "",
-        yup: yup ?? ({
-            checks: [],
-        }),
+        yup: yup as YupField,
+        ...rest,
     });
-};
+}

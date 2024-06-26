@@ -21,6 +21,7 @@ import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichI
 import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps, TranslatedRichInputProps } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
+const SHOW_CHAR_LIMIT_AT_REMAINING = 500;
 
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function RichInputBase({
@@ -267,7 +268,7 @@ export function RichInputBase({
                                 !disabled && maxChars !== undefined &&
                                 <CharLimitIndicator
                                     chars={internalValue?.length ?? 0}
-                                    minCharsToShow={Math.max(0, maxChars - 500)}
+                                    minCharsToShow={Math.max(0, maxChars - SHOW_CHAR_LIMIT_AT_REMAINING)}
                                     maxChars={maxChars}
                                 />
                             }
