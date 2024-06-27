@@ -1,9 +1,12 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, Node, NodeLink, noop, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, Divider, FormControlLabel, Grid, Tooltip, useTheme } from "@mui/material";
+import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, InputType, LINKS, Node, NodeLink, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { Avatar, Box, Button, Card, Checkbox, Divider, FormControlLabel, Grid, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { SelectOrCreateObject } from "components/dialogs/types";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
@@ -23,17 +26,22 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { ApiIcon, RoutineIcon, SearchIcon, SmartContractIcon, TerminalIcon } from "icons";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { AddIcon, ApiIcon, BotIcon, MinusIcon, OpenInNewIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
+import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "route";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { AVAILABLE_MODELS, LlmModel } from "utils/botUtils";
+import { AVAILABLE_MODELS, DEFAULT_MODEL, getModelDescription, getModelName, LlmModel } from "utils/botUtils";
+import { extractImageUrl } from "utils/display/imageTools";
+import { placeholderColor } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { routineTypes } from "utils/search/schemas/routine";
+import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
+import { BotShape } from "utils/shape/models/bot";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -42,7 +50,9 @@ import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { validateFormValues } from "utils/validateFormValues";
 import { BuildView } from "views/objects/routine/BuildView/BuildView";
-import { RoutineFormProps, RoutineUpsertProps } from "../types";
+import { BuildViewProps, RoutineFormProps, RoutineUpsertProps } from "../types";
+
+const routineTypeTitleSxs = { stack: { paddingLeft: 0 } } as const;
 
 export function routineInitialValues(
     session: Session | undefined,
@@ -94,6 +104,344 @@ function transformRoutineVersionValues(values: RoutineVersionShape, existing: Ro
     return isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
 }
 
+const RoutineApiForm = memo(function RoutineApiFormMemo({
+    isEditing,
+}: {
+    isEditing: boolean;
+}) {
+    return (
+        <>
+            <Title
+                Icon={ApiIcon}
+                title={isEditing ? "Connect API" : "Connected API"}
+                help={"Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail."}
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
+            {/* TODO inputs/outputs */}
+            <FormBuildView />
+            <FormBuildView />
+        </>
+    );
+});
+
+const RoutineCodeForm = memo(function RoutineCodeFormMemo({
+    isEditing,
+}: {
+    isEditing: boolean;
+}) {
+    return (
+        <>
+            <Title
+                Icon={TerminalIcon}
+                title={isEditing ? "Connect code" : "Connected code"}
+                help={"Connect or create a data converter function to this routine.\n\nThe code will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the code fails or does not return the expected data, the routine will fail."}
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
+            {/* TODO inputs/outputs */}
+            <FormBuildView />
+            <FormBuildView />
+        </>
+    );
+});
+
+const RoutineDataForm = memo(function RoutineDataFormMemo({
+    isEditing,
+}: {
+    isEditing: boolean;
+}) {
+    return (
+        // Form to define outputs
+        <FormBuildView />
+    );
+});
+
+type BotInfo = Pick<BotShape, "__typename" | "id" | "handle" | "model" | "name" | "profileImage">;
+
+const botStyleOptions = [{
+    description: "If a bot runs this routine, their style will be used to generate the response. Otherwise, no style will be used.",
+    label: "Default",
+    value: "default",
+}, {
+    description: "Select a specific bot to use their style for generating the response.",
+    label: "Specific bot",
+    value: "specific",
+}, {
+    description: "Do not use any style to generate the response.",
+    label: "None",
+    value: "none",
+}];
+function getBotStyleDescription(option: BotStyleOption) { return option.description; }
+function getBotStyleLabel(option: BotStyleOption) { return option.label; }
+
+const findBotLimitTo = ["User"] as const;
+const findBotWhere = { isBot: true };
+const generateInputFormLimits = {
+    headers: { types: [] },
+    inputs: { types: [InputType.Text] },
+} as const;
+const BOT_AVATAR_IMG_SRC_TARGET_SIZE = 100;
+
+const BotCardOuter = styled(Card)(({ theme }) => ({
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    padding: 2,
+    marginTop: 2,
+    marginBottom: 2,
+    borderRadius: "8px",
+}));
+
+
+const BotCardAvatar = memo(function BotCardAvatarMemo({ bot }: { bot: BotInfo }) {
+    const alt = `${bot.name} profile image`;
+    const src = useMemo(() => extractImageUrl(bot.profileImage, undefined, BOT_AVATAR_IMG_SRC_TARGET_SIZE), [bot.profileImage]);
+
+    const profileColors = useMemo(() => placeholderColor(), []);
+    const style = useMemo(() => ({
+        width: 60,
+        height: 60,
+        backgroundColor: profileColors[0],
+        color: profileColors[1],
+        borderRadius: "8px", // Bots show up as squares
+        marginRight: 2,
+    }), [profileColors]);
+
+    return (
+        <Avatar
+            alt={alt}
+            src={src}
+            sx={style}
+        >
+            <BotIcon width="75%" height="75%" />
+        </Avatar>
+    );
+});
+
+const BotHandle = styled(Typography)(({ theme }) => ({
+    color: theme.palette.secondary.dark,
+    fontFamily: "monospace",
+}));
+
+const botCardOpenIconBoxStyle = { display: "grid", marginLeft: "auto", paddingRight: 1 } as const;
+
+const BotCard = memo(function BotCardMemo({ bot }: { bot: BotInfo }) {
+    const [, setLocation] = useLocation();
+
+    const handleBotCardClick = useCallback(function handleBotCardClickCallback() {
+        openObject(bot, setLocation);
+    }, [bot, setLocation]);
+
+    return (
+        <BotCardOuter onClick={handleBotCardClick}>
+            <BotCardAvatar bot={bot} />
+            <Box>
+                <Typography variant="h6">{bot.name}</Typography>
+                {bot.handle && <BotHandle variant="body2">
+                    @{bot.handle}
+                </BotHandle>}
+            </Box>
+            <Box sx={botCardOpenIconBoxStyle}>
+                <OpenInNewIcon />
+            </Box>
+        </BotCardOuter>
+    );
+});
+
+type BotStyleOption = {
+    description: string;
+    label: string;
+    value: string;
+};
+
+const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
+    isEditing,
+    model,
+    setModel,
+}: {
+    isEditing: boolean;
+    model: LlmModel | null;
+    setModel: (model: LlmModel | null) => unknown;
+}) {
+    const { t } = useTranslation();
+
+    const handleModelChange = useCallback(function handleModelChangeCallback(newModel: LlmModel | null) {
+        setModel(newModel);
+    }, [setModel]);
+
+    const [botStyle, setBotStyle] = useState<BotStyleOption>(botStyleOptions[0]);
+    const [bot, setBot] = useState<BotInfo | null>(null);
+    const [isBotSearchOpen, setIsBotSearchOpen] = useState(false);
+    const closeBotSearch = useCallback(function closeBotSearchCallback(selected?: SelectOrCreateObject) {
+        setIsBotSearchOpen(false);
+        if (selected) {
+            setBot(selected as unknown as BotInfo);
+        }
+    }, []);
+    const handleBotStyleChange = useCallback(function handleBotStyleChangeCallback(newStyle: BotStyleOption) {
+        setBotStyle(newStyle);
+        if (newStyle.value !== "specific") setBot(null);
+        if (newStyle.value === "specific") setIsBotSearchOpen(true);
+    }, []);
+    const handleBotButtonClick = useCallback(function handleBotButtonClickCallback() {
+        if (bot) setBot(null);
+        else setIsBotSearchOpen(true);
+    }, [bot]);
+
+    return (
+        <>
+            <Title
+                title={isEditing ? "Choose AI model" : `Generating with ${model?.name ?? `${DEFAULT_MODEL} (default)`}`}
+                help={isEditing ? "Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail." : undefined}
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
+            {isEditing && <SelectorBase
+                name="model"
+                options={AVAILABLE_MODELS}
+                getOptionLabel={getModelName}
+                getOptionDescription={getModelDescription}
+                fullWidth={true}
+                inputAriaLabel="Model"
+                label={t("Model", { count: 1 })}
+                noneOption={true}
+                noneText="default"
+                onChange={handleModelChange}
+                value={model}
+            />}
+            {(isEditing || bot) && <Title
+                title={(isEditing || !bot) ? "Choose style" : `Using style of ${bot.name}`}
+                help={isEditing ? "Connecting a bot allows you to generate data using the bot's personality and style.\n\nYou can choose whichever bot runs the routine, a specific bot, or *none* if you don't want to add personality/style to the response." : undefined}
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />}
+            {isEditing && <SelectorBase
+                name="style"
+                options={botStyleOptions}
+                getOptionDescription={getBotStyleDescription}
+                getOptionLabel={getBotStyleLabel}
+                fullWidth={true}
+                inputAriaLabel="Bot style"
+                label="Bot style"
+                onChange={handleBotStyleChange}
+                value={botStyle}
+
+            />}
+            {isEditing && botStyle.value === "specific" && <FindObjectDialog
+                find="List"
+                isOpen={isBotSearchOpen}
+                limitTo={findBotLimitTo}
+                handleCancel={closeBotSearch}
+                handleComplete={closeBotSearch}
+                where={findBotWhere}
+            />}
+            {bot && <BotCard bot={bot} />}
+            {isEditing && botStyle.value === "specific" && <Button
+                fullWidth
+                color="secondary"
+                variant="contained"
+                onClick={handleBotButtonClick}
+                startIcon={bot ? <MinusIcon /> : <AddIcon />}
+            >{bot ? "Remove bot" : "Choose bot"}</Button>}
+            <Title
+                title={"Inputs"}
+                help={"Inputs are passed in sequential order to the AI model, within the same request message.\n\nYou may define help text, limits, etc. for each input, though the AI model may not always decide to follow them.\n\nAny input without a default value will be entered by the user at runtime, or the specified bot."}
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
+            <FormBuildView limits={generateInputFormLimits} />
+        </>
+    );
+});
+
+const RoutineInformationalForm = memo(function RoutineInformationalFormMemo({
+    isEditing,
+}: {
+    isEditing: boolean;
+}) {
+    return (
+        // Form to define inputs
+        <FormBuildView />
+    );
+});
+
+const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
+    isEditing,
+    isGraphOpen,
+    handleGraphClose,
+    handleGraphOpen,
+    handleGraphSubmit,
+    nodeLinks,
+    nodes,
+    routineId,
+    translationData,
+}: {
+    isEditing: boolean;
+    isGraphOpen: boolean;
+    handleGraphClose: () => unknown;
+    handleGraphOpen: () => unknown;
+    handleGraphSubmit: BuildViewProps["handleSubmit"];
+    nodeLinks: NodeLinkShape[];
+    nodes: NodeShape[];
+    routineId: string;
+    translationData: BuildViewProps["translationData"];
+}) {
+    const routineVersion = useMemo(() => ({
+        id: routineId,
+        nodeLinks: nodeLinks as NodeLink[],
+        nodes: nodes as Node[],
+    }), [nodeLinks, nodes, routineId]);
+
+    return (
+        <>
+            <BuildView
+                display="dialog"
+                handleCancel={handleGraphClose}
+                onClose={handleGraphClose}
+                handleSubmit={handleGraphSubmit}
+                isEditing={isEditing}
+                isOpen={isGraphOpen}
+                loading={false}
+                routineVersion={routineVersion}
+                translationData={translationData}
+            />
+            {/* Button to display graph */}
+            <Grid item xs={12} mb={4}>
+                <Button
+                    startIcon={<RoutineIcon />}
+                    fullWidth color="secondary"
+                    onClick={handleGraphOpen}
+                    variant="contained"
+                >View Graph</Button>
+            </Grid>
+            {/* # nodes, # links, Simplicity, complexity & other graph stats */}
+            {/* TODO */}
+        </>
+    );
+});
+
+const RoutineSmartContractForm = memo(function RoutineSmartContractFormMemo({
+    isEditing,
+}: {
+    isEditing: boolean;
+}) {
+    return (
+        <>
+            <Title
+                Icon={SmartContractIcon}
+                title={isEditing ? "Connect smart contract" : "Connected smart contract"}
+                help={"Connect or create a smart contract to this routine.\n\nThe contract will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the contract fails or does not return the expected data, the routine will fail."}
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
+            {/* TODO inputs/outputs */}
+            <FormBuildView />
+            <FormBuildView />
+        </>
+    );
+});
+
 function RoutineForm({
     disabled,
     dirty,
@@ -128,6 +476,13 @@ function RoutineForm({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
+    const translationData = useMemo(() => ({
+        language,
+        setLanguage,
+        handleAddLanguage,
+        handleDeleteLanguage,
+        languages,
+    }), [language, languages, setLanguage, handleAddLanguage, handleDeleteLanguage]);
 
     // Formik fields we need to access and/or set values for
     const [idField] = useField<string>("id");
@@ -251,125 +606,39 @@ function RoutineForm({
     });
 
     // Type-specific components
-    const routineTypeComponents = useMemo(() => {
+    const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
+        const isEditing = true;
         switch (routineType) {
             case RoutineType.Api:
-                return (
-                    <>
-                        <Title
-                            Icon={ApiIcon}
-                            title={"Connect API"}
-                            help={"Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail."}
-                            variant="subsection"
-                            sxs={{ stack: { paddingLeft: 0 } }}
-                        />
-                        {/* TODO inputs/outputs */}
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                    </>
-                );
+                return <RoutineApiForm isEditing={isEditing} />;
             case RoutineType.Code:
-                return (
-                    <>
-                        <Title
-                            Icon={TerminalIcon}
-                            title={"Connect code"}
-                            help={"Connect or create a data converter function to this routine.\n\nThe code will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the code fails or does not return the expected data, the routine will fail."}
-                            variant="subsection"
-                            sxs={{ stack: { paddingLeft: 0 } }}
-                        />
-                        {/* TODO inputs/outputs */}
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                    </>
-                );
+                return <RoutineCodeForm isEditing={isEditing} />;
             case RoutineType.Data:
-                return (
-                    <>
-                        {/* TODO outputs */}
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                    </>
-                );
+                return <RoutineDataForm isEditing={isEditing} />;
             case RoutineType.Generate:
-                return (
-                    <>
-                        <SelectorBase
-                            name="model"
-                            options={AVAILABLE_MODELS}
-                            getOptionLabel={(r) => r.name}
-                            getOptionDescription={(r) => r.description}
-                            fullWidth={true}
-                            inputAriaLabel="Mode"
-                            label={t("Model", { count: 1 })}
-                            onChange={(newModel) => {
-                                setModel(newModel);
-                            }}
-                            value={model}
-                        />
-                        {/* TODO inputs/outputs */}
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                    </>
-                );
+                return <RoutineGenerateForm
+                    isEditing={isEditing}
+                    model={model}
+                    setModel={setModel}
+                />;
             case RoutineType.Informational:
-                // Allow inputs to be entered. Since nothing else is connected to the routine, these inputs 
-                // will have to be filled out manually by a user or bot
-                return <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                return <RoutineInformationalForm isEditing={isEditing} />;
             case RoutineType.MultiStep:
-                // Display graph editor
-                return (
-                    <>
-                        <BuildView
-                            display="dialog"
-                            handleCancel={handleGraphClose}
-                            onClose={handleGraphClose}
-                            handleSubmit={handleGraphSubmit}
-                            isEditing={true}
-                            isOpen={isGraphOpen}
-                            loading={false}
-                            routineVersion={{
-                                id: idField.value,
-                                nodeLinks: nodeLinksField.value as NodeLink[],
-                                nodes: nodesField.value as Node[],
-                            }}
-                            translationData={{
-                                language,
-                                setLanguage,
-                                handleAddLanguage,
-                                handleDeleteLanguage,
-                                languages,
-                            }}
-                        />
-                        {/* Button to display graph */}
-                        <Grid item xs={12} mb={4}>
-                            <Button
-                                startIcon={<RoutineIcon />}
-                                fullWidth color="secondary"
-                                onClick={handleGraphOpen}
-                                variant="contained"
-                            >View Graph</Button>
-                        </Grid>
-                        {/* # nodes, # links, Simplicity, complexity & other graph stats */}
-                        {/* TODO */}
-                    </>
-                );
+                return <RoutineMultiStepForm
+                    isEditing={isEditing}
+                    isGraphOpen={isGraphOpen}
+                    handleGraphClose={handleGraphClose}
+                    handleGraphOpen={handleGraphOpen}
+                    handleGraphSubmit={handleGraphSubmit}
+                    nodeLinks={nodeLinksField.value}
+                    nodes={nodesField.value}
+                    routineId={idField.value}
+                    translationData={translationData}
+                />;
             case RoutineType.SmartContract:
-                return (
-                    <>
-                        <Title
-                            Icon={SmartContractIcon}
-                            title={"Connect smart contract"}
-                            help={"Connect or create a smart contract to this routine.\n\nThe contract will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the contract fails or does not return the expected data, the routine will fail."}
-                            variant="subsection"
-                            sxs={{ stack: { paddingLeft: 0 } }}
-                        />
-                        {/* TODO inputs/outputs */}
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                        <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                    </>
-                );
+                return <RoutineSmartContractForm isEditing={isEditing} />;
         }
-    }, [handleAddLanguage, handleDeleteLanguage, handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, inputsField.value, inputsHelpers.setValue, isGraphOpen, language, languages, model, nodeLinksField.value, nodesField.value, outputsField.value, outputsHelpers.setValue, routineType, setLanguage, t]);
+    }, [handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, isGraphOpen, model, nodeLinksField.value, nodesField.value, routineType, translationData]);
 
     return (
         <MaybeLargeDialog
@@ -383,20 +652,10 @@ function RoutineForm({
                 onClose={onClose}
                 title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Routine}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing routines
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Routine}"`}
+                text="Search existing routines"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -481,9 +740,9 @@ function RoutineForm({
                         <SelectorBase
                             name="routineType"
                             options={routineTypes}
-                            getOptionLabel={(r) => r.label}
-                            getOptionDescription={(r) => r.description}
-                            getOptionIcon={(r) => r.Icon}
+                            getOptionDescription={getRoutineTypeDescription}
+                            getOptionLabel={getRoutineTypeLabel}
+                            getOptionIcon={getRoutineTypeIcon}
                             fullWidth={true}
                             inputAriaLabel="Routine Type"
                             label="Routine Type"
@@ -525,12 +784,16 @@ export function RoutineUpsert({
         transform: (existing) => routineInitialValues(session, existing),
     });
 
+    async function validateValues(values: unknown) {
+        return await validateFormValues(values as RoutineVersionShape, existing, isCreate, transformRoutineVersionValues, routineVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <RoutineForm
                 disabled={!(isCreate || permissions.canUpdate)}
