@@ -1,11 +1,10 @@
-import { InputType, ListObject, OrArray } from "@local/shared";
+import { InputType, ListObject, OrArray, TimeFrame } from "@local/shared";
 import { CodeInputProps, DropzoneProps, IntegerInputProps, LanguageInputProps, SelectorProps, TagSelectorProps } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { TagShape } from "utils/shape/models/tag";
 import { CrudProps } from "views/objects/types";
-import { ViewProps } from "views/types";
 
 export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
     disabled: boolean;
@@ -14,7 +13,18 @@ export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrAr
     isReadLoading: boolean;
 };
 
-export type FormBuildViewProps = ViewProps;
+export type FormBuildViewProps = {
+    limits?: {
+        headers?: {
+            max?: number;
+            types?: readonly HeaderTag[];
+        },
+        inputs?: {
+            max?: number;
+            types?: readonly InputType[];
+        }
+    }
+};
 
 /** Common props required by every FormElement type */
 export interface FormElementBase {
@@ -37,9 +47,10 @@ export interface FormElementBase {
     label: string;
 }
 
+export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 export type FormHeaderType = FormElementBase & {
     type: "Header";
-    tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+    tag: HeaderTag;
 };
 
 /** Common props required by every form input type */
@@ -131,10 +142,34 @@ export interface LanguageFormInput extends FormInputBase {
     props: LanguageFormInputProps;
 }
 
+export type LinkItemType = Exclude<SearchPageTabOption, "All">;
 export type LinkItemLimitTo = {
-    type: Exclude<SearchPageTabOption, "All">;
-    ownerId?: string;
-    projectId?: string;
+    type: LinkItemType;
+    advancedSearchParams?: {
+        locked?: boolean;
+        /** Url-encoded representation of advanced search params object */
+        value: string;
+    }
+    ownerId?: {
+        locked?: boolean;
+        value: string;
+    }
+    projectId?: {
+        locked?: boolean;
+        value: string;
+    }
+    searchString?: {
+        locked?: boolean;
+        value: string;
+    };
+    sortBy?: {
+        locked?: boolean;
+        value: string;
+    };
+    timeFrame?: {
+        locked?: boolean;
+        value: TimeFrame
+    };
     variant: "any" | "root" | "version";
 }
 /** Link item-specific form input props */

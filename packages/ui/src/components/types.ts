@@ -75,11 +75,3 @@ export interface ProfileGroupProps {
     sx?: SxType;
     users: User[];
 }
-
-export interface TwinklingStarsProps {
-    amount?: number;
-    size?: number;
-    color?: string;
-    speed?: number;
-    sx?: SxType;
-}
