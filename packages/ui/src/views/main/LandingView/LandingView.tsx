@@ -4,7 +4,7 @@ import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import Earth from "assets/img/Earth.svg";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
-import { TwinkleStars } from "components/TwinkleStars/TwinkleStars";
+import { Stars } from "components/Stars/Stars";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -66,10 +66,10 @@ const PulseButton = styled(Button)(() => ({
 /**
  * View displayed for Home page when not logged in
  */
-export const LandingView = ({
+export function LandingView({
     display,
     onClose,
-}: LandingViewProps) => {
+}: LandingViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
@@ -82,8 +82,8 @@ export const LandingView = ({
     const lasScrollPosRef = useRef<number>(window.pageYOffset || document.documentElement.scrollTop);
     const currScrollPosRef = useRef<number>(window.pageYOffset || document.documentElement.scrollTop);
     const scrollDirectionRef = useRef<"up" | "down">("down");
-    useEffect(() => {
-        const onScroll = () => {
+    useEffect(function earthAndSkyAnimationEffect() {
+        function onScroll() {
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             if (scrollPos !== currScrollPosRef.current) {
                 scrollDirectionRef.current = scrollPos > currScrollPosRef.current ? "down" : "up";
@@ -91,12 +91,12 @@ export const LandingView = ({
                 currScrollPosRef.current = scrollPos;
             }
             // Helper to check if an element is in view
-            const inView = (element: HTMLElement | null) => {
+            function inView(element: HTMLElement | null) {
                 if (!element) return false;
                 const rect = element.getBoundingClientRect();
                 const windowHeight = (window.innerHeight || document.documentElement.clientHeight);
                 return rect.top < windowHeight / 2;
-            };
+            }
             // Use slides 6 and 7 to determine earth position and sky visibility
             const earthHorizonSlide = document.getElementById(slide5Id);
             const earthFullSlide = document.getElementById(slide6Id);
@@ -110,7 +110,7 @@ export const LandingView = ({
                 setEarthTransform("translate(0%, 100%) scale(1)");
                 setIsSkyVisible(false);
             }
-        };
+        }
         // Add scroll listener to body
         window.addEventListener("scroll", onScroll, { passive: true });
         return () => {
@@ -264,21 +264,7 @@ export const LandingView = ({
                 </SlideContainerNeon>
                 <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 5 }}>
                     {/* Background stars */}
-                    <TwinkleStars
-                        amount={400}
-                        sx={{
-                            position: "absolute",
-                            pointerEvents: "none",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            zIndex: 4,
-                            background: "black",
-                            opacity: isSkyVisible ? 1 : 0,
-                            transition: "opacity 1s ease-in-out",
-                        }}
-                    />
+                    <Stars />
                     {/* Earth at bottom of page. Changes position depending on the slide  */}
                     <Box
                         id="earth"
@@ -329,4 +315,4 @@ export const LandingView = ({
             </SlidePage >
         </>
     );
-};
+}
