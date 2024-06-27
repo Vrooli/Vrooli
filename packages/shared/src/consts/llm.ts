@@ -1,6 +1,6 @@
 export enum AnthropicModel {
-    Opus = "claude-3-opus-20240229",
-    Sonnet = "claude-3-sonnet-20240229",
+    Opus3 = "claude-3-opus-20240229",
+    Sonnet3_5 = "claude-3-5-sonnet-20240620",
 }
 export enum MistralModel {
     Mistral8x7b = "open-mixtral-8x7b", // Not a typo
