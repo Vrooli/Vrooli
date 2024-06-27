@@ -90,29 +90,64 @@
     ],
     "shortcuts": [
         {
-            "name": "Home",
+            "name": "Open Dashboard",
+            "short_name": "Dashboard",
             "url": "/",
-            "description": "View upcoming events, reminders, and notes"
+            "description": "View upcoming events, reminders, and notes",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-home-light-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "Search",
+            "name": "Search Site",
+            "short_name": "Search",
             "url": "/search",
-            "description": "Find a public routine, project, or other item"
+            "description": "Find a public routine, project, bot, or other item",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-search-light-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "Create",
+            "name": "Create Object",
+            "short_name": "Create",
             "url": "/create",
-            "description": "Create a routine, note, reminder, and more"
+            "description": "Create a routine, note, reminder, project, or any other item",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-create-light-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "Inbox",
+            "name": "Notifications and Messages",
+            "short_name": "Inbox",
             "url": "/inbox",
-            "description": "Messages and notifications"
+            "description": "View notifications and messages from bots and other users",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-inbox-light-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "My Stuff",
+            "name": "View My Stuff",
+            "short_name": "My Stuff",
             "url": "/my",
-            "description": "See all of your routines, projects, and other items"
+            "description": "See all of your routines, projects, and other items",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-my-light-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         }
     ],
     "related_applications": [
