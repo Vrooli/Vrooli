@@ -1,8 +1,12 @@
 import { Box, IconButton, TextField, Tooltip, useTheme } from "@mui/material";
-import { FormHeaderType } from "forms/types";
+import { HeaderTag } from "forms/types";
+import { useEditableLabel } from "hooks/useEditableLabel";
 import { DeleteIcon } from "icons";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { FormHeaderProps } from "../types";
+
+const NUM_HEADERS = 6;
+const HEADER_OFFSET = 2;
 
 export function FormHeader({
     element,
@@ -11,12 +15,8 @@ export function FormHeader({
     onDelete,
 }: FormHeaderProps) {
     const { palette, typography } = useTheme();
-    const [isEditing, setIsEditing] = useState(false);
-    const [editedLabel, setEditedLabel] = useState(element.label);
 
-    const getHeaderStyle = useCallback((tag: FormHeaderType["tag"]) => {
-        const NUM_HEADERS = 6;
-        const HEADER_OFFSET = 2;
+    const getHeaderStyle = useCallback((tag: HeaderTag) => {
         const tagSize = Math.min(NUM_HEADERS, parseInt(tag[1]) + HEADER_OFFSET);
         return {
             paddingLeft: "8px",
@@ -25,31 +25,24 @@ export function FormHeader({
         };
     }, [typography]);
 
-    function handleLabelChange(event: React.ChangeEvent<HTMLInputElement>) {
-        setEditedLabel(event.target.value);
-    }
+    const updateLabel = useCallback((updatedLabel: string) => { onUpdate({ label: updatedLabel }); }, [onUpdate]);
+    const {
+        editedLabel,
+        handleLabelChange,
+        handleLabelKeyDown,
+        labelEditRef,
+        submitLabelChange,
+    } = useEditableLabel({
+        isEditable: isSelected,
+        label: element.label,
+        onUpdate: updateLabel,
+    });
 
-    const submitLabelChange = useCallback(function submitLabelChangeCallback() {
-        console.log("in submit label change", editedLabel, element.label, onUpdate);
-        if (editedLabel !== element.label) {
-            onUpdate({ label: editedLabel });
-        }
-        setIsEditing(false);
-    }, [editedLabel, element.label, onUpdate]);
-
-    const handleLabelKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            submitLabelChange();
-        } else if (e.key === "Escape") {
-            e.preventDefault();
-            setEditedLabel(element.label);
-            setIsEditing(false);
-        }
-    }, [element.label, submitLabelChange]);
+    const style = useMemo(() => getHeaderStyle(element.tag), [element.tag, getHeaderStyle]);
+    const inputProps = useMemo(() => ({ style }), [style]);
 
     return (
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box display="flex" alignItems="center">
             {isSelected ? (
                 <>
                     <Tooltip title="Delete">
@@ -58,9 +51,10 @@ export function FormHeader({
                         </IconButton>
                     </Tooltip>
                     <TextField
+                        ref={labelEditRef}
                         autoFocus
                         fullWidth
-                        InputProps={{ style: getHeaderStyle(element.tag) }}
+                        InputProps={inputProps}
                         onBlur={submitLabelChange}
                         onChange={handleLabelChange}
                         onKeyDown={handleLabelKeyDown}
@@ -69,11 +63,7 @@ export function FormHeader({
                     />
                 </>
             ) : (
-                React.createElement(
-                    element.tag,
-                    { style: getHeaderStyle(element.tag) },
-                    element.label,
-                )
+                React.createElement(element.tag, style, element.label)
             )}
         </Box>
     );

@@ -1,8 +1,9 @@
 import { InputType } from "@local/shared";
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { useEditableLabel } from "hooks/useEditableLabel";
 import { CopyIcon, DeleteIcon } from "icons";
-import { ComponentType, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { ComponentType, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { FormInputCheckbox } from "../FormInputCheckbox/FormInputCheckbox";
@@ -53,37 +54,23 @@ export function FormInput({
     const { t } = useTranslation();
     const { palette, typography } = useTheme();
 
-    // Handle changing the label
-    const [isEditingLabel, setIsEditingLabel] = useState(false);
-    const [editedLabel, setEditedLabel] = useState(fieldData.label);
-    useEffect(function setEditedLabelEffect() {
-        setEditedLabel(fieldData.label);
-    }, [fieldData.label]);
-    function handleLabelChange(event) {
-        setEditedLabel(event.target.value);
-    }
-    const submitLabelChange = useCallback(function submitLabelChangeCallback() {
-        if (editedLabel !== fieldData.label) {
-            onConfigUpdate?.({ ...fieldData, label: editedLabel });
-        }
-        setIsEditingLabel(false);
-    }, [editedLabel, fieldData, onConfigUpdate]);
-    const handleLabelKeyDown = useCallback(function handleLabelKeyDownCallback(e) {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            submitLabelChange();
-        } else if (e.key === "Escape") {
-            e.preventDefault();
-            setEditedLabel(fieldData.label);
-            setIsEditingLabel(false);
-        }
-    }, [fieldData.label, submitLabelChange]);
-    const handleLabelBlur = useCallback(function handleLabelBlurCallback() {
-        submitLabelChange();
-    }, [submitLabelChange]);
+    const updateLabel = useCallback((updatedLabel: string) => { onConfigUpdate?.({ ...fieldData, label: updatedLabel }); }, []);
+    const {
+        editedLabel,
+        handleLabelChange,
+        handleLabelKeyDown,
+        isEditingLabel,
+        labelEditRef,
+        startEditingLabel,
+        submitLabelChange,
+    } = useEditableLabel({
+        isEditable: typeof onConfigUpdate === "function",
+        label: fieldData.label,
+        onUpdate: updateLabel,
+    });
 
     const titleStack = useMemo(() => (
-        <Stack direction="row" spacing={0} sx={{ alignItems: "center" }}>
+        <Stack direction="row" spacing={0} alignItems="center">
             {/* Delete button when editing form, and copy button when using form */}
             {typeof onDelete === "function" && typeof onConfigUpdate === "function" ? (
                 <Tooltip title={t("Delete")}>
@@ -101,9 +88,10 @@ export function FormInput({
             <legend aria-label="Input label">
                 {isEditingLabel ? (
                     <TextField
+                        ref={labelEditRef}
                         autoFocus
                         InputProps={{ style: (typography["h6"] as object || {}) }}
-                        onBlur={handleLabelBlur}
+                        onBlur={submitLabelChange}
                         onChange={handleLabelChange}
                         onKeyDown={handleLabelKeyDown}
                         size="small"
@@ -119,7 +107,7 @@ export function FormInput({
                 ) : (
                     <Typography
                         id={`label-${fieldData.fieldName}`}
-                        onClick={() => { if (typeof onConfigUpdate === "function") { setIsEditingLabel(true); } }}
+                        onClick={startEditingLabel}
                         sx={{ color: textPrimary, cursor: typeof onConfigUpdate === "function" ? "pointer" : "default" }}
                         variant="h6"
                     >
@@ -135,7 +123,7 @@ export function FormInput({
                     markdown={fieldData.helpText ?? ""}
                 /> : null}
         </Stack>
-    ), [onDelete, t, palette.error.main, textPrimary, isEditingLabel, typography, handleLabelBlur, handleLabelKeyDown, editedLabel, onConfigUpdate, index, fieldData, copyInput]);
+    ), [onDelete, onConfigUpdate, t, palette.error.main, copyInput, textPrimary, isEditingLabel, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, fieldData, startEditingLabel, index]);
 
     const inputElement = useMemo(() => {
         if (!fieldData.type || !typeMap[fieldData.type]) {

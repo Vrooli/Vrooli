@@ -3,7 +3,8 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
 import { SwitchFormInput, SwitchFormInputProps } from "forms/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEditableLabel } from "hooks/useEditableLabel";
+import { useCallback, useMemo, useState } from "react";
 import { FormInputProps } from "../types";
 
 const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
@@ -43,34 +44,20 @@ export function FormInputSwitch({
         }
     }
 
-    // Handle changing the label
-    const [isEditingLabel, setIsEditingLabel] = useState(false);
-    const [editedLabel, setEditedLabel] = useState(props.label);
-    useEffect(function setEditedLabelEffect() {
-        setEditedLabel(props.label);
-    }, [props.label]);
-    function handleLabelChange(event) {
-        setEditedLabel(event.target.value);
-    }
-    const submitLabelChange = useCallback(function submitLabelChangeCallback() {
-        if (editedLabel !== props.label) {
-            updateProp({ label: editedLabel });
-        }
-        setIsEditingLabel(false);
-    }, [editedLabel, props.label, updateProp]);
-    const handleLabelKeyDown = useCallback(function handleLabelKeyDownCallback(e) {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            submitLabelChange();
-        } else if (e.key === "Escape") {
-            e.preventDefault();
-            setEditedLabel(props.label);
-            setIsEditingLabel(false);
-        }
-    }, [props.label, submitLabelChange]);
-    const handleLabelBlur = useCallback(function handleLabelBlurCallback() {
-        submitLabelChange();
-    }, [submitLabelChange]);
+    const updateLabel = useCallback((updatedLabel: string) => { updateProp({ label: updatedLabel }); }, [updateProp]);
+    const {
+        editedLabel,
+        handleLabelChange,
+        handleLabelKeyDown,
+        isEditingLabel,
+        labelEditRef,
+        startEditingLabel,
+        submitLabelChange,
+    } = useEditableLabel({
+        isEditable: typeof onConfigUpdate === "function",
+        label: props.label ?? "",
+        onUpdate: updateLabel,
+    });
 
     const SwitchElement = useMemo(() => (
         <FormControlLabel
@@ -90,8 +77,9 @@ export function FormInputSwitch({
             }
             label={isEditingLabel ?
                 <TextField
+                    ref={labelEditRef}
                     InputProps={{ style: (typography["body1"] as object || {}) }}
-                    onBlur={handleLabelBlur}
+                    onBlur={submitLabelChange}
                     onChange={handleLabelChange}
                     onKeyDown={handleLabelKeyDown}
                     size="small"
@@ -104,19 +92,14 @@ export function FormInputSwitch({
                         },
                     }}
                 /> : <Typography
-                    onClick={(event) => {
-                        if (typeof onConfigUpdate === "function") {
-                            event.preventDefault();
-                            setIsEditingLabel(true);
-                        }
-                    }}
+                    onClick={startEditingLabel}
                     sx={{ cursor: typeof onConfigUpdate === "function" ? "pointer" : "default" }}
                     variant="body1"
                 >
                     {props.label}
                 </Typography>}
         />
-    ), [disabled, onConfigUpdate, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, fieldData.fieldName, customColor, isEditingLabel, typography, handleLabelBlur, handleLabelKeyDown, editedLabel]);
+    ), [disabled, onConfigUpdate, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, fieldData.fieldName, customColor, isEditingLabel, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
 
     if (typeof onConfigUpdate !== "function") {
         return SwitchElement;
