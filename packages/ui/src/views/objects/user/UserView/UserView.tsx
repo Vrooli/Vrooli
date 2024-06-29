@@ -39,10 +39,10 @@ import { ChatShape } from "utils/shape/models/chat";
 import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
 
-export const UserView = ({
+export function UserView({
     display,
     onClose,
-}: UserViewProps) => {
+}: UserViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [{ pathname }, setLocation] = useLocation();
@@ -487,7 +487,6 @@ export const UserView = ({
                     <SearchList
                         {...findManyData}
                         display={display}
-                        dummyLength={display === "page" ? 5 : 3}
                         handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
@@ -522,4 +521,4 @@ export const UserView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

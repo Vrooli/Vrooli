@@ -21,12 +21,12 @@ import { ParticipantManageViewProps } from "../types";
 /**
  * View participants and invited participants of an chat
  */
-export const ParticipantManageView = ({
+export function ParticipantManageView({
     chat,
     display,
     onClose,
     isOpen,
-}: ParticipantManageViewProps) => {
+}: ParticipantManageViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -78,9 +78,9 @@ export const ParticipantManageView = ({
         } as const));
         setInvitesToUpsert(asInvites);
     }, [chat.id, currTab.key, selectedData]);
-    const onInviteCompleted = (invites: ChatInvite[]) => {
+    function onInviteCompleted(invites: ChatInvite[]) {
         setInvitesToUpsert([]);
-    };
+    }
 
     // Handle deleting participants
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<ListObject>({
@@ -183,7 +183,6 @@ export const ParticipantManageView = ({
                     {...findManyData}
                     id="participant-manage-list"
                     display={display}
-                    dummyLength={display === "page" ? 5 : 3}
                     handleToggleSelect={handleToggleSelect}
                     isSelecting={isSelecting}
                     selectedItems={selectedData}
@@ -214,4 +213,4 @@ export const ParticipantManageView = ({
             </SideActionsButtons>
         </MaybeLargeDialog>
     );
-};
+}

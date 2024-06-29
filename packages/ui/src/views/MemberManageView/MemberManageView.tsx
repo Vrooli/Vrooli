@@ -14,12 +14,12 @@ import { MemberManageViewProps } from "../types";
 /**
  * View members and invited members of a team
  */
-export const MemberManageView = ({
+export function MemberManageView({
     display,
     onClose,
     isOpen,
     team,
-}: MemberManageViewProps) => {
+}: MemberManageViewProps) {
     console.log("in MemberManageView", team);
 
     const {
@@ -120,7 +120,6 @@ export const MemberManageView = ({
                 {...findManyData}
                 id="member-manage-list"
                 display={display}
-                dummyLength={display === "page" ? 5 : 3}
                 sxs={showSearchFilters ? {
                     search: { marginTop: 2 },
                     listContainer: { borderRadius: 0 },
@@ -140,4 +139,4 @@ export const MemberManageView = ({
             </SideActionsButtons> */}
         </MaybeLargeDialog>
     );
-};
+}

@@ -31,10 +31,10 @@ import { PubSub } from "utils/pubsub";
 import { TeamPageTabOption, teamTabParams } from "utils/search/objectToSearch";
 import { TeamViewProps } from "../types";
 
-export const TeamView = ({
+export function TeamView({
     display,
     onClose,
-}: TeamViewProps) => {
+}: TeamViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -272,7 +272,6 @@ export const TeamView = ({
                             <SearchList
                                 {...findManyData}
                                 display={display}
-                                dummyLength={display === "page" ? 5 : 3}
                                 handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="team-view-list"
@@ -304,4 +303,4 @@ export const TeamView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

@@ -22,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { CompleteIcon, LinkIcon, SearchIcon } from "icons";
+import { CompleteIcon, LinkIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -32,6 +32,7 @@ import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { ApiShape } from "utils/shape/models/api";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
 import { validateFormValues } from "utils/validateFormValues";
+import { SearchExistingButton } from "../../../../components/buttons/SearchExistingButton/SearchExistingButton";
 import { ApiFormProps, ApiUpsertProps } from "../types";
 
 const apiInitialValues = (
@@ -158,20 +159,10 @@ function ApiForm({
                 onClose={onClose}
                 title={t(isCreate ? "CreateApi" : "UpdateApi")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Api}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing apis
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Api}"`}
+                text="Search existing apis"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}

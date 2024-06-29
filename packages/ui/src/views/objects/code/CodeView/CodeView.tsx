@@ -1,5 +1,6 @@
 import { CodeVersion, CommentFor, LINKS, ResourceList as ResourceListType, Tag, endpointGetCodeVersion, exists, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, IconButton, Stack, useTheme } from "@mui/material";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -18,7 +19,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { AddIcon, EditIcon, SearchIcon } from "icons";
+import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -32,11 +33,11 @@ import { TagShape } from "utils/shape/models/tag";
 import { codeInitialValues } from "../CodeUpsert/CodeUpsert";
 import { CodeViewProps } from "../types";
 
-export const CodeView = ({
+export function CodeView({
     display,
     isOpen,
     onClose,
-}: CodeViewProps) => {
+}: CodeViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -145,20 +146,10 @@ export const CodeView = ({
                         isOpen={true}
                         sxs={{ titleContainer: { marginBottom: 1 } }}
                     >
-                        <Button
-                            href={`${LINKS.SearchVersion}?type=${SearchVersionPageTabOption.RoutineVersion}&codeVersionId=${existing.id}`}
-                            sx={{
-                                color: palette.background.textSecondary,
-                                display: "flex",
-                                marginBottom: 2,
-                                textAlign: "center",
-                                textTransform: "none",
-                            }}
-                            variant="text"
-                            endIcon={<SearchIcon />}
-                        >
-                            {t("RoutinesConnected", { count: existing?.calledByRoutineVersionsCount ?? 0 })}
-                        </Button>
+                        <SearchExistingButton
+                            href={`${LINKS.SearchVersion}?type="${SearchVersionPageTabOption.RoutineVersion}"&codeVersionId="${existing.id}"`}
+                            text={t("RoutinesConnected", { count: existing?.calledByRoutineVersionsCount ?? 0 })}
+                        />
                         {permissions.canUpdate && <Button
                             fullWidth
                             onClick={() => { }}
@@ -216,4 +207,4 @@ export const CodeView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

@@ -1,7 +1,8 @@
 import { DUMMY_ID, LINKS, Session, Team, TeamCreateInput, TeamUpdateInput, endpointGetTeam, endpointPostTeam, endpointPutTeam, noopSubmit, orDefault, teamTranslationValidation, teamValidation } from "@local/shared";
-import { Button, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -20,7 +21,6 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { SearchIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -52,7 +52,7 @@ const teamInitialValues = (
 const transformTeamValues = (values: TeamShape, existing: TeamShape, isCreate: boolean) =>
     isCreate ? shapeTeam.create(values) : shapeTeam.update(existing, values);
 
-const TeamForm = ({
+function TeamForm({
     disabled,
     dirty,
     display,
@@ -67,7 +67,7 @@ const TeamForm = ({
     onDeleted,
     values,
     ...props
-}: TeamFormProps) => {
+}: TeamFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -128,20 +128,10 @@ const TeamForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateTeam" : "UpdateTeam")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Team}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing teams
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Team}"`}
+                text="Search existing teams"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -207,14 +197,14 @@ const TeamForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const TeamUpsert = ({
+export function TeamUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: TeamUpsertProps) => {
+}: TeamUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Team, TeamShape>({
@@ -244,4 +234,4 @@ export const TeamUpsert = ({
             />}
         </Formik>
     );
-};
+}

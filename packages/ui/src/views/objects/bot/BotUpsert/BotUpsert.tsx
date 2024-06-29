@@ -1,7 +1,8 @@
 import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LINKS, LlmTask, noopSubmit, Session, User } from "@local/shared";
-import { Button, Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
@@ -21,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, PersonaIcon, RoutineValidIcon, SearchIcon, TeamIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -282,20 +283,10 @@ function BotForm({
                 onClose={onClose}
                 title={t(isCreate ? "CreateBot" : "UpdateBot")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.User}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing bots
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.User}"&isBot=true`}
+                text="Search existing bots"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}

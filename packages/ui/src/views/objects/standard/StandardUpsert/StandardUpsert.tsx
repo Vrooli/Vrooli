@@ -2,6 +2,7 @@ import { DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endp
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
@@ -22,7 +23,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BuildIcon, HelpIcon, SearchIcon, VisibleIcon } from "icons";
+import { BuildIcon, HelpIcon, VisibleIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -169,20 +170,10 @@ function StandardForm({
                 onClose={onClose}
                 title={t(isCreate ? "CreateStandard" : "UpdateStandard")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Standard}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing standards
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Standard}"`}
+                text="Search existing standards"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
