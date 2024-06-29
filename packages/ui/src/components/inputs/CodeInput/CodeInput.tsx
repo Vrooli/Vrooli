@@ -866,6 +866,7 @@ export function CodeInputBase({
                         <LazyCodeMirror
                             key={`code-editor-${editorKey}`}
                             id={id}
+                            readOnly={disabled}
                             ref={codeMirrorRef as any}
                             value={content}
                             theme={palette.mode === "dark" ? "dark" : "light"}
