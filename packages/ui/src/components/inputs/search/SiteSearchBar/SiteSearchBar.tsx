@@ -1,19 +1,25 @@
 import { AutocompleteOption, BookmarkFor } from "@local/shared";
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, useTheme } from "@mui/material";
+import { Autocomplete, AutocompleteHighlightChangeReason, AutocompleteRenderInputParams, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, styled, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
 import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
 import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
-import { ChangeEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, HTMLAttributes, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getLocalStorageKeys } from "utils/localStorage";
 import { performAction } from "utils/navigation/quickActions";
 import { SiteSearchBarProps } from "../types";
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
+
+const DEFAULT_DEBOUNCE_MS = 200;
+const MAX_HISTORY_LENGTH = 500;
+
+function getAutocompleteOptionLabel(option: AutocompleteOption) { return option.label ?? ""; }
 
 /**
  * Gets search history from local storage, unique by search bar and account
@@ -41,7 +47,8 @@ function getSearchHistory(searchBarId: string, userId: string): { [label: string
  * @param userId The user ID
  * @param options The options to check
  */
-function updateHistoryItems(searchBarId: string, userId: string, options: AutocompleteOption[]) {
+function updateHistoryItems(searchBarId: string, userId: string, options: AutocompleteOption[] | undefined) {
+    if (!options) return;
     // Find all search history objects in localStorage
     const searchHistoryKeys = getLocalStorageKeys({
         prefix: "search-history-",
@@ -115,14 +122,59 @@ function typeToIcon(type: string, fill: string): JSX.Element | null {
     return Icon ? <Icon fill={fill} /> : null;
 }
 
-const FullWidthPopper = function (props: PopperProps) {
+interface PopperComponentProps extends PopperProps {
+    clientWidth: number | null | undefined
+    parentWidth: number | null | undefined
+}
+
+const PopperComponent = styled(Popper, {
+    shouldForwardProp: (prop) => prop !== "clientWidth" && prop !== "parentWidth",
+})<PopperComponentProps>(({ clientWidth, parentWidth }) => ({
+    left: "-12px!important",
+    minWidth: parentWidth ?? clientWidth ?? "fit-content",
+    maxWidth: "100%",
+}));
+
+function FullWidthPopper(props: PopperProps) {
     const parentWidth = props.anchorEl && (props.anchorEl as HTMLElement).parentElement ? (props.anchorEl as HTMLElement).parentElement?.clientWidth : null;
-    return <Popper {...props} sx={{
-        left: "-12px!important",
-        minWidth: parentWidth ?? (props.anchorEl as HTMLElement)?.clientWidth ?? "fit-content",
-        maxWidth: "100%",
-    }} placement="bottom-start" /> as JSX.Element;
-};
+
+    return <PopperComponent
+        {...props}
+        clientWidth={(props.anchorEl as HTMLElement)?.clientWidth}
+        parentWidth={parentWidth}
+        placement="bottom-start"
+    />;
+}
+
+function NoPopper() {
+    return null;
+}
+
+const loadingIndicatorStyle = { marginRight: 1 } as const;
+const searchIconStyle = { width: "48px", height: "48px" } as const;
+const optionIconStyle = { display: { xs: "none", sm: "block" } } as const;
+const bookmarkStyle = { root: { marginRight: 1 } } as const;
+const listItemTextStyle = {
+    "& .MuiTypography-root": {
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+    },
+} as const;
+const inputStyle = {
+    ml: 1,
+    flex: 1,
+    // Drop down should be as large as the full width of the screen
+    "& .MuiAutocomplete-popper": {
+        width: "100vw!important",
+        left: "0",
+        right: "0",
+        // The drop down should be below the search bar
+        "& .MuiPaper-root": {
+            marginTop: "0",
+        },
+    },
+} as const;
 
 /**
  * A customized search bar for searching user-generated content, quick actions, and shortcuts. 
@@ -131,13 +183,12 @@ const FullWidthPopper = function (props: PopperProps) {
 export function SiteSearchBar({
     id = "search-bar",
     placeholder,
-    options = [],
+    options,
     value,
     onChange,
     onInputChange,
-    debounce = 200,
+    debounce = DEFAULT_DEBOUNCE_MS,
     loading = false,
-    showSecondaryLabel = false,
     sxs,
     ...props
 }: SiteSearchBarProps) {
@@ -168,8 +219,11 @@ export function SiteSearchBar({
         handleChange(value);
     }, [handleChange]);
 
-    const [optionsWithHistory, setOptionsWithHistory] = useState<AutocompleteOption[]>(options);
+    const [optionsWithHistory, setOptionsWithHistory] = useState<readonly AutocompleteOption[]>(options ?? []);
     useEffect(() => {
+        if (!options) {
+            return;
+        }
         // Grab history from local storage
         const searchHistory = getSearchHistory(id, userId ?? "");
         // Filter out history keys that don't contain internal value
@@ -178,8 +232,8 @@ export function SiteSearchBar({
         filteredHistory = filteredHistory.sort((a, b) => { return b[1].timestamp - a[1].timestamp; });
         // Convert history keys to options
         let historyOptions: AutocompleteOption[] = filteredHistory.map(([, value]) => ({ ...value.option, isFromHistory: true }));
-        // Limit to 5 options
-        historyOptions = historyOptions.slice(0, 5);
+        // Limit size
+        historyOptions = historyOptions.slice(0, DUMMY_LIST_LENGTH);
         // Filter out options that are in history (use id to check)
         const filteredOptions = options.filter(option => !historyOptions.some(historyOption => historyOption.id === option.id));
         // If any options have a bookmarks/isBookmarked values which differs from history, update history
@@ -213,9 +267,7 @@ export function SiteSearchBar({
                     <CircularProgress
                         color="secondary"
                         size={20}
-                        sx={{
-                            marginRight: 1,
-                        }}
+                        sx={loadingIndicatorStyle}
                     />
                     {t("Loading")}
                 </>
@@ -234,7 +286,7 @@ export function SiteSearchBar({
         // Add to search history
         const existingHistory = getSearchHistory(id, userId ?? "");
         // If history has more than 500 entries, remove the oldest
-        if (Object.keys(existingHistory).length > 500) {
+        if (Object.keys(existingHistory).length > MAX_HISTORY_LENGTH) {
             const oldestKey = Object.keys(existingHistory).sort((a, b) => existingHistory[a].timestamp - existingHistory[b].timestamp)[0];
             delete existingHistory[oldestKey];
         }
@@ -259,7 +311,7 @@ export function SiteSearchBar({
         onInputChange(option);
     }, [id, onChangeDebounced, onInputChange, session, userId]);
 
-    const onSubmit = useCallback((event: React.SyntheticEvent<Element, Event>, value: AutocompleteOption | null, reason: AutocompleteChangeReason, details?: AutocompleteChangeDetails<any> | undefined) => {
+    const onSubmit = useCallback(function onSubmitCallback() {
         // If there is a highlighted option, use that
         if (highlightedOption) {
             handleSelect(highlightedOption);
@@ -293,6 +345,124 @@ export function SiteSearchBar({
         }
     }, [highlightedOption, onChangeDebounced]);
 
+    // Stop default onSubmit, since this reloads the page for some reason
+    const stopDefaultSubmit = useCallback(function stopDefaultSubmitHandler(event: FormEvent<HTMLDivElement>) {
+        event.preventDefault();
+        event.stopPropagation();
+    }, []);
+
+    const autocompleteSx = useMemo(function autocompleteSxMemo() {
+        return {
+            ...(sxs?.root ?? {}),
+            "& .MuiAutocomplete-inputRoot": {
+                paddingRight: "0 !important",
+            },
+            // Make sure menu is at least as wide as the search bar
+            "& .MuiAutocomplete-popper": {
+                minWidth: "100vw",
+            },
+        };
+    }, [sxs?.root]);
+
+    const paperSx = useMemo(function paperSxMemo() {
+        return {
+            ...(sxs?.paper ?? {}),
+            p: "2px 4px",
+            display: "flex",
+            alignItems: "center",
+            borderRadius: "10px",
+        };
+    }, [sxs?.paper]);
+
+    const renderOption = useCallback(function renderOptionCallback(props: HTMLAttributes<HTMLLIElement>, option: AutocompleteOption) {
+        function onOptionClick() {
+            const label = option.label ?? "";
+            setInternalValue(label);
+            onChangeDebounced(label);
+            handleSelect(option);
+        }
+        function onBookmarkChange(isBookmarked: boolean, event: any) {
+            handleBookmark(option, isBookmarked, event);
+        }
+        function onDeleteClick(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
+            event.stopPropagation();
+            removeFromHistory(option);
+        }
+        const optionStyle = { color: optionColor(option.isFromHistory, false) } as const;
+
+        return (
+            <MenuItem
+                {...props}
+                key={option.id}
+                onClick={onOptionClick}
+                sx={optionStyle}
+            >
+                {/* Show history icon if from history */}
+                {option.isFromHistory && (
+                    <ListItemIcon sx={optionIconStyle}>
+                        <HistoryIcon fill={optionColor(true, false)} />
+                    </ListItemIcon>
+                )}
+                {/* Object icon */}
+                <ListItemIcon>
+                    {typeToIcon(option.__typename, optionColor(option.isFromHistory, true))}
+                </ListItemIcon>
+                {/* Object title */}
+                <ListItemText sx={listItemTextStyle}>
+                    {option.label}
+                </ListItemText>
+                {/* Bookmark button */}
+                {option.__typename !== "Shortcut" && option.__typename !== "Action" && option.bookmarks !== undefined && <BookmarkButton
+                    isBookmarked={option.isBookmarked}
+                    objectId={option.id}
+                    onChange={onBookmarkChange}
+                    showBookmarks={true}
+                    bookmarkFor={option.__typename as unknown as BookmarkFor}
+                    bookmarks={option.bookmarks}
+                    sxs={bookmarkStyle}
+                />}
+                {/* If history, show delete icon */}
+                {option.isFromHistory && <Tooltip placement='right' title='Remove'>
+                    <IconButton size="small" onClick={onDeleteClick}>
+                        <DeleteIcon fill={optionColor(true, true)} />
+                    </IconButton>
+                </Tooltip>}
+            </MenuItem>
+        );
+    }, [handleBookmark, handleSelect, onChangeDebounced, optionColor, removeFromHistory]);
+
+    const renderInput = useCallback(function renderInputCallback(params: AutocompleteRenderInputParams) {
+        return (
+            <Paper
+                component="form"
+                sx={paperSx}
+            >
+                <Input
+                    id={params.id}
+                    disabled={params.disabled}
+                    disableUnderline={true}
+                    fullWidth={true}
+                    value={internalValue}
+                    onChange={handleChangeEvent}
+                    placeholder={t(`${placeholder ?? "Search"}`) + "..."}
+                    autoFocus={props.autoFocus ?? false}
+                    // {...params.InputLabelProps}
+                    inputProps={params.inputProps}
+                    ref={params.InputProps.ref}
+                    size={params.size}
+                    sx={inputStyle}
+                />
+                <MicrophoneButton onTranscriptChange={handleChange} />
+                <IconButton sx={searchIconStyle} aria-label="main-search-icon">
+                    <SearchIcon fill={palette.background.textSecondary} />
+                </IconButton>
+            </Paper>
+        );
+    }, [handleChange, handleChangeEvent, internalValue, palette.background.textSecondary, paperSx, placeholder, props.autoFocus, t]);
+
+    // If no options were passed (not even an empty array), then we probably don't want to see it
+    const PopperComponent = useMemo(() => options !== undefined ? FullWidthPopper : NoPopper, [options]);
+
     return (
         <Autocomplete
             disablePortal
@@ -301,132 +471,15 @@ export function SiteSearchBar({
             onHighlightChange={onHighlightChange}
             onKeyDown={onKeyDown}
             inputValue={internalValue}
-            getOptionLabel={(option: AutocompleteOption) => option.label ?? ""}
-            // Stop default onSubmit, since this reloads the page for some reason
-            onSubmit={(event: any) => {
-                event.preventDefault();
-                event.stopPropagation();
-            }}
+            getOptionLabel={getAutocompleteOptionLabel}
+            onSubmit={stopDefaultSubmit}
             // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
             onChange={onSubmit}
-            PopperComponent={FullWidthPopper}
-            renderOption={(props, option) => {
-                return (
-                    <MenuItem
-                        {...props}
-                        key={option.id}
-                        onClick={() => {
-                            const label = option.label ?? "";
-                            setInternalValue(label);
-                            onChangeDebounced(label);
-                            handleSelect(option);
-                        }}
-                        sx={{
-                            color: optionColor(option.isFromHistory, false),
-                        }}
-                    >
-                        {/* Show history icon if from history */}
-                        {option.isFromHistory && (
-                            <ListItemIcon sx={{ display: { xs: "none", sm: "block" } }}>
-                                <HistoryIcon fill={optionColor(true, false)} />
-                            </ListItemIcon>
-                        )}
-                        {/* Object icon */}
-                        <ListItemIcon>
-                            {typeToIcon(option.__typename, optionColor(option.isFromHistory, true))}
-                        </ListItemIcon>
-                        {/* Object title */}
-                        <ListItemText sx={{
-                            "& .MuiTypography-root": {
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                            },
-                        }}>
-                            {option.label}
-                        </ListItemText>
-                        {/* Bookmark button */}
-                        {option.__typename !== "Shortcut" && option.__typename !== "Action" && option.bookmarks !== undefined && <BookmarkButton
-                            isBookmarked={option.isBookmarked}
-                            objectId={option.id}
-                            onChange={(isBookmarked, event) => handleBookmark(option, isBookmarked, event)}
-                            showBookmarks={true}
-                            bookmarkFor={option.__typename as unknown as BookmarkFor}
-                            bookmarks={option.bookmarks}
-                            sxs={{ root: { marginRight: 1 } }}
-                        />}
-                        {/* If history, show delete icon */}
-                        {option.isFromHistory && <Tooltip placement='right' title='Remove'>
-                            <IconButton size="small" onClick={(event) => {
-                                event.stopPropagation();
-                                removeFromHistory(option);
-                            }}>
-                                <DeleteIcon fill={optionColor(true, true)} />
-                            </IconButton>
-                        </Tooltip>}
-                    </MenuItem>
-                );
-            }}
-            renderInput={(params) => (
-                <Paper
-                    component="form"
-                    sx={{
-                        ...(sxs?.paper ?? {}),
-                        p: "2px 4px",
-                        display: "flex",
-                        alignItems: "center",
-                        borderRadius: "10px",
-                    }}
-                >
-                    <Input
-                        id={params.id}
-                        disabled={params.disabled}
-                        disableUnderline={true}
-                        fullWidth={true}
-                        value={internalValue}
-                        onChange={handleChangeEvent}
-                        placeholder={t(`${placeholder ?? "Search"}`) + "..."}
-                        autoFocus={props.autoFocus ?? false}
-                        // {...params.InputLabelProps}
-                        inputProps={params.inputProps}
-                        ref={params.InputProps.ref}
-                        size={params.size}
-                        sx={{
-                            width: "100vw",
-                            ml: 1,
-                            flex: 1,
-                            // Drop down should be as large as the full width of the screen
-                            "& .MuiAutocomplete-popper": {
-                                width: "100vw!important",
-                                left: "0",
-                                right: "0",
-                                // The drop down should be below the search bar
-                                "& .MuiPaper-root": {
-                                    marginTop: "0",
-                                },
-                            },
-                        }}
-                    />
-                    <MicrophoneButton onTranscriptChange={handleChange} />
-                    <IconButton sx={{
-                        width: "48px",
-                        height: "48px",
-                    }} aria-label="main-search-icon">
-                        <SearchIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Paper>
-            )}
+            PopperComponent={PopperComponent}
+            renderOption={renderOption}
+            renderInput={renderInput}
             noOptionsText={noOptionsText}
-            sx={{
-                ...(sxs?.root ?? {}),
-                "& .MuiAutocomplete-inputRoot": {
-                    paddingRight: "0 !important",
-                },
-                // Make sure menu is at least as wide as the search bar
-                "& .MuiAutocomplete-popper": {
-                    minWidth: "100vw",
-                },
-            }}
+            sx={autocompleteSx}
         />
     );
 }
