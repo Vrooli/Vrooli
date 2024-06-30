@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, InputType, LINKS, Node, NodeLink, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, Node, NodeLink, noop, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
 import { Avatar, Box, Button, Card, Checkbox, Divider, FormControlLabel, Grid, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -7,6 +7,7 @@ import { ContentCollapse } from "components/containers/ContentCollapse/ContentCo
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SelectOrCreateObject } from "components/dialogs/types";
+import { CodeInputBase, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
@@ -35,13 +36,14 @@ import { getCurrentUser } from "utils/authentication/session";
 import { AVAILABLE_MODELS, DEFAULT_MODEL, getModelDescription, getModelName, LlmModel } from "utils/botUtils";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { initializeRoutineGraph } from "utils/runUtils";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
 import { BotShape } from "utils/shape/models/bot";
+import { CodeVersionShape, CodeVersionTranslationShape } from "utils/shape/models/codeVersion";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -50,7 +52,7 @@ import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { validateFormValues } from "utils/validateFormValues";
 import { BuildView } from "views/objects/routine/BuildView/BuildView";
-import { BuildViewProps, RoutineFormProps, RoutineUpsertProps } from "../types";
+import { BuildRoutineVersion, BuildViewProps, RoutineFormProps, RoutineUpsertProps } from "../types";
 
 const routineTypeTitleSxs = { stack: { paddingLeft: 0 } } as const;
 
@@ -125,11 +127,34 @@ const RoutineApiForm = memo(function RoutineApiFormMemo({
     );
 });
 
+type CodeObjectInfo = Pick<CodeVersionShape, "__typename" | "id" | "codeLanguage" | "content"> & {
+    translations?: Pick<CodeVersionTranslationShape, "id" | "name" | "description" | "jsonVariable" | "language">[];
+};
+
+const findCodeLimitTo = ["Code"] as const;
+
 const RoutineCodeForm = memo(function RoutineCodeFormMemo({
     isEditing,
 }: {
     isEditing: boolean;
 }) {
+    const { palette } = useTheme();
+    const session = useContext(SessionContext);
+    const [codeObject, setCodeObject] = useState<CodeObjectInfo | null>(null);
+    const [isCodeSearchOpen, setIsCodeSearchOpen] = useState(false);
+
+    const closeCodeSearch = useCallback((selected?: SelectOrCreateObject) => {
+        setIsCodeSearchOpen(false);
+        if (selected) {
+            setCodeObject(selected as unknown as CodeObjectInfo);
+        }
+    }, []);
+
+    const handleCodeButtonClick = useCallback(() => {
+        if (codeObject) setCodeObject(null);
+        else setIsCodeSearchOpen(true);
+    }, [codeObject]);
+
     return (
         <>
             <Title
@@ -139,8 +164,55 @@ const RoutineCodeForm = memo(function RoutineCodeFormMemo({
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
             />
-            {/* TODO inputs/outputs */}
+            {isEditing && (
+                <Button
+                    fullWidth
+                    color="secondary"
+                    variant="contained"
+                    onClick={handleCodeButtonClick}
+                    startIcon={codeObject ? <MinusIcon /> : <AddIcon />}
+                >
+                    {codeObject ? "Remove code" : "Choose code"}
+                </Button>
+            )}
+            {isCodeSearchOpen && (
+                <FindObjectDialog
+                    find="Full"
+                    isOpen={isCodeSearchOpen}
+                    handleCancel={closeCodeSearch}
+                    handleComplete={closeCodeSearch}
+                    limitTo={findCodeLimitTo}
+                />
+            )}
+            {codeObject && (
+                <Box display="flex" flexDirection="column" gap={1}>
+                    <Typography variant="h6">{getTranslation(codeObject, getCurrentUser(session).languages).name}</Typography>
+                    <Typography variant="body2" color={palette.background.textSecondary}>
+                        {getTranslation(codeObject, getCurrentUser(session).languages).description}
+                    </Typography>
+                    <CodeInputBase
+                        codeLanguage={codeObject.codeLanguage as CodeLanguage}
+                        content={codeObject.content}
+                        disabled={true}
+                        handleCodeLanguageChange={noop}
+                        handleContentChange={noop}
+                        name="content"
+                    />
+                </Box>
+            )}
+            <Title
+                title="Inputs"
+                help="Define the inputs that will be passed to the code. Any input without a default value will be entered by the user at runtime."
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
             <FormBuildView />
+            <Title
+                title="Outputs"
+                help="Define the outputs that the code is expected to return. If the code fails or does not return the expected data, the routine will fail."
+                variant="subsection"
+                sxs={routineTypeTitleSxs}
+            />
             <FormBuildView />
         </>
     );
@@ -177,10 +249,6 @@ function getBotStyleLabel(option: BotStyleOption) { return option.label; }
 
 const findBotLimitTo = ["User"] as const;
 const findBotWhere = { isBot: true };
-const generateInputFormLimits = {
-    headers: { types: [] },
-    inputs: { types: [InputType.Text] },
-} as const;
 const BOT_AVATAR_IMG_SRC_TARGET_SIZE = 100;
 
 const BotCardOuter = styled(Card)(({ theme }) => ({
@@ -350,7 +418,7 @@ const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
             />
-            <FormBuildView limits={generateInputFormLimits} />
+            <FormBuildView />
         </>
     );
 });
@@ -375,6 +443,7 @@ const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
     nodeLinks,
     nodes,
     routineId,
+    translations,
     translationData,
 }: {
     isEditing: boolean;
@@ -385,13 +454,15 @@ const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
     nodeLinks: NodeLinkShape[];
     nodes: NodeShape[];
     routineId: string;
+    translations: BuildRoutineVersion["translations"];
     translationData: BuildViewProps["translationData"];
 }) {
     const routineVersion = useMemo(() => ({
         id: routineId,
-        nodeLinks: nodeLinks as NodeLink[],
-        nodes: nodes as Node[],
-    }), [nodeLinks, nodes, routineId]);
+        nodeLinks: (nodeLinks ?? []) as NodeLink[],
+        nodes: (nodes ?? []) as Node[],
+        translations: (translations ?? []) as BuildRoutineVersion["translations"],
+    }), [nodeLinks, nodes, routineId, translations]);
 
     return (
         <>
@@ -462,7 +533,6 @@ function RoutineForm({
 }: RoutineFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { palette } = useTheme();
 
     // Handle translations
     const {
@@ -486,6 +556,7 @@ function RoutineForm({
 
     // Formik fields we need to access and/or set values for
     const [idField] = useField<string>("id");
+    const [translationsField, , translationsHelpers] = useField<RoutineVersion["translations"]>("translations");
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
     const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>("nodeLinks");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("inputs");
@@ -508,12 +579,13 @@ function RoutineForm({
         }
         setIsGraphOpen(true);
     }, [idField.value, language, nodeLinksField.value, nodeLinksHelpers, nodesField.value, nodesHelpers]);
-    const handleGraphClose = useCallback(() => { console.log("yeet"); setIsGraphOpen(false); }, [setIsGraphOpen]);
-    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion["nodes"], nodeLinks: RoutineVersion["nodeLinks"] }) => {
+    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks, translations }: BuildRoutineVersion) => {
         nodesHelpers.setValue(nodes);
         nodeLinksHelpers.setValue(nodeLinks);
+        translationsHelpers.setValue(translations);
         setIsGraphOpen(false);
-    }, [nodeLinksHelpers, nodesHelpers]);
+    }, [nodeLinksHelpers, nodesHelpers, translationsHelpers]);
 
     // Generate AI routine data
     const [model, setModel] = useState<LlmModel | null>(null);
@@ -633,12 +705,13 @@ function RoutineForm({
                     nodeLinks={nodeLinksField.value}
                     nodes={nodesField.value}
                     routineId={idField.value}
+                    translations={translationsField.value}
                     translationData={translationData}
                 />;
             case RoutineType.SmartContract:
                 return <RoutineSmartContractForm isEditing={isEditing} />;
         }
-    }, [handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, isGraphOpen, model, nodeLinksField.value, nodesField.value, routineType, translationData]);
+    }, [handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, isGraphOpen, model, nodeLinksField.value, nodesField.value, routineType, translationData, translationsField.value]);
 
     return (
         <MaybeLargeDialog
@@ -662,7 +735,7 @@ function RoutineForm({
                 maxWidth={700}
             >
                 <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={display === "page"} sxs={{ titleContainer: { marginBottom: 1 } }}>
                         <RelationshipList
                             isEditing={true}
                             objectType={"Routine"}
@@ -788,6 +861,8 @@ export function RoutineUpsert({
         return await validateFormValues(values as RoutineVersionShape, existing, isCreate, transformRoutineVersionValues, routineVersionValidation);
     }
 
+    const versions = useMemo(() => (existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? [], [existing]);
+
     return (
         <Formik
             enableReinitialize={true}
@@ -803,7 +878,7 @@ export function RoutineUpsert({
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
                 isSubroutine={isSubroutine}
-                versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
+                versions={versions}
                 {...props}
                 {...formik}
             />}

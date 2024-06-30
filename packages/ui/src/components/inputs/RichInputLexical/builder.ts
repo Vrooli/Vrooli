@@ -23,7 +23,7 @@ const CODE_BLOCK_REG_EXP = /^```(\w{1,10})?\s?$/;
 /**
  * Escapes special characters in a string to prevent them from being interpreted as regex symbols.
  */
-const escapeSpecialCharacters = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+function escapeSpecialCharacters(text: string) { return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"); }
 
 /**
  * Finds first "<tag>content<tag>" match that is not nested into another tag
@@ -31,10 +31,10 @@ const escapeSpecialCharacters = (text: string) => text.replace(/[-[\]{}()*+?.,\\
  * @param textTransformersIndex - Information about available text transformers
  * @returns Tuple of start tag and content match or null if no match found
  */
-const findOutermostMatch = (
+function findOutermostMatch(
     textContent: string,
     textTransformersIndex: TextMatchTransformersIndex,
-): [string, RegExpMatchArray] | null => {
+): [string, RegExpMatchArray] | null {
     const openTagsMatch = textContent.match(textTransformersIndex.openTagsRegExp);
     if (!openTagsMatch) {
         return null;
@@ -58,7 +58,7 @@ const findOutermostMatch = (
         }
     }
     return null;
-};
+}
 
 /**
  * Processes text content and replaces text format tags.

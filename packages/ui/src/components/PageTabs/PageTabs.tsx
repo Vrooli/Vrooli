@@ -5,7 +5,7 @@ import { useWindowSize } from "hooks/useWindowSize";
 import { createRef, useCallback, useEffect, useRef } from "react";
 import { TabStateColors, TabsInfo } from "utils/search/objectToSearch";
 
-export const PageTabs = <TabList extends TabsInfo>({
+export function PageTabs<TabList extends TabsInfo>({
     ariaLabel,
     currTab,
     fullWidth = false,
@@ -14,7 +14,7 @@ export const PageTabs = <TabList extends TabsInfo>({
     onChange,
     tabs,
     sx,
-}: PageTabsProps<TabList>) => {
+}: PageTabsProps<TabList>) {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -24,14 +24,14 @@ export const PageTabs = <TabList extends TabsInfo>({
 
     // Handle dragging of tabs
     const draggingRef = useRef(false);
-    const handleMouseDown = (e: React.MouseEvent) => {
+    function handleMouseDown(e: React.MouseEvent) {
         if (tabsRef.current) {
             const startX = e.clientX;
             const scrollLeft = tabsRef.current.scrollLeft;
             const minimumDistance = 10; // Minimum distance in pixels for a drag
             let distanceMoved = 0; // Track the distance moved
 
-            const handleMouseMove = (e: MouseEvent) => {
+            function handleMouseMove(e: MouseEvent) {
                 if (!tabsRef.current) return;
 
                 const x = e.clientX;
@@ -44,23 +44,23 @@ export const PageTabs = <TabList extends TabsInfo>({
                 }
                 // But still move the tabs even if it's not considered a drag
                 tabsRef.current.scrollLeft = scrollLeft - walk;
-            };
+            }
 
-            const handleMouseUp = () => {
+            function handleMouseUp() {
                 // Only set draggingRef to false if it was considered a drag
                 if (distanceMoved > minimumDistance) {
                     setTimeout(() => { draggingRef.current = false; }, 50);
                 }
                 document.removeEventListener("mousemove", handleMouseMove);
                 document.removeEventListener("mouseup", handleMouseUp);
-            };
+            }
 
             document.addEventListener("mousemove", handleMouseMove);
             document.addEventListener("mouseup", handleMouseUp);
         }
 
         e.preventDefault();
-    };
+    }
 
     const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
         if (draggingRef.current) return;
@@ -83,7 +83,7 @@ export const PageTabs = <TabList extends TabsInfo>({
         const duration = 300;
         const startTime = performance.now();
 
-        const animateScroll = (time: number) => {
+        function animateScroll(time: number) {
             // Calculate the linear progress of the animation
             const linearProgress = Math.min((time - startTime) / duration, 1);
 
@@ -96,7 +96,7 @@ export const PageTabs = <TabList extends TabsInfo>({
             if (linearProgress < 1) {
                 requestAnimationFrame(animateScroll);
             }
-        };
+        }
 
         requestAnimationFrame(animateScroll);
     }, [currTab.index]);
@@ -130,12 +130,12 @@ export const PageTabs = <TabList extends TabsInfo>({
     useEffect(() => {
         const tabsContainer = tabsRef.current;
         if (tabsContainer) {
-            const handleScroll = () => {
+            function handleScroll() {
                 if (underlineRef.current) {
                     underlineRef.current.style.transition = "none";
                 }
                 updateUnderline();
-            };
+            }
             tabsContainer.addEventListener("scroll", handleScroll);
             return () => {
                 tabsContainer.removeEventListener("scroll", handleScroll);
@@ -145,9 +145,9 @@ export const PageTabs = <TabList extends TabsInfo>({
 
     // Update underline on window resize
     useEffect(() => {
-        const handleResize = () => {
+        function handleResize() {
             updateUnderline();
-        };
+        }
         window.addEventListener("resize", handleResize);
         return () => {
             window.removeEventListener("resize", handleResize);
@@ -243,4 +243,4 @@ export const PageTabs = <TabList extends TabsInfo>({
             />
         </Box>
     );
-};
+}

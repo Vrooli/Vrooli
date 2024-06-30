@@ -20,10 +20,10 @@ import { SearchVersionViewProps } from "../types";
 /**
  * Uncommon search page for versioned objects
  */
-export const SearchVersionView = ({
+export function SearchVersionView({
     display,
     onClose,
-}: SearchVersionViewProps) => {
+}: SearchVersionViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -45,7 +45,7 @@ export const SearchVersionView = ({
         where: where(),
     });
 
-    const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const onCreateStart = useCallback(function onCreateStartCallback(e: React.MouseEvent<HTMLElement>) {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
@@ -57,7 +57,7 @@ export const SearchVersionView = ({
         else setLocation(addUrl);
     }, [searchType, setLocation, userId]);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-version-search-page-list"); };
+    function focusSearch() { scrollIntoFocusedView("search-bar-version-search-page-list"); }
 
     return (
         <>
@@ -80,7 +80,6 @@ export const SearchVersionView = ({
                 {...findManyData}
                 id="version-search-page-list"
                 display={display}
-                dummyLength={display === "page" ? 5 : 3}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionsButtons display={display}>
@@ -95,4 +94,4 @@ export const SearchVersionView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

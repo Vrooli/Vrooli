@@ -167,7 +167,7 @@ export const decodeValue = (value: unknown): unknown => {
  * @param params Object with key/value pairs, representing search params
  * @returns string of search params, matching the format of window.location.search
  */
-export const stringifySearchParams = (params: ParseSearchParamsResult) => {
+export function stringifySearchParams(params: ParseSearchParamsResult) {
     const keys = Object.keys(params).filter(key => params[key] != null && params[key] !== undefined);
     const encodedParams = keys.map(key => {
         try {
@@ -178,13 +178,13 @@ export const stringifySearchParams = (params: ParseSearchParamsResult) => {
         }
     }).filter(param => param !== null).join("&");
     return encodedParams ? `?${encodedParams}` : "";
-};
+}
 
 /**
  * Converts url search params to object
  * @returns Object with key/value pairs, or empty object if no params
  */
-export const parseSearchParams = (): ParseSearchParamsResult => {
+export function parseSearchParams(): ParseSearchParamsResult {
     const params = new URLSearchParams(window.location.search);
     const obj = {};
     for (const [key, value] of params) {
@@ -195,7 +195,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
         }
     }
     return obj;
-};
+}
 
 /**
  * Converts a string to a BigInt

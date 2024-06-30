@@ -1,5 +1,5 @@
 import { DUMMY_ID, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { Box, IconButton, styled, TextField, Typography, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -14,6 +14,7 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { SessionContext } from "contexts/SessionContext";
+import { useEditableLabel } from "hooks/useEditableLabel";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
@@ -21,9 +22,10 @@ import { CloseIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
+import { multiLineEllipsis } from "styles";
 import { BuildAction, Status } from "utils/consts";
 import { setCookieAllowFormCache } from "utils/cookies";
-import { getUserLanguages } from "utils/display/translationTools";
+import { getTranslation, getUserLanguages, updateTranslationFields } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
@@ -33,7 +35,7 @@ import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { NodeWithRoutineListShape } from "views/objects/node/types";
-import { BuildViewProps } from "../types";
+import { BuildRoutineVersion, BuildViewProps } from "../types";
 
 /** Maximum number of nodes allowed in a column */
 const MAX_ROW_SIZE = 100;
@@ -58,8 +60,37 @@ function generateNewLink(fromId: string, toId: string, routineVersionId: string)
     };
 }
 
-// RoutineVersion with fields required for the build view
-type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
+const NavbarBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: "8px",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    zIndex: 2,
+    height: "48px",
+    width: "100%",
+    background: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    paddingLeft: "calc(8px + env(safe-area-inset-left))",
+    paddingRight: "calc(8px + env(safe-area-inset-right))",
+    "@media print": {
+        display: "none",
+    },
+}));
+
+const NavbarContent = styled(Box)(() => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: "8px",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    flexGrow: 1,
+}));
+
+
+const closeIconStyle = {
+    right: "env(safe-area-inset-right)",
+} as const;
 
 export function BuildView({
     display,
@@ -73,10 +104,18 @@ export function BuildView({
     translationData,
 }: BuildViewProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { palette, typography } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
+
+    const { id, name } = useMemo(() => {
+        let id = "";
+        let name = "";
+        if (!routineVersion) return { id, name };
+        id = routineVersion.id;
+        name = getTranslation(routineVersion, translationData.languages)?.name ?? "";
+        return { id, name };
+    }, [routineVersion, translationData.languages]);
 
     const stableRoutineVersion = useStableObject(routineVersion);
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
@@ -1003,6 +1042,52 @@ export function BuildView({
         );
     }, [translationData, isEditing]);
 
+    const updateLabel = useCallback((updatedLabel: string) => {
+        const updatedTranslations = updateTranslationFields<BuildRoutineVersion["translations"][0], BuildRoutineVersion>(
+            changedRoutineVersion,
+            translationData.language,
+            { name: updatedLabel },
+        );
+        addToChangeStack({
+            ...changedRoutineVersion,
+            translations: updatedTranslations,
+        });
+    }, [addToChangeStack, changedRoutineVersion, translationData.language]);
+    const {
+        editedLabel,
+        handleLabelChange,
+        handleLabelKeyDown,
+        isEditingLabel,
+        labelEditRef,
+        startEditingLabel,
+        submitLabelChange,
+    } = useEditableLabel({
+        isEditable: isEditing,
+        label: name,
+        onUpdate: updateLabel,
+    });
+    const labelStyle = useMemo(() => {
+        return {
+            cursor: "pointer",
+            paddingLeft: "4px",
+            paddingRight: "8px",
+            maxWidth: "50vw",
+            ...multiLineEllipsis(1),
+            ...((typography["h5" as keyof typeof typography]) as object || {}),
+        };
+    }, [typography]);
+    const labelInputProps = useMemo(() => ({
+        style: {
+            ...labelStyle,
+        },
+        inputProps: {
+            style: {
+                paddingTop: 0,
+                paddingBottom: 0,
+            },
+        },
+    }), [labelStyle]);
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -1082,46 +1167,38 @@ export function BuildView({
                     open={Boolean(openedSubroutine)}
                     onClose={closeSubroutineDialog}
                 />
-                {/* Navbar */}
-                <Stack
-                    id="build-routine-information-bar"
-                    direction="row"
-                    spacing={1}
-                    width="100%"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="flex-start"
-                    sx={{
-                        zIndex: 2,
-                        height: "48px",
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        paddingLeft: "calc(8px + env(safe-area-inset-left))",
-                        paddingRight: "calc(8px + env(safe-area-inset-right))",
-                        "@media print": {
-                            display: "none",
-                        },
-                    }}
-                >
-                    <StatusButton status={status.status} messages={status.messages} />
-                    {/* Language */}
-                    {languageComponent}
-                    {/* Help button */}
-                    <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
-                    {/* Close Icon */}
+                <NavbarBox id="build-routine-information-bar">
+                    <NavbarContent>
+                        {isEditingLabel ? <TextField
+                            ref={labelEditRef}
+                            fullWidth
+                            InputProps={labelInputProps}
+                            onBlur={submitLabelChange}
+                            onChange={handleLabelChange}
+                            onKeyDown={handleLabelKeyDown}
+                            value={editedLabel}
+                            variant="outlined"
+                        /> : <Typography
+                            onClick={startEditingLabel}
+                            variant="h5"
+                            sx={labelStyle}
+                        >{name || "Enter name..."}</Typography>}
+                        <StatusButton status={status.status} messages={status.messages} />
+                        {/* Language */}
+                        {languageComponent}
+                        {/* Help button */}
+                        <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
+                    </NavbarContent>
                     <IconButton
                         edge="start"
                         aria-label="close"
                         onClick={handleClose}
                         color="inherit"
-                        sx={{
-                            position: "absolute",
-                            right: "env(safe-area-inset-right)",
-                        }}
+                        sx={closeIconStyle}
                     >
                         <CloseIcon width='32px' height='32px' />
                     </IconButton>
-                </Stack>
+                </NavbarBox>
                 {/* Buttons displayed when editing (except for submit/cancel) */}
                 <GraphActions
                     canRedo={canRedo}

@@ -5,7 +5,7 @@
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Node, NodeType } from "@local/shared";
-import { Box, Stack, useTheme } from "@mui/material";
+import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { usePinchZoom } from "hooks/usePinchZoom";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "utils/display/stringTools";
@@ -20,7 +20,91 @@ type DragRefs = {
     timeout: NodeJS.Timeout | null; // Timeout for scrolling the graph
 }
 
-export const NodeGraph = ({
+/**
+ * Checks if a point is inside a rectangle
+ * @param point - The point to check
+ * @param id - The ID of the rectangle to check
+ * @param padding - The padding to add to the rectangle
+ * @returns True if position is within the bounds of a rectangle
+ */
+function isInsideRectangle(point: { x: number, y: number }, id: string, padding = 25) {
+    const rectangle = document.getElementById(id)?.getBoundingClientRect();
+    if (!rectangle) return false;
+    const zone = {
+        xStart: rectangle.x - padding,
+        yStart: rectangle.y - padding,
+        xEnd: rectangle.x + rectangle.width + padding * 2,
+        yEnd: rectangle.y + rectangle.height + padding * 2,
+    };
+    return Boolean(
+        point.x >= zone.xStart &&
+        point.x <= zone.xEnd &&
+        point.y >= zone.yStart &&
+        point.y <= zone.yEnd,
+    );
+}
+
+// Positive modulo function
+function mod(n: number, m: number) { return ((n % m) + m) % m; }
+
+const GraphBox = styled(Box)(() => ({
+    cursor: "move",
+    // Disable zooming, selection, and text highlighting
+    touchAction: "none",
+    msTouchAction: "none",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none",
+    WebkitTouchCallout: "none",
+    KhtmlUserSelect: "none",
+    minWidth: "100%",
+    // Graph fills remaining space that is not taken up by other elements (i.e. navbar). 
+    height: "calc(100vh - 48px)",
+    margin: 0,
+    padding: 0,
+    overflowX: "auto",
+    overflowY: "auto",
+    position: "relative",
+    // Hide scrollbars
+    "&::-webkit-scrollbar": {
+        display: "none",
+    },
+}));
+
+interface ColumnBoxProps extends BoxProps {
+    scale: number;
+}
+
+const ColumnBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "scale",
+})<ColumnBoxProps>(({ theme, scale }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: 0,
+    zIndex: 5,
+    width: "fit-content",
+    minWidth: "100vw",
+    minHeight: "100%",
+    paddingLeft: "env(safe-area-inset-left)",
+    paddingRight: "env(safe-area-inset-right)",
+    // Create grid background pattern on stack, so it scrolls with content
+    "--line-color": theme.palette.mode === "light" ? "rgba(0 0 0 / .05)" : "rgba(255 255 255 / .05)",
+    "--line-thickness": "1px",
+    // Minor length is 1/5 of major length, and is always between 25 and 50 pixels
+    "--minor-length": `${mod(scale * 12.5, 25) + 25}px`,
+    "--major-length": `${mod(scale * 62.5, 125) + 125}px`,
+    "--line": "var(--line-color) 0 var(--line-thickness)",
+    "--small-body": "transparent var(--line-thickness) var(--minor-length)",
+    "--large-body": "transparent var(--line-thickness) var(--major-length)",
+
+    "--small-squares": "repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))",
+
+    "--large-squares": "repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))",
+    background: "var(--small-squares), var(--large-squares)",
+}));
+
+export function NodeGraph({
     columns,
     handleAction,
     handleBranchInsert,
@@ -37,7 +121,7 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale,
-}: NodeGraphProps) => {
+}: NodeGraphProps) {
     const { palette } = useTheme();
 
     // Stores edges
@@ -74,12 +158,12 @@ export const NodeGraph = ({
     /**
      * When a node is being dragged near the edge of the grid, the grid scrolls
      */
-    const nodeScroll = useCallback(() => {
+    const nodeScroll = useCallback(function nodeScrollCallback() {
         const gridElement = document.getElementById("graph-root");
         if (!gridElement) return;
         if (dragRefs.current.currPosition === null) return;
         const { x, y } = dragRefs.current.currPosition;
-        const calculateSpeed = (useX: boolean) => {
+        function calculateSpeed(useX: boolean) {
             if (dragRefs.current.currPosition === null) {
                 dragRefs.current.speed = 0;
                 return;
@@ -92,11 +176,11 @@ export const NodeGraph = ({
             const minSpeed = 5;
             const percent = 1 - (distToEdge) / (sideLength * 0.15);
             dragRefs.current.speed = (maxSpeed - minSpeed) * percent + minSpeed;
-        };
-        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0); };
-        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0); };
-        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed); };
-        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed); };
+        }
+        function scrollLeft() { gridElement?.scrollBy(-dragRefs.current.speed, 0); }
+        function scrollRight() { gridElement?.scrollBy(dragRefs.current.speed, 0); }
+        function scrollUp() { gridElement?.scrollBy(0, -dragRefs.current.speed); }
+        function scrollDown() { gridElement?.scrollBy(0, dragRefs.current.speed); }
 
         // If near the left edge, move the grid left. If near the right edge, move the grid right.
         let horizontalMove: boolean | null = null; // Store left right move, or no horizontal move
@@ -116,34 +200,10 @@ export const NodeGraph = ({
         dragRefs.current.timeout = setTimeout(nodeScroll, 50);
     }, []);
 
-    const clearScroll = () => {
+    function clearScroll() {
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
         dragRefs.current = { currPosition: null, speed: 0, timeout: null };
-    };
-
-    /**
-     * Checks if a point is inside a rectangle
-     * @param point - The point to check
-     * @param id - The ID of the rectangle to check
-     * @param padding - The padding to add to the rectangle
-     * @returns True if position is within the bounds of a rectangle
-     */
-    const isInsideRectangle = (point: { x: number, y: number }, id: string, padding = 25) => {
-        const rectangle = document.getElementById(id)?.getBoundingClientRect();
-        if (!rectangle) return false;
-        const zone = {
-            xStart: rectangle.x - padding,
-            yStart: rectangle.y - padding,
-            xEnd: rectangle.x + rectangle.width + padding * 2,
-            yEnd: rectangle.y + rectangle.height + padding * 2,
-        };
-        return Boolean(
-            point.x >= zone.xStart &&
-            point.x <= zone.xEnd &&
-            point.y >= zone.yStart &&
-            point.y <= zone.yEnd,
-        );
-    };
+    }
 
     /**
      * Makes sure drop is valid, then updates order of nodes
@@ -211,10 +271,10 @@ export const NodeGraph = ({
     // Set listeners for:
     // - click-and-drag grid
     // - drag-and-drop nodes
-    useEffect(() => {
+    useEffect(function dragAndDropListenerEffect() {
         // True if user touched the grid instead of a node or edge
         let touchedGrid = false;
-        const handleStart = (x: number, y: number, targetId: string | null) => {
+        function handleStart(x: number, y: number, targetId: string | null) {
             // Find target
             if (!targetId) return;
             // If touching the grid or a node
@@ -224,8 +284,8 @@ export const NodeGraph = ({
                 // Otherwise, set dragRef
                 else dragRefs.current.currPosition = { x, y };
             }
-        };
-        const handleMove = (x: number, y: number) => {
+        }
+        function handleMove(x: number, y: number) {
             // I the grid is being dragged, move the grid
             if (touchedGrid && dragRefs.current.currPosition) {
                 const gridElement = document.getElementById("graph-root");
@@ -236,17 +296,17 @@ export const NodeGraph = ({
             }
             // drag
             dragRefs.current.currPosition = { x, y };
-        };
-        const handleEnd = () => {
+        }
+        function handleEnd() {
             touchedGrid = false;
             clearScroll();
-        };
-        const onMouseDown = (ev: MouseEvent) => handleStart(ev.clientX, ev.clientY, (ev as any)?.target.id);
-        const onTouchStart = (ev: TouchEvent<any> | any) => handleStart(ev.touches[0].clientX, ev.touches[0].clientY, (ev as any)?.target.id);
-        const onMouseUp = handleEnd;
-        const onTouchEnd = handleEnd;
-        const onMouseMove = (ev: MouseEvent) => handleMove(ev.clientX, ev.clientY);
-        const onTouchMove = (ev: any) => handleMove(ev.touches[0].clientX, ev.touches[0].clientY);
+        }
+        function onMouseDown(ev: MouseEvent) { return handleStart(ev.clientX, ev.clientY, (ev as any)?.target.id); }
+        function onTouchStart(ev: TouchEvent<any> | any) { return handleStart(ev.touches[0].clientX, ev.touches[0].clientY, (ev as any)?.target.id); }
+        function onMouseUp() { return handleEnd(); }
+        function onTouchEnd() { return handleEnd(); }
+        function onMouseMove(ev: MouseEvent) { return handleMove(ev.clientX, ev.clientY); }
+        function onTouchMove(ev: any) { return handleMove(ev.touches[0].clientX, ev.touches[0].clientY); }
         // Add event listeners
         window.addEventListener("mousedown", onMouseDown); // Detects if node or graph is being dragged
         window.addEventListener("mouseup", onMouseUp); // Stops dragging and pinching
@@ -256,15 +316,15 @@ export const NodeGraph = ({
         window.addEventListener("touchend", onTouchEnd); // Stops dragging and pinching
         // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
-        const dragStartSub = PubSub.get().subscribe("nodeDrag", (data) => {
+        const dragStartSub = PubSub.get().subscribe("nodeDrag", function nodeDragSub(data) {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
             setDragId(data.nodeId);
         });
-        const dragDropSub = PubSub.get().subscribe("nodeDrop", (data) => {
+        const dragDropSub = PubSub.get().subscribe("nodeDrop", function nodeDropSub(data) {
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
-        const fastUpdateSub = PubSub.get().subscribe("fastUpdate", (data) => {
+        const fastUpdateSub = PubSub.get().subscribe("fastUpdate", function fastUpdateSub(data) {
             setFastUpdate(data.on ?? false);
             fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false); }, data.duration);
         });
@@ -335,59 +395,14 @@ export const NodeGraph = ({
         />);
     }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale]);
 
-    // Positive modulo function
-    const mod = (n: number, m: number) => ((n % m) + m) % m;
-
     return (
-        <Box id="graph-root" position="relative" sx={{
-            cursor: "move",
-            // Disable zooming, selection, and text highlighting
-            touchAction: "none",
-            msTouchAction: "none",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            MozUserSelect: "none",
-            msUserSelect: "none",
-            WebkitTouchCallout: "none",
-            KhtmlUserSelect: "none",
-            minWidth: "100%",
-            // Graph fills remaining space that is not taken up by other elements (i.e. navbar). 
-            height: "calc(100vh - 48px)",
-            margin: 0,
-            padding: 0,
-            overflowX: "auto",
-            overflowY: "auto",
-            // Hide scrollbars
-            "&::-webkit-scrollbar": {
-                display: "none",
-            },
-        }}>
+        <GraphBox id="graph-root">
             {/* Edges */}
             {edges}
-            <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
-                width: "fit-content",
-                minWidth: "100vw",
-                minHeight: "100%",
-                paddingLeft: "env(safe-area-inset-left)",
-                paddingRight: "env(safe-area-inset-right)",
-                // Create grid background pattern on stack, so it scrolls with content
-                "--line-color": palette.mode === "light" ? "rgba(0 0 0 / .05)" : "rgba(255 255 255 / .05)",
-                "--line-thickness": "1px",
-                // Minor length is 1/5 of major length, and is always between 25 and 50 pixels
-                "--minor-length": `${mod(scale * 12.5, 25) + 25}px`,
-                "--major-length": `${mod(scale * 62.5, 125) + 125}px`,
-                "--line": "var(--line-color) 0 var(--line-thickness)",
-                "--small-body": "transparent var(--line-thickness) var(--minor-length)",
-                "--large-body": "transparent var(--line-thickness) var(--major-length)",
-
-                "--small-squares": "repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))",
-
-                "--large-squares": "repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))",
-                background: "var(--small-squares), var(--large-squares)",
-            }}>
+            <ColumnBox id="graph-grid" scale={scale}>
                 {/* Nodes */}
                 {nodeColumns}
-            </Stack>
-        </Box>
+            </ColumnBox>
+        </GraphBox>
     );
-};
+}

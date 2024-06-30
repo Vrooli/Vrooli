@@ -123,3 +123,10 @@ export const InputTypeOptions: InputTypeOption[] = [
 export const DUMMY_LIST_LENGTH = 5;
 /** Number of dummy items on mobile or shorter components */
 export const DUMMY_LIST_LENGTH_SHORT = 3;
+/** Determines dummy list length to use for component */
+export function getDummyListLength(display: "dialog" | "page" | "partial") {
+    return display === "page" ? DUMMY_LIST_LENGTH : DUMMY_LIST_LENGTH_SHORT;
+}
+
+/** Limit for chips displayed in multi selector components */
+export const CHIP_LIST_LIMIT = 3;

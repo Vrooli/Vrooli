@@ -35,7 +35,7 @@ const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
 /**
  * Toolbar for changing calendar view and navigating between dates
  */
-const CustomToolbar = (props) => {
+function CustomToolbar(props) {
     const { breakpoints, palette, spacing } = useTheme();
     const { t } = useTranslation();
     const { label, onView, view, onNavigate } = props;
@@ -99,12 +99,12 @@ const CustomToolbar = (props) => {
             </Box>
         </Box >
     );
-};
+}
 
 /**
  * Day header for Month view. Use
  */
-const DayColumnHeader = ({ label }) => {
+function DayColumnHeader({ label }) {
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
 
@@ -116,12 +116,12 @@ const DayColumnHeader = ({ label }) => {
             {isMobile ? getShortenedLabel(label) : label}
         </Box>
     );
-};
+}
 
-export const CalendarView = ({
+export function CalendarView({
     display,
     onClose,
-}: CalendarViewProps) => {
+}: CalendarViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
@@ -134,7 +134,7 @@ export const CalendarView = ({
     });
 
     useEffect(() => {
-        const localeLoader = async () => {
+        async function localeLoader() {
             try {
                 const localeModule = await loadLocale(locale);
 
@@ -151,7 +151,7 @@ export const CalendarView = ({
             } catch (error) {
                 console.error("Failed to load locale:", error);
             }
-        };
+        }
 
         localeLoader();
     }, [locale]);
@@ -371,4 +371,4 @@ export const CalendarView = ({
             </SideActionsButtons>
         </Box>
     );
-};
+}

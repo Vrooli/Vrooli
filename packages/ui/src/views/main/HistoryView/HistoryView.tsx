@@ -12,11 +12,11 @@ import { useLocation } from "route";
 import { SearchType, historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
-export const HistoryView = ({
+export function HistoryView({
     display,
     isOpen,
     onClose,
-}: HistoryViewProps) => {
+}: HistoryViewProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -56,7 +56,6 @@ export const HistoryView = ({
                     {...findManyData}
                     id="history-page-list"
                     display={display}
-                    dummyLength={display === "page" ? 5 : 3}
                     sxs={{ search: { marginTop: 2 } }}
                 />
             }
@@ -73,4 +72,4 @@ export const HistoryView = ({
             }
         </>
     );
-};
+}

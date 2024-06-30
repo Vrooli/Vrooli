@@ -124,15 +124,6 @@ export function TeamView({
         setObject: setTeam,
     });
 
-    /**
-     * Opens add new page
-     */
-    const toAddNew = useCallback((event: any) => {
-        // TODO need member page
-        if (currTab.key === TeamPageTabOption.Member) return;
-        setLocation(`${LINKS[currTab.key]}/add`);
-    }, [currTab, setLocation]);
-
     return (
         <>
             <TopBar
@@ -272,7 +263,6 @@ export function TeamView({
                             <SearchList
                                 {...findManyData}
                                 display={display}
-                                handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="team-view-list"
                                 searchPlaceholder={searchPlaceholderKey}

@@ -22,7 +22,7 @@ const viewStatsLink = LINKS.Stats;
 
 const pagesWithFooter: string[] = [LINKS.About, LINKS.Pro, LINKS.Privacy, LINKS.Signup, LINKS.Login, LINKS.ForgotPassword, LINKS.ResetPassword, LINKS.Terms];
 
-export const Footer = () => {
+export function Footer() {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -122,4 +122,4 @@ export const Footer = () => {
             }} />
         </>
     );
-};
+}

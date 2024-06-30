@@ -7,13 +7,13 @@ export type LlmModel = {
     value: string,
 };
 export const AVAILABLE_MODELS: LlmModel[] = [{
-    name: "Claude 3 Sonnet",
+    name: "Claude 3.5 Sonnet",
     description: "Anthropic's fastest model (recommended)",
-    value: AnthropicModel.Sonnet,
+    value: AnthropicModel.Sonnet3_5,
 }, {
     name: "Claude 3 Opus",
     description: "Anthropic's most advanced model",
-    value: AnthropicModel.Opus,
+    value: AnthropicModel.Opus3,
 }, {
     name: "GPT-3.5 Turbo",
     description: "OpenAI's fastest model",
@@ -36,8 +36,19 @@ export const AVAILABLE_MODELS: LlmModel[] = [{
     //     value: "open-mixtral-8x7b",
     // }];
 }];
+export function getModelName(option: LlmModel) {
+    return option.name;
+}
+export function getModelDescription(option: LlmModel) {
+    return option.description;
+}
 
-export const findBotData = (
+export const DEFAULT_MODEL = AnthropicModel.Sonnet3_5;
+
+const DEFAULT_CREATIVITY = 0.5; // Must be between 0 and 1
+const DEFAULT_VERBOSITY = 0.5; // Must be between 0 and 1
+
+export function findBotData(
     language: string,
     existing?: Partial<User> | BotShape | null | undefined,
 ): {
@@ -45,11 +56,11 @@ export const findBotData = (
     verbosity?: number | null,
     model: LlmModel["value"],
     translations: BotTranslationShape[],
-} => {
+} {
     const settings = toBotSettings(existing, console);
     const settingsTranslation = settings?.translations?.[language];
-    const creativity = settingsTranslation?.creativity ?? (settings as { creativity?: number })?.creativity ?? 0.5;
-    const verbosity = settingsTranslation?.verbosity ?? (settings as { verbosity?: number })?.verbosity ?? 0.5;
+    const creativity = settingsTranslation?.creativity ?? (settings as { creativity?: number })?.creativity ?? DEFAULT_CREATIVITY;
+    const verbosity = settingsTranslation?.verbosity ?? (settings as { verbosity?: number })?.verbosity ?? DEFAULT_VERBOSITY;
 
     // Default values so formik is happy
     const defaultTranslation = {
@@ -105,9 +116,9 @@ export const findBotData = (
     }
 
     return {
-        creativity: creativity >= 0 && creativity <= 1 ? creativity : 0.5,
-        verbosity: verbosity >= 0 && verbosity <= 1 ? verbosity : 0.5,
+        creativity: creativity >= 0 && creativity <= 1 ? creativity : DEFAULT_CREATIVITY,
+        verbosity: verbosity >= 0 && verbosity <= 1 ? verbosity : DEFAULT_VERBOSITY,
         model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : OpenAIModel.Gpt3_5Turbo,
         translations,
     };
-};
+}

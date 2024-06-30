@@ -20,10 +20,10 @@ import { SearchViewProps } from "../types";
 /**
  * Search page for teams, projects, routines, standards, users, and other main objects
  */
-export const SearchView = ({
+export function SearchView({
     display,
     onClose,
-}: SearchViewProps) => {
+}: SearchViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -45,7 +45,7 @@ export const SearchView = ({
         where: where(),
     });
 
-    const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const onCreateStart = useCallback(function onCreateStartCallback(e: React.MouseEvent<HTMLElement>) {
         // If tab is 'All', go to "Create" page
         if (searchType === SearchType.Popular) {
             setLocation(LINKS.Create);
@@ -62,7 +62,7 @@ export const SearchView = ({
         else setLocation(addUrl);
     }, [searchType, setLocation, userId]);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-main-search-page-list"); };
+    function focusSearch() { scrollIntoFocusedView("search-bar-main-search-page-list"); }
 
     return (
         <>
@@ -85,7 +85,6 @@ export const SearchView = ({
                 {...findManyData}
                 id="main-search-page-list"
                 display={display}
-                dummyLength={display === "page" ? 5 : 3}
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionsButtons display={display}>
@@ -100,4 +99,4 @@ export const SearchView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

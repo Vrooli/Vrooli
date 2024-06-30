@@ -1,5 +1,6 @@
 import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
+import { FindObjectTabOption } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
@@ -140,6 +141,7 @@ export interface LinkInputBaseProps {
     helperText?: string | boolean | null | undefined;
     key?: string;
     label?: string;
+    limitTo?: FindObjectTabOption[];
     name: string;
     onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (newLink: string) => unknown;
@@ -324,16 +326,17 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     disabled?: boolean;
     fullWidth?: boolean;
     getOptionDescription?: (option: T) => string | null | undefined;
-    getOptionIcon?: (option: T) => SvgComponent | JSX.Element;
+    getOptionIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
     getOptionLabel: (option: T) => string | null | undefined;
     inputAriaLabel?: string;
+    isRequired?: boolean,
     label?: string;
     multiple?: false;
     name: string;
     noneOption?: boolean;
+    noneText?: string;
     onChange?: (value: T | null) => unknown;
     options: T[];
-    required?: boolean;
     sx?: SxType;
     tabIndex?: number;
 }

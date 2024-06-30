@@ -17,6 +17,7 @@ export function LinkInputBase({
     fullWidth,
     helperText,
     label,
+    limitTo,
     name = "link",
     onBlur,
     onChange,
@@ -77,6 +78,7 @@ export function LinkInputBase({
             <FindObjectDialog
                 find="Url"
                 isOpen={searchOpen}
+                limitTo={limitTo}
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
             />

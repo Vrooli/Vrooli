@@ -178,7 +178,6 @@ export type SearchListProps<T extends OrArray<ListObject>> =
          * an annoying grow/shrink effect.
          */
         dummyLength?: number;
-        handleAdd?: (event?: any) => unknown; // Not shown if not passed
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
         id: string;

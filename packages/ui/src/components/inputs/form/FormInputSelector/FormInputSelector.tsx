@@ -99,12 +99,12 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
             fullWidth
             getOptionLabel={props.getOptionLabel}
             inputAriaLabel={props.inputAriaLabel}
+            isRequired={fieldData.isRequired}
             label={props.label}
             name={fieldData.fieldName}
             noneOption={props.noneOption}
             onChange={handleChange}
             options={props.options}
-            required={fieldData.isRequired}
             value={typeof onConfigUpdate === "function" ? props.options?.find(option => option.value === field.value) : field.value}
             getOptionDescription={props.getOptionDescription}
             getOptionIcon={props.getOptionIcon}

@@ -89,12 +89,12 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
  * @returns The filtered tabs
  */
 export function getFilteredTabs(
-    limitTo: FindObjectTabOption[] | undefined,
+    limitTo: readonly FindObjectTabOption[] | undefined,
     onlyVersioned: boolean | undefined,
 ) {
     let filtered = findObjectTabParams;
-    // Apply limitTo filter
-    if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
+    // Apply limitTo filter if it's a non-empty array
+    if (Array.isArray(limitTo) && limitTo.length > 0) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
     // If onlyVersioned is true, filter out non-versioned tabs
     if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
     return filtered;
@@ -325,6 +325,10 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
         where,
     });
 
+    const createViewOverrideObject = useMemo(function createViewOverrideObjectMemo() {
+        return createObjectType ? { __typename: createObjectType } : undefined;
+    }, [createObjectType]);
+
     return (
         <>
             {CreateView && <CreateView
@@ -335,7 +339,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
                 onClose={handleCreateClose}
                 onCompleted={handleCreated}
                 onDeleted={handleCreateClose}
-                overrideObject={{ __typename: createObjectType }}
+                overrideObject={createViewOverrideObject}
             />}
             {/* Menu for selecting create object type */}
             {!CreateView && <Menu
@@ -394,7 +398,6 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
                         id="find-object-search-list"
                         canNavigate={() => false}
                         display="dialog"
-                        dummyLength={3}
                         onItemClick={onInputSelect}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}

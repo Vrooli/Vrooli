@@ -1,79 +1,69 @@
-import { GqlModelType } from "@local/shared";
-import { Autocomplete, Button, Chip, TextField, useTheme } from "@mui/material";
+import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { LinkInputBase } from "components/inputs/LinkInput/LinkInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { LinkItemFormInput, LinkItemFormInputProps, LinkItemLimitTo } from "forms/types";
+import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType } from "forms/types";
 import { TFunction } from "i18next";
+import { ApiIcon, HelpIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { SvgComponent } from "types";
+import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { FormInputProps } from "../types";
 
-// All = "All",
-// Api = "Api",
-// Code = "Code",
-// Note = "Note",
-// Project = "Project",
-// Question = "Question",
-// Routine = "Routine",
-// Standard = "Standard",
-// Team = "Team",
-// User = "User",
-
 type LimitTypeOption = {
+    Icon: SvgComponent;
     label: (t: TFunction<"common", undefined, "common">) => string;
-    value: LinkItemLimitTo["type"];
+    value: `${LinkItemType}`;
 }
 
 const limitTypeOptions: LimitTypeOption[] = [{
+    Icon: ApiIcon,
     label: t => t("common:Api", { count: 1, defaultValue: "Api" }),
-    value: SearchPageTabOption.Api,
+    value: "Api",
 }, {
+    Icon: TerminalIcon,
     label: t => t("common:Code", { count: 1, defaultValue: "Code" }),
-    value: SearchPageTabOption.Code,
+    value: "Code",
 }, {
+    Icon: NoteIcon,
     label: t => t("common:Note", { count: 1, defaultValue: "Note" }),
-    value: SearchPageTabOption.Note,
+    value: "Note",
 }, {
+    Icon: ProjectIcon,
     label: t => t("common:Project", { count: 1, defaultValue: "Project" }),
-    value: SearchPageTabOption.Project,
+    value: "Project",
 }, {
+    Icon: HelpIcon,
     label: t => t("common:Question", { count: 1, defaultValue: "Question" }),
-    value: SearchPageTabOption.Question,
+    value: "Question",
 }, {
+    Icon: RoutineIcon,
     label: t => t("common:Routine", { count: 1, defaultValue: "Routine" }),
-    value: SearchPageTabOption.Routine,
+    value: "Routine",
 }, {
+    Icon: StandardIcon,
     label: t => t("common:Standard", { count: 1, defaultValue: "Standard" }),
-    value: SearchPageTabOption.Standard,
+    value: "Standard",
 }, {
+    Icon: TeamIcon,
     label: t => t("common:Team", { count: 1, defaultValue: "Team" }),
-    value: SearchPageTabOption.Team,
+    value: "Team",
 }, {
+    Icon: UserIcon,
     label: t => t("common:User", { count: 1, defaultValue: "User" }),
-    value: SearchPageTabOption.User,
+    value: "User",
 }];
+const acceptedObjectTypes = limitTypeOptions.map(option => option.value);
 
 const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
-const MIN_HOST_LENGTH = 2;
-const MAX_HOST_LENGTH = 100;
-const invalidUrlCharRegex = /[ "<>#%{}|^~[\]`]/g;
+/** Only accept A-z */
+const invalidObjectTypeCharRegex = /[^a-zA-Z]/g;
 
-function withoutInvalidChars(url: string): string {
-    return url.replace(invalidUrlCharRegex, "");
-}
-
-
-function standardizeUrl(url: string): string {
-    try {
-        const cleaned = withoutInvalidChars(url);
-        const newUrl = new URL(cleaned.includes("://") ? cleaned : `https://${cleaned}`);
-        return newUrl.hostname.replace(/^www\./, "") + newUrl.pathname.replace(/\/$/, "");
-    } catch (error) {
-        return "";
-    }
+function withoutInvalidChars(str: string): string {
+    return str.replace(invalidObjectTypeCharRegex, "");
 }
 
 export function FormInputLinkItem({
@@ -82,6 +72,7 @@ export function FormInputLinkItem({
     onConfigUpdate,
 }: FormInputProps<LinkItemFormInput>) {
     const { palette, typography } = useTheme();
+    const { t } = useTranslation();
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
@@ -120,14 +111,26 @@ export function FormInputLinkItem({
         }
     }
 
+    const { availableObjectTypes, selectedObjectTypes } = useMemo(() => {
+        const available: LimitTypeOption[] = [];
+        const selected: LimitTypeOption[] = [];
+        limitTypeOptions.forEach(option => {
+            if (props.limitTo?.some(limit => limit.type === option.value)) {
+                selected.push(option);
+            } else {
+                available.push(option);
+            }
+        });
+        return { availableObjectTypes: available, selectedObjectTypes: selected };
+    }, [props.limitTo]);
     const [limitInputValue, setLimitInputValue] = useState<string>("");
-    const handleLimitAdd = useCallback(function handleLimitAddCallback(newType: string) {
-        const standardizedType = standardizeUrl(newType);
-        const updatedLimitTo = Array.isArray(props.limitTo) ? [...props.limitTo].map(host => standardizeUrl(host)) : [];
-        if (!updatedLimitTo.includes(standardizedType)) {
-            updatedLimitTo.push(standardizedType);
-            updateProp({ limitTo: updatedLimitTo as GqlModelType[] });
-        }
+    const handleLimitAdd = useCallback(function handleLimitAddCallback(newType: `${LinkItemType}`) {
+        const updatedLimitTo = [...(props.limitTo || [])].filter(limit => limit.type !== newType);
+        updatedLimitTo.push({
+            type: newType as LinkItemType,
+            variant: "any",
+        });
+        updateProp({ limitTo: updatedLimitTo });
         setLimitInputValue("");
     }, [props.limitTo, updateProp]);
     function handleLimitDelete(index: number) {
@@ -145,26 +148,15 @@ export function FormInputLinkItem({
         event.preventDefault();
         event.stopPropagation();
         // Check if the object type is valid 
-        //TODO
-        // Check if url is valid length
-        if (url.length < MIN_HOST_LENGTH) {
-            PubSub.get().publish("snack", { message: "Url too short", severity: "Error" });
-            return;
-        }
-        if (url.length > MAX_HOST_LENGTH) {
-            PubSub.get().publish("snack", { message: "Url too long", severity: "Error" });
+        if (!acceptedObjectTypes.includes(limitInputValue as LinkItemType)) {
+            PubSub.get().publish("snack", { message: "Invalid object type", severity: "Error" });
             return;
         }
         // Clear input
         setLimitInputValue("");
-        // Check if url is already selected
-        if ((props.limitTo ?? []).map(host => standardizeUrl(host)).includes(url)) {
-            PubSub.get().publish("snack", { message: "Url already selected", severity: "Error" });
-            return;
-        }
-        // Add url to list
-        handleLimitAdd(url);
-    }, [limitInputValue, handleLimitAdd, props.limitTo]);
+        // Add to list
+        handleLimitAdd(limitInputValue as LinkItemType);
+    }, [limitInputValue, handleLimitAdd]);
 
     const InputElement = useMemo(() => (
         <LinkInputBase
@@ -172,13 +164,14 @@ export function FormInputLinkItem({
             fullWidth
             error={meta.touched && !!meta.error}
             helperText={meta.touched && meta.error}
+            limitTo={props.limitTo?.map(limit => limit.type) ?? []}
             name={fieldData.fieldName}
             onChange={handleChange}
             placeholder={props.placeholder || (typeof onConfigUpdate === "function" ? "Enter default value..." : undefined)}
             sxs={{ root: { paddingTop: 1, paddintBottom: 1 } }}
             value={typeof onConfigUpdate === "function" ? props.defaultValue ?? 0 : field.value}
         />
-    ), [disabled, field.value, fieldData.fieldName, handleChange, meta.error, meta.touched, onConfigUpdate, props.defaultValue, props.placeholder]);
+    ), [disabled, field.value, fieldData.fieldName, handleChange, meta.error, meta.touched, onConfigUpdate, props.defaultValue, props.limitTo, props.placeholder]);
 
     if (typeof onConfigUpdate !== "function") {
         return InputElement;
@@ -204,22 +197,22 @@ export function FormInputLinkItem({
                         id={`accepted-object-types-input-${fieldData.fieldName}`}
                         fullWidth
                         freeSolo={true}
-                        getOptionKey={(option) => option}
-                        getOptionLabel={(option) => option}
-                        limitTags={3}
+                        getOptionKey={(option) => typeof option === "string" ? option : option.value}
+                        getOptionLabel={(option) => typeof option === "string" ? option : (option.label(t) ?? option.value)}
+                        limitTags={CHIP_LIST_LIMIT}
                         multiple
-                        options={[]}
-                        value={props.limitTo || []}
-                        defaultValue={props.limitTo || []}
+                        options={availableObjectTypes}
+                        value={selectedObjectTypes}
+                        defaultValue={selectedObjectTypes}
                         renderTags={(value, getTagProps) =>
                             value.map((option, index) => {
                                 return (
                                     <Chip
                                         {...getTagProps({ index })}
-                                        id={`tag-chip-${option}`}
-                                        key={option}
+                                        id={`accepted-object-type-chip-${option.value}`}
+                                        key={option.value}
                                         variant="filled"
-                                        label={option}
+                                        label={typeof option === "string" ? option : (option.label(t) ?? option.value)}
                                         onDelete={() => handleLimitDelete(index)}
                                         sx={{
                                             backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0",
@@ -247,6 +240,21 @@ export function FormInputLinkItem({
                                 fullWidth
                                 sx={{ paddingRight: 0, minWidth: "250px" }}
                             />
+                        )}
+                        renderOption={(props, option) => (
+                            <MenuItem
+                                {...props}
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    handleLimitAdd(option.value);
+                                }}
+                                selected={selectedObjectTypes.some(selected => selected.value === option.value)}
+                            >
+                                <ListItemIcon>
+                                    {typeof option === "string" ? null : <option.Icon />}
+                                </ListItemIcon>
+                                <ListItemText>{option.label(t)}</ListItemText>
+                            </MenuItem>
                         )}
                     />
                 </div>

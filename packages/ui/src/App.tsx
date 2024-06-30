@@ -500,8 +500,8 @@ export function App() {
                                     }
                                     <Routes sessionChecked={session !== undefined} />
                                 </Box>
-                                <BottomNav />
                                 <BannerChicken />
+                                <BottomNav />
                                 <Footer />
                             </Box>
                         </ZIndexProvider>

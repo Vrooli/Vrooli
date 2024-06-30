@@ -82,6 +82,8 @@ export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItem
     selectedItems?: readonly ListObject[],
 };
 
+const contextActionsExcluded = [ObjectAction.Comment, ObjectAction.FindInPage]; // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
+
 export function ObjectList<T extends OrArray<ListObject>>({
     canNavigate,
     dummyItems,
@@ -117,14 +119,26 @@ export function ObjectList<T extends OrArray<ListObject>>({
 
     // Generate real list items
     const realItems = useMemo(() => {
-        return stableItems?.map((item, index) => {
+        const usedKeys = new Set<string>();
+        return stableItems?.map((item) => {
             let curr = item;
             if (isOfType(curr, "Bookmark", "Reaction", "View")) {
                 curr = (curr as Partial<Bookmark | Reaction | View>).to as ListObject;
             }
+            // Checks to prevent duplicate keys
+            if (!curr.id) {
+                console.error("ObjectList: Item is missing an id", curr);
+                return null;
+            }
+            const key = `${keyPrefix}-${curr.id}`;
+            if (usedKeys.has(key)) {
+                console.error("ObjectList: Duplicate key", key);
+                return null;
+            }
+            usedKeys.add(key);
             return (
                 <MemoizedObjectListItem
-                    key={`${keyPrefix}-${curr.id}`}
+                    key={key}
                     canNavigate={canNavigate}
                     data={curr as ListObject}
                     handleContextMenu={contextData.handleContextMenu}
@@ -165,12 +179,12 @@ export function ObjectList<T extends OrArray<ListObject>>({
     }, [loading, dummyItems, keyPrefix, hideUpdateButton, isMobile, isSelecting]);
 
     return (
-        <Box ref={dimRef} sx={{ width: "100%" }}>
+        <Box ref={dimRef} width="100%">
             {/* Context menus */}
             <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={contextData.anchorEl}
-                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
+                exclude={contextActionsExcluded}
                 object={contextData.object}
                 onClose={contextData.closeContextMenu}
             />

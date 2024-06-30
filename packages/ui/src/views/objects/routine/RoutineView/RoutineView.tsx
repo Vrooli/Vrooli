@@ -179,6 +179,14 @@ export function RoutineView({
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
+    const translationData = useMemo(() => ({
+        language,
+        languages: availableLanguages,
+        setLanguage,
+        handleAddLanguage: noop,
+        handleDeleteLanguage: noop,
+    }), [availableLanguages, language, setLanguage]);
+
     return (
         <>
             <TopBar
@@ -211,13 +219,7 @@ export function RoutineView({
                         isOpen={isBuildOpen}
                         loading={isLoading}
                         routineVersion={existing as RoutineVersion}
-                        translationData={{
-                            language,
-                            languages: availableLanguages,
-                            setLanguage,
-                            handleAddLanguage: noop,
-                            handleDeleteLanguage: noop,
-                        }}
+                        translationData={translationData}
                     />
                     {/* Relationships */}
                     <RelationshipList

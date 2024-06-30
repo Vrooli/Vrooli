@@ -4,7 +4,7 @@ import { searchTypeToParams } from "../utils/search/objectToSearch";
 import { getUrlSearchParams, parseData, readyToSearch, updateSearchUrl, updateSortBy } from "./useFindMany";
 
 // Helper function to set window.location.search
-const setWindowSearch = (search) => {
+function setWindowSearch(search) {
     Object.defineProperty(window, "location", {
         value: {
             ...window.location,
@@ -12,7 +12,7 @@ const setWindowSearch = (search) => {
         },
         writable: true,
     });
-};
+}
 
 // Mock setLocation function
 const mockSetLocation = jest.fn((path, { replace, searchParams }) => {

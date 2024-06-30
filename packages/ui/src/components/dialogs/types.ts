@@ -85,10 +85,10 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
     handleCancel: () => unknown;
     handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
     isOpen: boolean;
-    limitTo?: FindObjectTabOption[];
+    limitTo?: readonly FindObjectTabOption[];
     /** Forces selection to be a version, and removes unversioned items from limitTo */
     onlyVersioned?: boolean;
-    where?: { [key: string]: object };
+    where?: Record<string, any>;
 }
 
 export interface FindSubroutineDialogProps {

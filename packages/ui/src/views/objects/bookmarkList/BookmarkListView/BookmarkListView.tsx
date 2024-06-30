@@ -121,7 +121,7 @@ export function BookmarkListView({
         onActionComplete: () => {
             const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
             if (hasPreviousPage) window.history.back();
-            else setLocation(`${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`, { replace: true });
+            else setLocation(`${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, { replace: true });
         },
     });
 

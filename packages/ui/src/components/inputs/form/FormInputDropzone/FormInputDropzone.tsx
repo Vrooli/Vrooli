@@ -4,6 +4,7 @@ import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { DropzoneFormInput, DropzoneFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
+import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
 import { FormInputProps } from "../types";
 
@@ -163,7 +164,7 @@ export function FormInputDropzone({
                         freeSolo={true}
                         getOptionKey={(option) => typeof option === "string" ? option : option.value}
                         getOptionLabel={(option) => typeof option === "string" ? option : `${option.label} (${option.value})`}
-                        limitTags={3}
+                        limitTags={CHIP_LIST_LIMIT}
                         multiple
                         options={commonFileTypes}
                         value={fileTypes}
@@ -210,11 +211,11 @@ export function FormInputDropzone({
                                 {...props}
                                 onClick={(event) => {
                                     event.preventDefault();
-                                    handleFileTypeAdd(typeof option === "string" ? option : option.value);
+                                    handleFileTypeAdd(option.value);
                                 }}
-                                selected={commonFileTypes.some(t => typeof option === "string" ? t.value === option : t.value === option.value)}
+                                selected={commonFileTypes.some(t => t.value === option.value)}
                             >
-                                <ListItemText>{typeof option === "string" ? option : `${option.label} (${option.value})`}</ListItemText>
+                                <ListItemText>{`${option.label} (${option.value})`}</ListItemText>
                             </MenuItem>
                         )}
                     />

@@ -54,7 +54,7 @@ const DEFAULT_USER_DATA = {
                                 }],
                             },
                         }, {
-                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type=Reminder`,
+                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type="Reminder"`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -63,7 +63,7 @@ const DEFAULT_USER_DATA = {
                                 }],
                             },
                         }, {
-                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type=Note`,
+                            link: `${UI_URL_REMOTE}${LINKS.MyStuff}?type="Note"`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -72,7 +72,7 @@ const DEFAULT_USER_DATA = {
                                 }],
                             },
                         }, {
-                            link: `${UI_URL_REMOTE}${LINKS.History}?type=RunsActive`,
+                            link: `${UI_URL_REMOTE}${LINKS.History}?type="RunsActive"`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -93,7 +93,7 @@ const DEFAULT_USER_DATA = {
                 create: {
                     resources: {
                         create: [{
-                            link: `${UI_URL_REMOTE}${LINKS.History}?type=Bookmarked`,
+                            link: `${UI_URL_REMOTE}${LINKS.History}?type="Bookmarked"`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -102,7 +102,7 @@ const DEFAULT_USER_DATA = {
                                 }],
                             },
                         }, {
-                            link: `${UI_URL_REMOTE}${LINKS.Search}?type=Routine`,
+                            link: `${UI_URL_REMOTE}${LINKS.Search}?type="Routine"`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{
@@ -112,7 +112,7 @@ const DEFAULT_USER_DATA = {
                                 }],
                             },
                         }, {
-                            link: `${UI_URL_REMOTE}${LINKS.Search}?type=Project`,
+                            link: `${UI_URL_REMOTE}${LINKS.Search}?type="Project"`,
                             usedFor: ResourceUsedFor.Context,
                             translations: {
                                 create: [{

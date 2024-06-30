@@ -1,4 +1,4 @@
-import { chatMatchHash, weakHash } from "./hash";
+import { chatMatchHash, weakHash } from "./codes";
 
 describe("weakHash", () => {
     it("generates a consistent SHA-256 hash for the given string", () => {

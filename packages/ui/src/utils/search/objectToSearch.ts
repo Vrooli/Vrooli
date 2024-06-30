@@ -1,6 +1,7 @@
 import { BookmarkFor, ChatInviteStatus, CommonKey, LINKS, MemberInviteStatus, RunStatus, ScheduleFor, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
-import { AddIcon, ApiIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
+import { PageTab } from "hooks/useTabs";
+import { AddIcon, ApiIcon, ArticleIcon, BookmarkFilledIcon, CommentIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
 import { SvgComponent } from "types";
 import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
@@ -224,10 +225,8 @@ export enum InboxPageTabOption {
 export enum ChatPageTabOption {
     Chat = "Chat",
     Favorite = "Favorite",
-    RoutinePublic = "RoutinePublic",
-    RoutineMy = "RoutineMy",
-    PromptPublic = "PromptPublic",
-    PromptMy = "PromptMy",
+    Routine = "Routine",
+    Prompt = "Prompt",
 }
 
 export type TabsInfo = {
@@ -261,6 +260,14 @@ export type SearchViewTabsInfo = {
     Key: SearchPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
+}
+
+export function getTabIcon<T extends TabsInfo>(option: PageTab<T>) {
+    return option.Icon;
+}
+
+export function getTabLabel<T extends TabsInfo>(option: PageTab<T>) {
+    return option.label;
 }
 
 export const searchViewTabParams: TabParam<SearchViewTabsInfo>[] = [{
@@ -413,40 +420,38 @@ export type ChatTabsInfo = {
 
 export const chatTabParams: TabParam<ChatTabsInfo>[] = [{
     color: (palette) => palette.primary.contrastText,
+    Icon: CommentIcon,
     key: "Chat",
     titleKey: "Chat",
     searchType: "Chat",
     where: () => ({ visibility: VisibilityType.Own }),
 }, {
     color: (palette) => palette.primary.contrastText,
+    Icon: BookmarkFilledIcon,
     key: "Favorite",
     titleKey: "Favorite",
     searchType: "Bookmark",
     where: () => ({ label: "Favorites", limitTo: [BookmarkFor.Routine, BookmarkFor.Standard] }), // Routines to run them, and standards for prompts
 }, {
     color: (palette) => palette.primary.contrastText,
-    key: "RoutinePublic",
-    titleKey: "RoutinePublic",
+    Icon: RoutineIcon,
+    key: "Routine",
+    titleKey: "Routine",
     searchType: "Routine",
-    where: () => ({}),
+    where: () => ({
+        Public: {},
+        My: { visibility: VisibilityType.Own },
+    }),
 }, {
     color: (palette) => palette.primary.contrastText,
-    key: "RoutineMy",
-    titleKey: "RoutineMy",
-    searchType: "Routine",
-    where: () => ({ visibility: VisibilityType.Own }),
-}, {
-    color: (palette) => palette.primary.contrastText,
-    key: "PromptPublic",
-    titleKey: "PromptPublic",
+    Icon: ArticleIcon,
+    key: "Prompt",
+    titleKey: "Prompt",
     searchType: "Standard",
-    where: () => ({}),
-}, {
-    color: (palette) => palette.primary.contrastText,
-    key: "PromptMy",
-    titleKey: "PromptMy",
-    searchType: "Standard",
-    where: () => ({ visibility: VisibilityType.Own }),
+    where: () => ({
+        Public: {},
+        My: { visibility: VisibilityType.Own },
+    }),
 }];
 
 export type HistoryTabsInfo = {

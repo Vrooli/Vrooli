@@ -142,12 +142,12 @@ export const fetchPriceFromRedis = async (paymentType: PaymentType): Promise<num
 /**
  * @returns True if the Stripe object was created in the environment matching the current environment
  */
-export const isInCorrectEnvironment = (object: { livemode: boolean }): boolean => {
+export function isInCorrectEnvironment(object: { livemode: boolean }): boolean {
     if (process.env.NODE_ENV === "production") {
         return object.livemode;
     }
     return !object.livemode;
-};
+}
 
 /** @returns True if the Stripe session should be counted as rewarding a subscription */
 export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, userId: string): boolean => {
@@ -239,7 +239,7 @@ type GetStripeCustomerIdResult = {
  * This is useful if someone used stripe before with one email, then subscribed with another.
  * @returns Verified customer information, including the stripeCustomerId, emails, and userId
  */
-export const getVerifiedCustomerInfo = async ({
+export async function getVerifiedCustomerInfo({
     userId,
     stripe,
     validateSubscription,
@@ -247,7 +247,7 @@ export const getVerifiedCustomerInfo = async ({
     userId: string | undefined,
     stripe: Stripe,
     validateSubscription: boolean,
-}): Promise<GetStripeCustomerIdResult> => {
+}): Promise<GetStripeCustomerIdResult> {
     const result: GetStripeCustomerIdResult = {
         emails: [],
         hasPremium: false,
@@ -334,13 +334,13 @@ export const getVerifiedCustomerInfo = async ({
         }
     }
     return result;
-};
+}
 
 /**
  * Creates and sets a Stripe customer ID for a user
  * @returns The newly-created Stripe customer ID
  */
-export const createStripeCustomerId = async ({
+export async function createStripeCustomerId({
     customerInfo,
     requireUserToExist,
     stripe,
@@ -348,7 +348,7 @@ export const createStripeCustomerId = async ({
     customerInfo: GetStripeCustomerIdResult,
     requireUserToExist: boolean,
     stripe: Stripe,
-}): Promise<string> => {
+}): Promise<string> {
     // Throw error if there should be a user but there isn't
     if (requireUserToExist && !customerInfo.userId) {
         throw new Error("User not found.");
@@ -365,7 +365,7 @@ export const createStripeCustomerId = async ({
         });
     }
     return stripeCustomer.id;
-};
+}
 
 /** 
  * Processes a completed payment.
@@ -963,7 +963,7 @@ export const checkSubscriptionPrices = async (stripe: Stripe, res: Response): Pr
 /**
  * Creates a checkout session for buying a subscription, donation, credits, or other payment.
  */
-const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function createCheckoutSession(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const { amount, userId, variant } = req.body as CreateCheckoutSessionParams;
     const priceId = getPriceIds()[variant];
     const paymentType = variant as PaymentType;
@@ -1022,8 +1022,8 @@ const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response
         }
         // Create checkout session 
         const session = await stripe.checkout.sessions.create({
-            success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
-            cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
+            success_url: `${UI_URL}${LINKS.Pro}?status="success"&paymentType="${paymentType}"`,
+            cancel_url: `${UI_URL}${LINKS.Pro}?status="canceled"&paymentType="${paymentType}"`,
             payment_method_types: ["card"],
             line_items,
             mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
@@ -1044,12 +1044,12 @@ const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response
         logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Creates a portal session for updating payment method or switching/canceling subscription.
  */
-const createPortalSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function createPortalSession(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const { userId, returnUrl } = req.body as CreatePortalSessionParams;
     try {
         const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
@@ -1077,7 +1077,7 @@ const createPortalSession = async (stripe: Stripe, req: Request, res: Response):
         logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Checks your subscription status, and fixes your subscription status if a payment

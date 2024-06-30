@@ -260,13 +260,19 @@ export function RoutineListNode({
         onRightClick: openContext,
     });
 
+    const availableActions = useMemo(() => {
+        return isEditing ?
+            [BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine] :
+            [];
+    }, [isEditing]);
+
     return (
         <>
             {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
+                availableActions={availableActions}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
             />

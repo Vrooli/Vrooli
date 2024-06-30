@@ -11,7 +11,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { BookmarkButtonProps } from "../types";
 
-export const BookmarkButton = ({
+export function BookmarkButton({
     disabled = false,
     isBookmarked = false,
     objectId,
@@ -20,7 +20,7 @@ export const BookmarkButton = ({
     bookmarkFor,
     bookmarks,
     sxs,
-}: BookmarkButtonProps) => {
+}: BookmarkButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -112,4 +112,4 @@ export const BookmarkButton = ({
             </Tooltip>
         </>
     );
-};
+}

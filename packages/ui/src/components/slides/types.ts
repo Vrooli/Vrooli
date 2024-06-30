@@ -10,6 +10,4 @@ export interface SlideProps {
 export interface SlideContainerNeonProps {
     id: string;
     children: ReactNode;
-    show?: boolean;
-    sx?: SxType;
 }

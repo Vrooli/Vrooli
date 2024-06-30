@@ -1,4 +1,4 @@
-import { DUMMY_ID, exists, nodeRoutineListItemValidation, noop, noopSubmit, orDefault, ResourceList as ResourceListType, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, exists, nodeRoutineListItemValidation, noopSubmit, orDefault, ResourceList as ResourceListType, routineVersionTranslationValidation, Session, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
@@ -308,8 +308,8 @@ function SubroutineForm({
                         </Grid>
                     </FormContainer>
                     {/* TODO inputs/outputs */}
-                    <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
-                    <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                    <FormBuildView />;
+                    <FormBuildView />;
                 </FormContainer>
             </BaseForm>
             {canUpdateRoutineVersion && <BottomActionsButtons

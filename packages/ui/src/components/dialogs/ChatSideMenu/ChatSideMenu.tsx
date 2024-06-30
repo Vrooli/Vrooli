@@ -77,6 +77,7 @@ const searchBarStyle = {
     },
 } as const;
 
+// TODO improve prompts so it searches for actual prompts, rather than just standards. Then update it so when pressed, it adds prompt to chat input
 export function ChatSideMenu({
     idPrefix,
 }: {

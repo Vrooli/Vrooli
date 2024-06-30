@@ -20,10 +20,10 @@ import { scrollIntoFocusedView } from "utils/display/scroll";
 import { SearchType, myStuffTabParams } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
 
-export const MyStuffView = ({
+export function MyStuffView({
     display,
     onClose,
-}: MyStuffViewProps) => {
+}: MyStuffViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -107,7 +107,7 @@ export const MyStuffView = ({
         else closeSelectCreateType();
     }, [closeSelectCreateType, setLocation]);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-my-stuff-list"); };
+    function focusSearch() { scrollIntoFocusedView("search-bar-my-stuff-list"); }
 
     const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
 
@@ -155,7 +155,6 @@ export const MyStuffView = ({
                 {...findManyData}
                 id="my-stuff-list"
                 display={display}
-                dummyLength={display === "page" ? 5 : 3}
                 handleToggleSelect={handleToggleSelect}
                 isSelecting={isSelecting}
                 selectedItems={selectedData}
@@ -183,4 +182,4 @@ export const MyStuffView = ({
             </SideActionsButtons>
         </>
     );
-};
+}

@@ -152,11 +152,6 @@ export function UserView({
         setObject: setUser,
     });
 
-    /** Opens add new page */
-    const toAddNew = useCallback(() => {
-        setLocation(`${LINKS[currTab.key]}/add`);
-    }, [currTab.key, setLocation]);
-
     /** Opens dialog to add or invite user to a team/meeting/chat */
     const handleAddOrInvite = useCallback(() => {
         if (!user) return;
@@ -487,7 +482,6 @@ export function UserView({
                     <SearchList
                         {...findManyData}
                         display={display}
-                        handleAdd={permissions.canUpdate ? toAddNew : undefined}
                         hideUpdateButton={true}
                         id="user-view-list"
                         searchPlaceholder={searchPlaceholderKey}

@@ -99,28 +99,28 @@ export const sendMail = (
 };
 
 /** Adds a password reset link email to a task queue */
-export const sendResetPasswordLink = (
+export function sendResetPasswordLink(
     email: string,
     userId: string,
     code: string,
-): Promise<Success> => {
-    const link = `${UI_URL}${LINKS.ResetPassword}?code=${userId}:${code}`;
+): Promise<Success> {
+    const link = `${UI_URL}${LINKS.ResetPassword}?code="${userId}:${code}"`;
     return addJobToQueue(emailQueue, {
         to: [email],
         subject: `${BUSINESS_NAME} Password Reset`,
         text: `A password reset was requested for your account with ${BUSINESS_NAME}. If you sent this request, you may change your password through this link (${link}) to continue. If you did not send this request, please ignore this email.`,
         html: `<p>A password reset was requested for your account with ${BUSINESS_NAME}.</p><p>If you sent this request, you may change your password through this link (<a href="${link}">${link}</a>) to continue.<p>If you did not send this request, please ignore this email.<p>`,
     }, {});
-};
+}
 
 /** Adds a verification link email to a task queue */
-export const sendVerificationLink = (
+export function sendVerificationLink(
     email: string,
     userId: string,
     code: string,
-): Promise<Success> => {
+): Promise<Success> {
     // Replace all "${VERIFY_LINK}" in welcomeTemplate with the the actual link
-    const link = `${UI_URL}${LINKS.Login}?code=${userId}:${code}`;
+    const link = `${UI_URL}${LINKS.Login}?code="${userId}:${code}"`;
     const html = welcomeTemplate.replace(/\$\{VERIFY_LINK\}/g, link);
     return addJobToQueue(emailQueue, {
         to: [email],
@@ -128,25 +128,25 @@ export const sendVerificationLink = (
         text: `Welcome to ${BUSINESS_NAME}! Please log in through [this link](${link}) to verify your account. If you did not create an account with us, please ignore this link.`,
         html: html.length > 0 ? html : undefined,
     }, {});
-};
+}
 
 /** Adds a feedback notification email for the admin to a task queue */
-export const feedbackNotifyAdmin = (
+export function feedbackNotifyAdmin(
     text: string,
     from?: string,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(emailQueue, {
         to: [process.env.SITE_EMAIL_USERNAME ?? ""],
         subject: "Received Vrooli Feedback!",
         text: `Feedback from ${from ?? "anonymous"}: ${text}`,
     }, {});
-};
+}
 
 /** Adds a thank you email for a completed payment (not recurring) to a task queue */
-export const sendPaymentThankYou = (
+export function sendPaymentThankYou(
     emailAddress: string,
     isDonation: boolean,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(emailQueue, {
         to: [emailAddress],
         subject: `Thank you for your ${isDonation ? "donation" : "purchase"}!`,
@@ -154,7 +154,7 @@ export const sendPaymentThankYou = (
             `Thank you for your donation to ${BUSINESS_NAME}! Your support is greatly appreciated.` :
             `Thank you for purchasing a premium subscription to ${BUSINESS_NAME}! Your benefits will be available immediately. Thank you for your support!`,
     }, {});
-};
+}
 
 /** Adds a payment failed email to a task queue */
 export const sendPaymentFailed = (

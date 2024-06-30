@@ -17,11 +17,11 @@ type UseBookmarkerProps = {
 /**
  * Hook for simplifying the use of adding and removing bookmarks on an object
  */
-export const useBookmarker = ({
+export function useBookmarker({
     objectId,
     objectType,
     onActionComplete,
-}: UseBookmarkerProps) => {
+}: UseBookmarkerProps) {
     const session = useContext(SessionContext);
     const { bookmarkLists } = useMemo(() => getCurrentUser(session), [session]);
 
@@ -136,4 +136,4 @@ export const useBookmarker = ({
         closeBookmarkDialog,
         hasBookmarkingSupport,
     };
-};
+}

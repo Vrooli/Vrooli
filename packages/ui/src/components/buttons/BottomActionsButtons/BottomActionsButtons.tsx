@@ -10,7 +10,7 @@ import { SxType } from "types";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
 import { BottomActionsButtonsProps } from "../types";
 
-export const BottomActionsButtons = ({
+export function BottomActionsButtons({
     disabledCancel,
     disabledSubmit,
     display,
@@ -23,7 +23,7 @@ export const BottomActionsButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
-}: BottomActionsButtonsProps) => {
+}: BottomActionsButtonsProps) {
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -100,4 +100,4 @@ export const BottomActionsButtons = ({
             </Grid> : null}
         </BottomActionsGrid>
     );
-};
+}

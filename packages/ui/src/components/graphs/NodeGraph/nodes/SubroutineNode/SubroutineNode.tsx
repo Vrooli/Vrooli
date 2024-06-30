@@ -7,6 +7,7 @@ import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
+import { routineTypes } from "utils/search/schemas/routine";
 import { calculateNodeSize } from "..";
 import { NodeWidth } from "../..";
 import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
@@ -25,9 +26,9 @@ function shouldOpen(id: string | null | undefined): boolean {
 export function SubroutineNode({
     data,
     scale = 1,
-    labelVisible = true,
+    labelVisible,
     isOpen,
-    isEditing = true,
+    isEditing,
     handleAction,
     handleUpdate,
     language,
@@ -77,18 +78,27 @@ export function SubroutineNode({
         onRightClick: openContext,
     });
 
+    const availableActions = useMemo(() => {
+        return isEditing ?
+            [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine] :
+            [BuildAction.OpenSubroutine];
+    }, [isEditing]);
+    const handleContextSelect = useCallback((action: BuildAction) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine); }, [onAction]);
+
+    const RoutineTypeIcon = useMemo(() => {
+        const routineType = data?.routineVersion?.routineType;
+        if (!routineType || !routineTypes[routineType]) return null;
+        return routineTypes[routineType].icon;
+    }, [data]);
+
     return (
         <>
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={
-                    isEditing ?
-                        [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine] :
-                        [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
-                }
+                availableActions={availableActions}
                 handleClose={closeContext}
-                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine); }}
+                handleSelect={handleContextSelect}
             />
             <Box
                 sx={{
@@ -144,6 +154,7 @@ export function SubroutineNode({
                             </IconButton>
                         </Box>
                     </Tooltip>
+                    {RoutineTypeIcon && <RoutineTypeIcon width={16} height={16} fill={palette.background.textPrimary} />}
                     {labelVisible && <Typography
                         id={`subroutine-name-${data.id}`}
                         variant="h6"

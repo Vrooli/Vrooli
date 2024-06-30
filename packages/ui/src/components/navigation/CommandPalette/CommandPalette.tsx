@@ -16,7 +16,7 @@ import { PubSub } from "utils/pubsub";
 
 const titleId = "command-palette-dialog-title";
 
-export const CommandPalette = () => {
+export function CommandPalette() {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -68,7 +68,7 @@ export const CommandPalette = () => {
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
+    const onInputSelect = useCallback(function onInputSelectCallback(newValue: AutocompleteOption) {
         if (!newValue) return;
         // Clear search string and close command palette
         close();
@@ -107,7 +107,6 @@ export const CommandPalette = () => {
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
-                    showSecondaryLabel={true}
                     sxs={{
                         root: {
                             width: "100%",
@@ -120,4 +119,4 @@ export const CommandPalette = () => {
             </DialogContent>
         </LargeDialog>
     );
-};
+}

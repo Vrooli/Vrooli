@@ -1,10 +1,10 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, Button, Grid, Stack, Tooltip, keyframes, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Grid, Stack, Tooltip, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
 import Earth from "assets/img/Earth.svg";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
-import { Stars } from "components/Stars/Stars";
+import { StarryBackground } from "components/StarryBackground/StarryBackground";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SlideContainerNeon } from "components/slides";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -63,6 +63,40 @@ const PulseButton = styled(Button)(() => ({
     transition: "all 0.2s ease",
 }));
 
+const earthPositions = {
+    full: "translate(25%, 25%) scale(0.8)",
+    hidden: "translate(0%, 100%) scale(1)",
+    horizon: "translate(0%, 69%) scale(1)",
+};
+
+type EarthPosition = keyof typeof earthPositions;
+type ScrollDirection = "up" | "down";
+
+interface EarthBoxProps extends Omit<BoxProps, "position"> {
+    position: EarthPosition;
+    scrollDirection: ScrollDirection;
+}
+
+const EarthBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "position" && prop !== "scrollDirection",
+})<EarthBoxProps>(({ position, scrollDirection }) => ({
+    width: "150%",
+    position: "fixed",
+    bottom: "0",
+    left: "-25%",
+    right: "-25%",
+    margin: "auto",
+    maxWidth: "1000px",
+    maxHeight: "1000px",
+    pointerEvents: "none",
+    transform: earthPositions[position],
+    // Transition time shortens when scrolling to the previous slide
+    transition: (scrollDirection === "up" && position === "hidden")
+        ? "transform 0.2s ease-in-out"
+        : "transform 1.5s ease-in-out",
+    zIndex: 5,
+}));
+
 /**
  * View displayed for Home page when not logged in
  */
@@ -75,14 +109,12 @@ export function LandingView({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    // Track if earth/sky is in view, and hndle scroll snap on slides
-    const [earthTransform, setEarthTransform] = useState<string>("translate(0%, 100%) scale(1)");
-    const [isSkyVisible, setIsSkyVisible] = useState<boolean>(false);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Track if earth/sky is in view, and handle scroll snap on slides
+    const [earthPosition, setEarthPosition] = useState<EarthPosition>("hidden");
     const lasScrollPosRef = useRef<number>(window.pageYOffset || document.documentElement.scrollTop);
     const currScrollPosRef = useRef<number>(window.pageYOffset || document.documentElement.scrollTop);
-    const scrollDirectionRef = useRef<"up" | "down">("down");
-    useEffect(function earthAndSkyAnimationEffect() {
+    const scrollDirectionRef = useRef<ScrollDirection>("down");
+    useEffect(function earthAnimationEffect() {
         function onScroll() {
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             if (scrollPos !== currScrollPosRef.current) {
@@ -97,25 +129,21 @@ export function LandingView({
                 const windowHeight = (window.innerHeight || document.documentElement.clientHeight);
                 return rect.top < windowHeight / 2;
             }
-            // Use slides 6 and 7 to determine earth position and sky visibility
+            // Use slides 6 and 7 to determine Earth position
             const earthHorizonSlide = document.getElementById(slide5Id);
             const earthFullSlide = document.getElementById(slide6Id);
             if (inView(earthFullSlide)) {
-                setEarthTransform("translate(25%, 25%) scale(0.8)");
-                setIsSkyVisible(true);
+                setEarthPosition("full");
             } else if (inView(earthHorizonSlide)) {
-                setEarthTransform("translate(0%, 69%) scale(1)");
-                setIsSkyVisible(true);
+                setEarthPosition("horizon");
             } else {
-                setEarthTransform("translate(0%, 100%) scale(1)");
-                setIsSkyVisible(false);
+                setEarthPosition("hidden");
             }
         }
         // Add scroll listener to body
         window.addEventListener("scroll", onScroll, { passive: true });
         return () => {
             window.removeEventListener("scroll", onScroll);
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, []);
 
@@ -128,7 +156,7 @@ export function LandingView({
             <SlidePage id="landing-slides" sx={{
                 background: palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",
             }}>
-                <SlideContainerNeon id="neon-container" show={!isSkyVisible} sx={{ zIndex: 5 }}>
+                <SlideContainerNeon id="neon-container">
                     <SlideContent id={slide1Id} sx={{
                         minHeight: {
                             xs: "calc(100vh - 64px - 56px)",
@@ -263,30 +291,16 @@ export function LandingView({
                     </SlideContent>
                 </SlideContainerNeon>
                 <SlideContainer id='sky-slide' sx={{ color: "white", background: "black", zIndex: 5 }}>
-                    {/* Background stars */}
-                    <Stars />
+                    <StarryBackground />
                     {/* Earth at bottom of page. Changes position depending on the slide  */}
-                    <Box
-                        id="earth"
-                        component="img"
-                        src={Earth}
+                    <EarthBox
+                        // @ts-ignore
                         alt="Earth illustration"
-                        sx={{
-                            width: "150%",
-                            position: "fixed",
-                            bottom: "0",
-                            left: "-25%",
-                            right: "-25%",
-                            margin: "auto",
-                            maxWidth: "1000px",
-                            maxHeight: "1000px",
-                            pointerEvents: "none",
-                            transform: earthTransform,
-                            transition: (scrollDirectionRef.current === "up" && earthTransform === "translate(0%, 100%) scale(1)")
-                                ? "transform 0.2s ease-in-out"
-                                : "transform 1.5s ease-in-out",
-                            zIndex: 5,
-                        }}
+                        component="img"
+                        id="earth"
+                        position={earthPosition as any}
+                        scrollDirection={scrollDirectionRef.current}
+                        src={Earth}
                     />
                     <SlideContent id={slide5Id}>
                         <SlideTitle variant='h2' mb={4} sx={{ zIndex: 6 }}>The Sky is the Limit</SlideTitle>

@@ -6,6 +6,7 @@ import { useFetch } from "hooks/useFetch";
 import { TagIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
 import { TextInput } from "../TextInput/TextInput";
@@ -206,7 +207,7 @@ export function TagSelectorBase({
             getOptionLabel={(o: string | TagShape | Tag) => (typeof o === "string" ? o : o.tag)}
             inputValue={inputValue}
             noOptionsText={t("NoSuggestions")}
-            limitTags={3}
+            limitTags={CHIP_LIST_LIMIT}
             loading={loading}
             value={tags}
             defaultValue={tags}

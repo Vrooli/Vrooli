@@ -24,14 +24,16 @@ export const clickSize = {
     minHeight: "48px",
 } as const;
 
-export const multiLineEllipsis = (lines: number) => ({
-    display: "-webkit-box",
-    lineHeight: "1.5", // Without this, WebkitLineClamp might accidentally include the top of the first line cut off
-    WebkitLineClamp: lines,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-}) as const;
+export function multiLineEllipsis(lines: number) {
+    return {
+        display: "-webkit-box",
+        lineHeight: "1.5", // Without this, WebkitLineClamp might accidentally include the top of the first line cut off
+        WebkitLineClamp: lines,
+        WebkitBoxOrient: "vertical",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    } as const;
+}
 
 /**
  * Disables text highlighting
@@ -45,22 +47,24 @@ export const noSelect = {
     supported by Chrome, Edge, Opera and Firefox */
 } as const;
 
-export const linkColors = (palette: Palette) => ({
-    a: {
-        color: palette.mode === "light" ? "#001cd3" : "#dd86db",
-        "&:visited": {
-            color: palette.mode === "light" ? "#001cd3" : "#f551ef",
+export function linkColors(palette: Palette) {
+    return {
+        a: {
+            color: palette.mode === "light" ? "#001cd3" : "#dd86db",
+            "&:visited": {
+                color: palette.mode === "light" ? "#001cd3" : "#f551ef",
+            },
+            "&:active": {
+                color: palette.mode === "light" ? "#001cd3" : "#f551ef",
+            },
+            "&:hover": {
+                color: palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
+            },
+            // Remove underline on links
+            textDecoration: "none",
         },
-        "&:active": {
-            color: palette.mode === "light" ? "#001cd3" : "#f551ef",
-        },
-        "&:hover": {
-            color: palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
-        },
-        // Remove underline on links
-        textDecoration: "none",
-    },
-});
+    };
+}
 
 export const greenNeonText = {
     color: "#fff",

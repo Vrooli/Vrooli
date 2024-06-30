@@ -9,9 +9,8 @@ export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> 
     loading?: boolean;
     onChange: (updatedText: string) => unknown;
     onInputChange: (newValue: AutocompleteOption) => unknown;
-    options?: AutocompleteOption[];
+    options?: readonly AutocompleteOption[];
     placeholder?: CommonKey;
-    showSecondaryLabel?: boolean;
     value: string;
     sxs?: {
         paper?: SxType;

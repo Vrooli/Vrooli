@@ -4,6 +4,7 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
 import { LinkUrlFormInput, LinkUrlFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
+import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
 import { FormInputProps } from "../types";
 
@@ -167,7 +168,7 @@ export function FormInputLinkUrl({
                         freeSolo={true}
                         getOptionKey={(option) => option}
                         getOptionLabel={(option) => option}
-                        limitTags={3}
+                        limitTags={CHIP_LIST_LIMIT}
                         multiple
                         options={[]}
                         value={props.acceptedHosts || []}
@@ -177,7 +178,7 @@ export function FormInputLinkUrl({
                                 return (
                                     <Chip
                                         {...getTagProps({ index })}
-                                        id={`tag-chip-${option}`}
+                                        id={`accepted-hosts-chip-${option}`}
                                         key={option}
                                         variant="filled"
                                         label={option}

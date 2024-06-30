@@ -18,7 +18,7 @@ const SpaceBox = styled(Box)(() => ({
 
 const canvasStyle = { width: "100%", height: "100%" } as const;
 
-export function Stars() {
+export function StarryBackground() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {

@@ -273,11 +273,11 @@ type GetDisplayResult = {
  * @param languages User languages
  * @returns The name and subtitle of the object
  */
-export const getDisplay = (
+export function getDisplay(
     object: ListObject | null | undefined,
     languages?: readonly string[],
     palette?: Palette,
-): GetDisplayResult => {
+): GetDisplayResult {
     const adornments: GetDisplayResult["adornments"] = [];
     if (!object) return { title: "", subtitle: "", adornments };
     // If a bookmark, reaction, or view, use the "to" object
@@ -369,7 +369,7 @@ export const getDisplay = (
     }
     // Return result
     return { title, subtitle, adornments };
-};
+}
 
 /**
  * Finds the information required to bookmark an object

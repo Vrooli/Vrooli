@@ -12,13 +12,13 @@ import { getTranslation } from "utils/display/translationTools";
 import { NodeWithEnd } from "views/objects/node/types";
 import { UnlinkedNodesDialogProps } from "../types";
 
-export const UnlinkedNodesDialog = ({
+export function UnlinkedNodesDialog({
     handleNodeDelete,
     handleToggleOpen,
     language,
     nodes,
     open,
-}: UnlinkedNodesDialogProps) => {
+}: UnlinkedNodesDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -132,4 +132,4 @@ export const UnlinkedNodesDialog = ({
             </Box>
         </Tooltip>
     );
-};
+}

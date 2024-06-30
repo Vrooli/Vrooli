@@ -520,7 +520,7 @@ export function DashboardView({
                         options={[{
                             Icon: OpenInNewIcon,
                             label: t("SeeAll"),
-                            onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
+                            onClick: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}"`); },
                         }, {
                             Icon: AddIcon,
                             label: t("Create"),

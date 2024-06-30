@@ -17,12 +17,12 @@ type Dimensions = {
     height: number;
 };
 
-export const RandomBlobs = ({ numberOfBlobs }: { numberOfBlobs: number }) => {
+export function RandomBlobs({ numberOfBlobs }: { numberOfBlobs: number }) {
     const [viewport, setViewport] = useState<Dimensions>({ width: window.innerWidth, height: window.innerHeight });
     const [blobs, setBlobs] = useState<BlobInfo[]>([]);
 
-    useEffect(() => {
-        const generateInitialBlobs = () => {
+    useEffect(function generateBlobsEffect() {
+        function generateInitialBlobs() {
             const newBlobs: BlobInfo[] = [];
             for (let i = 0; i < numberOfBlobs; i++) {
                 const isOdd = i % 2 !== 0;
@@ -40,15 +40,15 @@ export const RandomBlobs = ({ numberOfBlobs }: { numberOfBlobs: number }) => {
             }
             console.log("got blob info", newBlobs);
             return newBlobs;
-        };
+        }
 
         setBlobs(generateInitialBlobs());
     }, [numberOfBlobs]);
 
-    useEffect(() => {
-        const handleResize = () => {
+    useEffect(function resizeEffect() {
+        function handleResize() {
             setViewport({ width: window.innerWidth, height: window.innerHeight });
-        };
+        }
 
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
@@ -95,4 +95,4 @@ export const RandomBlobs = ({ numberOfBlobs }: { numberOfBlobs: number }) => {
             })}
         </>
     );
-};
+}

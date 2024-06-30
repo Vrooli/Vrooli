@@ -1,8 +1,16 @@
 import { endpointGetRoutine, endpointGetRoutines, InputType, RoutineSortBy, RoutineType } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
+import { SvgProps } from "types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+
+type RoutineTypeOption = {
+    type: RoutineType;
+    label: string;
+    description: string;
+    Icon: (props: SvgProps) => JSX.Element;
+};
 
 export const routineTypes = [
     {
@@ -47,6 +55,9 @@ export const routineTypes = [
         Icon: SmartContractIcon,
     },
 ];
+export function getRoutineTypeLabel(option: RoutineTypeOption) { return option.label; }
+export function getRoutineTypeDescription(option: RoutineTypeOption) { return option.description; }
+export function getRoutineTypeIcon(option: RoutineTypeOption) { return option.Icon; }
 
 export const routineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchRoutine"),

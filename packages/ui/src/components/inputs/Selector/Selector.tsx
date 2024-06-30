@@ -18,12 +18,13 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     helperText,
     fullWidth = false,
     inputAriaLabel = "select-label",
+    isRequired,
     onBlur,
     onChange,
     name,
     noneOption = false,
+    noneText,
     label = "Select",
-    required = true,
     disabled = false,
     sxs,
     tabIndex,
@@ -104,7 +105,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 name={name}
                 onChange={(e) => { onChange(findOption(e.target.value as string) as T); }}
                 onBlur={onBlur}
-                required={required}
+                required={isRequired}
                 value={exists(value) ? getOptionLabel(value) : ""}
                 variant="outlined"
                 sx={{
@@ -155,7 +156,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 {
                     noneOption ? (
                         <MenuItem value="">
-                            <em>{t("None")}</em>
+                            <em>{noneText || t("None")}</em>
                         </MenuItem>
                     ) : null
                 }

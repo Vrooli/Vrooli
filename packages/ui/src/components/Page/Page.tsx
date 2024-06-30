@@ -7,13 +7,13 @@ import { Redirect, useLocation } from "route";
 import { PubSub } from "utils/pubsub";
 import { PageProps } from "views/types";
 
-export const Page = ({
+export function Page({
     children,
     excludePageContainer = false,
     mustBeLoggedIn = false,
     sessionChecked,
     sx,
-}: PageProps) => {
+}: PageProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [{ pathname }] = useLocation();
@@ -46,4 +46,4 @@ export const Page = ({
             {excludePageContainer && children}
         </>
     );
-};
+}

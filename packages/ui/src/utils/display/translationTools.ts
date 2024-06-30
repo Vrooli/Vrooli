@@ -1,4 +1,4 @@
-import { CommonKey, ErrorKey, Session, uuid } from "@local/shared";
+import { CommonKey, DEFAULT_LANGUAGE, ErrorKey, Session, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import { FormErrors } from "types";
@@ -455,11 +455,11 @@ const localeLoaders: Record<string, LocaleLoader> = {
     "zh": () => import("date-fns/locale/zh-HK"),
 };
 
-export const loadLocale = async (locale: string): Promise<Locale> => {
+export async function loadLocale(locale: string): Promise<Locale> {
     const loader = localeLoaders[locale] ?? localeLoaders[getLanguageSubtag(locale)] ?? localeLoaders["en-US"];
     const module = await loader();
     return module.default;
-};
+}
 
 /**
  * Retrieves an object's translation for a given language code.
@@ -468,16 +468,16 @@ export const loadLocale = async (locale: string): Promise<Locale> => {
  * @param showAny If true, will default to returning the first language if no value is found
  * @returns The requested translation or an empty object if none is found
  */
-export const getTranslation = <
+export function getTranslation<
     Translation extends { language: string },
 >(
     obj: { translations?: Translation[] | null | undefined } | null | undefined,
-    languages: readonly string[],
+    languages: readonly string[] | null | undefined,
     showAny = true,
-): Partial<Translation> => {
+): Partial<Translation> {
     if (!obj || !Array.isArray(obj.translations)) return {};
     // Convert user languages to lowercase for case-insensitive comparison
-    const lowerCaseLanguages = languages.map(lang => lang.toLowerCase());
+    const lowerCaseLanguages = Array.isArray(languages) ? languages.map(lang => lang.toLowerCase()) : [DEFAULT_LANGUAGE];
     // Loop through user's preferred languages first
     for (const preferredLanguage of lowerCaseLanguages) {
         const foundTranslation = obj.translations.find(translation => translation.language.toLowerCase() === preferredLanguage);
@@ -489,7 +489,7 @@ export const getTranslation = <
     if (showAny && obj.translations.length > 0) return obj.translations[0];
     // If no translation matches the user's preferences, return an empty object
     return {};
-};
+}
 
 /**
  * Update a translation's key/value pairs for a specific language.
@@ -498,14 +498,14 @@ export const getTranslation = <
  * @param changes An object of key/value pairs to update
  * @returns Updated translations array
  */
-export const updateTranslationFields = <
+export function updateTranslationFields<
     Translation extends { id: string, language: string },
     Obj extends { translations: Translation[] | null | undefined }
 >(
     obj: Obj | null | undefined,
     language: string,
     changes: { [key in string]?: string | null | undefined },
-): Translation[] => {
+): Translation[] {
     let translationFound = false;
     // Initialize new translations array
     const translations: Translation[] = [];
@@ -535,7 +535,7 @@ export const updateTranslationFields = <
         } as Translation);
     }
     return translations;
-};
+}
 
 /**
  * Update an entire translation object for a specific language.
@@ -543,10 +543,10 @@ export const updateTranslationFields = <
  * @param translation The translation object to update, including at least the language code
  * @returns Updated translations array
  */
-export const updateTranslation = <
+export function updateTranslation<
     Translation extends { id: string, language: string },
     Obj extends { translations: Translation[] }
->(objectWithTranslation: Obj, translation: Translation): Translation[] => {
+>(objectWithTranslation: Obj, translation: Translation): Translation[] {
     // Check for valid objectWithTranslation and its translations
     if (!objectWithTranslation?.translations) return [];
 
@@ -570,7 +570,7 @@ export const updateTranslation = <
         translations.push(translation);
     }
     return translations;
-};
+}
 
 /**
  * Strips a language IETF code down to its lowercase subtag (e.g. EN-US becomes en)

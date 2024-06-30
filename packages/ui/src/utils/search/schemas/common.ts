@@ -74,15 +74,17 @@ export const yesNoDontCare = () => ({
 });
 
 // Fields
-export const languagesFields = (): FormInputType[] => ([
-    {
-        fieldName: "translationLanguages",
-        id: "translationLanguages",
-        label: i18next.t("Language", { count: 2 }),
-        type: InputType.LanguageInput,
-        props: {},
-    },
-]);
+export function languagesFields(): FormInputType[] {
+    return [
+        {
+            fieldName: "translationLanguages",
+            id: "translationLanguages",
+            label: i18next.t("Language", { count: 2 }),
+            type: InputType.LanguageInput,
+            props: {},
+        },
+    ];
+}
 export const languagesVersionFields = (): FormInputType[] => ([
     {
         ...languagesFields()[0],
