@@ -125,6 +125,14 @@ export function BookmarkListView({
         },
     });
 
+    const topBarOptions = useMemo(function topBarOptionsMemo() {
+        return [{
+            Icon: DeleteIcon,
+            label: t("Delete"),
+            onClick: handleDelete,
+        }];
+    }, [handleDelete, t]);
+
     return (
         <>
             {DeleteDialogComponent}
@@ -138,11 +146,7 @@ export function BookmarkListView({
                 display={display}
                 onClose={onClose}
                 title={firstString(label, t("BookmarkList", { count: 1 }))}
-                options={[{
-                    Icon: DeleteIcon,
-                    label: t("Delete"),
-                    onClick: handleDelete,
-                }]}
+                options={topBarOptions}
                 below={<Box sx={{
                     width: "min(100%, 700px)",
                     margin: "auto",

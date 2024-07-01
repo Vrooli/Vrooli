@@ -1,5 +1,5 @@
 import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
-import { Box, Button, IconButton, useTheme } from "@mui/material";
+import { Box, Button, IconButton, styled, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
@@ -56,6 +56,35 @@ type DashboardTabsInfo = {
     Payload: FocusMode | undefined;
     WhereParams: undefined;
 }
+
+const DashboardBox = styled(Box)(() => ({
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "100vh",
+    height: "calc(100vh - env(safe-area-inset-bottom))",
+    overflow: "hidden",
+}));
+
+const DashboardInnerBox = styled(Box)(() => ({
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: 1,
+    gap: 2,
+    margin: "auto",
+    paddingBottom: 4,
+    overflowY: "auto",
+    width: "min(700px, 100%)",
+}));
+
+const sideMenuStyle = {
+    width: "48px",
+    height: "48px",
+    marginLeft: 1,
+    marginRight: 1,
+    cursor: "pointer",
+} as const;
+const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
 
 /** View displayed for Home page when logged in */
 export function DashboardView({
@@ -389,14 +418,59 @@ export function DashboardView({
 
     const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
 
+    const scheduleContainerOptions = useMemo(function scheduleContainerOptionsMemo() {
+        return [{
+            Icon: OpenInNewIcon,
+            label: t("Open"),
+            onClick: openSchedule,
+        }];
+    }, [openSchedule, t]);
+
+    const reminderContainerOptions = useMemo(function reminderContainerOptionsMemo() {
+        return [{
+            Icon: OpenInNewIcon,
+            label: t("SeeAll"),
+            onClick: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}"`); },
+        }, {
+            Icon: AddIcon,
+            label: t("Create"),
+            onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
+        }];
+    }, [setLocation, t]);
+
+    const inputActionButtons = useMemo(function inputActionButtonsMemo() {
+        return [{
+            disabled: isChatLoading || isCreateLoading || isUpdateLoading,
+            Icon: SendIcon,
+            onClick: () => {
+                const trimmed = message.trim();
+                if (trimmed.length === 0) return;
+                messageActions.postMessage(trimmed);
+            },
+        }];
+    }, [isChatLoading, isCreateLoading, isUpdateLoading, message, messageActions]);
+
+    const inputStyle = useMemo(function inputStyleMemo() {
+        return {
+            root: {
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
+                maxHeight: "min(75vh, 500px)",
+                width: "min(700px, 100%)",
+                margin: "auto",
+                marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
+            },
+            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+            inputRoot: {
+                border: "none",
+                background: palette.background.paper,
+            },
+        };
+    }, [display, isKeyboardOpen, isMobile, palette.background.paper, palette.primary.contrastText, palette.primary.dark]);
+
     return (
-        <Box sx={{
-            display: "flex",
-            flexDirection: "column",
-            maxHeight: "100vh",
-            height: "calc(100vh - env(safe-area-inset-bottom))",
-            overflow: "hidden",
-        }}>
+        <DashboardBox>
             {/* Main content */}
             <TopBar
                 display={display}
@@ -404,13 +478,7 @@ export function DashboardView({
                 startComponent={<IconButton
                     aria-label="Open chat menu"
                     onClick={openSideMenu}
-                    sx={{
-                        width: "48px",
-                        height: "48px",
-                        marginLeft: 1,
-                        marginRight: 1,
-                        cursor: "pointer",
-                    }}
+                    sx={sideMenuStyle}
                 >
                     <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
                 </IconButton>}
@@ -422,7 +490,7 @@ export function DashboardView({
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
-                        sx={{ width: "min(700px, 100%)", minWidth: undefined, margin: "auto" }}
+                        sx={pageTabsStyle}
                     />}
                     {showChat && <Box
                         display="flex"
@@ -453,17 +521,7 @@ export function DashboardView({
                     </Box>}
                 </>}
             />
-            <Box sx={{
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-                gap: 2,
-                margin: "auto",
-                paddingBottom: 4,
-                overflowY: "auto",
-                width: "min(700px, 100%)",
-            }}>
+            <DashboardInnerBox>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!showChat && <>
                     <Box p={1}>
@@ -495,11 +553,7 @@ export function DashboardView({
                         emptyText="No upcoming events"
                         loading={isFeedLoading}
                         title={t("Schedule", { count: 1 })}
-                        options={[{
-                            Icon: OpenInNewIcon,
-                            label: t("Open"),
-                            onClick: openSchedule,
-                        }]}
+                        options={scheduleContainerOptions}
                     >
                         <ObjectList
                             dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Event")}
@@ -517,15 +571,7 @@ export function DashboardView({
                         emptyText="No reminders"
                         loading={isFeedLoading}
                         title={t("Reminder", { count: 2 })}
-                        options={[{
-                            Icon: OpenInNewIcon,
-                            label: t("SeeAll"),
-                            onClick: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}"`); },
-                        }, {
-                            Icon: AddIcon,
-                            label: t("Create"),
-                            onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
-                        }]}
+                        options={reminderContainerOptions}
                     >
                         <ObjectList
                             dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Reminder")}
@@ -552,18 +598,10 @@ export function DashboardView({
                     tree={messageTree.tree}
                 />}
                 {showChat && <ScrollToBottomButton containerRef={dimRef} />}
-            </Box>
+            </DashboardInnerBox>
             <TypingIndicator participants={usersTyping} />
             <RichInputBase
-                actionButtons={[{
-                    disabled: isChatLoading || isCreateLoading || isUpdateLoading,
-                    Icon: SendIcon,
-                    onClick: () => {
-                        const trimmed = message.trim();
-                        if (trimmed.length === 0) return;
-                        messageActions.postMessage(trimmed);
-                    },
-                }]}
+                actionButtons={inputActionButtons}
                 fullWidth
                 getTaggableItems={async (message) => {
                     // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
@@ -582,25 +620,10 @@ export function DashboardView({
                     messageActions.postMessage(trimmed);
                 }}
                 placeholder={t("WhatWouldYouLikeToDo")}
-                sxs={{
-                    root: {
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        maxHeight: "min(75vh, 500px)",
-                        width: "min(700px, 100%)",
-                        margin: "auto",
-                        marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
-                    },
-                    topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                    bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                    inputRoot: {
-                        border: "none",
-                        background: palette.background.paper,
-                    },
-                }}
+                sxs={inputStyle}
                 value={message}
             />
             <ChatSideMenu />
-        </Box>
+        </DashboardBox>
     );
 }

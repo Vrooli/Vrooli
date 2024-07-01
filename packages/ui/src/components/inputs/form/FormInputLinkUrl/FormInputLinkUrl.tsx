@@ -6,13 +6,16 @@ import { LinkUrlFormInput, LinkUrlFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 const MIN_HOST_LENGTH = 2;
 const MAX_HOST_LENGTH = 100;
 const invalidUrlCharRegex = /[ "<>#%{}|^~[\]`]/g;
+const emptyArray = [] as const;
+
+function getLinkKey(url: string): string { return url; }
+function getLinkLabel(url: string): string { return url; }
 
 function withoutInvalidChars(url: string): string {
     return url.replace(invalidUrlCharRegex, "");
@@ -32,21 +35,22 @@ function standardizeUrl(url: string): string {
 export function FormInputLinkUrl({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<LinkUrlFormInput>) {
-    const { palette, typography } = useTheme();
+    const { palette } = useTheme();
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
     const [field, meta, helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: value };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(value);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     // States for showing additional customization options
     const [showLimits, setShowLimits] = useState(false);
@@ -61,14 +65,14 @@ export function FormInputLinkUrl({
     }
 
     const updateProp = useCallback(function updatePropCallback(updatedProps: Partial<LinkUrlFormInputProps>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, ...updatedProps };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, props, onConfigUpdate, fieldData]);
 
     function updateFieldData(updatedFieldData: Partial<LinkUrlFormInput>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             onConfigUpdate({ ...fieldData, ...updatedFieldData });
         }
     }
@@ -81,7 +85,6 @@ export function FormInputLinkUrl({
             updatedHosts.push(standardizedType);
             updateProp({ acceptedHosts: updatedHosts });
         }
-        console.log("clearing input");
         setHostInputValue("");
     }, [props.acceptedHosts, updateProp]);
     function handleHostDelete(index: number) {
@@ -90,9 +93,7 @@ export function FormInputLinkUrl({
         updateProp({ acceptedHosts: updatedHosts });
     }
     const onHostInputChange = useCallback(function onHostInputChangeCallback(change: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-        console.log("in onHostInputChange", change.target.value);
         const sanitized = withoutInvalidChars(change.target.value);
-        console.log("setting host input value to", sanitized);
         setHostInputValue(sanitized);
     }, []);
     const onHostInputKeyDown = useCallback(function onHostInputKeyDownCallback(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -117,7 +118,6 @@ export function FormInputLinkUrl({
             return;
         }
         // Clear input
-        console.log("clearing input");
         setHostInputValue("");
         // Check if url is already selected
         if ((props.acceptedHosts ?? []).map(host => standardizeUrl(host)).includes(url)) {
@@ -136,41 +136,48 @@ export function FormInputLinkUrl({
             helperText={meta.touched && meta.error}
             name={fieldData.fieldName}
             onChange={handleChange}
-            placeholder={props.placeholder || (typeof onConfigUpdate === "function" ? "Enter default value..." : undefined)}
+            placeholder={props.placeholder || (isEditing ? "Enter default value..." : undefined)}
             sxs={{ root: { paddingTop: 1, paddintBottom: 1 } }}
-            value={typeof onConfigUpdate === "function" ? props.defaultValue ?? 0 : field.value}
+            value={isEditing ? props.defaultValue ?? 0 : field.value}
         />
-    ), [disabled, field.value, fieldData.fieldName, handleChange, meta.error, meta.touched, onConfigUpdate, props.defaultValue, props.placeholder]);
+    ), [disabled, field.value, fieldData.fieldName, handleChange, isEditing, meta.error, meta.touched, props.defaultValue, props.placeholder]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const limitsButtonStyle = useMemo(function limitsButtonStyleMemo() {
+        return propButtonWithSectionStyle(showLimits);
+    }, [showLimits]);
+
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return InputElement;
     }
-
     return (
         <div>
             {InputElement}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showLimits ? "primary.main" : undefined }} onClick={toggleShowLimits}>
+                <Button variant="text" sx={limitsButtonStyle} onClick={toggleShowLimits}>
                     Limits
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={toggleShowMore}>
+                <Button variant="text" sx={moreButtonStyle} onClick={toggleShowMore}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showLimits && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <Autocomplete
                         id={`accepted-hosts-input-${fieldData.fieldName}`}
                         fullWidth
                         freeSolo={true}
-                        getOptionKey={(option) => option}
-                        getOptionLabel={(option) => option}
+                        getOptionKey={getLinkKey}
+                        getOptionLabel={getLinkLabel}
                         limitTags={CHIP_LIST_LIMIT}
                         multiple
-                        options={[]}
+                        options={emptyArray}
                         value={props.acceptedHosts || []}
                         defaultValue={props.acceptedHosts || []}
                         renderTags={(value, getTagProps) =>
@@ -211,10 +218,10 @@ export function FormInputLinkUrl({
                             />
                         )}
                     />
-                </div>
+                </FormSettingsSection>
             )}
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextInput
                         fullWidth
                         label="Placeholder"
@@ -227,7 +234,7 @@ export function FormInputLinkUrl({
                         onChange={(event) => { updateFieldData({ fieldName: event.target.value }); }}
                         value={fieldData.fieldName ?? ""}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

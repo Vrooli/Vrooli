@@ -5,13 +5,13 @@ import { useField } from "formik";
 import { IntegerFormInput, IntegerFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 export function FormInputInteger({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<IntegerFormInput>) {
     const { t } = useTranslation();
@@ -21,17 +21,17 @@ export function FormInputInteger({
 
     const [field, meta, helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback((value: number) => {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: value };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(value);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     const [showMore, setShowMore] = useState(false);
 
     function updateProp(updatedProps: Partial<IntegerFormInputProps>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
 
@@ -77,7 +77,7 @@ export function FormInputInteger({
     }
 
     function updateFieldData(updatedFieldData: Partial<IntegerFormInput>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
         onConfigUpdate({ ...fieldData, ...updatedFieldData });
@@ -90,7 +90,7 @@ export function FormInputInteger({
             helperText={meta.touched && meta.error}
             name={fieldData.fieldName}
             onChange={handleChange}
-            value={typeof onConfigUpdate === "function" ? props.defaultValue ?? 0 : field.value}
+            value={isEditing ? props.defaultValue ?? 0 : field.value}
             min={props.min}
             max={props.max}
             step={props.step}
@@ -98,16 +98,19 @@ export function FormInputInteger({
             zeroText={props.zeroText}
             fullWidth
         />
-    ), [disabled, meta.touched, meta.error, fieldData.fieldName, handleChange, onConfigUpdate, props, field.value]);
+    ), [disabled, meta.touched, meta.error, fieldData.fieldName, handleChange, isEditing, props.defaultValue, props.min, props.max, props.step, props.allowDecimal, props.zeroText, field.value]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return InputElement;
     }
-
     return (
         <div>
             {InputElement}
-            {typeof onConfigUpdate === "function" && props.defaultValue !== 0 && <Typography
+            {isEditing && props.defaultValue !== 0 && <Typography
                 variant="caption"
                 style={{
                     marginBottom: "8px",
@@ -119,19 +122,19 @@ export function FormInputInteger({
                 }}>
                 {props.defaultValue} is the default value
             </Typography>}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateProp({ allowDecimal: !props.allowDecimal })}>
                     {props.allowDecimal ? "Integer" : "Decimal"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={() => setShowMore(!showMore)}>
+                <Button variant="text" sx={moreButtonStyle} onClick={() => setShowMore(!showMore)}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <IntegerInputBase
                         fullWidth
                         label={"Min value"}
@@ -177,7 +180,7 @@ export function FormInputInteger({
                         onChange={(event) => { updateProp({ zeroText: event.target.value }); }}
                         value={props.zeroText ?? ""}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

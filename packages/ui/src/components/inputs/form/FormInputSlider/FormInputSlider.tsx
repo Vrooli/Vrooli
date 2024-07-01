@@ -5,33 +5,33 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
 import { SliderFormInput, SliderFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 export function FormInputSlider({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<SliderFormInput>) {
     const { palette } = useTheme();
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, , helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback((_, value: number | number[]) => {
         const newValue = Array.isArray(value) ? value[0] : value;
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: newValue };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(newValue);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     const [showMore, setShowMore] = useState(false);
 
     function updateProp(updatedProps: Partial<SliderFormInputProps>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
 
@@ -77,7 +77,7 @@ export function FormInputSlider({
     }
 
     function updateFieldData(updatedFieldData: Partial<SliderFormInput>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
         onConfigUpdate({ ...fieldData, ...updatedFieldData });
@@ -92,20 +92,23 @@ export function FormInputSlider({
             name={fieldData.fieldName}
             step={props.step}
             valueLabelDisplay={props.valueLabelDisplay || "auto"}
-            value={typeof onConfigUpdate === "function" ? props.defaultValue ?? props.min : field.value}
+            value={isEditing ? props.defaultValue ?? props.min : field.value}
             onBlur={field.onBlur}
             onChange={handleChange}
         />
-    ), [disabled, fieldData.id, fieldData.fieldName, props, field.onBlur, field.value, onConfigUpdate, handleChange]);
+    ), [disabled, fieldData.id, fieldData.fieldName, props.min, props.max, props.step, props.valueLabelDisplay, props.defaultValue, isEditing, field.value, field.onBlur, handleChange]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return SliderElement;
     }
-
     return (
         <div>
             {SliderElement}
-            {typeof onConfigUpdate === "function" && props.defaultValue !== undefined && <Typography
+            {isEditing && props.defaultValue !== undefined && <Typography
                 variant="caption"
                 style={{
                     marginBottom: "8px",
@@ -116,16 +119,16 @@ export function FormInputSlider({
                 }}>
                 Default value: {props.defaultValue}
             </Typography>}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={() => setShowMore(!showMore)}>
+                <Button variant="text" sx={moreButtonStyle} onClick={() => setShowMore(!showMore)}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <IntegerInputBase
                         fullWidth
                         label="Min value"
@@ -175,7 +178,7 @@ export function FormInputSlider({
                         options={["auto", "on", "off"]}
                         value={props.valueLabelDisplay ?? "off"}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

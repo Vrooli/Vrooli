@@ -8,6 +8,7 @@ export function userSearchSchema(): FormSchema {
         formLayout: searchFormLayout("SearchUser"),
         containers: [
             {
+                direction: "column",
                 disableCollapse: true,
                 totalItems: 1,
             },
@@ -28,4 +29,6 @@ export function userSearchSchema(): FormSchema {
     };
 }
 
-export function userSearchParams() { return toParams(userSearchSchema(), endpointGetUsers, endpointGetUser, UserSortBy, UserSortBy.BookmarksDesc); }
+export function userSearchParams() {
+    return toParams(userSearchSchema(), endpointGetUsers, endpointGetUser, UserSortBy, UserSortBy.BookmarksDesc);
+}

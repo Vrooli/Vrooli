@@ -1,3 +1,4 @@
+/* eslint-disable func-style */
 import { CommonKey, InputType } from "@local/shared";
 import { FormInputType, FormSchema, GridContainer } from "forms/types";
 import i18next from "i18next";
@@ -5,13 +6,13 @@ import i18next from "i18next";
 export const searchFormLayout = (title: CommonKey): FormSchema["formLayout"] => ({
     title: i18next.t(title),
     direction: "column",
-    spacing: 4,
 });
 
 // Containers
 export const languagesContainer = (): GridContainer => ({
     title: i18next.t("Language", { count: 2 }),
     description: i18next.t("LanguagesHelp"),
+    direction: "column",
     disableCollapse: true,
     totalItems: 1,
 });
@@ -19,43 +20,48 @@ export const languagesVersionContainer = languagesContainer;
 export const bookmarksContainer = (): GridContainer => ({
     title: i18next.t("Bookmark", { count: 2 }),
     description: i18next.t("BookmarksHelp"),
+    direction: "row",
     disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const bookmarksRootContainer = bookmarksContainer;
 export const tagsContainer = (): GridContainer => ({
     title: i18next.t("Tag", { count: 2 }),
     description: i18next.t("TagsHelp"),
+    direction: "column",
     disableCollapse: true,
     totalItems: 1,
 });
 export const tagsRootContainer = tagsContainer;
 export const votesContainer = (): GridContainer => ({
     title: i18next.t("Vote", { count: 2 }),
-    disableCollapse: true,
     description: i18next.t("VotesHelp"),
+    direction: "row",
+    disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const votesRootContainer = votesContainer;
 export const simplicityContainer = (): GridContainer => ({
     title: i18next.t("Simplicity"),
     description: i18next.t("SimplicityHelp"),
+    direction: "row",
     disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const simplicityRootContainer = simplicityContainer;
 export const complexityContainer = (): GridContainer => ({
     title: i18next.t("Complexity"),
     description: i18next.t("ComplexityHelp"),
+    direction: "row",
     disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const complexityRootContainer = complexityContainer;
-export const hasCompleteVersionContainer: GridContainer = { disableCollapse: true, totalItems: 1 };
+export const hasCompleteVersionContainer: GridContainer = {
+    direction: "column",
+    disableCollapse: true,
+    totalItems: 1,
+};
 export const isCompleteWithRootContainer: GridContainer = hasCompleteVersionContainer;
 export const isLatestContainer: GridContainer = hasCompleteVersionContainer;
 

@@ -6,7 +6,7 @@ import { searchFormLayout } from "./common";
 export const runRoutineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchRunRoutine"),
     containers: [
-        { totalItems: 1 },
+        { direction: "column", totalItems: 1 },
     ],
     fields: [
         {

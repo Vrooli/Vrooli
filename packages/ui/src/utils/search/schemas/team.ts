@@ -6,7 +6,7 @@ import { bookmarksContainer, bookmarksFields, languagesContainer, languagesField
 export const teamSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchTeam"),
     containers: [
-        { totalItems: 1 },
+        { direction: "column", totalItems: 1 },
         bookmarksContainer(),
         languagesContainer(),
         tagsContainer(),

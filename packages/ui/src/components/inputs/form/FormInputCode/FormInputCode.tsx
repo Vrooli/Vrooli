@@ -7,6 +7,7 @@ export function FormInputCode({
     disabled,
     fieldData,
     index,
+    isEditing,
 }: FormInputProps<CodeFormInput>) {
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 

@@ -1,25 +1,56 @@
-import { InputType, mergeDeep, noopSubmit } from "@local/shared";
+import { InputType, mergeDeep, noop, noopSubmit } from "@local/shared";
 import { Box, BoxProps, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Typography, styled, useTheme } from "@mui/material";
 import { FormInput } from "components/inputs/form";
+import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
 import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
 import { CreateFormInputProps, createFormInput } from "forms/generators";
-import { FormBuildViewProps, FormElement, FormHeaderType, FormInputType } from "forms/types";
+import { FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormViewProps } from "forms/types";
 import { usePopover } from "hooks/usePopover";
 import { useWindowSize } from "hooks/useWindowSize";
-import { CaseSensitiveIcon, DragIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, HeaderIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, NumberIcon, ObjectIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
+import { CaseSensitiveIcon, DragIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, HeaderIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
 import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
+import { FormStructureType } from "utils/consts";
 
-interface ElementOuterBoxProps extends BoxProps {
+type FormCategoryType = {
+    category: string,
+    items: { type: never }[],
+}
+
+/**
+ * Applies restrictions to the available form element types in 
+ * one of the form builder popover categories
+ */
+function filterCategory<T extends FormCategoryType[]>(
+    category: T[0],
+    limits: FormBuildViewProps["limits"],
+    popover: "inputs" | "structures",
+) {
+    if (limits?.[popover]?.types) {
+        // Filter items based on the limits.input array
+        const filteredItems = category.items.filter(item => limits?.[popover]?.types?.includes(item.type));
+
+        // If filteredItems is not empty, return category with filtered items
+        if (filteredItems.length > 0) {
+            return { ...category, items: filteredItems };
+        }
+        // If filteredItems is empty, return null
+        return null;
+    }
+    // Otherwise, return the category as-is
+    return category;
+}
+
+interface ElementBuildOuterBoxProps extends BoxProps {
     isSelected: boolean;
 }
 
-const ElementOuterBox = styled(Box, {
+const ElementBuildOuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
-})<ElementOuterBoxProps>(({ theme, isSelected }) => ({
+})<ElementBuildOuterBoxProps>(({ theme, isSelected }) => ({
     display: "flex",
     background: theme.palette.background.paper,
     border: isSelected ? `4px solid ${theme.palette.secondary.main}` : "none",
@@ -71,40 +102,38 @@ const toolbarLargeButtonStyle = { cursor: "pointer" } as const;
 
 const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as const;
 
-interface HeaderListItemProps {
+interface PopoverListItemProps {
     icon: React.ReactNode;
     label: string;
-    tag: FormHeaderType["tag"];
+    tag?: FormHeaderType["tag"];
+    type: FormElement["type"];
+    onAddDivider: () => unknown;
     onAddHeader: (headerData: Partial<FormHeaderType>) => unknown;
-}
-
-const HeaderListItem = memo(function HeaderListItemMemo({ icon, label, tag, onAddHeader }: HeaderListItemProps) {
-    const handleClick = useCallback(() => {
-        onAddHeader({ tag });
-    }, [onAddHeader, tag]);
-
-    return (
-        <ListItem
-            button
-            onClick={handleClick}
-        >
-            <ListItemIcon>{icon}</ListItemIcon>
-            <ListItemText primary={label} />
-        </ListItem>
-    );
-});
-
-interface InputListItemProps {
-    icon: React.ReactNode;
-    label: string;
-    type: InputType;
     onAddInput: (InputData: Omit<Partial<FormInputType>, "type"> & { type: InputType; }) => unknown;
 }
 
-const InputListItem = memo(function InputListItemMemo({ icon, label, type, onAddInput }: InputListItemProps) {
+const PopoverListItem = memo(function PopoverListItemMemo({
+    icon,
+    label,
+    onAddDivider,
+    onAddHeader,
+    onAddInput,
+    tag,
+    type,
+}: PopoverListItemProps) {
     const handleClick = useCallback(() => {
-        onAddInput({ type });
-    }, [onAddInput, type]);
+        if (type === "Divider") {
+            onAddDivider();
+        } else if (type === "Header") {
+            if (tag) {
+                onAddHeader({ tag });
+            } else {
+                console.error("Missing tag for header - cannot add header to form.");
+            }
+        } else {
+            onAddInput({ type });
+        }
+    }, [onAddDivider, onAddHeader, onAddInput, tag, type]);
 
     return (
         <ListItem
@@ -125,7 +154,9 @@ const FormHelperText = styled(Typography)(({ theme }) => ({
 
 const formDividerStyle = { marginBottom: 2 } as const;
 
-//TODO: Add groups and page breaks
+//TODO: Allow titles to collapse sections below them. Need to update the way inputs are rendered so that they're nested within the header using a collapsibetext component
+//TODO pass in state as props and add callback to update
+//TODO create FormView component which switches between build and run mode, and hook to handle creating and passing in form state
 export function FormBuildView({
     limits,
 }: FormBuildViewProps) {
@@ -136,22 +167,22 @@ export function FormBuildView({
     const [selectedElementIndex, setSelectedElementIndex] = useState<number | null>(null);
     const elementRefs = useRef<(HTMLElement | null)[]>([]);
 
-    const [headerAnchorEl, openHeaderPopover, closeHeaderPopover, isHeaderPopoverOpen] = usePopover();
-    const handleHeaderPopoverOpen = useCallback(function handleHeaderPopoverOpenCallback(event: React.MouseEvent<HTMLElement>) {
-        event.preventDefault();
-        openHeaderPopover(event);
-    }, [openHeaderPopover]);
-
     const [inputAnchorEl, openInputPopover, closeInputPopover, isInputPopoverOpen] = usePopover();
     const handleInputPopoverOpen = useCallback(function handleInputPopoverOpenCallback(event: React.MouseEvent<HTMLElement>) {
         event.preventDefault();
         openInputPopover(event);
     }, [openInputPopover]);
 
+    const [structureAnchorEl, openStructurePopover, closeStructurePopover, isStructurePopoverOpen] = usePopover();
+    const handleStructurePopoverOpen = useCallback(function handleStructurePopoverOpenCallback(event: React.MouseEvent<HTMLElement>) {
+        event.preventDefault();
+        openStructurePopover(event);
+    }, [openStructurePopover]);
+
     const closePopovers = useCallback(function closePopoversCallback() {
-        closeHeaderPopover();
         closeInputPopover();
-    }, [closeHeaderPopover, closeInputPopover]);
+        closeStructurePopover();
+    }, [closeStructurePopover, closeInputPopover]);
 
     const handleAddElement = useCallback(function handleAddElementCallback<T extends FormElement>(element: Omit<T, "id">) {
         const newElement = {
@@ -187,20 +218,6 @@ export function FormBuildView({
     function selectElement(index: number) {
         setSelectedElementIndex(index);
     }
-
-    const headerItems = useMemo(function headerItemsMemo() {
-        return ([
-            { tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
-            { tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
-            { tag: "h3", icon: <Header3Icon />, label: "Header (Medium)" },
-            { tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
-        ] as const).filter(({ tag }) => {
-            if (limits?.headers?.types) {
-                return limits.headers.types.includes(tag);
-            }
-            return true;
-        });
-    }, [limits?.headers?.types]);
 
     const inputItems = useMemo(function inputItemsMemo() {
         return ([
@@ -241,43 +258,38 @@ export function FormBuildView({
                 ],
             },
         ] as const).reduce((acc, category) => {
-            if (limits?.inputs?.types) {
-                // Filter items based on the limits.input array
-                const filteredItems = category.items.filter(item => limits?.inputs?.types?.includes(item.type));
-
-                // If filteredItems is not empty, push the category with these items into the accumulator
-                if (filteredItems.length > 0) {
-                    acc.push({ ...category, items: filteredItems });
-                }
-            } else {
-                // If no limits are set, push the category as is
-                acc.push(category);
+            const filteredCategory = filterCategory<typeof inputItems>(category, limits, "inputs");
+            if (filteredCategory) {
+                acc.push(filteredCategory);
             }
-            return acc; // Return the updated accumulator for the next iteration
+            return acc;
         }, [] as typeof inputItems);
-    }, [limits?.inputs?.types]);
+    }, [limits]);
 
-
-    const handleAddHeader = useCallback(function handleAddHeaderCallback(data: Partial<FormHeaderType>) {
-        const tag = data.tag ?? "h1";
-        handleAddElement<FormHeaderType>({
-            type: "Header",
-            label: data.label ?? `New ${tag.toUpperCase()}`,
-            tag,
-            ...data,
-        });
-        closeHeaderPopover();
-    }, [handleAddElement, closeHeaderPopover]);
-
-    const handleUpdateHeader = useCallback(function handleUpdateHeaderCallback(index: number, data: Partial<FormHeaderType>) {
-        const element = {
-            ...formElements[index],
-            ...data,
-        };
-        const newElements = [...formElements.slice(0, index), element, ...formElements.slice(index + 1)] as FormElement[];
-        console.log("in handleUpdateHeader", newElements);
-        setFormElements(newElements);
-    }, [formElements]);
+    const structureItems = useMemo(function structureItemsMemo() {
+        return ([
+            {
+                category: "Headers",
+                items: [
+                    { type: "Header", tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
+                    { type: "Header", tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
+                    { type: "Header", tag: "h3", icon: <Header3Icon />, label: "Header (Medium)" },
+                    { type: "Header", tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
+                ],
+            }, {
+                category: "Page Elements",
+                items: [
+                    { type: "Divider", icon: <MinusIcon />, label: "Divider" },
+                ],
+            },
+        ] as const).reduce((acc, category) => {
+            const filteredCategory = filterCategory<typeof inputItems>(category, limits, "structures");
+            if (filteredCategory) {
+                acc.push(filteredCategory);
+            }
+            return acc;
+        }, [] as typeof inputItems);
+    }, [limits]);
 
     const handleAddInput = useCallback(function handleAddInputCallback(data: Omit<Partial<FormInputType>, "type"> & { type: InputType }) {
         const newElement = createFormInput({
@@ -298,6 +310,34 @@ export function FormBuildView({
         const newElements = [...formElements.slice(0, index), element, ...formElements.slice(index + 1)] as FormElement[];
         setFormElements(newElements);
     }, [formElements]);
+
+    const handleAddHeader = useCallback(function handleAddHeaderCallback(data: Partial<FormHeaderType>) {
+        const tag = data.tag ?? "h1";
+        handleAddElement<FormHeaderType>({
+            type: FormStructureType.Header,
+            label: data.label ?? `New ${tag.toUpperCase()}`,
+            tag,
+            ...data,
+        });
+        closeStructurePopover();
+    }, [handleAddElement, closeStructurePopover]);
+
+    const handleUpdateHeader = useCallback(function handleUpdateHeaderCallback(index: number, data: Partial<FormHeaderType>) {
+        const element = {
+            ...formElements[index],
+            ...data,
+        };
+        const newElements = [...formElements.slice(0, index), element, ...formElements.slice(index + 1)] as FormElement[];
+        setFormElements(newElements);
+    }, [formElements]);
+
+    const handleAddDivider = useCallback(function handleAddDividerCallback() {
+        handleAddElement<FormDividerType>({
+            type: FormStructureType.Divider,
+            label: "",
+        });
+        closeStructurePopover();
+    }, [handleAddElement, closeStructurePopover]);
 
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
@@ -333,22 +373,17 @@ export function FormBuildView({
             if (!isSelected) return;
             handleUpdateHeader(index, data);
         }
-        function onFormHeaderDelete() {
-            if (!isSelected) return;
-            handleDeleteElement(index);
-        }
-
         function onFormInputConfigUpdate(updatedInput: Partial<FormInputType>) {
             if (!isSelected) return;
             handleUpdateInput(index, updatedInput);
         }
-        function onFormInputDelete() {
+        function onFormElementDelete() {
             if (!isSelected) return;
             handleDeleteElement(index);
         }
 
         return (
-            <ElementOuterBox
+            <ElementBuildOuterBox
                 isSelected={isSelected}
                 key={element.id}
                 ref={providedDrag.innerRef}
@@ -358,21 +393,31 @@ export function FormBuildView({
                     ref={handleElementButtonRef}
                     onClick={onElementButtonClick}
                     onKeyDown={onElementButtonKeyDown}
+                    type="button"
                 >
-                    {element.type === "Header" && (
+                    {element.type === FormStructureType.Header && (
                         <FormHeader
                             element={element as FormHeaderType}
-                            isSelected={isSelected}
+                            isEditing={isSelected}
                             onUpdate={onFormHeaderUpdate}
-                            onDelete={onFormHeaderDelete}
+                            onDelete={onFormElementDelete}
                         />
                     )}
-                    {element.type !== "Header" && <FormInput
-                        fieldData={element}
-                        index={index}
-                        onConfigUpdate={onFormInputConfigUpdate}
-                        onDelete={onFormInputDelete}
-                    />}
+                    {element.type === FormStructureType.Divider && (
+                        <FormDivider
+                            isEditing={isSelected}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {!(element.type in FormStructureType) && (
+                        <FormInput
+                            copyInput={noop}
+                            fieldData={element as FormInputType}
+                            index={index}
+                            isEditing={isSelected}
+                            onConfigUpdate={onFormInputConfigUpdate}
+                            onDelete={onFormElementDelete}
+                        />)}
                     {isSelected ? Toolbar : null}
                 </ElementButton>
                 {isSelected && (
@@ -387,22 +432,11 @@ export function FormBuildView({
                         />
                     </DragBox>
                 )}
-            </ElementOuterBox>
+            </ElementBuildOuterBox>
         );
     }
 
     const Toolbar = useMemo(() => {
-        const numHeaderItems = headerItems.length;
-        const firstHeaderItem = numHeaderItems === 1 ? headerItems[0] : null;
-        const DisplayedHeaderIcon = firstHeaderItem ? (() => firstHeaderItem.icon) : HeaderIcon;
-        function headerOnClick(event: React.MouseEvent<HTMLElement>) {
-            if (firstHeaderItem) {
-                handleAddHeader({ tag: firstHeaderItem.tag });
-            } else {
-                handleHeaderPopoverOpen(event);
-            }
-        }
-
         const numInputItems = inputItems.reduce((acc, { items }) => acc + items.length, 0);
         const firstInputItem = numInputItems === 1 ? inputItems[0].items[0] : null;
         const DisplayedInputIcon = firstInputItem ? (() => firstInputItem.icon) : TextInputIcon;
@@ -414,15 +448,23 @@ export function FormBuildView({
             }
         }
 
+        const numStructureItems = structureItems.length;
+        const firstStructureItem = numStructureItems === 1 ? structureItems[0].items[0] : null;
+        const DisplayedStructureIcon = firstStructureItem ? (() => firstStructureItem.icon) : HeaderIcon;
+        function structureOnClick(event: React.MouseEvent<HTMLElement>) {
+            if (firstStructureItem) {
+                if (firstStructureItem.type === "Divider") {
+                    handleAddDivider();
+                } else {
+                    handleAddHeader({ tag: firstStructureItem.tag });
+                }
+            } else {
+                handleStructurePopoverOpen(event);
+            }
+        }
+
         return (
             <ToolbarBox formElementsCount={formElements.length}>
-                {numHeaderItems > 0 && <>
-                    {isMobile ? <IconButton onClick={headerOnClick}>
-                        <DisplayedHeaderIcon width={24} height={24} />
-                    </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={headerOnClick}>
-                        {numHeaderItems === 1 ? `Add ${headerItems[0].label.toLowerCase()}` : "Add header"}
-                    </Typography>}
-                </>}
                 {numInputItems > 0 && <>
                     {isMobile ? <IconButton onClick={inputOnClick}>
                         <DisplayedInputIcon width={24} height={24} />
@@ -430,33 +472,22 @@ export function FormBuildView({
                         {numInputItems === 1 ? `Add ${inputItems[0].items[0].label.toLowerCase()}` : "Add input"}
                     </Typography>}
                 </>}
+                {numStructureItems > 0 && <>
+                    {isMobile ? <IconButton onClick={structureOnClick}>
+                        <DisplayedStructureIcon width={24} height={24} />
+                    </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={structureOnClick}>
+                        {numStructureItems === 1 ? `Add ${structureItems[0].label.toLowerCase()}` : "Add structure"}
+                    </Typography>}
+                </>}
             </ToolbarBox>
         );
-    }, [formElements.length, handleAddHeader, handleAddInput, handleHeaderPopoverOpen, handleInputPopoverOpen, headerItems, inputItems, isMobile]);
+    }, [inputItems, structureItems, formElements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
 
     //TODO calculate using defaultValues
     const formInitialValues = useMemo(() => ({}) as Record<string, unknown>, []);
 
     return (
         <div>
-            <Popover
-                open={isHeaderPopoverOpen}
-                anchorEl={headerAnchorEl}
-                onClose={closeHeaderPopover}
-                anchorOrigin={popoverAnchorOrigin}
-            >
-                <List>
-                    {headerItems.map((item) => (
-                        <HeaderListItem
-                            key={item.tag}
-                            icon={item.icon}
-                            label={item.label}
-                            tag={item.tag}
-                            onAddHeader={handleAddHeader}
-                        />
-                    ))}
-                </List>
-            </Popover>
             <Popover
                 open={isInputPopoverOpen}
                 anchorEl={inputAnchorEl}
@@ -467,18 +498,48 @@ export function FormBuildView({
                 {inputItems.map(({ category, items }) => (
                     <Fragment key={category}>
                         <ListSubheader>{category}</ListSubheader>
-                        {items.map(({ icon, label, type }) => (
-                            <InputListItem
-                                key={type}
-                                icon={icon}
-                                label={label}
-                                type={type}
+                        {items.map((item) => (
+                            <PopoverListItem
+                                key={item.tag}
+                                icon={item.icon}
+                                label={item.label}
+                                tag={item.tag}
+                                type={item.type}
+                                onAddDivider={handleAddDivider}
+                                onAddHeader={handleAddHeader}
                                 onAddInput={handleAddInput}
                             />
                         ))}
                         <Divider />
                     </Fragment>
                 ))}
+            </Popover>
+            <Popover
+                open={isStructurePopoverOpen}
+                anchorEl={structureAnchorEl}
+                onClose={closeStructurePopover}
+                anchorOrigin={popoverAnchorOrigin}
+            >
+                <List>
+                    {structureItems.map(({ category, items }) => (
+                        <Fragment key={category}>
+                            <ListSubheader>{category}</ListSubheader>
+                            {items.map((item) => (
+                                <PopoverListItem
+                                    key={item.tag}
+                                    icon={item.icon}
+                                    label={item.label}
+                                    tag={item.tag}
+                                    type={item.type}
+                                    onAddDivider={handleAddDivider}
+                                    onAddHeader={handleAddHeader}
+                                    onAddInput={handleAddInput}
+                                />
+                            ))}
+                            <Divider />
+                        </Fragment>
+                    ))}
+                </List>
             </Popover>
             {formElements.length === 0 && <FormHelperText variant="body1">Use the options below to populate the form.</FormHelperText>}
             {formElements.length === 0 ? Toolbar : null}
@@ -511,4 +572,87 @@ export function FormBuildView({
             </Formik>
         </div>
     );
+}
+
+const ElementRunOuterBox = styled("button")(() => ({
+    padding: 0,
+    width: "100%",
+    overflow: "hidden",
+    background: "none",
+    color: "inherit",
+    border: "none",
+    textAlign: "left",
+    cursor: "pointer",
+}));
+
+export function FormRunView({
+    disabled,
+}: FormRunViewProps) {
+
+    const [formElements, setFormElements] = useState<FormElement[]>([]);
+
+    function renderElement(element: FormElement, index: number) {
+        return (
+            <ElementRunOuterBox
+                key={element.id}
+            >
+                {element.type === FormStructureType.Header && (
+                    <FormHeader
+                        element={element as FormHeaderType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Divider && (
+                    <FormDivider
+                        isEditing={false}
+                        onDelete={noop}
+                    />
+                )}
+                {!(element.type in FormStructureType) && (
+                    <FormInput
+                        copyInput={noop} //TODO!
+                        fieldData={element as FormInputType}
+                        index={index}
+                        isEditing={false}
+                        onConfigUpdate={noop}
+                        onDelete={noop}
+                    />)}
+            </ElementRunOuterBox>
+        );
+    }
+
+    // Purposefully empty, as we're not using formik for form state
+    const formInitialValues = useMemo(() => ({}) as Record<string, unknown>, []);
+
+    return (
+        <div>
+            {formElements.length === 0 && <FormHelperText variant="body1">The form is empty.</FormHelperText>}
+            {formElements.length > 0 && <Divider sx={formDividerStyle} />}
+            {/* Formik to handle form state. Even though we're not entering data, we need to make sure we aren't using a formik context higher up in the tree */}
+            <Formik
+                enableReinitialize={true}
+                initialValues={formInitialValues}
+                onSubmit={noopSubmit}
+            >
+                {() => (
+                    <FormErrorBoundary> {/* Error boundary to catch elements that fail to render */}
+                        {formElements.map((element, index) => renderElement(element, index))}
+                    </FormErrorBoundary>
+                )}
+            </Formik>
+        </div>
+    );
+}
+
+export function FormView({
+    disabled,
+    isEditing,
+    limits,
+}: FormViewProps) {
+    if (isEditing) {
+        return <FormBuildView limits={limits} />;
+    }
+    return <FormRunView disabled={disabled} />;
 }

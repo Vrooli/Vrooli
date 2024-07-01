@@ -5,13 +5,13 @@ import { AddIcon, CloseIcon, DragIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 export function FormInputRadio({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<RadioFormInput>) {
     const { palette, typography } = useTheme();
@@ -27,29 +27,29 @@ export function FormInputRadio({
         const alreadyChecked = field.value === value;
         let setTo: string | null = value;
         // If already checked and either in editing more or the field is not required, uncheck
-        if (alreadyChecked && (typeof onConfigUpdate === "function" || fieldData.isRequired !== true)) {
+        if (alreadyChecked && (isEditing || fieldData.isRequired !== true)) {
             setTo = null;
         }
         helpers.setValue(setTo);
 
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: setTo };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [field.value, helpers, onConfigUpdate, props, fieldData]);
+    }, [field.value, isEditing, fieldData, helpers, props, onConfigUpdate]);
 
     const updateProp = useCallback((updatedProps: Partial<RadioFormInputProps>) => {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, ...updatedProps };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, props, onConfigUpdate, fieldData]);
 
     const updateFieldData = useCallback((updatedFieldData: Partial<RadioFormInput>) => {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             onConfigUpdate({ ...fieldData, ...updatedFieldData });
         }
-    }, [onConfigUpdate, fieldData]);
+    }, [isEditing, onConfigUpdate, fieldData]);
 
     const addOption = useCallback(() => {
         const newOptions = [...props.options, {
@@ -104,7 +104,6 @@ export function FormInputRadio({
     }, [submitOptionLabelChange]);
 
     const RadioElement = useMemo(() => {
-        const isEditing = typeof onConfigUpdate === "function";
         return (
             <FormControl
                 key={`field-${fieldData.id}`}
@@ -225,16 +224,19 @@ export function FormInputRadio({
                 {meta.touched && !!meta.error && <FormHelperText>{typeof meta.error === "string" ? meta.error : JSON.stringify(meta.error)}</FormHelperText>}
             </FormControl>
         );
-    }, [onConfigUpdate, fieldData.id, fieldData.isRequired, fieldData.fieldName, disabled, meta.touched, meta.error, onDragEnd, props.row, props.options, props.defaultValue, addOption, field.value, editingOptionIndex, typography, submitOptionLabelChange, handleOptionLabelKeyDown, editedOptionLabel, palette.background.textSecondary, handleChange, startEditingOption, removeOption]);
+    }, [fieldData.id, fieldData.isRequired, fieldData.fieldName, disabled, meta.touched, meta.error, onDragEnd, props.row, props.defaultValue, props.options, isEditing, field.value, addOption, editingOptionIndex, typography, submitOptionLabelChange, handleOptionLabelKeyDown, editedOptionLabel, palette.background.textSecondary, handleChange, startEditingOption, removeOption]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return RadioElement;
     }
-
     return (
         <div>
             {RadioElement}
-            {typeof onConfigUpdate === "function" && typeof props.defaultValue === "string" && props.defaultValue.length > 0 && <Typography
+            {isEditing && typeof props.defaultValue === "string" && props.defaultValue.length > 0 && <Typography
                 variant="caption"
                 style={{
                     marginLeft: "12px",
@@ -245,19 +247,19 @@ export function FormInputRadio({
                 }}>
                 &quot;{props.options.find((option) => option.value === props.defaultValue)?.label ?? "Option"}&quot; will be selected by default when the form is used.
             </Typography>}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateProp({ row: !props.row })}>
                     {props.row ? "Vertical" : "Horizontal"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={() => setShowMore(!showMore)}>
+                <Button variant="text" sx={moreButtonStyle} onClick={() => setShowMore(!showMore)}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextField
                         fullWidth
                         label="Field name"
@@ -265,7 +267,7 @@ export function FormInputRadio({
                         onChange={(e) => updateFieldData({ fieldName: e.target.value })}
                         style={{ marginBottom: "10px" }}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

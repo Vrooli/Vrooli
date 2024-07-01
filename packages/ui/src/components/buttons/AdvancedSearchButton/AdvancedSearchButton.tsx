@@ -104,7 +104,6 @@ function AdvancedSearchDialog({
                             childContainers={schema.containers}
                             fields={schema.fields}
                             layout={schema.formLayout}
-                            theme={theme}
                         />}
                     </Box>
                     {/* Search/Cancel buttons */}

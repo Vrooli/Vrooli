@@ -6,7 +6,7 @@ import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFie
 export const projectOrRoutineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchProjectOrRoutine"),
     containers: [
-        { totalItems: 1 },
+        { direction: "column", totalItems: 1 },
         hasCompleteVersionContainer,
         votesContainer(),
         bookmarksContainer(),

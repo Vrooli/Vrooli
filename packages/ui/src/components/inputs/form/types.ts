@@ -1,28 +1,32 @@
-import { Theme } from "@mui/material";
 import { FormHeaderType, FormInputType, GridContainer, GridContainerBase } from "forms/types";
 
 export interface GeneratedGridProps {
     childContainers?: GridContainer[];
     fields: FormInputType[];
     layout?: GridContainer | GridContainerBase;
-    theme: Theme;
+}
+
+export interface FormDividerProps {
+    isEditing: boolean;
+    onDelete: () => unknown;
 }
 
 export interface FormHeaderProps {
     element: FormHeaderType;
-    isSelected: boolean;
+    isEditing: boolean;
     onUpdate: (data: Partial<FormHeaderType>) => unknown;
-    onDelete: () => void;
+    onDelete: () => unknown;
 }
 
 export interface FormInputProps<FieldData extends FormInputType = FormInputType> {
-    copyInput?: (fieldName: string) => unknown;
+    copyInput: (fieldName: string) => unknown;
     disabled?: boolean;
     fieldData: FieldData;
     index: number;
+    isEditing: boolean;
     /** Provide when building form to configure input properties */
-    onConfigUpdate?: (fieldData: FieldData) => unknown;
+    onConfigUpdate: (fieldData: FieldData) => unknown;
     /** Provide when building form to delete input element */
-    onDelete?: () => unknown;
+    onDelete: () => unknown;
     textPrimary?: string;
 }

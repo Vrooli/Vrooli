@@ -7,13 +7,26 @@ import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
 import { updateArray } from "utils/shape/general";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
 
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
+const formControlStyle = { m: "12px" } as const;
+const optionTextFieldStyle = {
+    flexGrow: 1,
+    width: "auto",
+    "& .MuiInputBase-input": {
+        padding: 0,
+    },
+} as const;
+const addOptionStyle = {
+    marginLeft: "-7px",
+    textTransform: "none",
+} as const;
 
 export function FormInputCheckbox({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<CheckboxFormInput>) {
     const { palette, typography } = useTheme();
@@ -29,25 +42,25 @@ export function FormInputCheckbox({
         const newValue = updateArray(Array.isArray(field.value) ? field.value : [], index, checked);
         helpers.setValue(newValue);
 
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newDefaultValue = (props.defaultValue ?? []).map((value, i) => i === index ? checked : value);
             const newProps = { ...props, defaultValue: newDefaultValue };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [field.value, helpers, onConfigUpdate, props, fieldData]);
+    }, [field.value, helpers, isEditing, props, onConfigUpdate, fieldData]);
 
     const updateProp = useCallback((updatedProps: Partial<CheckboxFormInputProps>) => {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, ...updatedProps };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, props, onConfigUpdate, fieldData]);
 
     const updateFieldData = useCallback((updatedFieldData: Partial<CheckboxFormInput>) => {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             onConfigUpdate({ ...fieldData, ...updatedFieldData });
         }
-    }, [onConfigUpdate, fieldData]);
+    }, [onConfigUpdate, fieldData, isEditing]);
 
     const addOption = useCallback(() => {
         const newOptions = [...props.options, {
@@ -129,8 +142,11 @@ export function FormInputCheckbox({
         }
     }, [submitOptionLabelChange]);
 
-    const CheckboxElement = useMemo(() => {
-        const isEditing = typeof onConfigUpdate === "function";
+    const CheckboxElement = useMemo(function checkboxElementMemo() {
+        function onCheckboxChange(_, checked: boolean) {
+            handleChange(0, checked);
+        }
+
         return (
             <FormControl
                 key={`field-${fieldData.id}`}
@@ -140,7 +156,7 @@ export function FormInputCheckbox({
                 name={fieldData.fieldName}
                 component="fieldset"
                 variant="standard"
-                sx={{ m: "12px" }}
+                sx={formControlStyle}
             >
                 <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable droppableId={`droppable-${fieldData.id}`} direction={props.row ? "horizontal" : "vertical"} type="checkboxOption">
@@ -169,7 +185,7 @@ export function FormInputCheckbox({
                                                     control={
                                                         <Checkbox
                                                             checked={isEditing ? (props.defaultValue?.[index] === true) : (field.value?.[index] === true)}
-                                                            onChange={(event) => handleChange(index, event.target.checked)}
+                                                            onChange={onCheckboxChange}
                                                             name={`${fieldData.fieldName}-${index}`}
                                                             id={`${fieldData.fieldName}-${index}`}
                                                             value={option.value}
@@ -186,13 +202,7 @@ export function FormInputCheckbox({
                                                                     onKeyDown={handleOptionLabelKeyDown}
                                                                     size="small"
                                                                     value={editedOptionLabel}
-                                                                    sx={{
-                                                                        flexGrow: 1,
-                                                                        width: "auto",
-                                                                        "& .MuiInputBase-input": {
-                                                                            padding: 0,
-                                                                        },
-                                                                    }}
+                                                                    sx={optionTextFieldStyle}
                                                                 />
                                                             ) : (
                                                                 <Typography
@@ -240,10 +250,7 @@ export function FormInputCheckbox({
                                         variant="text"
                                         onClick={addOption}
                                         startIcon={<AddIcon />}
-                                        style={{
-                                            marginLeft: "-7px",
-                                            textTransform: "none",
-                                        }}
+                                        style={addOptionStyle}
                                     >
                                         Add Option
                                     </Button>
@@ -256,16 +263,19 @@ export function FormInputCheckbox({
                 {meta.touched && !!meta.error && <FormHelperText>{typeof meta.error === "string" ? meta.error : JSON.stringify(meta.error)}</FormHelperText>}
             </FormControl>
         );
-    }, [onConfigUpdate, fieldData.id, fieldData.isRequired, fieldData.fieldName, disabled, meta.touched, meta.error, onDragEnd, props.row, props.options, props.defaultValue, addOption, field.value, editingOptionIndex, typography, submitOptionLabelChange, handleOptionLabelKeyDown, editedOptionLabel, palette.background.textSecondary, handleChange, startEditingOption, removeOption]);
+    }, [fieldData.id, fieldData.isRequired, fieldData.fieldName, disabled, meta.touched, meta.error, onDragEnd, props.row, props.options, props.defaultValue, handleChange, isEditing, addOption, field.value, editingOptionIndex, typography, submitOptionLabelChange, handleOptionLabelKeyDown, editedOptionLabel, palette.background.textSecondary, startEditingOption, removeOption]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return CheckboxElement;
     }
-
     return (
         <div>
             {CheckboxElement}
-            {typeof onConfigUpdate === "function" && props.defaultValue?.some(Boolean) && <Typography
+            {isEditing && props.defaultValue?.some(Boolean) && <Typography
                 variant="caption"
                 style={{
                     marginLeft: "12px",
@@ -276,19 +286,19 @@ export function FormInputCheckbox({
                 }}>
                 Checked options will be selected by default when the form is used.
             </Typography>}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateProp({ row: !props.row })}>
                     {props.row ? "Vertical" : "Horizontal"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={() => setShowMore(!showMore)}>
+                <Button variant="text" sx={moreButtonStyle} onClick={() => setShowMore(!showMore)}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextField
                         fullWidth
                         label="Field name"
@@ -318,7 +328,7 @@ export function FormInputCheckbox({
                         value={props.maxSelection ?? 0}
                         zeroText="No maximum"
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

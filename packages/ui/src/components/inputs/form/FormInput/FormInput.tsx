@@ -1,5 +1,5 @@
 import { InputType } from "@local/shared";
-import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { CopyIcon, DeleteIcon } from "icons";
@@ -42,10 +42,30 @@ const typeMap: { [key in InputType]: ComponentType<FormInputProps<any>> } = {
     [InputType.Text]: FormInputText,
 };
 
+const AsteriskLabel = styled(Typography)(({ theme }) => ({
+    color: theme.palette.error.main,
+    paddingLeft: "4px",
+}));
+
+const formInputOuterBoxStyle = {
+    paddingTop: 1,
+    paddingBottom: 1,
+    border: 0,
+    borderRadius: 1,
+};
+const textFieldStyle = {
+    flexGrow: 1,
+    width: "auto",
+    "& .MuiInputBase-input": {
+        padding: 0,
+    },
+} as const;
+
 export function FormInput({
     copyInput,
     fieldData,
     index,
+    isEditing,
     onConfigUpdate,
     onDelete,
     textPrimary,
@@ -64,51 +84,58 @@ export function FormInput({
         startEditingLabel,
         submitLabelChange,
     } = useEditableLabel({
-        isEditable: typeof onConfigUpdate === "function",
+        isEditable: isEditing,
         label: fieldData.label,
         onUpdate: updateLabel,
     });
 
+    const handleDelete = useCallback(function handleDeleteClick() { onDelete(); }, [onDelete]);
+    const handleCopy = useCallback(function handleCopyClick() { copyInput(fieldData.fieldName); }, [copyInput]);
+    const onMarkdownChange = useMemo(function onMarkdownChangeMemo() {
+        return isEditing ? (helpText: string) => { onConfigUpdate({ ...fieldData, helpText }); } : undefined;
+    }, [isEditing, fieldData, onConfigUpdate]);
+
+    const textFieldInputProps = useMemo(function textFieldInputPropsMemo() {
+        return { style: (typography["h6"] as object || {}) };
+    }, [typography]);
+    const labelStyle = useMemo(function typographyStyleMemo() {
+        return { color: textPrimary, cursor: isEditing ? "pointer" : "default" };
+    }, [textPrimary, isEditing]);
+
     const titleStack = useMemo(() => (
         <Stack direction="row" spacing={0} alignItems="center">
             {/* Delete button when editing form, and copy button when using form */}
-            {typeof onDelete === "function" && typeof onConfigUpdate === "function" ? (
+            {isEditing ? (
                 <Tooltip title={t("Delete")}>
-                    <IconButton onClick={function deleteElementClick() { onDelete(); }}>
+                    <IconButton onClick={handleDelete}>
                         <DeleteIcon fill={palette.error.main} width="24px" height="24px" />
                     </IconButton>
                 </Tooltip>
-            ) : typeof copyInput === "function" ? (
+            ) : (
                 <Tooltip title={t("CopyToClipboard")}>
-                    <IconButton onClick={() => copyInput(fieldData.fieldName)}>
+                    <IconButton onClick={handleCopy}>
                         <CopyIcon fill={textPrimary} />
                     </IconButton>
                 </Tooltip>
-            ) : null}
+            )}
             <legend aria-label="Input label">
                 {isEditingLabel ? (
                     <TextField
                         ref={labelEditRef}
                         autoFocus
-                        InputProps={{ style: (typography["h6"] as object || {}) }}
+                        InputProps={textFieldInputProps}
                         onBlur={submitLabelChange}
                         onChange={handleLabelChange}
                         onKeyDown={handleLabelKeyDown}
                         size="small"
                         value={editedLabel}
-                        sx={{
-                            flexGrow: 1,
-                            width: "auto",
-                            "& .MuiInputBase-input": {
-                                padding: 0,
-                            },
-                        }}
+                        sx={textFieldStyle}
                     />
                 ) : (
                     <Typography
                         id={`label-${fieldData.fieldName}`}
                         onClick={startEditingLabel}
-                        sx={{ color: textPrimary, cursor: typeof onConfigUpdate === "function" ? "pointer" : "default" }}
+                        sx={labelStyle}
                         variant="h6"
                     >
                         {editedLabel ?? (index && `Input ${index + 1}`) ?? t("Input")}
@@ -116,14 +143,14 @@ export function FormInput({
                 )}
             </legend>
             {/* Red asterisk if required */}
-            {fieldData.isRequired && <Typography variant="h6" sx={{ color: palette.error.main, paddingLeft: "4px" }}>*</Typography>}
-            {(fieldData.helpText || typeof onConfigUpdate === "function") ?
+            {fieldData.isRequired && <AsteriskLabel variant="h6">*</AsteriskLabel>}
+            {(fieldData.helpText || isEditing) ?
                 <HelpButton
-                    onMarkdownChange={typeof onConfigUpdate === "function" ? (helpText) => { onConfigUpdate({ ...fieldData, helpText }); } : undefined}
+                    onMarkdownChange={onMarkdownChange}
                     markdown={fieldData.helpText ?? ""}
                 /> : null}
         </Stack>
-    ), [onDelete, onConfigUpdate, t, palette.error.main, copyInput, textPrimary, isEditingLabel, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, fieldData, startEditingLabel, index]);
+    ), [isEditing, t, handleDelete, palette.error.main, handleCopy, textPrimary, isEditingLabel, labelEditRef, textFieldInputProps, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, fieldData.fieldName, fieldData.isRequired, fieldData.helpText, startEditingLabel, labelStyle, index, onMarkdownChange]);
 
     const inputElement = useMemo(() => {
         if (!fieldData.type || !typeMap[fieldData.type]) {
@@ -134,26 +161,24 @@ export function FormInput({
         return (
             <Suspense fallback={<div>Loading...</div>}>
                 <InputComponent
+                    copyInput={copyInput}
                     fieldData={fieldData}
                     index={index}
+                    isEditing={isEditing}
                     onConfigUpdate={onConfigUpdate}
+                    onDelete={onDelete}
                     {...rest}
                 />
             </Suspense>
         );
-    }, [fieldData, index, onConfigUpdate, rest]);
+    }, [copyInput, fieldData, index, isEditing, onConfigUpdate, onDelete, rest]);
 
     return (
         <Box
             aria-label={fieldData.fieldName}
             component="fieldset"
             key={`${fieldData.id}-label-box`}
-            sx={{
-                paddingTop: 1,
-                paddingBottom: 1,
-                border: 0,
-                borderRadius: 1,
-            }}
+            sx={formInputOuterBoxStyle}
         >
             {titleStack}
             {inputElement}

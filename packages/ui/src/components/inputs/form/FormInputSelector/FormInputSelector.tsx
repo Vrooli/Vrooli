@@ -7,15 +7,15 @@ import { AddIcon, CloseIcon, DragIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 //TODO need to finish standard input component and item connect input component so that we can define the shape of the object being selected, or select an existing standard to use
 //TODO when editing, should be able to unselect an option so that it's not marked as default. Also add "clear" button next to default value indicator
 export function FormInputSelector<T extends SelectorFormInputOption>({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<SelectorFormInput<T>>) {
     const { palette } = useTheme();
@@ -25,13 +25,13 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
     const [field, , helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback((selected: T | null) => {
         const newValue = selected !== null ? props.getOptionValue(selected) ?? undefined : undefined;
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: newValue };
             // @ts-ignore TODO
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(newValue);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [props, isEditing, helpers, onConfigUpdate, fieldData]);
 
     // States for showing additional customization options
     const [showOptions, setShowOptions] = useState(false);
@@ -46,14 +46,14 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
     }
 
     const updateProp = useCallback((updatedProps: Partial<SelectorFormInputProps<T>>) => {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, ...updatedProps };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, props, onConfigUpdate, fieldData]);
 
     function updateFieldData(updatedFieldData: Partial<SelectorFormInput<T>>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             onConfigUpdate({ ...fieldData, ...updatedFieldData });
         }
     }
@@ -105,22 +105,29 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
             noneOption={props.noneOption}
             onChange={handleChange}
             options={props.options}
-            value={typeof onConfigUpdate === "function" ? props.options?.find(option => option.value === field.value) : field.value}
+            value={isEditing ? props.options?.find(option => option.value === field.value) : field.value}
             getOptionDescription={props.getOptionDescription}
             getOptionIcon={props.getOptionIcon}
             multiple={false}
             tabIndex={props.tabIndex}
         />
-    ), [disabled, props, fieldData, handleChange, onConfigUpdate, field.value]);
+    ), [props.autoFocus, props.getOptionLabel, props.inputAriaLabel, props.label, props.noneOption, props.options, props.getOptionDescription, props.getOptionIcon, props.tabIndex, disabled, fieldData.isRequired, fieldData.fieldName, handleChange, isEditing, field.value]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const optionsButtonStyle = useMemo(function optionsButtonStyleMemo() {
+        return propButtonWithSectionStyle(showOptions);
+    }, [showOptions]);
+
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return SelectorElement;
     }
-
     return (
         <div>
             {SelectorElement}
-            {typeof onConfigUpdate === "function" && props.defaultValue !== undefined && (
+            {isEditing && props.defaultValue !== undefined && (
                 <Typography
                     variant="caption"
                     style={{
@@ -134,19 +141,19 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                     Default: {props.getOptionLabel(props.defaultValue)}
                 </Typography>
             )}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showOptions ? "primary.main" : undefined }} onClick={toggleShowOptions}>
+                <Button variant="text" sx={optionsButtonStyle} onClick={toggleShowOptions}>
                     Options
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={toggleShowMore}>
+                <Button variant="text" sx={moreButtonStyle} onClick={toggleShowMore}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showOptions && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <Button
                         variant="outlined"
                         onClick={() => updateProp({ noneOption: !props.noneOption })}
@@ -207,10 +214,10 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                     >
                         Add Option
                     </Button>
-                </div>
+                </FormSettingsSection>
             )}
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextInput
                         fullWidth
                         label="Label"
@@ -223,7 +230,7 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                         onChange={(event) => { updateFieldData({ fieldName: event.target.value }); }}
                         value={fieldData.fieldName ?? ""}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

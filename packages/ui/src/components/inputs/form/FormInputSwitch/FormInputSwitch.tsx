@@ -5,13 +5,13 @@ import { useField } from "formik";
 import { SwitchFormInput, SwitchFormInputProps } from "forms/types";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { useCallback, useMemo, useState } from "react";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 export function FormInputSwitch({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<SwitchFormInput>) {
     const { palette, typography } = useTheme();
@@ -21,25 +21,25 @@ export function FormInputSwitch({
     const [field, , helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.checked;
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: newValue };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(newValue);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     const [showMore, setShowMore] = useState(false);
     const [customColor, setCustomColor] = useState("");
 
     const updateProp = useCallback(function updatePropCallback(updatedProps: Partial<SwitchFormInputProps>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, ...updatedProps };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, props, onConfigUpdate, fieldData]);
 
     function updateFieldData(updatedFieldData: Partial<SwitchFormInput>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             onConfigUpdate({ ...fieldData, ...updatedFieldData });
         }
     }
@@ -54,7 +54,7 @@ export function FormInputSwitch({
         startEditingLabel,
         submitLabelChange,
     } = useEditableLabel({
-        isEditable: typeof onConfigUpdate === "function",
+        isEditable: isEditing,
         label: props.label ?? "",
         onUpdate: updateLabel,
     });
@@ -64,7 +64,7 @@ export function FormInputSwitch({
             control={
                 <Switch
                     disabled={disabled}
-                    checked={typeof onConfigUpdate === "function" ? props.defaultValue ?? false : field.value}
+                    checked={isEditing ? props.defaultValue ?? false : field.value}
                     onChange={handleChange}
                     name={fieldData.fieldName}
                     size={props.size}
@@ -93,22 +93,25 @@ export function FormInputSwitch({
                     }}
                 /> : <Typography
                     onClick={startEditingLabel}
-                    sx={{ cursor: typeof onConfigUpdate === "function" ? "pointer" : "default" }}
+                    sx={{ cursor: isEditing ? "pointer" : "default" }}
                     variant="body1"
                 >
                     {props.label}
                 </Typography>}
         />
-    ), [disabled, onConfigUpdate, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, fieldData.fieldName, customColor, isEditingLabel, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
+    ), [disabled, isEditing, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, fieldData.fieldName, customColor, isEditingLabel, labelEditRef, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return SwitchElement;
     }
-
     return (
         <div>
             {SwitchElement}
-            {typeof onConfigUpdate === "function" && props.defaultValue !== undefined && (
+            {isEditing && props.defaultValue !== undefined && (
                 <Typography
                     variant="caption"
                     style={{
@@ -122,16 +125,16 @@ export function FormInputSwitch({
                     Defaults to {props.defaultValue ? "On" : "Off"}
                 </Typography>
             )}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={() => setShowMore(!showMore)}>
+                <Button variant="text" sx={moreButtonStyle} onClick={() => setShowMore(!showMore)}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextInput
                         fullWidth
                         label="Label"
@@ -185,7 +188,7 @@ export function FormInputSwitch({
                         onChange={(event) => { updateFieldData({ fieldName: event.target.value }); }}
                         value={fieldData.fieldName ?? ""}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

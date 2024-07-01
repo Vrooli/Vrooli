@@ -5,8 +5,9 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
 import { TextFormInput, TextFormInputProps } from "forms/types";
-import { useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
 
 /**
@@ -25,11 +26,31 @@ const autoCompleteOptions = [
     "bday", "bday-day", "bday-month", "bday-year", "sex", "url", "photo",
 ]; // Omitted: current-password, new-password, cc-name, cc-given-name, cc-additional-name, cc-family-name, cc-number, cc-exp, cc-exp-month, cc-exp-year, cc-csc, cc-type
 
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
+function getAutocompleteOptionLabel(option: string) {
+    return option;
+}
+
+const sliderMarks = [
+    {
+        value: 1,
+        label: "1",
+    },
+    {
+        value: 20,
+        label: "20",
+    },
+] as const;
+
+const sliderStyle = {
+    marginLeft: 1.5,
+    marginRight: 1.5,
+    width: "-webkit-fill-available",
+} as const;
 
 export function FormInputText({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<TextFormInput>) {
     const { t } = useTranslation();
@@ -39,12 +60,12 @@ export function FormInputText({
     const [field, meta, helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: value };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(value);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     // States for showing additional customization options
     const [showLimits, setShowLimits] = useState(false);
@@ -59,14 +80,14 @@ export function FormInputText({
     }
 
     function updateProp(updatedProps: Partial<TextFormInputProps>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
         const newProps = { ...props, ...updatedProps };
         onConfigUpdate({ ...fieldData, props: newProps });
     }
     function updateFieldData(updatedFieldData: Partial<TextFormInput>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
         onConfigUpdate({ ...fieldData, ...updatedFieldData });
@@ -80,13 +101,18 @@ export function FormInputText({
             helperText: meta.touched && meta.error,
             name: fieldData.fieldName,
             onBlur: field.onBlur,
-            placeholder: props.placeholder || (typeof onConfigUpdate === "function" ? "Enter default value..." : undefined),
-            value: typeof onConfigUpdate === "function" ? props.defaultValue : field.value,
+            placeholder: props.placeholder || (isEditing ? "Enter default value..." : undefined),
+            value: isEditing ? props.defaultValue : field.value,
         } as const;
+
+        function onChange(event: ChangeEvent<HTMLInputElement>) {
+            handleChange(event.target.value);
+        }
+
         if (props.isMarkdown) {
             return (
                 <RichInputBase
-                    disableAssistant={typeof onConfigUpdate === "function"}
+                    disableAssistant={isEditing}
                     maxChars={props.maxChars}
                     maxRows={props.maxRows}
                     minRows={props.minRows}
@@ -98,37 +124,45 @@ export function FormInputText({
         const multiLineProps = props.maxRows ? { multiline: true, rows: props.maxRows } : {};
         return <TextInput
             fullWidth
-            onChange={(event) => { handleChange(event.target.value); }}
+            onChange={onChange}
             {...multiLineProps}
             {...commonProps}
         />;
-    }, [disabled, meta.touched, meta.error, fieldData.fieldName, field.onBlur, field.value, onConfigUpdate, props.placeholder, props.defaultValue, props.isMarkdown, props.maxRows, props.maxChars, props.minRows, handleChange]);
+    }, [disabled, isEditing, meta.touched, meta.error, fieldData.fieldName, field.onBlur, field.value, props.placeholder, props.defaultValue, props.isMarkdown, props.maxRows, props.maxChars, props.minRows, handleChange]);
+
+    const limitsButtonStyle = useMemo(function limitsButtonStyleMemo() {
+        return propButtonWithSectionStyle(showLimits);
+    }, [showLimits]);
+
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
 
     // If we're not editing, just display the input element
-    if (typeof onConfigUpdate !== "function") {
+    if (!isEditing) {
         return InputElement;
     }
     // If we're editing, display the input element with buttons to change props
     return (
         <div>
             {InputElement}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => { updateFieldData({ isRequired: !fieldData.isRequired }); }}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
                 <Button variant="text" sx={propButtonStyle} onClick={() => { updateProp({ isMarkdown: !props.isMarkdown }); }}>
                     {props.isMarkdown ? "Text" : "Markdown"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showLimits ? "primary.main" : undefined }} onClick={toggleShowLimits}>
+                <Button variant="text" sx={limitsButtonStyle} onClick={toggleShowLimits}>
                     Limits
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={toggleShowMore}>
+                <Button variant="text" sx={moreButtonStyle} onClick={toggleShowMore}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {/* Set max chars, max rows, etc. */}
             {showLimits && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <IntegerInputBase
                         fullWidth
                         label={"Max text length"}
@@ -146,29 +180,16 @@ export function FormInputText({
                             onChange={(_, value) => { updateProp({ minRows: value[0], maxRows: value[1] }); }}
                             min={1}
                             max={20}
-                            marks={[
-                                {
-                                    value: 1,
-                                    label: "1",
-                                },
-                                {
-                                    value: 20,
-                                    label: "20",
-                                },
-                            ]}
-                            sx={{
-                                marginLeft: 1.5,
-                                marginRight: 1.5,
-                                width: "-webkit-fill-available",
-                            }}
+                            marks={sliderMarks}
+                            sx={sliderStyle}
                             value={[props.minRows ?? 1, props.maxRows ?? 1]}
                             valueLabelDisplay="auto"
                         />
                     </div>
-                </div>
+                </FormSettingsSection>
             )}
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextInput
                         fullWidth
                         label="Placeholder"
@@ -177,7 +198,7 @@ export function FormInputText({
                     />
                     <SelectorBase
                         fullWidth
-                        getOptionLabel={(option) => option}
+                        getOptionLabel={getAutocompleteOptionLabel}
                         inputAriaLabel="autoComplete"
                         label="Auto-fill"
                         name="autoComplete"
@@ -191,7 +212,7 @@ export function FormInputText({
                         onChange={(event) => { updateFieldData({ fieldName: event.target.value }); }}
                         value={fieldData.fieldName ?? ""}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

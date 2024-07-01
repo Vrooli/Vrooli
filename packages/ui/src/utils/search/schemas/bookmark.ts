@@ -10,8 +10,8 @@ export const bookmarkSearchSchema = (): FormSchema => ({
         {
             title: i18next.t("ExcludeLinkedToTag"),
             description: i18next.t("ExcludeLinkedToTagHelp"),
+            direction: "row",
             totalItems: 1,
-            spacing: 2,
         },
     ],
     fields: [

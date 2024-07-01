@@ -21,7 +21,7 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FormBuildView } from "forms/FormBuildView/FormBuildView";
+import { FormView } from "forms/FormView/FormView";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -121,8 +121,8 @@ const RoutineApiForm = memo(function RoutineApiFormMemo({
                 sxs={routineTypeTitleSxs}
             />
             {/* TODO inputs/outputs */}
-            <FormBuildView />
-            <FormBuildView />
+            <FormView isEditing={isEditing} />
+            <FormView isEditing={isEditing} />
         </>
     );
 });
@@ -206,14 +206,14 @@ const RoutineCodeForm = memo(function RoutineCodeFormMemo({
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
             />
-            <FormBuildView />
+            <FormView isEditing={isEditing} />
             <Title
                 title="Outputs"
                 help="Define the outputs that the code is expected to return. If the code fails or does not return the expected data, the routine will fail."
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
             />
-            <FormBuildView />
+            <FormView isEditing={isEditing} />
         </>
     );
 });
@@ -225,7 +225,7 @@ const RoutineDataForm = memo(function RoutineDataFormMemo({
 }) {
     return (
         // Form to define outputs
-        <FormBuildView />
+        <FormView isEditing={isEditing} />
     );
 });
 
@@ -418,7 +418,7 @@ const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
             />
-            <FormBuildView />
+            <FormView isEditing={isEditing} />
         </>
     );
 });
@@ -430,7 +430,7 @@ const RoutineInformationalForm = memo(function RoutineInformationalFormMemo({
 }) {
     return (
         // Form to define inputs
-        <FormBuildView />
+        <FormView isEditing={isEditing} />
     );
 });
 
@@ -507,8 +507,8 @@ const RoutineSmartContractForm = memo(function RoutineSmartContractFormMemo({
                 sxs={routineTypeTitleSxs}
             />
             {/* TODO inputs/outputs */}
-            <FormBuildView />
-            <FormBuildView />
+            <FormView isEditing={isEditing} />
+            <FormView isEditing={isEditing} />
         </>
     );
 });

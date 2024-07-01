@@ -6,21 +6,6 @@ import { FormInput } from "../FormInput/FormInput";
 import { GeneratedGridProps } from "../types";
 
 /**
- * Wraps a component in a Grid item
- * @param component The component to wrap
- * @param sizes The sizes of the grid item
- * @param index The index of the grid
- * @returns Grid item component
- */
-export function generateGridItem(component: ReactNode, index: number): ReactNode {
-    return (
-        <Grid item key={`grid-${index}`}>
-            {component}
-        </Grid>
-    );
-}
-
-/**
  * Calculates size of grid item based on the number of items in the grid. 
  * 1 item is { xs: 12 }, 
  * 2 items is { xs: 12, sm: 6 },
@@ -43,11 +28,31 @@ export function calculateGridItemSize(numItems: number): { [key: string]: GridSp
     }
 }
 
+type GeneratedFormItemProps = {
+    /** The child form input or form structure element */
+    children: JSX.Element | null | undefined;
+    /** The number of fields in the grid, for calculating grid item size */
+    fieldsInGrid: number;
+    /** Whether to wrap the child in a grid item */
+    isInGrid: boolean;
+}
+
+/**
+ * A wrapper for a form item that can be wrapped in a grid item
+ */
+export function GeneratedGridItem({
+    children,
+    fieldsInGrid,
+    isInGrid,
+}: GeneratedFormItemProps) {
+    return isInGrid ? <Grid item {...calculateGridItemSize(fieldsInGrid)}>{children}</Grid> : children;
+}
+
+// TODO will eventually be replaced with FormRunView
 export function GeneratedGrid({
     childContainers,
     fields,
     layout,
-    theme,
 }: GeneratedGridProps) {
     console.log("rendering grid", fields, childContainers);
     const { containers, splitFields } = useMemo(() => {
@@ -63,7 +68,6 @@ export function GeneratedGrid({
                 title: undefined,
                 description: undefined,
                 totalItems: fields.length,
-                showBorder: false,
             }];
         }
         else {
@@ -82,38 +86,43 @@ export function GeneratedGrid({
         console.log("generating grid.grids");
         // Generate grid for each container
         const grids: ReactNode[] = [];
-        console.log("split fields", splitFields);
         for (let i = 0; i < splitFields.length; i++) {
             const currFields: FormInputType[] = splitFields[i];
             const currLayout: GridContainer = containers[i];
+            // Use grid for horizontal layout, and stack for vertical layout
+            const direction = currLayout?.direction ?? "column";
+            const useGrid = direction === "row";
             // Generate component for each field in the grid, and wrap it in a grid item
             const gridItems: ReactNode[] = currFields.map((fieldData, index) => {
-                const inputComponent = <FormInput
-                    fieldData={fieldData}
-                    index={index}
-                />;
-                return inputComponent ? generateGridItem(inputComponent, index) : null;
+                return <GeneratedGridItem
+                    key={`grid-item-${fieldData.id}`}
+                    fieldsInGrid={currFields.length}
+                    isInGrid={useGrid}
+                >
+                    <FormInput
+                        fieldData={fieldData}
+                        index={index}
+                    />
+                </GeneratedGridItem>;
             });
-            const itemsContainer = <Grid
+            const itemsContainer = direction === "row" ? <Grid
                 container
-                direction={currLayout?.direction ?? "row"}
+                direction={currLayout?.direction ?? "column"}
                 key={`form-container-${i}`}
-                spacing={currLayout?.spacing ?? calculateGridItemSize(currFields.length)}
-                columnSpacing={currLayout?.columnSpacing}
-                rowSpacing={currLayout?.rowSpacing}
+                spacing={2}
             >
                 {gridItems}
-            </Grid>;
+            </Grid> : <Stack
+                direction={currLayout?.direction ?? "column"}
+                key={`form-container-${i}`}
+                spacing={2}
+            >
+                {gridItems}
+            </Stack>;
             // Each container is represented as a fieldset
             console.log("generatedGrid: item ifo:", currLayout);
             grids.push(
-                <fieldset
-                    key={`grid-container-${i}`}
-                    style={{
-                        borderRadius: "8px",
-                        border: currLayout?.showBorder ? `1px solid ${theme.palette.background.textPrimary}` : "none",
-                    }}
-                >
+                <fieldset key={`grid-container-${i}`} style={{ border: "none" }}>
                     {/* If a title is provided, the items are wrapped in a collapsible container */}
                     {currLayout?.title ? <ContentCollapse
                         disableCollapse={currLayout.disableCollapse}
@@ -127,13 +136,13 @@ export function GeneratedGrid({
             );
         }
         return grids;
-    }, [containers, splitFields, theme.palette.background.textPrimary]);
+    }, [containers, splitFields]);
 
     return (
         <Stack
             direction={layout?.direction ?? "row"}
             key={"form-container"}
-            spacing={layout?.spacing}
+            spacing={4}
             sx={{ width: "100%" }}
         >
             {grids}

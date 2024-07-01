@@ -6,9 +6,8 @@ import { DropzoneFormInput, DropzoneFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
-
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
 
 const commonFileTypes = [
     { label: "All Images", value: "image/*" },
@@ -45,6 +44,7 @@ function withoutInvalidChars(str: string) {
 export function FormInputDropzone({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<DropzoneFormInput>) {
     const { palette } = useTheme();
@@ -63,14 +63,14 @@ export function FormInputDropzone({
     }
 
     const updateProp = useCallback(function updatePropCallback(updatedProps: Partial<DropzoneFormInputProps>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
         const newProps = { ...props, ...updatedProps };
         onConfigUpdate({ ...fieldData, props: newProps });
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, onConfigUpdate, props, fieldData]);
     function updateFieldData(updatedFieldData: Partial<DropzoneFormInput>) {
-        if (typeof onConfigUpdate !== "function") {
+        if (!isEditing) {
             return;
         }
         onConfigUpdate({ ...fieldData, ...updatedFieldData });
@@ -132,7 +132,7 @@ export function FormInputDropzone({
     const InputElement = useMemo(() => (
         <Dropzone
             acceptedFileTypes={props.acceptedFileTypes}
-            disabled={disabled || typeof onConfigUpdate == "function"} // Can't upload files when editing the config
+            disabled={disabled || isEditing} // Can't upload files when editing the config
             dropzoneText={props.dropzoneText}
             uploadText={props.uploadText}
             cancelText={props.cancelText}
@@ -140,24 +140,35 @@ export function FormInputDropzone({
             showThumbs={props.showThumbs}
             onUpload={(files) => { onUpload(fieldData.fieldName, files); }}
         />
-    ), [props.acceptedFileTypes, props.dropzoneText, props.uploadText, props.cancelText, props.maxFiles, props.showThumbs, disabled, onConfigUpdate, fieldData.fieldName]);
+    ), [props.acceptedFileTypes, props.dropzoneText, props.uploadText, props.cancelText, props.maxFiles, props.showThumbs, disabled, isEditing, fieldData.fieldName]);
 
+    const typesButtonStyle = useMemo(function typesButtonStyleMemo() {
+        return propButtonWithSectionStyle(showFileTypes);
+    }, [showFileTypes]);
+
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
+        return InputElement;
+    }
     return (
         <div>
             {InputElement}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => { updateFieldData({ isRequired: !fieldData.isRequired }); }}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={toggleShowFileTypes}>
+                <Button variant="text" sx={typesButtonStyle} onClick={toggleShowFileTypes}>
                     File types
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={toggleShowMore}>
+                <Button variant="text" sx={moreButtonStyle} onClick={toggleShowMore}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showFileTypes && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <Autocomplete
                         id={`file-types-input-${fieldData.fieldName}`}
                         fullWidth
@@ -219,10 +230,10 @@ export function FormInputDropzone({
                             </MenuItem>
                         )}
                     />
-                </div>
+                </FormSettingsSection>
             )}
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextInput
                         fullWidth
                         label="Placeholder"
@@ -246,7 +257,7 @@ export function FormInputDropzone({
                         value={props.maxFiles ?? 0}
                         zeroText={`Default max (${MAX_DROPZONE_FILES})`}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

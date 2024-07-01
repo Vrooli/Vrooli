@@ -62,7 +62,12 @@ export function getRoutineTypeIcon(option: RoutineTypeOption) { return option.Ic
 export const routineSearchSchema = (): FormSchema => ({
     formLayout: searchFormLayout("SearchRoutine"),
     containers: [
-        { disableCollapse: true, title: "Routine Type", totalItems: 1 },
+        {
+            direction: "column",
+            disableCollapse: true,
+            title: "Routine Type",
+            totalItems: 1,
+        },
         hasCompleteVersionContainer,
         votesContainer(),
         bookmarksContainer(),

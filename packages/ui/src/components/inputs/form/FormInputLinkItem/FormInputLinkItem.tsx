@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
 import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
 
 type LimitTypeOption = {
@@ -57,8 +58,6 @@ const limitTypeOptions: LimitTypeOption[] = [{
 }];
 const acceptedObjectTypes = limitTypeOptions.map(option => option.value);
 
-const propButtonStyle = { textDecoration: "underline", textTransform: "none" } as const;
-
 /** Only accept A-z */
 const invalidObjectTypeCharRegex = /[^a-zA-Z]/g;
 
@@ -69,9 +68,10 @@ function withoutInvalidChars(str: string): string {
 export function FormInputLinkItem({
     disabled,
     fieldData,
+    isEditing,
     onConfigUpdate,
 }: FormInputProps<LinkItemFormInput>) {
-    const { palette, typography } = useTheme();
+    const { palette } = useTheme();
     const { t } = useTranslation();
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
@@ -79,12 +79,12 @@ export function FormInputLinkItem({
     const [field, meta, helpers] = useField(fieldData.fieldName);
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, defaultValue: value };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
         helpers.setValue(value);
-    }, [onConfigUpdate, props, fieldData, helpers]);
+    }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     // States for showing additional customization options
     const [showLimits, setShowLimits] = useState(false);
@@ -99,14 +99,14 @@ export function FormInputLinkItem({
     }
 
     const updateProp = useCallback(function updatePropCallback(updatedProps: Partial<LinkItemFormInputProps>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             const newProps = { ...props, ...updatedProps };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-    }, [onConfigUpdate, props, fieldData]);
+    }, [isEditing, props, onConfigUpdate, fieldData]);
 
     function updateFieldData(updatedFieldData: Partial<LinkItemFormInput>) {
-        if (typeof onConfigUpdate === "function") {
+        if (isEditing) {
             onConfigUpdate({ ...fieldData, ...updatedFieldData });
         }
     }
@@ -167,32 +167,39 @@ export function FormInputLinkItem({
             limitTo={props.limitTo?.map(limit => limit.type) ?? []}
             name={fieldData.fieldName}
             onChange={handleChange}
-            placeholder={props.placeholder || (typeof onConfigUpdate === "function" ? "Enter default value..." : undefined)}
+            placeholder={props.placeholder || (isEditing ? "Enter default value..." : undefined)}
             sxs={{ root: { paddingTop: 1, paddintBottom: 1 } }}
-            value={typeof onConfigUpdate === "function" ? props.defaultValue ?? 0 : field.value}
+            value={isEditing ? props.defaultValue ?? 0 : field.value}
         />
-    ), [disabled, field.value, fieldData.fieldName, handleChange, meta.error, meta.touched, onConfigUpdate, props.defaultValue, props.limitTo, props.placeholder]);
+    ), [disabled, field.value, fieldData.fieldName, handleChange, isEditing, meta.error, meta.touched, props.defaultValue, props.limitTo, props.placeholder]);
 
-    if (typeof onConfigUpdate !== "function") {
+    const limitsButtonStyle = useMemo(function limitsButtonStyleMemo() {
+        return propButtonWithSectionStyle(showLimits);
+    }, [showLimits]);
+
+    const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
+        return propButtonWithSectionStyle(showMore);
+    }, [showMore]);
+
+    if (!isEditing) {
         return InputElement;
     }
-
     return (
         <div>
             {InputElement}
-            <div style={{ display: "flex", flexDirection: "row" }}>
+            <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showLimits ? "primary.main" : undefined }} onClick={toggleShowLimits}>
+                <Button variant="text" sx={limitsButtonStyle} onClick={toggleShowLimits}>
                     Limits
                 </Button>
-                <Button variant="text" sx={{ ...propButtonStyle, color: showMore ? "primary.main" : undefined }} onClick={toggleShowMore}>
+                <Button variant="text" sx={moreButtonStyle} onClick={toggleShowMore}>
                     More
                 </Button>
-            </div>
+            </FormSettingsButtonRow>
             {showLimits && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <Autocomplete
                         id={`accepted-object-types-input-${fieldData.fieldName}`}
                         fullWidth
@@ -257,10 +264,10 @@ export function FormInputLinkItem({
                             </MenuItem>
                         )}
                     />
-                </div>
+                </FormSettingsSection>
             )}
             {showMore && (
-                <div style={{ marginTop: "10px", padding: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <FormSettingsSection>
                     <TextInput
                         fullWidth
                         label="Placeholder"
@@ -273,7 +280,7 @@ export function FormInputLinkItem({
                         onChange={(event) => { updateFieldData({ fieldName: event.target.value }); }}
                         value={fieldData.fieldName ?? ""}
                     />
-                </div>
+                </FormSettingsSection>
             )}
         </div>
     );

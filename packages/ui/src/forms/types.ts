@@ -2,6 +2,7 @@ import { InputType, ListObject, OrArray, TimeFrame } from "@local/shared";
 import { CodeInputProps, DropzoneProps, IntegerInputProps, LanguageInputProps, SelectorProps, TagSelectorProps } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
+import { FormStructureType } from "utils/consts";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { TagShape } from "utils/shape/models/tag";
 import { CrudProps } from "views/objects/types";
@@ -15,15 +16,21 @@ export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrAr
 
 export type FormBuildViewProps = {
     limits?: {
-        headers?: {
-            max?: number;
-            types?: readonly HeaderTag[];
-        },
         inputs?: {
-            max?: number;
             types?: readonly InputType[];
+        },
+        structures?: {
+            types: readonly FormStructureType[];
         }
     }
+};
+
+export type FormRunViewProps = {
+    disabled?: boolean;
+};
+
+export type FormViewProps = FormBuildViewProps & FormRunViewProps & {
+    isEditing: boolean;
 };
 
 /** Common props required by every FormElement type */
@@ -49,9 +56,18 @@ export interface FormElementBase {
 
 export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 export type FormHeaderType = FormElementBase & {
-    type: "Header";
+    type: FormStructureType.Header;
+    /** 
+     * Allows header to be collapsible, which hides everything under it, 
+     * until the next header, page break/divider, or the end of the form.
+     */
+    collapsible?: boolean;
     tag: HeaderTag;
 };
+
+export type FormDividerType = FormElementBase & {
+    type: FormStructureType.Divider;
+}
 
 /** Common props required by every form input type */
 export interface FormInputBase extends FormElementBase {
@@ -320,7 +336,7 @@ export type FormInputType =
     TagSelectorFormInput |
     TextFormInput;
 
-export type FormElement = FormHeaderType | FormInputType;
+export type FormElement = FormHeaderType | FormDividerType | FormInputType;
 
 
 //==============================================================
@@ -418,30 +434,6 @@ export interface YupSchema {
 //==============================================================
 
 /**
- * MUI spacing options. Each key represents a "breakpoint", which is set based
- * on the width of the screen.
- */
-export type GridItemSpacing = number | string | {
-    xs?: number | "auto";
-    sm?: number | "auto";
-    md?: number | "auto";
-    lg?: number | "auto";
-    xl?: number | "auto";
-}
-
-/**
- * MUI spacing options. Each key represents a "breakpoint", which is set based
- * on the width of the screen.
- */
-export type GridSpacing = number | string | Array<number | string | null> | {
-    xs?: number | "auto";
-    sm?: number | "auto";
-    md?: number | "auto";
-    lg?: number | "auto";
-    xl?: number | "auto";
-}
-
-/**
  * The layout of a specific grid container (or the entire form depending on the context)
  */
 export interface GridContainerBase {
@@ -454,25 +446,9 @@ export interface GridContainerBase {
      */
     description?: string;
     /**
-     * Spacing of the container. Overrides parent spacing
-     */
-    spacing?: GridSpacing;
-    /**
      * Direction to display items in the container. Overrides parent spacing
      */
     direction?: "column" | "row";
-    /**
-     * Spacing of container's columns. Overrides spacing field
-     */
-    columnSpacing?: GridSpacing;
-    /**
-     * Spacing of container's rows. Overrides spacing field
-     */
-    rowSpacing?: GridSpacing;
-    /**
-     * Spacing of individual fields in the container
-     */
-    itemSpacing?: GridItemSpacing;
 }
 
 /**
@@ -482,8 +458,6 @@ export interface GridContainerBase {
 export interface GridContainer extends GridContainerBase {
     /** True if the container is not collapsible. Defaults to false. */
     disableCollapse?: boolean;
-    /** Determines if the border should be displayed */
-    showBorder?: boolean;
     /** Total number of fields in this container */
     totalItems: number;
 }
