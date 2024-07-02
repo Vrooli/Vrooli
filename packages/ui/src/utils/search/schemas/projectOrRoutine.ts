@@ -4,7 +4,7 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, simplicityContainer, simplicityFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectOrRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchProjectOrRoutine"),
+    layout: searchFormLayout("SearchProjectOrRoutine"),
     containers: [
         { direction: "column", totalItems: 1 },
         hasCompleteVersionContainer,
@@ -15,7 +15,7 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
         languagesVersionContainer(),
         tagsContainer(),
     ],
-    fields: [
+    elements: [
         {
             fieldName: "objectType",
             id: "objectType",

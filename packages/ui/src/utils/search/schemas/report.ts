@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const reportSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchReport"),
+    layout: searchFormLayout("SearchReport"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const reportSearchParams = () => toParams(reportSearchSchema(), endpointGetReports, endpointGetReport, ReportSortBy, ReportSortBy.DateCreatedDesc);

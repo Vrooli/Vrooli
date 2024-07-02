@@ -45,6 +45,8 @@ import { RoutineViewProps } from "../types";
 const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
+const excludedActionRowActions = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
+
 export function RoutineView({
     display,
     isOpen,
@@ -161,20 +163,6 @@ export function RoutineView({
         });
     }, [formik.values, existing, runComplete, setLocation, name]);
 
-    /**
-     * Copy current value of input to clipboard
-     * @param fieldName Name of input
-     */
-    const copyInput = useCallback((fieldName: string) => {
-        const input = formik.values[fieldName];
-        if (input) {
-            navigator.clipboard.writeText(input);
-            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-        } else {
-            PubSub.get().publish("snack", { messageKey: "InputEmpty", severity: "Error" });
-        }
-    }, [formik]);
-
     const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
@@ -262,9 +250,11 @@ export function RoutineView({
                             {Object.values(formValueMap ?? {}).map((fieldData: FormInputType, index: number) => (
                                 <FormInput
                                     key={fieldData.fieldName}
-                                    copyInput={copyInput}
                                     fieldData={fieldData}
                                     index={index}
+                                    isEditing={false}
+                                    onConfigUpdate={noop}
+                                    onDelete={noop}
                                     textPrimary={palette.background.textPrimary}
                                 />
                             ))}
@@ -325,7 +315,7 @@ export function RoutineView({
                         {/* Action buttons */}
                         <ObjectActionsRow
                             actionData={actionData}
-                            exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                            exclude={excludedActionRowActions} // Handled elsewhere
                             object={existing}
                         />
                     </Box>

@@ -8,6 +8,19 @@ import { randomString } from "utils/codes";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
 
+const formControlStyle = { m: "12px" } as const;
+const optionTextFieldStyle = {
+    flexGrow: 1,
+    width: "auto",
+    "& .MuiInputBase-input": {
+        padding: 0,
+    },
+} as const;
+const addOptionStyle = {
+    marginLeft: "-7px",
+    textTransform: "none",
+} as const;
+
 export function FormInputRadio({
     disabled,
     fieldData,
@@ -113,7 +126,7 @@ export function FormInputRadio({
                 name={fieldData.fieldName}
                 component="fieldset"
                 variant="standard"
-                sx={{ m: "12px" }}
+                sx={formControlStyle}
             >
                 <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable droppableId={`droppable-${fieldData.id}`} direction={props.row ? "horizontal" : "vertical"} type="radioOption">
@@ -126,92 +139,86 @@ export function FormInputRadio({
                                 value={isEditing ? props.defaultValue : field.value}
                                 row={props.row === true}
                             >
-                                {props.options.map((option, index) => (
-                                    <Draggable key={option.value} draggableId={option.value} index={index} isDragDisabled={!isEditing}>
-                                        {(providedDrag) => (
-                                            <div
-                                                ref={providedDrag.innerRef}
-                                                {...providedDrag.draggableProps}
-                                                style={{
-                                                    ...providedDrag.draggableProps.style,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    marginBottom: "8px", // Add some spacing between items
-                                                }}
-                                            >
-                                                <FormControlLabel
-                                                    key={option.value}
-                                                    value={option.value}
-                                                    control={<Radio onClick={() => handleChange(option.value)} />}
-                                                    label={(
-                                                        <>
-                                                            {isEditing && editingOptionIndex === index ? (
-                                                                <TextField
-                                                                    autoFocus
-                                                                    InputProps={{ style: (typography["body1"] as object || {}) }}
-                                                                    onBlur={submitOptionLabelChange}
-                                                                    onChange={(e) => { setEditedOptionLabel(e.target.value); }}
-                                                                    onKeyDown={handleOptionLabelKeyDown}
-                                                                    size="small"
-                                                                    value={editedOptionLabel}
-                                                                    sx={{
-                                                                        flexGrow: 1,
-                                                                        width: "auto",
-                                                                        "& .MuiInputBase-input": {
-                                                                            padding: 0,
-                                                                        },
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <Typography
-                                                                    onClick={(e) => {
-                                                                        if (isEditing) {
-                                                                            e.preventDefault();
-                                                                            startEditingOption(index);
-                                                                        }
-                                                                    }}
-                                                                    style={{ cursor: isEditing ? "pointer" : "default" }}
-                                                                    variant="body1"
-                                                                >
-                                                                    {option.label}
-                                                                </Typography>
-                                                            )}
-                                                            {isEditing && (
-                                                                <>
-                                                                    <Tooltip title="Drag to reorder" placement={props.row === true ? "top" : "right"}>
-                                                                        <div {...providedDrag.dragHandleProps} style={{ cursor: "move", display: "flex", alignItems: "center", paddingLeft: "8px" }}>
-                                                                            <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
-                                                                        </div>
-                                                                    </Tooltip>
-                                                                    <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
-                                                                        <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
-                                                                            <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
-                                                                        </IconButton>
-                                                                    </Tooltip>
-                                                                </>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    sx={{
-                                                        "& .MuiFormControlLabel-label": {
-                                                            display: "flex",
-                                                        },
+                                {props.options.map((option, index) => {
+                                    function handleLabelPress(event: React.MouseEvent<HTMLSpanElement, MouseEvent>) {
+                                        if (!isEditing) return;
+                                        event.preventDefault();
+                                        startEditingOption(index);
+                                    }
+
+                                    return (
+                                        <Draggable key={option.value} draggableId={option.value} index={index} isDragDisabled={!isEditing}>
+                                            {(providedDrag) => (
+                                                <div
+                                                    ref={providedDrag.innerRef}
+                                                    {...providedDrag.draggableProps}
+                                                    style={{
+                                                        ...providedDrag.draggableProps.style,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        marginBottom: "8px", // Add some spacing between items
                                                     }}
-                                                />
-                                            </div>
-                                        )}
-                                    </Draggable>
-                                ))}
+                                                >
+                                                    <FormControlLabel
+                                                        key={option.value}
+                                                        value={option.value}
+                                                        control={<Radio onClick={() => handleChange(option.value)} />}
+                                                        label={(
+                                                            <>
+                                                                {isEditing && editingOptionIndex === index ? (
+                                                                    <TextField
+                                                                        autoFocus
+                                                                        InputProps={{ style: (typography["body1"] as object || {}) }}
+                                                                        onBlur={submitOptionLabelChange}
+                                                                        onChange={(e) => { setEditedOptionLabel(e.target.value); }}
+                                                                        onKeyDown={handleOptionLabelKeyDown}
+                                                                        size="small"
+                                                                        value={editedOptionLabel}
+                                                                        sx={optionTextFieldStyle}
+                                                                    />
+                                                                ) : (
+                                                                    <Typography
+                                                                        onClick={handleLabelPress}
+                                                                        style={{ cursor: isEditing ? "pointer" : "default" }}
+                                                                        variant="body1"
+                                                                    >
+                                                                        {option.label}
+                                                                    </Typography>
+                                                                )}
+                                                                {isEditing && (
+                                                                    <>
+                                                                        <Tooltip title="Drag to reorder" placement={props.row === true ? "top" : "right"}>
+                                                                            <div {...providedDrag.dragHandleProps} style={{ cursor: "move", display: "flex", alignItems: "center", paddingLeft: "8px" }}>
+                                                                                <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                            </div>
+                                                                        </Tooltip>
+                                                                        <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
+                                                                            <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
+                                                                                <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                        sx={{
+                                                            "& .MuiFormControlLabel-label": {
+                                                                display: "flex",
+                                                            },
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    );
+                                })}
                                 {/* "Add Option" button when editing */}
                                 {isEditing && (
                                     <Button
                                         variant="text"
                                         onClick={addOption}
                                         startIcon={<AddIcon />}
-                                        style={{
-                                            marginLeft: "-7px",
-                                            textTransform: "none",
-                                        }}
+                                        style={addOptionStyle}
                                     >
                                         Add Option
                                     </Button>

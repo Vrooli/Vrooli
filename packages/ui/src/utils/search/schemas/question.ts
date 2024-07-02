@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const questionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchQuestion"),
+    layout: searchFormLayout("SearchQuestion"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const questionSearchParams = () => toParams(questionSearchSchema(), endpointGetQuestions, endpointGetQuestion, QuestionSortBy, QuestionSortBy.ScoreDesc);

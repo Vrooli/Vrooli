@@ -4,7 +4,7 @@ import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
 export const routineVersionSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRoutineVersion"),
+    layout: searchFormLayout("SearchRoutineVersion"),
     containers: [
         isCompleteWithRootContainer,
         isLatestContainer,
@@ -15,7 +15,7 @@ export const routineVersionSearchSchema = (): FormSchema => ({
         languagesContainer(),
         tagsRootContainer(),
     ],
-    fields: [
+    elements: [
         ...isCompleteWithRootFields(),
         ...isLatestFields(),
         ...simplicityFields(),

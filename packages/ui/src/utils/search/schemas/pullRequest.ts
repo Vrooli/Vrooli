@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const pullRequestSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchPullRequest"),
+    layout: searchFormLayout("SearchPullRequest"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const pullRequestSearchParams = () => toParams(pullRequestSearchSchema(), endpointGetPullRequests, endpointGetPullRequest, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc);

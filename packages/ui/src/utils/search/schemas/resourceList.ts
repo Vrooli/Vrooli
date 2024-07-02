@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const resourceListSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchResourceList"),
+    layout: searchFormLayout("SearchResourceList"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const resourceListSearchParams = () => toParams(resourceListSearchSchema(), endpointGetResourceLists, endpointGetResourceList, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc);

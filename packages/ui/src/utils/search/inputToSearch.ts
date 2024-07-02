@@ -1,5 +1,5 @@
 import { InputType, OrArray, ParseSearchParamsResult, Tag, UrlPrimitive } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { FormInputType, FormSchema } from "forms/types";
 
 /**
  * Prepares an array of form items to be encoded into a URL search parameter.
@@ -53,6 +53,24 @@ export function nonZeroNumber(value: unknown): number | undefined {
  */
 export function nonEmptyString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/**
+ * Similar to `nonEmptyString`, but supports stringified and unstringified boolean and undefined values.
+ * @param value The value to check
+ * @returns The value if it is a non-empty string, or undefined otherwise
+ */
+export function nonEmptyParsedString(value: unknown): string | boolean | undefined {
+    if (typeof value === "string") {
+        if (value.trim().length === 0) return undefined;
+        if (value === "true") return true;
+        if (value === "false") return false;
+        // if (value === "null") return null;
+        if (value === "undefined") return undefined;
+        return value;
+    }
+    if (typeof value === "boolean") return value;
+    return undefined;
 }
 
 /**
@@ -117,7 +135,7 @@ export const inputTypeToSearch: { [key in InputType]: (value: unknown) => OrArra
     [InputType.LanguageInput]: (value) => arrayToSearch(value, nonEmptyString),
     [InputType.LinkItem]: (value) => nonEmptyString(value),
     [InputType.LinkUrl]: (value) => nonEmptyString(value),
-    [InputType.Radio]: (value) => nonEmptyString(value),
+    [InputType.Radio]: (value) => nonEmptyParsedString(value),
     [InputType.Selector]: (value) => validPrimitive(value),
     [InputType.Slider]: (value) => nonZeroNumber(value),
     [InputType.Switch]: (value) => validBoolean(value),
@@ -140,7 +158,7 @@ export const searchToInputType: { [key in InputType]: (value: OrArray<UrlPrimiti
     [InputType.LanguageInput]: (value) => searchToArray(value, nonEmptyString),
     [InputType.LinkItem]: (value) => nonEmptyString(value),
     [InputType.LinkUrl]: (value) => nonEmptyString(value),
-    [InputType.Radio]: (value) => nonEmptyString(value),
+    [InputType.Radio]: (value) => nonEmptyParsedString(value),
     [InputType.Selector]: (value) => validPrimitive(value),
     [InputType.Slider]: (value) => nonZeroNumber(value),
     [InputType.Switch]: (value) => validBoolean(value),
@@ -162,15 +180,18 @@ export const searchToInputType: { [key in InputType]: (value: OrArray<UrlPrimiti
  * @returns An object where each key corresponds to a form field and each value is in a 
  *          format ready to be encoded into a URL query string.
  */
-export function convertFormikForSearch(values: { [x: string]: any }, schema: FormSchema): ParseSearchParamsResult {
+export function convertFormikForSearch(values: Record<string, unknown>, schema: FormSchema): ParseSearchParamsResult {
     // Initialize result
-    const result: { [x: string]: any } = {};
-    // Loop through all fields in the schema
-    for (const field of schema.fields) {
+    const result: Record<string, never> = {};
+    // Loop through all elements in the schema
+    for (const element of schema.elements) {
+        // Skip non-field elements
+        if (!Object.prototype.hasOwnProperty.call(element, "fieldName")) continue;
+        const field = element as FormInputType;
         // If field in values, convert and add to result
         if (values[field.fieldName]) {
             const value = inputTypeToSearch[field.type](values[field.fieldName]);
-            if (value !== undefined) result[field.fieldName] = value;
+            if (value !== undefined) result[field.fieldName] = value as never;
         }
     }
     // Return result
@@ -190,19 +211,27 @@ export function convertFormikForSearch(values: { [x: string]: any }, schema: For
  * @returns An object formatted for Formik where each key corresponds to a form field 
  *          and each value is derived from the corresponding URL parameter.
  */
-export function convertSearchForFormik(values: ParseSearchParamsResult, schema: FormSchema): { [x: string]: any } {
+export function convertSearchForFormik(
+    values: ParseSearchParamsResult,
+    schema: FormSchema | null | undefined,
+): Record<string, unknown> {
+    // If schema is not provided, return empty object
+    if (!schema) return {};
     // Initialize result
-    const result: { [x: string]: any } = {};
-    // Loop through all fields in the schema
-    for (const field of schema.fields) {
+    const result: Record<string, never> = {};
+    // Loop through all elements in the schema
+    for (const element of schema.elements) {
+        // Skip non-field elements
+        if (!Object.prototype.hasOwnProperty.call(element, "fieldName")) continue;
+        const field = element as FormInputType;
         // If field in values, convert and add to result
         const searchValue = values[field.fieldName];
         if (searchValue !== null && searchValue !== undefined) {
             const formValue = searchToInputType[field.type](searchValue);
-            result[field.fieldName] = formValue;
+            result[field.fieldName] = formValue as never;
         }
         // Otherwise, set as undefined
-        else result[field.fieldName] = undefined;
+        else result[field.fieldName] = undefined as never;
     }
     // Return result
     return result;

@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const scheduleSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchSchedule"),
+    layout: searchFormLayout("SearchSchedule"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const scheduleSearchParams = () => toParams(scheduleSearchSchema(), endpointGetSchedules, endpointGetSchedule, ScheduleSortBy, ScheduleSortBy.DateUpdatedDesc);

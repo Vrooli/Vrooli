@@ -23,10 +23,13 @@ export type FormBuildViewProps = {
             types: readonly FormStructureType[];
         }
     }
+    onSchemaChange: (schema: FormSchema) => unknown;
+    schema: FormSchema;
 };
 
 export type FormRunViewProps = {
-    disabled?: boolean;
+    disabled: boolean;
+    schema: FormSchema;
 };
 
 export type FormViewProps = FormBuildViewProps & FormRunViewProps & {
@@ -61,7 +64,7 @@ export type FormHeaderType = FormElementBase & {
      * Allows header to be collapsible, which hides everything under it, 
      * until the next header, page break/divider, or the end of the form.
      */
-    collapsible?: boolean;
+    isCollapsible?: boolean;
     tag: HeaderTag;
 };
 
@@ -436,7 +439,7 @@ export interface YupSchema {
 /**
  * The layout of a specific grid container (or the entire form depending on the context)
  */
-export interface GridContainerBase {
+export type GridContainerBase = {
     /**
      * Title of the container
      */
@@ -455,7 +458,7 @@ export interface GridContainerBase {
  * The layout of a non-form grid container. Specifies the number of total items in the grid.
  * This is used with the schema fields to determine which inputs to render.
  */
-export interface GridContainer extends GridContainerBase {
+export type GridContainer = GridContainerBase & {
     /** True if the container is not collapsible. Defaults to false. */
     disableCollapse?: boolean;
     /** Total number of fields in this container */
@@ -476,23 +479,19 @@ export interface GridContainer extends GridContainerBase {
  */
 export interface FormSchema {
     /**
-     * If form is stored in database, its ID
-     */
-    $id?: string;
-    /**
      * Contains information about the overall layout of the form
      */
-    formLayout?: Omit<GridContainerBase, "rowSpacing" | "columnSpacing">;
+    layout?: Omit<GridContainerBase, "direction">;
     /**
      * Contains information about subsections of the form. Subsections 
-     * can only be one level deep. If this is empty, then formLayout is 
-     * used instead.
+     * can only be one level deep. If this is empty, then all elements
+     * will be placed in one container.
      */
-    containers?: GridContainer[];
+    containers: GridContainer[];
     /**
-     * Defines the shape of every field in the form.
+     * Defines the shape of every element in the form, including headers, dividers, and inputs
      */
-    fields: FormInputType[];
+    elements: FormElement[];
 }
 
 /**

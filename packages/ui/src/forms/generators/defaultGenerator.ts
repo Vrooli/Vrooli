@@ -1,5 +1,5 @@
 import { InputType, isObject, uuid } from "@local/shared";
-import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormInputType, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField } from "forms/types";
+import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormElement, FormInputType, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField } from "forms/types";
 
 const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;
@@ -119,23 +119,54 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
     }),
 };
 
+// /**
+//  * Populates a form input array with unset default values
+//  * @param fields The form's field data
+//  */
+// export function generateDefaultProps(fields: any[]): FormInputType[] {
+//     if (!Array.isArray(fields)) return [];
+//     // Remove invalid types
+//     let result = fields.filter(field => field.type in healFormInputPropsMap);
+//     // Heal each field
+//     result = result.map(field => {
+//         const { props, ...otherKeys } = field;
+//         return {
+//             props: healFormInputPropsMap[field.type](props as any),
+//             ...otherKeys,
+//         };
+//     });
+//     // Return the result
+//     return result;
+// }
+
 /**
- * Populates a form input array with unset default values
- * @param fields The form's field data
+ * Creates a Formik `initialValues` object from a form schema
+ * @param elements The form schema elements
+ * @returns An object with keys for each input field in the elements array 
+ * (i.e. removes headers and other non-input elements) and their default values
  */
-export function generateDefaultProps(fields: FormInputType[]): FormInputType[] {
-    if (!Array.isArray(fields)) return [];
-    // Remove invalid types
-    let result = fields.filter(field => field.type in healFormInputPropsMap);
-    // Heal each field
-    result = result.map(field => {
-        const { props, ...otherKeys } = field;
-        return {
-            props: healFormInputPropsMap[field.type](props as any),
-            ...otherKeys,
-        };
-    });
-    // Return the result
+export function generateInitialValues(elements: FormElement[] | null | undefined): Record<string, never> {
+    if (!Array.isArray(elements)) return {};
+    const result: Record<string, never> = {};
+    // Loop through each element in the schema
+    for (const element of elements) {
+        // Skip non-input elements
+        if (!Object.prototype.hasOwnProperty.call(element, "fieldName")) continue;
+        const formInput = element as FormInputType;
+        // If it exists in the heal map, pass it through and use the resulting default value
+        if (formInput.type in healFormInputPropsMap) {
+            result[formInput.fieldName] = healFormInputPropsMap[formInput.type](formInput.props).defaultValue as never;
+        }
+        // If not, try using the defaultValue prop directly
+        else if (formInput.props.defaultValue !== undefined) {
+            result[formInput.fieldName] = formInput.props.defaultValue as never;
+        }
+        // Otherwise, set it to an empty string. It's worse to have an undefined value than a
+        // possibly incorrect value, at least according to Formike error messages
+        else {
+            result[formInput.fieldName] = "" as never;
+        }
+    }
     return result;
 }
 

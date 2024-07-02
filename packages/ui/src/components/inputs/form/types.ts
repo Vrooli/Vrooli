@@ -1,10 +1,4 @@
-import { FormHeaderType, FormInputType, GridContainer, GridContainerBase } from "forms/types";
-
-export interface GeneratedGridProps {
-    childContainers?: GridContainer[];
-    fields: FormInputType[];
-    layout?: GridContainer | GridContainerBase;
-}
+import { FormHeaderType, FormInputType } from "forms/types";
 
 export interface FormDividerProps {
     isEditing: boolean;
@@ -19,7 +13,6 @@ export interface FormHeaderProps {
 }
 
 export interface FormInputProps<FieldData extends FormInputType = FormInputType> {
-    copyInput: (fieldName: string) => unknown;
     disabled?: boolean;
     fieldData: FieldData;
     index: number;

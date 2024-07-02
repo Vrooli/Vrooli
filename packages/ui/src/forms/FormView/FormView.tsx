@@ -1,11 +1,12 @@
 import { InputType, mergeDeep, noop, noopSubmit } from "@local/shared";
-import { Box, BoxProps, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Typography, styled, useTheme } from "@mui/material";
-import { FormInput } from "components/inputs/form";
+import { Box, BoxProps, Divider, Grid, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { FormInput, GeneratedGridItem, NormalizedGridContainer, normalizeFormContainers } from "components/inputs/form";
 import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
 import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
-import { CreateFormInputProps, createFormInput } from "forms/generators";
+import { CreateFormInputProps, createFormInput, generateInitialValues, generateYupSchema } from "forms/generators";
 import { FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormViewProps } from "forms/types";
 import { usePopover } from "hooks/usePopover";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -159,11 +160,12 @@ const formDividerStyle = { marginBottom: 2 } as const;
 //TODO create FormView component which switches between build and run mode, and hook to handle creating and passing in form state
 export function FormBuildView({
     limits,
+    onSchemaChange,
+    schema,
 }: FormBuildViewProps) {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
-    const [formElements, setFormElements] = useState<FormElement[]>([]);
     const [selectedElementIndex, setSelectedElementIndex] = useState<number | null>(null);
     const elementRefs = useRef<(HTMLElement | null)[]>([]);
 
@@ -189,31 +191,29 @@ export function FormBuildView({
             ...element,
             id: Date.now().toString(),
         } as unknown as FormElement;
-        const newElements = [...formElements];
+        const newElements = [...schema.elements];
         if (selectedElementIndex !== null) {
             newElements.splice(selectedElementIndex + 1, 0, newElement);
         } else {
             newElements.push(newElement);
         }
-        setFormElements(newElements);
+        onSchemaChange({ ...schema, elements: newElements });
         setSelectedElementIndex(newElements.length - 1);
-    }, [formElements, selectedElementIndex]);
+    }, [onSchemaChange, schema, selectedElementIndex]);
 
-    function handleDeleteElement(index: number) {
-        setFormElements((elements) => {
-            const newElements = [...elements];
-            newElements.splice(index, 1);
-            // Set the selection to the next element if there is one
-            if (index < newElements.length) {
-                setSelectedElementIndex(index);
-            } else if (index > 0) {
-                setSelectedElementIndex(index - 1);
-            } else {
-                setSelectedElementIndex(null);
-            }
-            return newElements;
-        });
-    }
+    const handleDeleteElement = useCallback(function handleDeleteElementCallback(index: number) {
+        const newElements = [...schema.elements];
+        newElements.splice(index, 1);
+        onSchemaChange({ ...schema, elements: newElements });
+        // Set the selection to the next element if there is one
+        if (index < newElements.length) {
+            setSelectedElementIndex(index);
+        } else if (index > 0) {
+            setSelectedElementIndex(index - 1);
+        } else {
+            setSelectedElementIndex(null);
+        }
+    }, [schema, onSchemaChange]);
 
     function selectElement(index: number) {
         setSelectedElementIndex(index);
@@ -294,7 +294,7 @@ export function FormBuildView({
     const handleAddInput = useCallback(function handleAddInputCallback(data: Omit<Partial<FormInputType>, "type"> & { type: InputType }) {
         const newElement = createFormInput({
             fieldName: `input-${randomString()}`,
-            label: `Input #${selectedElementIndex !== null ? selectedElementIndex + 1 : formElements.length + 1}`,
+            label: `Input #${selectedElementIndex !== null ? selectedElementIndex + 1 : schema.elements.length + 1}`,
             ...data,
         } as CreateFormInputProps);
         if (!newElement) {
@@ -303,13 +303,13 @@ export function FormBuildView({
         }
         handleAddElement(newElement);
         closeInputPopover();
-    }, [handleAddElement, closeInputPopover, selectedElementIndex, formElements.length]);
+    }, [handleAddElement, closeInputPopover, selectedElementIndex, schema.elements.length]);
 
     const handleUpdateInput = useCallback(function handleUpdateInputCallback(index: number, data: Partial<FormInputType>) {
-        const element = mergeDeep(data, formElements[index] as FormInputType);
-        const newElements = [...formElements.slice(0, index), element, ...formElements.slice(index + 1)] as FormElement[];
-        setFormElements(newElements);
-    }, [formElements]);
+        const element = mergeDeep(data, schema.elements[index] as FormInputType);
+        const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)] as FormElement[];
+        onSchemaChange({ ...schema, elements: newElements });
+    }, [onSchemaChange, schema]);
 
     const handleAddHeader = useCallback(function handleAddHeaderCallback(data: Partial<FormHeaderType>) {
         const tag = data.tag ?? "h1";
@@ -324,12 +324,12 @@ export function FormBuildView({
 
     const handleUpdateHeader = useCallback(function handleUpdateHeaderCallback(index: number, data: Partial<FormHeaderType>) {
         const element = {
-            ...formElements[index],
+            ...schema.elements[index],
             ...data,
         };
-        const newElements = [...formElements.slice(0, index), element, ...formElements.slice(index + 1)] as FormElement[];
-        setFormElements(newElements);
-    }, [formElements]);
+        const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)] as FormElement[];
+        onSchemaChange({ ...schema, elements: newElements });
+    }, [onSchemaChange, schema]);
 
     const handleAddDivider = useCallback(function handleAddDividerCallback() {
         handleAddElement<FormDividerType>({
@@ -342,16 +342,12 @@ export function FormBuildView({
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
         if (!destination || result.type !== "formElement") return;
-        // Update order of elements in form
-        setFormElements((formElements) => {
-            const newElements = [...formElements];
-            const [removed] = newElements.splice(source.index, 1);
-            newElements.splice(destination.index, 0, removed);
-            // Also update the selected element index
-            setSelectedElementIndex(destination.index);
-            return newElements;
-        });
-    }, []);
+        const newElements = [...schema.elements];
+        const [removed] = newElements.splice(source.index, 1);
+        newElements.splice(destination.index, 0, removed);
+        onSchemaChange({ ...schema, elements: newElements });
+        setSelectedElementIndex(destination.index);
+    }, [onSchemaChange, schema]);
 
     function renderElement(element: FormElement, index: number, providedDrag: DraggableProvided) {
         const isSelected = selectedElementIndex === index;
@@ -411,7 +407,6 @@ export function FormBuildView({
                     )}
                     {!(element.type in FormStructureType) && (
                         <FormInput
-                            copyInput={noop}
                             fieldData={element as FormInputType}
                             index={index}
                             isEditing={isSelected}
@@ -464,7 +459,7 @@ export function FormBuildView({
         }
 
         return (
-            <ToolbarBox formElementsCount={formElements.length}>
+            <ToolbarBox formElementsCount={schema.elements.length}>
                 {numInputItems > 0 && <>
                     {isMobile ? <IconButton onClick={inputOnClick}>
                         <DisplayedInputIcon width={24} height={24} />
@@ -481,7 +476,7 @@ export function FormBuildView({
                 </>}
             </ToolbarBox>
         );
-    }, [inputItems, structureItems, formElements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
+    }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
 
     //TODO calculate using defaultValues
     const formInitialValues = useMemo(() => ({}) as Record<string, unknown>, []);
@@ -541,9 +536,9 @@ export function FormBuildView({
                     ))}
                 </List>
             </Popover>
-            {formElements.length === 0 && <FormHelperText variant="body1">Use the options below to populate the form.</FormHelperText>}
-            {formElements.length === 0 ? Toolbar : null}
-            {formElements.length > 0 && <Divider sx={formDividerStyle} />}
+            {schema.elements.length === 0 && <FormHelperText variant="body1">Use the options below to populate the form.</FormHelperText>}
+            {schema.elements.length === 0 ? Toolbar : null}
+            {schema.elements.length > 0 && <Divider sx={formDividerStyle} />}
             {/* Formik to handle form state. Even though we're not entering data, we need to make sure we aren't using a formik context higher up in the tree */}
             <Formik
                 enableReinitialize={true}
@@ -557,7 +552,7 @@ export function FormBuildView({
                             <Droppable droppableId="form-builder-elements" direction="vertical" type="formElement">
                                 {(providedDrop) => (
                                     <Box ref={providedDrop.innerRef} {...providedDrop.droppableProps}> {/* Droppable area for form elements */}
-                                        {formElements.map((element, index) => (
+                                        {schema.elements.map((element, index) => (
                                             <Draggable key={`${element.id}-drag`} draggableId={`${element.id}-drag`} index={index}>
                                                 {(providedDrag) => renderElement(element, index, providedDrag)}
                                             </Draggable>
@@ -587,11 +582,10 @@ const ElementRunOuterBox = styled("button")(() => ({
 
 export function FormRunView({
     disabled,
+    schema,
 }: FormRunViewProps) {
 
-    const [formElements, setFormElements] = useState<FormElement[]>([]);
-
-    function renderElement(element: FormElement, index: number) {
+    const renderElement = useCallback(function renderElementMemo(element: FormElement, index: number) {
         return (
             <ElementRunOuterBox
                 key={element.id}
@@ -612,7 +606,7 @@ export function FormRunView({
                 )}
                 {!(element.type in FormStructureType) && (
                     <FormInput
-                        copyInput={noop} //TODO!
+                        disabled={disabled}
                         fieldData={element as FormInputType}
                         index={index}
                         isEditing={false}
@@ -621,24 +615,85 @@ export function FormRunView({
                     />)}
             </ElementRunOuterBox>
         );
-    }
+    }, [disabled]);
 
-    // Purposefully empty, as we're not using formik for form state
-    const formInitialValues = useMemo(() => ({}) as Record<string, unknown>, []);
+    const sections = useMemo(() => {
+        // Normalize/heal containers to ensure they cover all elements
+        const normalizedContainers = normalizeFormContainers(schema);
+        // Render each container as a stack or grid, depending on configuration
+        const sections: JSX.Element[] = [];
+        for (let i = 0; i < normalizedContainers.length; i++) {
+            const currContainer: NormalizedGridContainer = normalizedContainers[i];
+            const containerProps = {
+                direction: currContainer?.direction ?? "column",
+                key: `form-section-container-${i}`,
+                spacing: 2,
+            };
+            // Use grid for horizontal layout, and stack for vertical layout
+            const useGrid = containerProps.direction === "row";
+            // Generate component for each field in the grid
+            const gridItems: JSX.Element[] = [];
+            for (let j = currContainer.startIndex; j <= currContainer.endIndex; j++) {
+                const fieldData = schema.elements[j] as FormInputType;
+                gridItems.push(<GeneratedGridItem
+                    key={`grid-item-${fieldData.id}`}
+                    fieldsInGrid={currContainer.endIndex - currContainer.startIndex + 1}
+                    isInGrid={useGrid}
+                >
+                    {renderElement(fieldData, j)}
+                </GeneratedGridItem>);
+            }
+            const itemsContainer = useGrid ? <Grid container {...containerProps}>
+                {gridItems}
+            </Grid> : <Stack {...containerProps}>
+                {gridItems}
+            </Stack>;
+            // Each section is represented using a fieldset
+            sections.push(
+                <fieldset key={`grid-container-${i}`} style={{ border: "none" }}>
+                    {/* If a title is provided, the items are wrapped in a collapsible container */}
+                    {currContainer?.title ? <ContentCollapse
+                        disableCollapse={currContainer.disableCollapse}
+                        helpText={currContainer.description ?? undefined}
+                        title={currContainer.title}
+                        titleComponent="legend"
+                    >
+                        {itemsContainer}
+                    </ContentCollapse> : itemsContainer}
+                </fieldset>,
+            );
+        }
+        return sections;
+    }, [renderElement, schema]);
+
+    const initialValues = useMemo(function initialValuesMemo() {
+        return generateInitialValues(schema.elements);
+    }, [schema]);
+    const validationSchema = useMemo(function validationSchemaMemo() {
+        return generateYupSchema(schema);
+    }, [schema]);
 
     return (
         <div>
-            {formElements.length === 0 && <FormHelperText variant="body1">The form is empty.</FormHelperText>}
-            {formElements.length > 0 && <Divider sx={formDividerStyle} />}
+            {schema.elements.length === 0 && <FormHelperText variant="body1">The form is empty.</FormHelperText>}
+            {schema.elements.length > 0 && <Divider sx={formDividerStyle} />}
             {/* Formik to handle form state. Even though we're not entering data, we need to make sure we aren't using a formik context higher up in the tree */}
             <Formik
                 enableReinitialize={true}
-                initialValues={formInitialValues}
-                onSubmit={noopSubmit}
+                initialValues={initialValues}
+                onSubmit={noopSubmit} //TODO
+                validationSchema={validationSchema}
             >
                 {() => (
                     <FormErrorBoundary> {/* Error boundary to catch elements that fail to render */}
-                        {formElements.map((element, index) => renderElement(element, index))}
+                        <Stack
+                            direction={"column"}
+                            key={"form-container"}
+                            spacing={4}
+                            sx={{ width: "100%" }}
+                        >
+                            {sections}
+                        </Stack>
                     </FormErrorBoundary>
                 )}
             </Formik>
@@ -647,12 +702,11 @@ export function FormRunView({
 }
 
 export function FormView({
-    disabled,
     isEditing,
-    limits,
+    ...props
 }: FormViewProps) {
     if (isEditing) {
-        return <FormBuildView limits={limits} />;
+        return <FormBuildView {...props} />;
     }
-    return <FormRunView disabled={disabled} />;
+    return <FormRunView {...props} />;
 }

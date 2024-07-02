@@ -39,7 +39,7 @@ const sliderMarks = [
         value: 20,
         label: "20",
     },
-] as const;
+];
 
 const sliderStyle = {
     marginLeft: 1.5,

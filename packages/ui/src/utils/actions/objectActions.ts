@@ -77,7 +77,11 @@ export interface ActionCompletePayloads {
  * @param session Current session. Many actions require a logged in user.
  * @param exclude Actions to exclude from the list (useful when other components on the page handle those actions, like a bookmark button)
  */
-export const getAvailableActions = (object: ListObject | null | undefined, session: Session | undefined, exclude: ObjectAction[] = []): ObjectAction[] => {
+export function getAvailableActions(
+    object: ListObject | null | undefined,
+    session: Session | undefined,
+    exclude: readonly ObjectAction[] = [],
+): ObjectAction[] {
     if (!object) return [];
     const isLoggedIn = checkIfLoggedIn(session);
     const { canComment, canCopy, canDelete, canUpdate, canReport, canShare, canBookmark, canReact, isBookmarked, reaction } = getYou(object);
@@ -125,7 +129,7 @@ export const getAvailableActions = (object: ListObject | null | undefined, sessi
         options = options.filter((action) => !exclude.includes(action));
     }
     return options;
-};
+}
 
 /**
  * Maps an ObjectAction to [labelKey, Icon, iconColor, preview]
@@ -146,9 +150,9 @@ const allOptionsMap: { [key in ObjectAction]: [CommonKey, SvgComponent, string, 
     [ObjectAction.VoteUp]: ["VoteUp", ArrowUpIcon, "default", false],
 });
 
-export const getActionsDisplayData = (actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] => {
+export function getActionsDisplayData(actions: ObjectAction[]): Pick<ListMenuItemData<ObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] {
     return actions.map((action) => {
         const [labelKey, Icon, iconColor, preview] = allOptionsMap[action];
         return { labelKey, Icon, iconColor, preview, value: action };
     });
-};
+}

@@ -151,20 +151,6 @@ export function SubroutineView({
         handleUserInputsUpdate(updatedValues);
     }, [handleUserInputsUpdate, formik.values, run?.inputs]);
 
-    /**
-     * Copy current value of input to clipboard
-     * @param fieldName Name of input
-     */
-    const copyInput = useCallback((fieldName: string) => {
-        const input = formik.values[fieldName];
-        if (input) {
-            navigator.clipboard.writeText(input);
-            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-        } else {
-            PubSub.get().publish("snack", { messageKey: "InputEmpty", severity: "Error" });
-        }
-    }, [formik.values]);
-
     const inputComponents = useMemo(() => {
         if (!internalRoutineVersion?.inputs || !Array.isArray(internalRoutineVersion?.inputs) || internalRoutineVersion.inputs.length === 0) return null;
         return (
@@ -172,15 +158,17 @@ export function SubroutineView({
                 {Object.values(formValueMap).map((fieldData: FormInputType, index: number) => (
                     <FormInput
                         key={fieldData.id}
-                        copyInput={copyInput}
                         fieldData={fieldData}
                         index={index}
+                        isEditing={false}
+                        onConfigUpdate={noop}
+                        onDelete={noop}
                         textPrimary={palette.background.textPrimary}
                     />
                 ))}
             </Box>
         );
-    }, [copyInput, formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs]);
+    }, [formValueMap, palette.background.textPrimary, internalRoutineVersion?.inputs]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);

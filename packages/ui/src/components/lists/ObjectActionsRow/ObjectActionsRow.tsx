@@ -11,6 +11,8 @@ import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { ObjectActionsRowProps } from "../types";
 
+const MAX_ACTIONS_BEFORE_OVERFLOW = 5;
+
 const commonButtonSx = (palette: Palette) => ({
     color: "inherit",
     width: "48px",
@@ -27,11 +29,11 @@ const commonIconProps = (palette: Palette) => ({
  * Available icons are same as ObjectActionMenu. Actions that are not available are hidden.
  * If there are more than 5 actions, rest are hidden in an overflow menu (i.e. ObjectActionMenu).
  */
-export const ObjectActionsRow = <T extends ListObject>({
+export function ObjectActionsRow<T extends ListObject>({
     actionData,
     exclude,
     object,
-}: ObjectActionsRowProps<T>) => {
+}: ObjectActionsRowProps<T>) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -41,9 +43,9 @@ export const ObjectActionsRow = <T extends ListObject>({
         let actionsDisplayed: ObjectAction[];
         let actionsExtra: ObjectAction[];
         // If there are more than 5 actions, display the first 4 in the row, and the rest in the overflow menu
-        if (availableActions.length > 5) {
-            actionsDisplayed = availableActions.slice(0, 4);
-            actionsExtra = availableActions.slice(4);
+        if (availableActions.length > MAX_ACTIONS_BEFORE_OVERFLOW) {
+            actionsDisplayed = availableActions.slice(0, MAX_ACTIONS_BEFORE_OVERFLOW - 1);
+            actionsExtra = availableActions.slice(MAX_ACTIONS_BEFORE_OVERFLOW - 1);
         }
         // If there are 5 or less actions, display them all in the row
         else {
@@ -118,4 +120,4 @@ export const ObjectActionsRow = <T extends ListObject>({
             />}
         </Stack>
     );
-};
+}

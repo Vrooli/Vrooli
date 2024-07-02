@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const chatInviteSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchChatInvite"),
+    layout: searchFormLayout("SearchChatInvite"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const chatInviteSearchParams = () => toParams(chatInviteSearchSchema(), endpointGetChatInvites, endpointGetChatInvite, ChatInviteSortBy, ChatInviteSortBy.DateUpdatedDesc);

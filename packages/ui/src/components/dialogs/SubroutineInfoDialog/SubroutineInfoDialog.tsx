@@ -15,7 +15,6 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FormView } from "forms/FormView/FormView";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CloseIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
@@ -308,8 +307,8 @@ function SubroutineForm({
                         </Grid>
                     </FormContainer>
                     {/* TODO inputs/outputs */}
-                    <FormView isEditing={isEditing} />;
-                    <FormView isEditing={isEditing} />;
+                    {/* <FormView isEditing={isEditing} />; */}
+                    {/* <FormView isEditing={isEditing} />; */}
                 </FormContainer>
             </BaseForm>
             {canUpdateRoutineVersion && <BottomActionsButtons

@@ -4,11 +4,11 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRunRoutine"),
+    layout: searchFormLayout("SearchRunRoutine"),
     containers: [
         { direction: "column", totalItems: 1 },
     ],
-    fields: [
+    elements: [
         {
             fieldName: "status",
             id: "status",

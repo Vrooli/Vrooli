@@ -4,14 +4,14 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
 
 export const projectOrTeamSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchProjectOrTeam"),
+    layout: searchFormLayout("SearchProjectOrTeam"),
     containers: [
         { direction: "column", totalItems: 1 },
         bookmarksContainer(),
         languagesVersionContainer(),
         tagsContainer(),
     ],
-    fields: [
+    elements: [
         {
             fieldName: "objectType",
             id: "objectType",

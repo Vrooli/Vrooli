@@ -6,6 +6,7 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { FormInputBase } from "forms/types";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
@@ -176,7 +177,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
         // Clear search params
-        const advancedSearchFields = advancedSearchSchemaRef.current?.fields.map(f => f.fieldName) ?? [];
+        const advancedSearchFields = advancedSearchSchemaRef.current?.elements?.filter(f => Object.prototype.hasOwnProperty.call(f, "fieldName")).map(f => (f as FormInputBase).fieldName) ?? [];
         const basicSearchFields = ["advanced", "sort", "time"];
         removeSearchParams(setLocation, [...advancedSearchFields, ...basicSearchFields]);
         // If no item, close dialog

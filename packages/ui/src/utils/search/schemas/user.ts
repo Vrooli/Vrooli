@@ -5,7 +5,7 @@ import { bookmarksContainer, bookmarksFields, languagesContainer, languagesField
 
 export function userSearchSchema(): FormSchema {
     return {
-        formLayout: searchFormLayout("SearchUser"),
+        layout: searchFormLayout("SearchUser"),
         containers: [
             {
                 direction: "column",
@@ -15,7 +15,7 @@ export function userSearchSchema(): FormSchema {
             bookmarksContainer(),
             languagesContainer(),
         ],
-        fields: [
+        elements: [
             {
                 fieldName: "isBot",
                 id: "isBot",

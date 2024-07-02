@@ -12,7 +12,7 @@ import { ObjectListProps } from "./ObjectList/ObjectList";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
-    exclude?: ObjectAction[];
+    exclude?: readonly ObjectAction[];
     object: T | null | undefined;
 }
 

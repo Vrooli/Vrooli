@@ -1,11 +1,12 @@
 import { parseSearchParams, ParseSearchParamsResult } from "@local/shared";
-import { Box, Button, Grid, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, Grid, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { GeneratedGrid } from "components/inputs/form";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
-import { generateDefaultProps, generateYupSchema } from "forms/generators";
-import { FormInputType, FormSchema } from "forms/types";
+import { generateInitialValues, generateYupSchema } from "forms/generators";
+import { FormInputBase, FormSchema } from "forms/types";
+import { TFunction } from "i18next";
 import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +19,24 @@ import { AdvancedSearchButtonProps } from "../types";
 
 const titleId = "advanced-search-dialog-title";
 
+function createTopBarOptions(resetForm: (() => unknown), t: TFunction<"common", undefined, "common">) {
+    return [
+        {
+            Icon: RefreshIcon,
+            label: t("Reset"),
+            onClick: resetForm,
+        },
+    ];
+}
+
+const FormContainer = styled(Box)(() => ({
+    margin: "auto",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: "64px",
+}));
+
 function AdvancedSearchDialog({
     handleClose,
     handleSearch,
@@ -29,7 +48,6 @@ function AdvancedSearchDialog({
     isOpen: boolean;
     searchType: SearchType | `${SearchType}`;
 }) {
-    const theme = useTheme();
     const { t } = useTranslation();
 
     // Search schema to use
@@ -38,28 +56,30 @@ function AdvancedSearchDialog({
         setSchema(searchType in searchTypeToParams ? searchTypeToParams[searchType]().advancedSearchSchema : null);
     }, [searchType]);
 
-    // Parse default values to use in formik
-    const initialValues = useMemo(function advancedSearchInitialValuesMemo() {
-        // Calculate initial values from schema, to use if values not already in URL
-        const fieldInputs: FormInputType[] = generateDefaultProps(schema?.fields ?? []);
-        // Parse search params from URL, and filter out search fields that are not in schema
-        const urlValues = schema ? convertSearchForFormik(parseSearchParams(), schema) : {} as { [key: string]: object | string | number | boolean | null };
-        // Filter out search params that are not in schema
-        const values: ParseSearchParamsResult = {};
-        // Add fieldInputs to values
-        fieldInputs.forEach((field) => {
-            values[field.fieldName] = field.props.defaultValue;
-        });
-        // Add or replace urlValues to values
-        Object.keys(urlValues).forEach((key) => {
-            const currValue = urlValues[key];
-            if (currValue !== undefined) values[key] = currValue;
-        });
-        return values;
+    const initialValues = useMemo(function initialValuesMemo() {
+        console.log("calculating initial values...");
+        // Calculate initial values from schema, to use for values not in URL
+        const initialValues = generateInitialValues(schema?.elements);
+        // Parse search params from URL
+        const urlValues = convertSearchForFormik(parseSearchParams(), schema);
+        // Replace default values with URL values
+        for (const key in urlValues) {
+            if (urlValues[key] === undefined) continue;
+            initialValues[key] = urlValues[key] as never;
+        }
+        return initialValues;
+    }, [schema]);
+    const validationSchema = useMemo(function validationSchemaMemo() {
+        return schema ? generateYupSchema(schema) : undefined;
     }, [schema]);
 
-    // Generate yup validation schema
-    const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
+    const onSubmit = useCallback(function onSubmitCallback(values: ParseSearchParamsResult) {
+        if (schema) {
+            const searchValue = convertFormikForSearch(values, schema);
+            handleSearch(searchValue);
+        }
+        handleClose();
+    }, [handleSearch, schema, handleClose]);
 
     return (
         <LargeDialog
@@ -68,65 +88,58 @@ function AdvancedSearchDialog({
             onClose={handleClose}
             titleId={titleId}
         >
-            <Formik
+            <Formik<ParseSearchParamsResult>
                 enableReinitialize={true}
                 initialValues={initialValues}
-                onSubmit={(values) => {
-                    if (schema) {
-                        const searchValue = convertFormikForSearch(values, schema);
-                        handleSearch(searchValue);
-                    }
-                    handleClose();
-                }}
+                onSubmit={onSubmit}
                 validationSchema={validationSchema}
             >
-                {(formik) => <>
-                    <TopBar
-                        display="dialog"
-                        onClose={handleClose}
-                        title={t("AdvancedSearch")}
-                        titleId={titleId}
-                        options={[{
-                            Icon: RefreshIcon,
-                            label: t("Reset"),
-                            onClick: () => { formik.resetForm(); },
-                        }]}
-                    />
-                    <Box sx={{
-                        margin: "auto",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        paddingBottom: "64px",
-                    }}>
-                        {/* Search options */}
-                        {schema && <GeneratedGrid
-                            childContainers={schema.containers}
-                            fields={schema.fields}
-                            layout={schema.formLayout}
-                        />}
-                    </Box>
-                    {/* Search/Cancel buttons */}
-                    <BottomActionsGrid display="dialog">
-                        <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
-                            <Button
-                                fullWidth
-                                startIcon={<SearchIcon />}
-                                type="submit"
-                                onClick={() => { formik.handleSubmit(); }}
-                                variant="contained"
-                            >{t("Search")}</Button>
-                        </Grid>
-                        <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
-                            <Button
-                                fullWidth
-                                startIcon={<CancelIcon />}
-                                onClick={handleClose}
-                                variant="outlined"
-                            >{t("Cancel")}</Button>
-                        </Grid>
-                    </BottomActionsGrid>
-                </>}
+                {(formik) => {
+                    console.log("formik here", formik);
+                    function onSubmit() {
+                        formik.handleSubmit();
+                    }
+                    function resetForm() {
+                        formik.setValues(generateInitialValues(schema?.elements));
+                    }
+                    const topBarOptions = createTopBarOptions(resetForm, t);
+
+                    return (
+                        <>
+                            <TopBar
+                                display="dialog"
+                                onClose={handleClose}
+                                title={t("AdvancedSearch")}
+                                titleId={titleId}
+                                options={topBarOptions}
+                            />
+                            <FormContainer>
+                                {/* Search options */}
+                                {schema && <GeneratedGrid  {...schema} />}
+                            </FormContainer>
+                            {/* Search/Cancel buttons */}
+                            <BottomActionsGrid display="dialog">
+                                <Grid item xs={6} p={1} pt={0}>
+                                    <Button
+                                        fullWidth
+                                        startIcon={<SearchIcon />}
+                                        type="submit"
+                                        onClick={onSubmit}
+                                        variant="contained"
+                                    >{t("Search")}</Button>
+                                </Grid>
+                                <Grid item xs={6} p={1} pt={0}>
+                                    <Button
+                                        fullWidth
+                                        startIcon={<CancelIcon />}
+                                        onClick={handleClose}
+                                        variant="outlined"
+                                    >{t("Cancel")}</Button>
+                                </Grid>
+                            </BottomActionsGrid>
+                        </>
+                    );
+                }}
             </Formik>
         </LargeDialog>
     );
@@ -146,7 +159,7 @@ export function AdvancedSearchButton({
     // Update params when schema changes
     useEffect(() => {
         const searchParams = parseSearchParams();
-        if (!advancedSearchSchema?.fields) {
+        if (!advancedSearchSchema?.elements) {
             setAdvancedSearchParams(null);
             return;
         }
@@ -155,11 +168,11 @@ export function AdvancedSearchButton({
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
         const { advanced, search, sort, time, ...otherParams } = searchParams;
         // Find valid advanced search params
-        const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
+        const allAdvancedSearchParams = advancedSearchSchema.elements.filter(f => Object.prototype.hasOwnProperty.call(f, "fieldName")).map(f => (f as FormInputBase).fieldName);
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [advancedSearchSchema?.fields, setAdvancedSearchParams]);
+    }, [advancedSearchSchema?.elements, setAdvancedSearchParams]);
 
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
     const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true); }, []);
@@ -169,11 +182,11 @@ export function AdvancedSearchButton({
     const handleAdvancedSearchDialogSubmit = useCallback((values: ParseSearchParamsResult) => {
         if (!controlsUrl) return;
         // Remove schema fields from search params
-        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
+        removeSearchParams(setLocation, advancedSearchSchema?.elements?.filter(f => Object.prototype.hasOwnProperty.call(f, "fieldName")).map(f => (f as FormInputBase).fieldName) ?? []);
         // Add set fields to search params
         addSearchParams(setLocation, values);
         setAdvancedSearchParams(values);
-    }, [advancedSearchSchema?.fields, controlsUrl, setAdvancedSearchParams, setLocation]);
+    }, [advancedSearchSchema?.elements, controlsUrl, setAdvancedSearchParams, setLocation]);
 
     // Set dialog open stats in url search params
     useEffect(() => {

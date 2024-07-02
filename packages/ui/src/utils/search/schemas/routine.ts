@@ -59,49 +59,54 @@ export function getRoutineTypeLabel(option: RoutineTypeOption) { return option.l
 export function getRoutineTypeDescription(option: RoutineTypeOption) { return option.description; }
 export function getRoutineTypeIcon(option: RoutineTypeOption) { return option.Icon; }
 
-export const routineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRoutine"),
-    containers: [
-        {
-            direction: "column",
-            disableCollapse: true,
-            title: "Routine Type",
-            totalItems: 1,
-        },
-        hasCompleteVersionContainer,
-        votesContainer(),
-        bookmarksContainer(),
-        languagesVersionContainer(),
-        tagsContainer(),
-    ],
-    fields: [
-        {
-            fieldName: "latestVersionRoutineType",
-            id: "latestVersionRoutineType",
-            label: "Routine Type",
-            type: InputType.Selector,
-            props: {
-                defaultValue: null,
-                getOptionDescription: (option) => option.description,
-                getOptionLabel: (option) => option.label,
-                getOptionValue: (option) => option.label,
-                name: "routineType",
-                options: [
-                    {
-                        type: null,
-                        label: "All",
-                        Icon: HelpIcon,
-                    },
-                    ...routineTypes,
-                ],
+export function routineSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchRoutine"),
+        containers: [
+            {
+                direction: "column",
+                disableCollapse: true,
+                title: "Routine Type",
+                totalItems: 1,
             },
-        },
-        ...hasCompleteVersionFields(),
-        ...votesFields(),
-        ...bookmarksFields(),
-        ...languagesVersionFields(),
-        ...tagsFields(),
-    ],
-});
+            hasCompleteVersionContainer,
+            votesContainer(),
+            bookmarksContainer(),
+            languagesVersionContainer(),
+            tagsContainer(),
+        ],
+        elements: [
+            {
+                fieldName: "latestVersionRoutineType",
+                id: "latestVersionRoutineType",
+                label: "Routine Type",
+                type: InputType.Selector,
+                props: {
+                    defaultValue: null,
+                    getOptionDescription: (option) => option.description,
+                    getOptionLabel: (option) => option.label,
+                    getOptionValue: (option) => option.label,
+                    name: "routineType",
+                    options: [
+                        {
+                            type: null,
+                            label: "All",
+                            Icon: HelpIcon,
+                        },
+                        ...routineTypes,
+                    ],
+                },
+            },
+            ...hasCompleteVersionFields(),
+            ...votesFields(),
+            ...bookmarksFields(),
+            ...languagesVersionFields(),
+            ...tagsFields(),
+        ],
+    };
+}
 
-export const routineSearchParams = () => toParams(routineSearchSchema(), endpointGetRoutines, endpointGetRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
+export function routineSearchParams() {
+    return toParams(routineSearchSchema(), endpointGetRoutines, endpointGetRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
+}
+

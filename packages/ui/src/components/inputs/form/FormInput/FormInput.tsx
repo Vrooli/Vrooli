@@ -2,7 +2,7 @@ import { InputType } from "@local/shared";
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useEditableLabel } from "hooks/useEditableLabel";
-import { CopyIcon, DeleteIcon } from "icons";
+import { DeleteIcon } from "icons";
 import { ComponentType, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
@@ -62,7 +62,6 @@ const textFieldStyle = {
 } as const;
 
 export function FormInput({
-    copyInput,
     fieldData,
     index,
     isEditing,
@@ -90,7 +89,6 @@ export function FormInput({
     });
 
     const handleDelete = useCallback(function handleDeleteClick() { onDelete(); }, [onDelete]);
-    const handleCopy = useCallback(function handleCopyClick() { copyInput(fieldData.fieldName); }, [copyInput]);
     const onMarkdownChange = useMemo(function onMarkdownChangeMemo() {
         return isEditing ? (helpText: string) => { onConfigUpdate({ ...fieldData, helpText }); } : undefined;
     }, [isEditing, fieldData, onConfigUpdate]);
@@ -104,20 +102,15 @@ export function FormInput({
 
     const titleStack = useMemo(() => (
         <Stack direction="row" spacing={0} alignItems="center">
-            {/* Delete button when editing form, and copy button when using form */}
-            {isEditing ? (
+            {/* Delete button when editing form */}
+            {isEditing && (
                 <Tooltip title={t("Delete")}>
                     <IconButton onClick={handleDelete}>
                         <DeleteIcon fill={palette.error.main} width="24px" height="24px" />
                     </IconButton>
                 </Tooltip>
-            ) : (
-                <Tooltip title={t("CopyToClipboard")}>
-                    <IconButton onClick={handleCopy}>
-                        <CopyIcon fill={textPrimary} />
-                    </IconButton>
-                </Tooltip>
             )}
+            {/* TODO copy input when not editing and it's a FormInputText or FormInputInteger component */}
             <legend aria-label="Input label">
                 {isEditingLabel ? (
                     <TextField
@@ -150,7 +143,7 @@ export function FormInput({
                     markdown={fieldData.helpText ?? ""}
                 /> : null}
         </Stack>
-    ), [isEditing, t, handleDelete, palette.error.main, handleCopy, textPrimary, isEditingLabel, labelEditRef, textFieldInputProps, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, fieldData.fieldName, fieldData.isRequired, fieldData.helpText, startEditingLabel, labelStyle, index, onMarkdownChange]);
+    ), [isEditing, t, handleDelete, palette.error.main, isEditingLabel, labelEditRef, textFieldInputProps, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, fieldData.fieldName, fieldData.isRequired, fieldData.helpText, startEditingLabel, labelStyle, index, onMarkdownChange]);
 
     const inputElement = useMemo(() => {
         if (!fieldData.type || !typeMap[fieldData.type]) {
@@ -161,7 +154,6 @@ export function FormInput({
         return (
             <Suspense fallback={<div>Loading...</div>}>
                 <InputComponent
-                    copyInput={copyInput}
                     fieldData={fieldData}
                     index={index}
                     isEditing={isEditing}
@@ -171,7 +163,7 @@ export function FormInput({
                 />
             </Suspense>
         );
-    }, [copyInput, fieldData, index, isEditing, onConfigUpdate, onDelete, rest]);
+    }, [fieldData, index, isEditing, onConfigUpdate, onDelete, rest]);
 
     return (
         <Box

@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const popularSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchPopular"),
+    layout: searchFormLayout("SearchPopular"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const popularSearchParams = () => toParams(popularSearchSchema(), endpointGetFeedPopular, undefined, PopularSortBy, PopularSortBy.BookmarksDesc);

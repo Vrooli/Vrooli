@@ -87,15 +87,15 @@ export function FormHeader({
         closeTagPopover();
     }, [closeTagPopover, isEditing, onUpdate]);
 
-    const isCollapsible = useMemo(function isCollapsibleMemo() {
-        return element.isCollapsible ?? true;
-    }, [element.isCollapsible]);
-    const toggleCollapsible = useCallback(function toggleCollapsibleCallback() {
-        if (!isEditing) {
-            return;
-        }
-        onUpdate({ isCollapsible: !isCollapsible });
-    }, [isCollapsible, isEditing, onUpdate]);
+    // const isCollapsible = useMemo(function isCollapsibleMemo() {
+    //     return element.isCollapsible ?? true;
+    // }, [element.isCollapsible]);
+    // const toggleCollapsible = useCallback(function toggleCollapsibleCallback() {
+    //     if (!isEditing) {
+    //         return;
+    //     }
+    //     onUpdate({ isCollapsible: !isCollapsible });
+    // }, [isCollapsible, isEditing, onUpdate]);
 
     const {
         editedLabel,
@@ -171,9 +171,9 @@ export function FormHeader({
                 <Button variant="text" sx={propButtonStyle} onClick={openTagPopover}>
                     Size: {headerItems.find((item) => item.tag === element.tag)?.label}
                 </Button>
-                <Button variant="text" sx={propButtonStyle} onClick={toggleCollapsible}>
+                {/* <Button variant="text" sx={propButtonStyle} onClick={toggleCollapsible}>
                     {isCollapsible ? "Not Collapsible" : "Collapsible"}
-                </Button>
+                </Button> */}
             </FormSettingsButtonRow>
         </div>
     );

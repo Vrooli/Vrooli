@@ -16,16 +16,18 @@ export type SearchParams = {
 /**
  * Converts shorthand search info to SearchParams object
  */
-export const toParams = (
+export function toParams(
     advancedSearchSchema: FormSchema,
     findManyPair: { endpoint: string },
     findOnePair: { endpoint: string } | undefined,
     sortByOptions: { [key: string]: string },
     defaultSortBy: string,
-): SearchParams => ({
-    advancedSearchSchema,
-    defaultSortBy,
-    findManyEndpoint: findManyPair.endpoint,
-    findOneEndpoint: findOnePair?.endpoint,
-    sortByOptions,
-});
+): SearchParams {
+    return {
+        advancedSearchSchema,
+        defaultSortBy,
+        findManyEndpoint: findManyPair.endpoint,
+        findOneEndpoint: findOnePair?.endpoint,
+        sortByOptions,
+    };
+}
