@@ -177,6 +177,8 @@ export const routine_create = {
     "outputsCount": true,
     "reportsCount": true,
     "configCallData": true,
+    "configFormInput": true,
+    "configFormOutput": true,
     "versionNotes": true,
     "apiVersion": {
       "id": true,

@@ -1,5 +1,5 @@
 import { RoutineType } from "../../api/generated";
-import { YupModel, bool, configCallData, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
+import { YupModel, bool, configCallData, configFormInput, configFormOutput, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { nodeValidation } from "./node";
 import { nodeLinkValidation } from "./nodeLink";
 import { resourceListValidation } from "./resourceList";
@@ -26,6 +26,8 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         configCallData: opt(configCallData),
+        configFormInput: opt(configFormInput),
+        configFormOutput: opt(configFormOutput),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
@@ -48,6 +50,8 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     update: (d) => yupObj({
         id: req(id),
         configCallData: opt(configCallData),
+        configFormInput: opt(configFormInput),
+        configFormOutput: opt(configFormOutput),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),

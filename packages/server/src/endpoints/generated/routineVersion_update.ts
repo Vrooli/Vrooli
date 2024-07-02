@@ -23,6 +23,8 @@ export const routineVersion_update = {
   "outputsCount": true,
   "reportsCount": true,
   "configCallData": true,
+  "configFormInput": true,
+  "configFormOutput": true,
   "versionNotes": true,
   "apiVersion": {
     "id": true,

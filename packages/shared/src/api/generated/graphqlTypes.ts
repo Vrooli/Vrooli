@@ -7555,6 +7555,8 @@ export type RoutineVersion = {
   completedAt?: Maybe<Scalars['Date']>;
   complexity: Scalars['Int'];
   configCallData?: Maybe<Scalars['String']>;
+  configFormInput?: Maybe<Scalars['String']>;
+  configFormOutput?: Maybe<Scalars['String']>;
   created_at: Scalars['Date'];
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
@@ -7598,6 +7600,8 @@ export type RoutineVersionCreateInput = {
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
   codeVersionConnect?: InputMaybe<Scalars['ID']>;
   configCallData?: InputMaybe<Scalars['String']>;
+  configFormInput?: InputMaybe<Scalars['String']>;
+  configFormOutput?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
@@ -7835,6 +7839,8 @@ export type RoutineVersionUpdateInput = {
   codeVersionConnect?: InputMaybe<Scalars['ID']>;
   codeVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   configCallData?: InputMaybe<Scalars['String']>;
+  configFormInput?: InputMaybe<Scalars['String']>;
+  configFormOutput?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -14065,6 +14071,8 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   configCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  configFormInput?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  configFormOutput?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;

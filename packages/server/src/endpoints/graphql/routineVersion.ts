@@ -38,6 +38,8 @@ export const typeDef = gql`
     input RoutineVersionCreateInput {
         id: ID!
         configCallData: String
+        configFormInput: String
+        configFormOutput: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean!
@@ -60,6 +62,8 @@ export const typeDef = gql`
     input RoutineVersionUpdateInput {
         id: ID!
         configCallData: String
+        configFormInput: String
+        configFormOutput: String
         isAutomatable: Boolean
         isComplete: Boolean
         isPrivate: Boolean
@@ -95,6 +99,8 @@ export const typeDef = gql`
     type RoutineVersion {
         id: ID!
         configCallData: String
+        configFormInput: String
+        configFormOutput: String
         completedAt: Date
         complexity: Int!
         created_at: Date!

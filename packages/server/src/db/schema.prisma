@@ -1911,6 +1911,8 @@ model routine_version {
     updated_at                        DateTime                      @default(now()) @db.Timestamptz(6)
     completedAt                       DateTime?                     @db.Timestamptz(6)
     configCallData                    String?                       @db.VarChar(8192)
+    configFormInput                   String?                       @db.VarChar(8192)
+    configFormOutput                  String?                       @db.VarChar(8192)
     complexity                        Int                           @default(1)
     intendToPullRequest               Boolean                       @default(false)
     isAutomatable                     Boolean                       @default(false)

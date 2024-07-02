@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /**
  * Shared fields are defined to reduce bugs that may occur when 
  * there is a mismatch between the database and schemas. Every database 
@@ -47,6 +48,8 @@ export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be 
 
 // protocol fields
 export const configCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
+export const configFormInput = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
+export const configFormOutput = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
 export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
 export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
