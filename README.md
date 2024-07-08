@@ -1,16 +1,105 @@
+<div align="center">
+
 [
-    <p align="center">
-        <img alt="Vrooli logo with motto" src="./assets/readme-display.png" width="500px"/>
-    </p>
+    <img alt="Vrooli logo with motto" src="./assets/readme-display.png" width="500px"/>
 ][website]
-&nbsp;&nbsp;
 
-[![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com)][website]
-[![X/Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][x]
-[![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
-# [<img align="top" alt="YouTube" width="50px" src="./assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
+<h1>
 
+[Website][website] | [Docs][docs] | [AI expert][chatGptBot]
+
+</h1>
+
+[![Website](https://img.shields.io/website?label=vrooli.com&style=for-the-badge&url=https%3A%2F%2Fvrooli.com&logo=data:image/svg%2bxml;base64,PHN2ZyB3aWR0aD0iMjRtbSIgaGVpZ2h0PSIyNG1tIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggc3R5bGU9ImNvbG9yOiNmZmY7ZmlsbDojZmZmO3N0cm9rZS13aWR0aDouOTk5OTk0O3N0cm9rZS1saW5lY2FwOnJvdW5kO3N0cm9rZS1saW5lam9pbjpyb3VuZCIgZD0iTTE2LjMyIDIuMmMtLjEuMTctLjIuNDMtLjI2Ljc2YTguNTQgOC41NCAwIDAgMC0uMDIgMi42MWMuMTQuOTkuNTQgMi4wMy44NiAzLjA1LS40Mi4xNy0uNzguNC0xLjA3LjY4YTMgMyAwIDAgMC0uODQgMS40M2MtMy40NS0uMDMtNy4wNC0uMDItMTAuNTMtLjAzYS44MS44MSAwIDAgMC0uODIuODJWMThjMCAuNzUuNTkgMS4zNSAxLjM0IDEuMzUuNzUgMCAxLjM1LS42IDEuMzUtMS4zNXYtMWMzLjUyIDAgNy4xNy4wNiAxMC43My4wOSAxLjY3IDAgMi4zMy40NCAyLjk3LjguNjYuMzcgMS42MS0uMzcgMS4zOS0xLjM1LS4yLS45MS0xLjQtMS40My0yLjYzLTEuNjRsLjAxLS4yNy43NC0uMDhhNS4yIDUuMiAwIDAgMCAyLjMxLS44OGMuOC0uNTggMS4yNi0xLjM1IDEuMjUtMi4yYTIuNzggMi43OCAwIDAgMC0xLjE3LTIuMTcgNS40MSA1LjQxIDAgMCAwLTMuMy0uOThjLS4xOS4wMS0uNDUgMC0uNjIuMDJhOS45IDkuOSAwIDAgMC0uNjQtNS40MSAyLjkyIDIuOTIgMCAwIDAtLjQ2LS43NGMtLjI1LS4yNi0uNDMtLjIzLS41OS4wMlptMy45OSAxLjA3Yy0uMTkuMDYtLjQyLjI0LS42Ny40Ni0uNDIuMzUtLjg4LjktMS4zIDEuNTYuMTQuODkuMTYgMS43MS4xIDIuNzRsLjU2LjAxYy4zMS0uNC42LS44NS44OS0xLjI2LjQ0LS43OSAxLjA2LTIuMTEuOTgtMy4xNy0uMDktLjM0LS4zNS0uNC0uNTYtLjM0Wm0uNDYgNi40OWEuNjkuNjkgMCAxIDEgMCAxLjM3LjY5LjY5IDAgMCAxIDAtMS4zN3ptLTE4LjYzLjkyQTEuMiAxLjIgMCAwIDAgLjkgMTEuOTJjMCAuNy42IDEuMjYgMS4yNCAxLjI0LjY0LS4wMSAxLjIyLS40MSAxLjI0LTEuMTZhMS4yNCAxLjI0IDAgMCAwLTEuMjQtMS4zMnoiLz48L3N2Zz4=)][website]
+[![GitHub Star](https://img.shields.io/badge/Star%20Our%20Repo-0?style=for-the-badge&logo=github&color=333)][github]
+[![X/Twitter Follow](https://img.shields.io/badge/Follow%20%40VrooliOfficial-0?style=for-the-badge&logo=x&color=111)][x]
+[![YouTube Subscribe](https://img.shields.io/badge/Subscribe%20%40Vrooli-0?style=for-the-badge&logo=youtube&color=f00)][youtube]
+[![License: MIT](https://img.shields.io/badge/License-GPL-green.svg?style=for-the-badge)](https://opensource.org/license/gpl-3-0)
+
+</div>
+
+<br/>
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap; align-items: start;">
+  <img src="packages/ui/public/screenshots/wide-1-intro.png" alt="Chatting with bot from main page" style="width: 632px; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-2-build.png" alt="Building a multi-step routine" style="width: 632px; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-3-team.png" alt="Viewing a team" style="width: 632px; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-4-search.png" alt="Searching for existing routines" style="width: 632px; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-5-start.png" alt="Start page" style="width: 632px; display: inline-block; margin-right: 10px;">
+</div>
+
+<br/>
+
+# Table of Contents
+<div style="display: flex; flex-wrap: wrap; justify-content: center; padding: 20px; background: #181818; color: #fff; border-radius: 16px;">
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">📖 About</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-what-is-vrooli" style="text-decoration: none; color: #007acc;">❓ What is Vrooli?</a></li>
+      <li><a href="#-why-use-vrooli" style="text-decoration: none; color: #007acc;">🤔 Why use Vrooli?</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">⚙️ Functionality</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-key-features" style="text-decoration: none; color: #007acc;">✨ Key Features</a></li>
+      <li><a href="#-progress" style="text-decoration: none; color: #007acc;">🙌 Progress</a></li>
+      <li><a href="#-whats-next" style="text-decoration: none; color: #007acc;">🔜 What's Next?</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">💻 Installation</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-progressive-web-app-pwa" style="text-decoration: none; color: #007acc;">📱 Progressive Web App (PWA)</a></li>
+      <li><a href="#-app-store" style="text-decoration: none; color: #007acc;">🏬 App Store</a></li>
+      <li><a href="#-local-offline" style="text-decoration: none; color: #007acc;">💾 Local (Offline)</a></li>
+      <li><a href="#-private-hosting" style="text-decoration: none; color: #007acc;">🔒 Private Hosting</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">📚 Guides & Examples</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-quick-tutorial" style="text-decoration: none; color: #007acc;">🚀 Quick Tutorial</a></li>
+      <li><a href="#-personal-assistant-bot" style="text-decoration: none; color: #007acc;">🤖 Personal Assistant Bot</a></li>
+      <li><a href="#-research-team" style="text-decoration: none; color: #007acc;">🔬 Research Team</a></li>
+      <li><a href="#-employee-onboarding-routine" style="text-decoration: none; color: #007acc;">👥 Employee Onboarding Routine</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">🛠️ Develop</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-development-stack" style="text-decoration: none; color: #007acc;">🥞 Development Stack</a></li>
+      <li><a href="#️-project-structure" style="text-decoration: none; color: #007acc;">🗂️ Project Structure</a></li>
+      <li><a href="#-developer-setup" style="text-decoration: none; color: #007acc;">👩🏼‍💻 Developer Setup</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">🤝 Contribute</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-multilingual-support" style="text-decoration: none; color: #007acc;">🦜 Multilingual Support</a></li>
+      <li><a href="#-join-the-team" style="text-decoration: none; color: #007acc;">🤝 Join the Team</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">🔒 Privacy & Data</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-privacy--data" style="text-decoration: none; color: #007acc;">🔒 Privacy & Data</a></li>
+    </ul>
+  </div>
+  <div style="flex: 1 1 45%; margin: 10px;">
+    <h3 style="margin-bottom: 10px;">📜 License</h3>
+    <ul style="list-style-type: none; padding-left: 0;">
+      <li><a href="#-license" style="text-decoration: none; color: #007acc;">📜 License</a></li>
+    </ul>
+  </div>
+</div>
+
+<br/>
+
+# 📖 About
+
+## ❓ What is Vrooli?
 Vrooli is a collaborative and self-improving automation platform, aiming to automate entire teams. When complete, here's how it will work:  
 - Users create bots, which you can chat with and ask to complete tasks for you.
 - Tasks are completed with routines, which are reusable building blocks that can combine standards, APIs, smart contracts, and more.
@@ -27,9 +116,11 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
 - You can chat with multiple bots in the same conversation, as well as humans, and they can all work together to complete tasks.
 - You can schedule routines to run at specific times, or when certain conditions are met.
 
-## 🔗 Quick Links
-- [Docs](https://docs.vrooli.com)
-- [Follow us on X/Twitter!](https://x.com/VrooliOfficial)
+
+# ⚙️ Functionality
+
+## ✨ Key Features
+TODO
 
 ## 🙌 Progress
  - Q1 2022 
@@ -60,7 +151,14 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
     - ✅ User-created markdown looks much better and is more functional
     - ✅ Interactive tutorial for new users
     - ✅ Can create and update bots
-## ⁉️ What's next?
+- Q4 2023
+    - TODO
+- Q1 2024
+    - TODO
+- Q2 2024
+    - TODO
+
+## 🔜 What's Next?
 - Push notification support
 - Transfer objects
 - Invite members to your team
@@ -79,27 +177,61 @@ Vrooli keeps you organized and focused on your personal and professional goals. 
 - Decentralize all the things!
 - Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
 
+
+# 💻 Installation
+
+## 📱 Progressive Web App (PWA)
+TODO
+
+## 🏬 App Store
+TODO
+
+## 💾 Local (Offline)
+TODO
+
+## 🔒 Private Hosting
+TODO
+
+
+# 📚 Guides & Examples
+
+## 🚀 Quick Tutorial
+TODO
+
+## 🤖 Personal Assistant Bot
+TODO
+
+## 🔬 Research Team
+TODO
+
+## 👥 Employee Onboarding Routine
+TODO
+
+
+# 🛠️ Develop
+
 ## 🥞 Development Stack
 [<img align="left" alt="React" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" style="padding-right:10px;" />](https://reactjs.org/)
-[<img align="left" alt="GraphQL" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" style="padding-right:10px;" />](https://graphql.org/)
 [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/)
 [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/)
 [<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/)
 [<img align="left" alt="Docker" width="26px" src="./assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/)
-[<img align="left" alt="Visual Studio Code" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" style="padding-right:10px;" />](https://code.visualstudio.com/)
-[<img align="left" alt="GitHub" width="26px" src="./assets/github.svg" style="padding-right:10px;" />](https://github.com/)
 
-<br>
-<br>
+<br/>
+<br/>
 
-## [🗄 Directory Structure][directory-structure]
+TODO explain stack in words
+
+## [🗂️ Project Structure][project-structure]
 Useful for getting a feel of the project before developing.
 
-## [👩🏼‍💻 Developer setup][setup-guide]
+## [👩🏼‍💻 Developer Setup][setup-guide]
 Learn how to setup the development workflow, and general development tips.
 
-## 🦜 Multilingual Support
 
+# 🤟 Contribute
+
+## 🦜 Multilingual Support
 We are actively seeking multilingual speakers to help us translate Vrooli's user interface, documentation, and other resources to make our platform accessible to a wider audience. By providing translations, you will be playing a crucial role in expanding Vrooli's global reach and fostering an inclusive community that embraces diversity.
 
 If you are a multilingual speaker and would like to contribute by providing translations, please follow these steps:
@@ -128,13 +260,25 @@ Note that as AI and this project advances, these roles will start to become obso
 
 If you'd like to work with me on this project, or want to contact me for another reason, [here are my links](https://matthalloran.info).
 
-### [🌍**Let's change the world together!🕊**][start]
+
+# 🔒 Privacy & Data
+TODO
+
+
+# 📜 License
+TODO
+
+
+### [🌍**Let's change the world together!🕊️**][website]
+
 
 [website]: https://vrooli.com
-[start]: https://vrooli.com/start
+[docs]: https://docs.vrooli.com
+[chatGptBot]: https://chatgpt.com/g/g-WbecuwZSy-vrooli-product-manager
 [personal-site]: https://matthalloran.info
 [setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
-[directory-structure]: https://docs.vrooli.com/setup/design/database/
+[project-structure]: https://docs.vrooli.com/setup/project_structure.html
 [x]: https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli
 [email]: mailto:support@vrooli.com
+[github]: https://github.com/Vrooli/Vrooli
