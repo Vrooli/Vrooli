@@ -102,15 +102,13 @@ export type StartTaskPayload = {
 export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload | StartTaskPayload;
 
 let logger: winston.Logger;
-let HOST: string;
-let PORT: number;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
 let llmQueue: Bull.Queue<LlmRequestPayload>;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export const setupLlmQueue = async () => {
+export async function setupLlmQueue() {
     try {
         const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
         const loggerModule = await import(loggerPath);
@@ -118,8 +116,7 @@ export const setupLlmQueue = async () => {
 
         const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
         const redisConnModule = await import(redisConnPath);
-        HOST = redisConnModule.HOST;
-        PORT = redisConnModule.PORT;
+        const REDIS_URL = redisConnModule.REDIS_URL;
 
         const processPath = path.join(dirname, "./process" + importExtension);
         const processModule = await import(processPath);
@@ -127,7 +124,7 @@ export const setupLlmQueue = async () => {
 
         // Initialize the Bull queue
         llmQueue = new Bull<LlmRequestPayload>("llm", {
-            redis: { port: PORT, host: HOST },
+            redis: REDIS_URL,
             defaultJobOptions: {
                 removeOnComplete: {
                     age: HOURS_1_S,
@@ -148,40 +145,40 @@ export const setupLlmQueue = async () => {
             console.error(errorMessage, error);
         }
     }
-};
+}
 
 /**
  * Responds to a chat message. Handles response generation and processing, 
  * websocket events, and any other logic
  */
-export const requestBotResponse = (
+export function requestBotResponse(
     props: Omit<RequestBotMessagePayload, "__process">,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(llmQueue,
         { ...props, __process: "BotMessage" as const },
         { timeout: MINUTES_1_MS });
-};
+}
 
 /**
  * Requests autofill for a form. Handles response generation and processing,
  * websocket events, and any other logic
  */
-export const requestAutoFill = (
+export function requestAutoFill(
     props: Omit<RequestAutoFillPayload, "__process">,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(llmQueue,
         { ...props, __process: "AutoFill" as const },
         { timeout: MINUTES_1_MS });
-};
+}
 
 /**
  * Requests a specific task to be started. Handles response generation and processing,
  * websocket events, and any other logic
  */
-export const requestStartTask = (
+export function requestStartTask(
     props: Omit<StartTaskPayload, "__process">,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(llmQueue,
         { ...props, __process: "StartTask" as const },
         { timeout: MINUTES_1_MS });
-};
+}

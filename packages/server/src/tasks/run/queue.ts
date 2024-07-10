@@ -18,15 +18,13 @@ export type RunRoutinePayload = {
 export type RunPayload = RunProjectPayload | RunRoutinePayload;
 
 let logger: winston.Logger;
-let HOST: string;
-let PORT: number;
 let runProcess: (job: Bull.Job<RunPayload>) => Promise<unknown>;
 let runQueue: Bull.Queue<RunPayload>;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export const setupRunQueue = async () => {
+export async function setupRunQueue() {
     try {
         const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
         const loggerModule = await import(loggerPath);
@@ -34,8 +32,7 @@ export const setupRunQueue = async () => {
 
         const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
         const redisConnModule = await import(redisConnPath);
-        HOST = redisConnModule.HOST;
-        PORT = redisConnModule.PORT;
+        const REDIS_URL = redisConnModule.REDIS_URL;
 
         const processPath = path.join(dirname, "./process" + importExtension);
         const processModule = await import(processPath);
@@ -43,7 +40,7 @@ export const setupRunQueue = async () => {
 
         // Initialize the Bull queue
         runQueue = new Bull<RunPayload>("run", {
-            redis: { port: PORT, host: HOST },
+            redis: REDIS_URL,
             defaultJobOptions: {
                 removeOnComplete: {
                     age: HOURS_1_S,
@@ -64,16 +61,16 @@ export const setupRunQueue = async () => {
             console.error(errorMessage, error);
         }
     }
-};
+}
 
-export const processRunProject = (
+export function processRunProject(
     props: Omit<RunProjectPayload, "__process">,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(runQueue, props, {});
-};
+}
 
-export const processRunRoutine = (
+export function processRunRoutine(
     props: Omit<RunRoutinePayload, "__process">,
-): Promise<Success> => {
+): Promise<Success> {
     return addJobToQueue(runQueue, props, {});
-};
+}

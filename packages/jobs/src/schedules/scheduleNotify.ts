@@ -8,10 +8,10 @@ import { Prisma } from "@prisma/client";
  * @param occurrences Windows of time that the schedule will occur. Subscribers will receive 
  * one or more push notifications before each occurrence, depending on their notification preferences.
  */
-const scheduleNotifications = async (
+async function scheduleNotifications(
     scheduleId: string,
     occurrences: { start: Date, end: Date }[],
-) => {
+) {
     await withRedis({
         process: async (redisClient) => {
             await batch<Prisma.notification_subscriptionFindManyArgs>({
@@ -65,17 +65,19 @@ const scheduleNotifications = async (
                         }
                         // Before sending notifications, check Redis to see if the user has already been notified for this event
                         const redisKeys = subscriberDelaysList.map(subscriber => `notify-schedule:${scheduleId}:${occurrence.start.getTime()}:user:${subscriber.userId}`);
-                        const redisGetResults = await Promise.all(redisKeys.map(key => redisClient.get(key)));
+                        const redisGetResults = redisClient ? await Promise.all(redisKeys.map(key => redisClient.get(key))) : null;
                         // Filter out subscribers who have already been notified
-                        const filteredSubscriberDelaysList = subscriberDelaysList.filter((_, index) => !redisGetResults[index]);
+                        const filteredSubscriberDelaysList = redisGetResults ? subscriberDelaysList.filter((_, index) => !redisGetResults[index]) : subscriberDelaysList;
                         // Send push notifications to each subscriber
                         await Notify(["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
 
                         // Set Redis keys for the subscribers who just received the notification, with an expiration time of 25 hours
-                        await Promise.all(filteredSubscriberDelaysList.map((subscriber) => {
-                            const key = `notify-schedule:${scheduleId}:${occurrence.start.getTime()}:user:${subscriber.userId}`;
-                            return redisClient.set(key, "true", { EX: 25 * 60 * 60 });
-                        }));
+                        if (redisClient) {
+                            await Promise.all(filteredSubscriberDelaysList.map((subscriber) => {
+                                const key = `notify-schedule:${scheduleId}:${occurrence.start.getTime()}:user:${subscriber.userId}`;
+                                return redisClient.set(key, "true", { EX: 25 * 60 * 60 });
+                            }));
+                        }
                     }
                 },
                 select: {
@@ -102,12 +104,12 @@ const scheduleNotifications = async (
         },
         trace: "0511",
     });
-};
+}
 
 /**
  * Caches upcoming scheduled events in the database.
  */
-export const scheduleNotify = async () => {
+export async function scheduleNotify() {
     try {
         // Define window for start and end dates. 
         // Should be looking for all events that occur within the next 25 hours. 
@@ -157,4 +159,4 @@ export const scheduleNotify = async () => {
     } catch (error) {
         logger.error("scheduleNotify caught error", { error, trace: "0428" });
     }
-};
+}

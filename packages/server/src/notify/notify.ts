@@ -75,9 +75,9 @@ type NotifyResultParams = {
  * @param objectType The object type to check
  * @returns True if the object type can be subscribed to
  */
-export const isObjectSubscribable = <T extends keyof typeof GqlModelType>(objectType: T): boolean => {
+export function isObjectSubscribable<T extends keyof typeof GqlModelType>(objectType: T): boolean {
     return objectType in SubscribableObject;
-};
+}
 
 /**
  * Base function for pushing a notification to a list of users. If a user 
@@ -85,13 +85,13 @@ export const isObjectSubscribable = <T extends keyof typeof GqlModelType>(object
  * it is still stored in the database for the user to see when they 
  * open the app.
  */
-const push = async ({
+async function push({
     bodyKey,
     category,
     link,
     titleKey,
     users,
-}: PushParams) => {
+}: PushParams) {
     // Find out which devices can receive this notification, and the daily limit
     const devicesAndLimits = await findRecipientsAndLimit(category, users.map(u => u.userId));
     // Find title and body for each user
@@ -117,8 +117,9 @@ const push = async ({
                     let currSilent = users[i].silent ?? false;
                     const currTitle = userTitles[users[i].userId];
                     const currBody = userBodies[users[i].userId];
-                    // Increment count in Redis for this user. If it is over the limit, make the notification silent
-                    const count = await redisClient.incr(`notification:${users[i].userId}:${category}`);
+                    // Increment count in Redis for this user. If it is over the limit, make the notification silent. 
+                    // If redis isn't available, we'll assume the limit is not reached.
+                    const count = redisClient ? await redisClient.incr(`notification:${users[i].userId}:${category}`) : 0;
                     if (dailyLimit && count > dailyLimit) currSilent = true;
                     // Send the notification if not silent
                     if (!currSilent) {
@@ -165,14 +166,14 @@ const push = async ({
         },
         trace: "0512",
     });
-};
+}
 
 /**
  * Creates an appropriate label for a near-future event. 
  * Examples: (5 minutes, 2 hours, 1 day)
  * @param date The date of the event. If it's in the past, we return "now"
  */
-const getEventStartLabel = (date: Date) => {
+function getEventStartLabel(date: Date) {
     const now = new Date();
     const diff = date.getTime() - now.getTime();
     if (diff < 0) return "now";
@@ -180,7 +181,7 @@ const getEventStartLabel = (date: Date) => {
     if (diff < 1000 * 60 * 60) return `in ${Math.round(diff / (1000 * 60))} minutes`;
     if (diff < 1000 * 60 * 60 * 24) return `in ${Math.round(diff / (1000 * 60 * 60))} hours`;
     return `in ${Math.round(diff / (1000 * 60 * 60 * 24))} days`;
-};
+}
 
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
@@ -200,13 +201,13 @@ type NotifyResultType = {
  * @param users List of userIds and their languages
  * @returns PushToUser list with the variables replaced
  */
-const replaceLabels = async (
+async function replaceLabels(
     bodyVariables: { [key: string]: string | number } | undefined,
     titleVariables: { [key: string]: string | number } | undefined,
     silent: boolean | undefined,
     languages: string[],
     users: Pick<PushToUser, "languages" | "userId" | "delays">[],
-): Promise<PushToUser[]> => {
+): Promise<PushToUser[]> {
     const labelRegex = /<Label\|([A-z]+):([0-9-]+)>/;
     // Initialize the result
     const result: PushToUser[] = users.map(u => ({ ...u, bodyVariables, titleVariables, silent }));
@@ -265,7 +266,7 @@ const replaceLabels = async (
         }
     }
     return result;
-};
+}
 
 /**
  * Class returned by each notify function. Allows us to either

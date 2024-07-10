@@ -73,6 +73,7 @@ export class SearchEmbeddingsCache {
         let result: { id: string }[] | null = null;
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 const cachedResults = await redisClient.get(cacheKey);
                 if (!cachedResults) return;
                 const parsedResults = JSON.parse(cachedResults);
@@ -98,6 +99,7 @@ export class SearchEmbeddingsCache {
     }: SetSearchEmbeddingsCacheProps & { results: { id: string }[] }): Promise<void> => {
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 // Get the existing cached results, if any
                 const cachedResults = await redisClient.get(cacheKey);
                 const parsedResults = cachedResults ? JSON.parse(cachedResults) : [];

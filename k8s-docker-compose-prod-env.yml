@@ -448,6 +448,14 @@ spec:
             - /bin/sh
             - -c
             - /srv/app/scripts/redis.sh
+          env:
+            - name: PROJECT_DIR
+              value: /srv/app
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: REDIS_PASSWORD
+                  key: REDIS_PASSWORD
           image: redis:7-alpine
           livenessProbe:
             exec:
@@ -558,8 +566,11 @@ spec:
               value: production
             - name: PROJECT_DIR
               value: /srv/app
-            - name: REDIS_CONN
-              value: redis:6379
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: REDIS_URL
+                  key: REDIS_URL
             - name: SERVER_URL
               value: "https://vrooli.com/api"
             - name: UI_URL

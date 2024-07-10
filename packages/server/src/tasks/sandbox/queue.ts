@@ -7,15 +7,13 @@ import { addJobToQueue } from "../queueHelper";
 import { SandboxProcessPayload } from "./types";
 
 let logger: winston.Logger;
-let HOST: string;
-let PORT: number;
 let sandboxProcess: (job: Bull.Job<SandboxProcessPayload>) => Promise<unknown>;
 let sandboxQueue: Bull.Queue<SandboxProcessPayload>;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export const setupSandboxQueue = async () => {
+export async function setupSandboxQueue() {
     try {
         const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
         const loggerModule = await import(loggerPath);
@@ -23,8 +21,7 @@ export const setupSandboxQueue = async () => {
 
         const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
         const redisConnModule = await import(redisConnPath);
-        HOST = redisConnModule.HOST;
-        PORT = redisConnModule.PORT;
+        const REDIS_URL = redisConnModule.REDIS_URL;
 
         const processPath = path.join(dirname, "./process" + importExtension);
         const processModule = await import(processPath);
@@ -32,7 +29,7 @@ export const setupSandboxQueue = async () => {
 
         // Initialize the Bull queue
         sandboxQueue = new Bull<SandboxProcessPayload>("sandbox", {
-            redis: { port: PORT, host: HOST },
+            redis: REDIS_URL,
             defaultJobOptions: {
                 removeOnComplete: {
                     age: HOURS_1_S,
@@ -53,8 +50,8 @@ export const setupSandboxQueue = async () => {
             console.error(errorMessage, error);
         }
     }
-};
+}
 
-export const runSandboxedCode = (data: SandboxProcessPayload): Promise<Success> => {
+export function runSandboxedCode(data: SandboxProcessPayload): Promise<Success> {
     return addJobToQueue(sandboxQueue, data, {});
-};
+}

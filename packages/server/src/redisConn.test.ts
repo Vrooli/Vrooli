@@ -6,12 +6,12 @@ import { createRedisClient, initializeRedis, withRedis } from "./redisConn";
 jest.mock("./events/logger");
 
 const originalEnv = process.env;
-const REDIS_CONN = "redis:6379";
+const REDIS_URL = "redis:6379";
 
 describe("createRedisClient function tests", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        process.env = { ...originalEnv, REDIS_CONN };
+        process.env = { ...originalEnv, REDIS_URL };
     });
 
     afterAll(() => {
@@ -20,7 +20,7 @@ describe("createRedisClient function tests", () => {
 
     it("should create and connect a Redis client successfully", async () => {
         await expect(createRedisClient()).resolves.not.toThrow();
-        expect(RedisClientMock.instance?.url).toBe(`redis://${REDIS_CONN}`);
+        expect(RedisClientMock.instance?.url).toBe(`redis://${REDIS_URL}`);
     });
 
     it("should handle 'error' events correctly", async () => {
@@ -41,7 +41,7 @@ describe("createRedisClient function tests", () => {
         RedisClientMock.instance?.__emit("end");
 
         // Verify that the logger.info was called with the correct parameters
-        expect(logger.info).toHaveBeenCalledWith("Redis client closed.", expect.objectContaining({ trace: "0208", url: `redis://${REDIS_CONN}` }));
+        expect(logger.info).toHaveBeenCalledWith("Redis client closed.", expect.objectContaining({ trace: "0208", url: `redis://${REDIS_URL}` }));
     });
 });
 

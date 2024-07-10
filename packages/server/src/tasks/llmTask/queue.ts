@@ -20,15 +20,13 @@ export type LlmTaskProcessPayload = {
 }
 
 let logger: winston.Logger;
-let HOST: string;
-let PORT: number;
 let llmTaskProcess: (job: Bull.Job<LlmTaskProcessPayload>) => Promise<unknown>;
 let llmTaskQueue: Bull.Queue<LlmTaskProcessPayload>;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export const setupLlmTaskQueue = async () => {
+export async function setupLlmTaskQueue() {
     try {
         const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
         const loggerModule = await import(loggerPath);
@@ -36,8 +34,7 @@ export const setupLlmTaskQueue = async () => {
 
         const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
         const redisConnModule = await import(redisConnPath);
-        HOST = redisConnModule.HOST;
-        PORT = redisConnModule.PORT;
+        const REDIS_URL = redisConnModule.REDIS_URL;
 
         const processPath = path.join(dirname, "./process" + importExtension);
         const processModule = await import(processPath);
@@ -45,7 +42,7 @@ export const setupLlmTaskQueue = async () => {
 
         // Initialize the Bull queue
         llmTaskQueue = new Bull<LlmTaskProcessPayload>("command", {
-            redis: { port: PORT, host: HOST },
+            redis: REDIS_URL,
             defaultJobOptions: {
                 removeOnComplete: {
                     age: HOURS_1_S,
@@ -66,11 +63,11 @@ export const setupLlmTaskQueue = async () => {
             console.error(errorMessage, error);
         }
     }
-};
+}
 
-export const processLlmTask = async (data: Omit<LlmTaskProcessPayload, "status">): Promise<Success> => {
+export async function processLlmTask(data: Omit<LlmTaskProcessPayload, "status">): Promise<Success> {
     return addJobToQueue(llmTaskQueue, { ...data, status: "Scheduled" }, { jobId: data.taskInfo.id, timeout: MINUTES_1_MS });
-};
+}
 
 /**
  * Update a task's status
@@ -79,11 +76,11 @@ export const processLlmTask = async (data: Omit<LlmTaskProcessPayload, "status">
  * @param userId The user ID of the user who triggered the task. 
  * Only they are allowed to change the status of the task.
  */
-export const changeLlmTaskStatus = async (
+export async function changeLlmTaskStatus(
     jobId: string,
     status: `${LlmTaskStatus}`,
     userId: string,
-): Promise<Success> => {
+): Promise<Success> {
     try {
         const job = await llmTaskQueue.getJob(jobId);
         if (!job) {
@@ -112,14 +109,14 @@ export const changeLlmTaskStatus = async (
         logger.error(`Failed to change status for LLM task with jobId ${jobId}.`, { error });
         return { __typename: "Success" as const, success: false };
     }
-};
+}
 
 /**
  * Get the statuses of multiple LLM tasks.
  * @param taskIds Array of task IDs for which to fetch the statuses.
  * @returns Promise that resolves to an array of objects with task ID and status.
  */
-export const getLlmTaskStatuses = async (taskIds: string[]): Promise<LlmTaskStatusInfo[]> => {
+export async function getLlmTaskStatuses(taskIds: string[]): Promise<LlmTaskStatusInfo[]> {
     const taskStatusInfos = await Promise.all(taskIds.map(async (taskId) => {
         try {
             const job = await llmTaskQueue.getJob(taskId);
@@ -135,4 +132,4 @@ export const getLlmTaskStatuses = async (taskIds: string[]): Promise<LlmTaskStat
     }));
 
     return taskStatusInfos;
-};
+}

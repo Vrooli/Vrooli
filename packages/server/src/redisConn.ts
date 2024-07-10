@@ -5,36 +5,57 @@ import { createClient, RedisClientType } from "redis";
 import { ErrorTrace } from "./events/error";
 import { logger } from "./events/logger";
 
-const split = (process.env.REDIS_CONN || "redis:6379").split(":");
-export const HOST = split[0];
-export const PORT = Number(split[1]);
+export const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
+const MAX_RETRIES = 5;
 
-let redisClient: RedisClientType;
+let redisClient: RedisClientType | null = null;
+let retryCount = 0;
 
-export const createRedisClient = async () => {
-    const url = `redis://${HOST}:${PORT}`;
-    logger.info("Creating Redis client.", { trace: "0184", url });
-    const redisClient = createClient({ url });
+export async function createRedisClient() {
+    if (retryCount >= MAX_RETRIES) {
+        logger.error("Max retries reached, disabling Redis client", { trace: "0579" });
+        return null;
+    }
+
+    logger.info("Creating Redis client.", { trace: "0184" });
+    const redisClient = createClient({ url: REDIS_URL });
     redisClient.on("error", (error) => {
-        logger.error("Error occured while connecting or accessing redis server", { trace: "0002", error });
+        retryCount++;
+        logger.error("Error occured while connecting or accessing redis server", { trace: "0002", error, retryCount });
+        if (retryCount >= MAX_RETRIES) {
+            logger.error("Max retries reached, disabling Redis client", { trace: "0580" });
+            redisClient.disconnect();
+        }
     });
     redisClient.on("end", () => {
-        logger.info("Redis client closed.", { trace: "0208", url });
+        logger.info("Redis client closed.", { trace: "0208" });
+        retryCount = 0;
+    });
+    redisClient.on("connect", () => {
+        if (redisClient.isReady) {
+            retryCount = 0;
+        }
     });
     await redisClient.connect();
+    // IF the client is not ready (meaning it failed to connect), return null
+    if (!redisClient.isReady) {
+        logger.error("Redis client is not ready", { trace: "0581" });
+        return null;
+    }
+    // Otherwise, return the client
     return redisClient;
-};
+}
 
-export const initializeRedis = async (): Promise<RedisClientType> => {
+export async function initializeRedis(): Promise<RedisClientType | null> {
     // If the client was never created or was disconnected
     if (!redisClient || !redisClient.isReady) {
-        redisClient = await createRedisClient() as RedisClientType;
+        redisClient = await createRedisClient() as RedisClientType | null;
     }
     return redisClient;
-};
+}
 
 interface WithRedisProps {
-    process: (redisClient: RedisClientType) => Promise<void>,
+    process: (redisClient: RedisClientType | null) => Promise<void>,
     trace: string,
     traceObject?: ErrorTrace,
 }
@@ -42,11 +63,11 @@ interface WithRedisProps {
 /**
  * Handles the Redis connection/disconnection and error logging
  */
-export const withRedis = async ({
+export async function withRedis({
     process,
     trace,
     traceObject,
-}: WithRedisProps): Promise<boolean> => {
+}: WithRedisProps): Promise<boolean> {
     let success = false;
     try {
         const redis = await initializeRedis();
@@ -56,4 +77,4 @@ export const withRedis = async ({
         logger.error("Caught error in withRedis", { trace, error, ...traceObject });
     }
     return success;
-};
+}

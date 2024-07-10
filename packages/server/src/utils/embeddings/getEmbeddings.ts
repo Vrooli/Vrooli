@@ -39,10 +39,10 @@ const Instructions: { [key in EmbeddableType]: string } = {
  * @returns A Promise that resolves with the embeddings, in the same order as the sentences
  * @throws An Error if the API request fails
  */
-export const fetchEmbeddingsFromApi = async (objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<{
+export async function fetchEmbeddingsFromApi(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]): Promise<{
     embeddings: number[][],
     model: string
-}> => {
+}> {
     try {
         const instruction = Instructions[objectType];
         return new Promise((resolve, reject) => {
@@ -84,19 +84,19 @@ export const fetchEmbeddingsFromApi = async (objectType: EmbeddableType | `${Emb
         logger.error("Error fetching embeddings", { trace: "0084", error });
         return { embeddings: [], model: "" };
     }
-};
+}
 
 /**
  * Finds embeddings for a list of strings, preferring cached results over fetching new ones
  */
-export const getEmbeddings = async (objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]) => {
+export async function getEmbeddings(objectType: EmbeddableType | `${EmbeddableType}`, sentences: string[]) {
     let cachedEmbeddings: (number[] | null)[] = [];
     const cacheKeys = sentences.map(sentence => `embeddings:${objectType}:${hashString(sentence)}`);
 
     await withRedis({
-        process: async (redisCient) => {
+        process: async (redisClient) => {
             // Find cached embeddings
-            const cachedData = await redisCient.mGet(cacheKeys);
+            const cachedData = redisClient ? await redisClient.mGet(cacheKeys) : new Array(sentences.length).fill(null);
             cachedEmbeddings = cachedData.map((data: string | null) => data ? JSON.parse(data) : null);
 
             // If some are not cached, fetch them from the API
@@ -108,10 +108,12 @@ export const getEmbeddings = async (objectType: EmbeddableType | `${EmbeddableTy
                     const sentenceHash = hashString(sentence);
                     const cacheKey = `embeddings:${objectType}:${sentenceHash}`;
 
-                    // Store fetched embeddings in cache
-                    redisCient.set(cacheKey, JSON.stringify(embedding));
-                    // Set expiry of 7 days
-                    redisCient.expire(cacheKey, 60 * 60 * 24 * 7);
+                    if (redisClient) {
+                        // Store fetched embeddings in cache
+                        redisClient.set(cacheKey, JSON.stringify(embedding));
+                        // Set expiry of 7 days
+                        redisClient.expire(cacheKey, 60 * 60 * 24 * 7);
+                    }
 
                     // Update cached embeddings
                     cachedEmbeddings[index] = embedding;
@@ -122,4 +124,4 @@ export const getEmbeddings = async (objectType: EmbeddableType | `${EmbeddableTy
     });
 
     return cachedEmbeddings;
-};
+}

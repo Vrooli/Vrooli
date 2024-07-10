@@ -15,7 +15,8 @@ type UserPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "User" as const;
 
-const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => {
+type UpdateProfileType = Exclude<Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
+async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
     const preData = rest.preMap[__typename] as UserPre;
     return {
         bannerImage: data.bannerImage,
@@ -48,9 +49,10 @@ const updateProfile: Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>[
         focusModes: await shapeHelper({ relation: "focusModes", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "FocusMode", parentRelationshipName: "user", data, ...rest }),
         translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
     };
-};
+}
 
-const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"] = async ({ data, ...rest }) => {
+type UpdateBotType = Exclude<Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"], undefined>;
+async function updateBot({ data, ...rest }: Parameters<UpdateBotType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
     const preData = rest.preMap[__typename] as UserPre;
     return {
         bannerImage: data.bannerImage,
@@ -62,7 +64,7 @@ const updateBot: Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]
         profileImage: data.profileImage,
         translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[rest.userData.id], data, ...rest }),
     };
-};
+}
 
 export const UserModel: UserModelLogic = ({
     __typename,
@@ -124,6 +126,7 @@ export const UserModel: UserModelLogic = ({
                 if (deletedIds.length || updatedIds.length) {
                     await withRedis({
                         process: async (redisClient) => {
+                            if (!redisClient) return;
                             const keys = [...deletedIds, ...updatedIds].map((id) => `bot:${id}`);
                             await redisClient.del(...keys as never); // Redis' types are being weird
                         },

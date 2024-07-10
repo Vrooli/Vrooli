@@ -55,7 +55,7 @@ services:
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: ${PORT_SERVER:-5329}
-      REDIS_CONN: "redis:${PORT_REDIS:-6379}"
+      REDIS_URL: "${REDIS_URL}"
       DB_URL: "${DB_URL}"
       DB_PULL: "${DB_PULL}"
       JWT_PRIV: "${JWT_PRIV}"
@@ -126,7 +126,7 @@ services:
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
       VITE_SERVER_LOCATION: "${SERVER_LOCATION}"
       VITE_PORT_SERVER: ${PORT_SERVER:-5329}
-      REDIS_CONN: "redis:${PORT_REDIS:-6379}"
+      REDIS_URL: "${REDIS_URL}"
       DB_URL: "${DB_URL}"
       DB_PULL: "${DB_PULL}"
       JWT_PRIV: "${JWT_PRIV}"
@@ -191,6 +191,9 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: always
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     networks:
       - app
     volumes:

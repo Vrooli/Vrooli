@@ -340,6 +340,8 @@ export const ViewModel: ViewModelLogic = ({
         // Update view count
         await withRedis({
             process: async (redisClient) => {
+                // Don't update view count when redis is unavailable
+                if (!redisClient) return;
                 // Check the last time the user viewed this object
                 const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
                 const lastViewed = await redisClient.get(redisKey);

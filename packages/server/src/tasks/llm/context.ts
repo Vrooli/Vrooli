@@ -69,6 +69,7 @@ export class ChatContextManager {
     async addMessage(chatId: string, message: PreMapMessageData): Promise<void> {
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 // Make sure the message is actually new
                 if (!message.isNew) {
                     logger.error("Tried to add an message not marked as new", { trace: "0071", message });
@@ -99,6 +100,7 @@ export class ChatContextManager {
     async editMessage(message: PreMapMessageData): Promise<void> {
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 // Make sure the message is actually existing
                 if (message.isNew) {
                     logger.error("Tried to edit a message marked as new", { trace: "0070", message });
@@ -156,6 +158,7 @@ export class ChatContextManager {
     async deleteMessage(chatId: string, messageId: string): Promise<void> {
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 // Find existing data
                 let messageToDelete = await redisClient.hGetAll(`message:${messageId}`);
                 if (typeof messageToDelete !== "object" || Object.keys(messageToDelete).length === 0) {
@@ -191,6 +194,7 @@ export class ChatContextManager {
     async deleteChat(chatId: string): Promise<void> {
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 // Retrieve all message IDs associated with the chat
                 const messageIds = await redisClient.zRange(`chat:${chatId}`, 0, -1);
 
@@ -349,16 +353,17 @@ export class ChatContextCollector {
         return contextInfo;
     }
 
-    async getLatestMessageId(redisClient: RedisClientType, chatId: string): Promise<string | null> {
+    async getLatestMessageId(redisClient: RedisClientType | null, chatId: string): Promise<string | null> {
+        if (!redisClient) return null;
         // Retrieve the last element in the sorted set (the most recent message)
         const latestMessages = await redisClient.zRange(`chat:${chatId}`, -1, -1);
         return latestMessages.length > 0 ? latestMessages[0] : null;
     }
 
-    async getMessageDetails(redisClient: RedisClientType, messageId: string): Promise<CachedChatMessage | null> {
-        let messageData: CachedChatMessage = await redisClient.hGetAll(`message:${messageId}`) as CachedChatMessage;
+    async getMessageDetails(redisClient: RedisClientType | null, messageId: string): Promise<CachedChatMessage | null> {
+        let messageData: CachedChatMessage | null = redisClient ? await redisClient.hGetAll(`message:${messageId}`) as CachedChatMessage : null;
 
-        if (!messageData || typeof messageData !== "object" || Object.keys(messageData).length === 0) {
+        if (messageData === null || messageData === undefined || typeof messageData !== "object" || Object.keys(messageData).length === 0) {
             // Query from Prisma if not found in Redis
             try {
                 const message = await prismaInstance.chat_message.findUnique({
@@ -397,7 +402,9 @@ export class ChatContextCollector {
                     }
 
                     // Store the fetched data in Redis for future use
-                    await redisClient.hSet(`message:${messageId}`, messageData);
+                    if (redisClient) {
+                        await redisClient.hSet(`message:${messageId}`, messageData);
+                    }
                 } else {
                     throw new Error(`Failed to fetch message details for ID: ${messageId}`);
                 }
@@ -459,12 +466,12 @@ export class ChatContextCollector {
      * @returns The token count for the message and the language used
      */
     async getTokenCountForLanguages(
-        redisClient: RedisClientType,
+        redisClient: RedisClientType | null,
         messageId: string,
         estimationMethod: string,
         languages: string[],
     ): Promise<[number, string]> {
-        const messageData = await redisClient.hGetAll(`message:${messageId}`);
+        const messageData = redisClient ? await redisClient.hGetAll(`message:${messageId}`) : null;
         let translatedTokenCounts = messageData ? JSON.parse(messageData.translatedTokenCounts ?? "{}") : {};
         const languagesWithDefault = languages.length === 0 ? ["en"] : languages;
 
@@ -484,7 +491,9 @@ export class ChatContextCollector {
                 });
                 if (message?.translations) {
                     translatedTokenCounts = (new ChatContextManager(this.languageModelService)).calculateTokenCounts(message.translations, estimationMethod);
-                    await redisClient.hSet(`message:${messageId}`, "translatedTokenCounts", JSON.stringify(translatedTokenCounts));
+                    if (redisClient) {
+                        await redisClient.hSet(`message:${messageId}`, "translatedTokenCounts", JSON.stringify(translatedTokenCounts));
+                    }
                 } else {
                     return [-1, ""]; // Return -1 if no translations are found or on failure
                 }
@@ -501,12 +510,13 @@ export class ChatContextCollector {
  * Finds bot information for a given bot ID. 
  * First checks the redis cache, then falls back to the database.
  */
-export const getBotInfo = async (botId: string): Promise<PreMapUserData | null> => {
+export async function getBotInfo(botId: string): Promise<PreMapUserData | null> {
     let botInfo: PreMapUserData | null = null;
 
     // Check Redis cache first
     await withRedis({
         process: async (redisClient) => {
+            if (!redisClient) return;
             const rawData = await redisClient.hGetAll(`bot:${botId}`);
             if (rawData && Object.keys(rawData).length >= 4) {
                 // Convert isBot back to boolean
@@ -533,6 +543,7 @@ export const getBotInfo = async (botId: string): Promise<PreMapUserData | null> 
         // Store the fetched data in Redis for future use
         await withRedis({
             process: async (redisClient) => {
+                if (!redisClient) return;
                 // Convert isBot to string, since Redis only accepts string values
                 const botInfoForRedis = {
                     ...botInfo,
@@ -546,16 +557,16 @@ export const getBotInfo = async (botId: string): Promise<PreMapUserData | null> 
     }
 
     return botInfo;
-};
+}
 
 /**
  * @returns Valid mentions in a message
  */
-export const processMentions = (
+export function processMentions(
     messageContent: string,
     chat: { botParticipants?: string[] },
     bots: Pick<PreMapUserData, "id" | "name">[],
-): string[] => {
+): string[] {
     // Find markdown links in the message
     const linkStrings = messageContent.match(/\[([^\]]+)\]\(([^)]+)\)/g);
     // Get the label and link for each link
@@ -593,7 +604,7 @@ export const processMentions = (
         botsToRespond = [...new Set(botsToRespond)];
     }
     return botsToRespond;
-};
+}
 
 /**
  * Determines which bots should respond based on the message content and chat context.
@@ -611,12 +622,12 @@ export const processMentions = (
  * @param userId - The ID of the user sending the message.
  * @returns An array of botIds that should respond to the message.
  */
-export const determineRespondingBots = (
+export function determineRespondingBots(
     message: { userId: string | null, content: string },
     chat: { botParticipants?: string[], participantsCount?: number },
     bots: Pick<PreMapUserData, "id" | "name">[],
     userId: string,
-): string[] => {
+): string[] {
     if (
         !chat ||
         !message.content ||
@@ -633,4 +644,4 @@ export const determineRespondingBots = (
     } else {
         return processMentions(message.content, chat, bots);
     }
-};
+}
