@@ -16,42 +16,34 @@ import { type TableCellNode } from "./nodes/TableCellNode";
 import { type TableNode } from "./nodes/TableNode";
 import { type TextNode } from "./nodes/TextNode";
 import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, NodeSelection, Point, RangeSelection, moveSelectionPointToSibling } from "./selection";
-import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, IntentionallyMarkedAsDirtyElement, LexicalCommand, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
-import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, triggerCommandListeners, updateEditor } from "./updates";
+import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, IntentionallyMarkedAsDirtyElement, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
+import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, updateEditor } from "./updates";
 
-export const getWindow = (editor: LexicalEditor): Window => {
+export function getWindow(editor: LexicalEditor): Window {
     const windowObj = editor._window;
     if (windowObj === null) {
         throw new Error("window object not found");
     }
     return windowObj;
-};
+}
 
-export const getDOMSelection = (targetWindow: null | Window): null | Selection => {
+export function getDOMSelection(targetWindow: null | Window): null | Selection {
     return !CAN_USE_DOM ? null : (targetWindow || window).getSelection();
-};
+}
 
-export const getDefaultView = (domElem: HTMLElement): Window | null => {
+export function getDefaultView(domElem: HTMLElement): Window | null {
     const ownerDoc = domElem.ownerDocument;
     return (ownerDoc && ownerDoc.defaultView) || null;
-};
+}
 
-export const isFirefoxClipboardEvents = (editor: LexicalEditor): boolean => {
+export function isFirefoxClipboardEvents(editor: LexicalEditor): boolean {
     const event = getWindow(editor).event;
     const inputType = event && (event as InputEvent).inputType;
     return (
         inputType === "insertFromPaste" ||
         inputType === "insertFromPasteAsQuotation"
     );
-};
-
-export const dispatchCommand = <TCommand extends LexicalCommand<unknown>>(
-    editor: LexicalEditor,
-    command: TCommand,
-    payload: CommandPayloadType<TCommand>,
-): boolean => {
-    return triggerCommandListeners(editor, command, payload);
-};
+}
 
 /**
  * Normalizes a list of class name inputs, filtering out non-string values and splitting space-separated class names.
@@ -66,9 +58,9 @@ export const dispatchCommand = <TCommand extends LexicalCommand<unknown>>(
  * // Returns ['btn', 'primary', 'disabled', 'header', 'footer']
  * normalizeClassNames("btn primary", null, undefined, "disabled", false, " header  footer ");
  */
-export const normalizeClassNames = (
+export function normalizeClassNames(
     ...classNames: Array<typeof undefined | boolean | null | string>
-): Array<string> => {
+): Array<string> {
     const rval: string[] = [];
     for (const className of classNames) {
         if (className && typeof className === "string") {
@@ -78,9 +70,9 @@ export const normalizeClassNames = (
         }
     }
     return rval;
-};
+}
 
-export const markAllNodesAsDirty = (editor: LexicalEditor, type: string): void => {
+export function markAllNodesAsDirty(editor: LexicalEditor, type: string): void {
     // Mark all existing text nodes as dirty
     updateEditor(
         editor,
@@ -104,17 +96,17 @@ export const markAllNodesAsDirty = (editor: LexicalEditor, type: string): void =
             }
             : undefined,
     );
-};
+}
 
-export const $getCompositionKey = (): null | NodeKey => {
+export function $getCompositionKey(): null | NodeKey {
     if (isCurrentlyReadOnlyMode()) {
         return null;
     }
     const editor = getActiveEditor();
     return editor._compositionKey;
-};
+}
 
-export const $setCompositionKey = (compositionKey: null | NodeKey): void => {
+export function $setCompositionKey(compositionKey: null | NodeKey): void {
     errorOnReadOnly();
     const editor = getActiveEditor();
     const previousCompositionKey = editor._compositionKey;
@@ -133,27 +125,27 @@ export const $setCompositionKey = (compositionKey: null | NodeKey): void => {
             }
         }
     }
-};
+}
 
-export const $getRoot = (): RootNode => {
+export function $getRoot(): RootNode {
     return getActiveEditorState()._nodeMap.get("root") as RootNode;
-};
+}
 
-export const $getSelection = (): BaseSelection | null => {
+export function $getSelection(): BaseSelection | null {
     return getActiveEditorState()._selection;
-};
+}
 
 /**
  * @param x - The element being tested
  * @returns Returns true if x is an HTML anchor tag, false otherwise
  */
-export const isHTMLAnchorElement = (x: Node): x is HTMLAnchorElement => {
+export function isHTMLAnchorElement(x: Node): x is HTMLAnchorElement {
     return isHTMLElement(x) && x.tagName === "A";
-};
+}
 
-export const $isSelectionCapturedInDecorator = (node: Node): boolean => {
+export function $isSelectionCapturedInDecorator(node: Node): boolean {
     return $isNode("Decorator", $getNearestNodeFromDOMNode(node));
-};
+}
 
 export const isHTMLElement = (x: unknown): x is HTMLElement => {
     return x instanceof HTMLElement;
@@ -885,32 +877,32 @@ export const controlOrMeta = (metaKey: boolean, ctrlKey: boolean): boolean => {
     return ctrlKey;
 };
 
-export const isReturn = (key: Key): boolean => {
+export function isReturn(key: Key): boolean {
     return key === "Enter";
-};
+}
 
-export const isBackspace = (key: Key): boolean => {
+export function isBackspace(key: Key): boolean {
     return (!IS_APPLE && key === "Backspace") || (IS_APPLE && key === "Delete");
-};
+}
 
-export const isEscape = (key: Key): boolean => {
+export function isEscape(key: Key): boolean {
     return key === "Escape" || key === "Esc";
-};
+}
 
-export const isDelete = (key: Key): boolean => {
+export function isDelete(key: Key): boolean {
     return key === "Delete";
-};
+}
 
-export const isSelectAll = ({ ctrlKey, key, metaKey }: KeyEvent): boolean => {
+export function isSelectAll({ ctrlKey, key, metaKey }: KeyEvent): boolean {
     return key === "a" && controlOrMeta(metaKey, ctrlKey);
-};
+}
 
 /**
  * Removes a specified node from its parent in a doubly linked list structure.
  * It adjusts sibling and parent references to maintain the integrity of the list after the node is removed.
  * @param node - The LexicalNode to be removed.
  */
-export const removeFromParent = (node: LexicalNode) => {
+export function removeFromParent(node: LexicalNode) {
     const oldParent = getParent(node);
     if (oldParent !== null) {
         const writableNode = node.getWritable();
@@ -942,7 +934,7 @@ export const removeFromParent = (node: LexicalNode) => {
         // Decrement the size of the parent
         writableParent.__size--;
     }
-};
+}
 
 /**
  * Takes an HTML element and adds the classNames passed within an array,
@@ -952,22 +944,22 @@ export const removeFromParent = (node: LexicalNode) => {
  * @param element - The element in which the classes are added
  * @param classNames - An array defining the class names to add to the element
  */
-export const addClassNamesToElement = (
+export function addClassNamesToElement(
     element: HTMLElement,
     ...classNames: Array<typeof undefined | boolean | null | string>
-) => {
+) {
     const classesToAdd = normalizeClassNames(...classNames);
     if (classesToAdd.length > 0) {
         element.classList.add(...classesToAdd);
     }
-};
+}
 
-export const getAnchorTextFromDOM = (anchorNode: Node): null | string => {
+export function getAnchorTextFromDOM(anchorNode: Node): null | string {
     if (anchorNode.nodeType === DOM_TEXT_TYPE) {
         return anchorNode.nodeValue;
     }
     return null;
-};
+}
 
 export const $updateSelectedTextFromDOM = (
     isCompositionEnd: boolean,

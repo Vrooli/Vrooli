@@ -30,7 +30,7 @@ let mutatedNodes: MutatedNodes;
  * @param key The key of the node to destroy
  * @param parentDOM The parent DOM of the node to destroy 
  */
-const destroyNode = (key: NodeKey, parentDOM: HTMLElement | null): void => {
+function destroyNode(key: NodeKey, parentDOM: HTMLElement | null): void {
     const node = activePrevNodeMap.get(key);
 
     if (parentDOM) {
@@ -54,7 +54,7 @@ const destroyNode = (key: NodeKey, parentDOM: HTMLElement | null): void => {
     if (node) {
         setMutatedNode(mutatedNodes, activeEditorNodes, node, "destroyed");
     }
-};
+}
 
 /**
  * Removes all children nodes from the DOM and the keyToDOMMap 
@@ -65,12 +65,12 @@ const destroyNode = (key: NodeKey, parentDOM: HTMLElement | null): void => {
  * @param endIndex The index of the last child to destroy
  * @param dom The parent DOM of the children to destroy
  */
-const destroyChildren = (
+function destroyChildren(
     children: NodeKey[],
     _startIndex: number,
     endIndex: number,
     dom: HTMLElement | null,
-): void => {
+): void {
     let startIndex = _startIndex;
 
     for (; startIndex <= endIndex; ++startIndex) {
@@ -80,7 +80,7 @@ const destroyChildren = (
             destroyNode(child, dom);
         }
     }
-};
+}
 
 const DEFAULT_INDENT_VALUE = "40px";
 
@@ -89,7 +89,7 @@ const DEFAULT_INDENT_VALUE = "40px";
  * @param dom The element node to apply indentation to
  * @param indent The amount of indentation to apply
  */
-const setElementIndent = (dom: HTMLElement, indent: number): void => {
+function setElementIndent(dom: HTMLElement, indent: number): void {
     const indentationBaseValue =
         getComputedStyle(dom).getPropertyValue("--lexical-indent-base-value") ||
         DEFAULT_INDENT_VALUE;
@@ -98,18 +98,18 @@ const setElementIndent = (dom: HTMLElement, indent: number): void => {
         "padding-inline-start",
         indent === 0 ? "" : `calc(${indent} * ${indentationBaseValue})`,
     );
-};
+}
 
 /**
  * Applies text alignment to an element node
  * @param dom The element node to apply text alignment to
  * @param format The number representing the text alignment
  */
-const setElementFormat = (dom: HTMLElement, format: number): void => {
+function setElementFormat(dom: HTMLElement, format: number): void {
     const domStyle = dom.style;
     const textAlign = ELEMENT_FORMAT_TO_TYPE[format] || "";
     domStyle.setProperty("text-align", textAlign);
-};
+}
 
 /**
  * Create a new DOM node for a LexicalNode
@@ -118,11 +118,11 @@ const setElementFormat = (dom: HTMLElement, format: number): void => {
  * @param insertDOM A child of the parentDOM to insert the new node before
  * @returns The newly created DOM node
  */
-const createNode = (
+function createNode(
     key: NodeKey,
     parentDOM: HTMLElement | null,
     insertDOM: Node | null,
-): HTMLElement => {
+): HTMLElement {
     // Get node information
     const node = activeNextNodeMap.get(key);
     if (!node) {
@@ -194,7 +194,7 @@ const createNode = (
 
     // Return the DOM element we created
     return dom;
-};
+}
 
 const createChildren = (
     children: NodeKey[],
@@ -297,11 +297,11 @@ const createChildrenArray = (
     return children;
 };
 
-const reconcileChildren = (
+function reconcileChildren(
     prevElement: ElementNode,
     nextElement: ElementNode,
     dom: HTMLElement,
-): void => {
+): void {
     const prevChildrenSize = prevElement.__size;
     const nextChildrenSize = nextElement.__size;
 
@@ -361,9 +361,9 @@ const reconcileChildren = (
             );
         }
     }
-};
+}
 
-const getPrevNextOrError = (key: string) => {
+function getPrevNextOrError(key: string) {
     const prevNode = activePrevNodeMap.get(key);
     const nextNode = activeNextNodeMap.get(key);
 
@@ -372,12 +372,12 @@ const getPrevNextOrError = (key: string) => {
     }
 
     return { prevNode, nextNode };
-};
+}
 
-const reconcileNode = (
+function reconcileNode(
     key: NodeKey,
     parentDOM: HTMLElement | null,
-): HTMLElement => {
+): HTMLElement {
     const { prevNode, nextNode } = getPrevNextOrError(key);
 
     const isDirty =
@@ -439,9 +439,9 @@ const reconcileNode = (
     }
 
     return dom;
-};
+}
 
-const reconcileDecorator = (key: NodeKey, decorator: unknown): void => {
+function reconcileDecorator(key: NodeKey, decorator: unknown): void {
     let pendingDecorators = activeEditor._pendingDecorators || {};
     const currentDecorators = activeEditor._decorators;
 
@@ -454,13 +454,9 @@ const reconcileDecorator = (key: NodeKey, decorator: unknown): void => {
     }
 
     pendingDecorators[key] = decorator;
-};
+}
 
-const getFirstChild = (element: HTMLElement): Node | null => {
-    return element.firstChild;
-};
-
-const getNextSibling = (element: HTMLElement): Node | null => {
+function getNextSibling(element: HTMLElement): Node | null {
     let nextSibling = element.nextSibling;
     if (
         nextSibling !== null &&
@@ -469,21 +465,21 @@ const getNextSibling = (element: HTMLElement): Node | null => {
         nextSibling = nextSibling.nextSibling;
     }
     return nextSibling;
-};
+}
 
-const reconcileNodeChildren = (
+function reconcileNodeChildren(
     nextElement: ElementNode,
     prevChildren: NodeKey[],
     nextChildren: NodeKey[],
     prevChildrenLength: number,
     nextChildrenLength: number,
     dom: HTMLElement,
-): void => {
+): void {
     const prevEndIndex = prevChildrenLength - 1;
     const nextEndIndex = nextChildrenLength - 1;
     let prevChildrenSet: Set<NodeKey> | undefined;
     let nextChildrenSet: Set<NodeKey> | undefined;
-    let siblingDOM: null | Node = getFirstChild(dom);
+    let siblingDOM: null | Node = dom.firstChild;
     let prevIndex = 0;
     let nextIndex = 0;
 
@@ -559,7 +555,7 @@ const reconcileNodeChildren = (
     } else if (removeOldChildren && !appendNewChildren) {
         destroyChildren(prevChildren, prevIndex, prevEndIndex, dom);
     }
-};
+}
 
 export function reconcileRoot(
     prevEditorState: EditorState,
@@ -621,7 +617,7 @@ export function storeDOMWithKey(
     keyToDOMMap.set(key, dom);
 }
 
-const getPrevElementByKeyOrThrow = (key: NodeKey): HTMLElement => {
+function getPrevElementByKeyOrThrow(key: NodeKey): HTMLElement {
     const element = activePrevKeyToDOMMap.get(key);
 
     if (element === undefined) {
@@ -629,4 +625,4 @@ const getPrevElementByKeyOrThrow = (key: NodeKey): HTMLElement => {
     }
 
     return element;
-};
+}

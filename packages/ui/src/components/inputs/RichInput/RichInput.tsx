@@ -1,5 +1,5 @@
 import { ChatInviteStatus, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
-import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
@@ -22,6 +22,15 @@ import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputPr
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 const SHOW_CHAR_LIMIT_AT_REMAINING = 500;
+
+const ActionButton = styled(IconButton)(({ theme }) => ({
+    background: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    borderRadius: theme.spacing(2),
+}));
+
+const helperTextStyle = { color: "red" } as const;
+const newLineTextStyle = { fontSize: "0.5em" } as const;
 
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
 export function RichInputBase({
@@ -193,6 +202,37 @@ export function RichInputBase({
         },
     }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.inputRoot, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
+    const rootStyle = useMemo(function rootStyleMemo() {
+        return {
+            display: "flex",
+            flexDirection: "column",
+            gap: 0,
+            ...sxs?.root,
+        } as const;
+    }, [sxs?.root]);
+
+    const bottomBarStyle = useMemo(function bottomBarStyleMemo() {
+        return {
+            padding: "2px",
+            display: "flex",
+            flexDirection: isLeftHanded ? "row-reverse" : "row",
+            gap: 1,
+            justifyContent: "space-between",
+            alignItems: "center",
+            ...sxs?.bottomBar,
+        } as const;
+    }, [isLeftHanded, sxs?.bottomBar]);
+
+    const actionsBoxStyle = useMemo(function actionsBoxStyleMemo() {
+        return {
+            display: "flex",
+            gap: 2,
+            ...(isLeftHanded ?
+                { marginRight: "auto", flexDirection: "row-reverse" } :
+                { marginLeft: "auto", flexDirection: "row" }),
+        } as const;
+    }, [isLeftHanded]);
+
     return (
         <>
             {/* Assistant dialog for generating text */}
@@ -200,12 +240,7 @@ export function RichInputBase({
             <Box
                 id={`markdown-input-base-${name}`}
                 onMouseDown={handleMouseDown}
-                sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0,
-                    ...(sxs?.root ?? {}),
-                }}
+                sx={rootStyle}
             >
                 <RichInputToolbar
                     activeStates={activeStates}
@@ -223,45 +258,24 @@ export function RichInputBase({
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
                 {/* Help text, characters remaining indicator, and action buttons */}
                 {
-                    (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
-                        sx={{
-                            padding: "2px",
-                            display: "flex",
-                            flexDirection: isLeftHanded ? "row-reverse" : "row",
-                            gap: 1,
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            ...sxs?.bottomBar,
-                        }}
-                    >
-                        {helperText && <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
+                    (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box sx={bottomBarStyle}>
+                        {helperText && <Typography variant="body1" mt="auto" mb="auto" sx={helperTextStyle}>
                             {typeof helperText === "string" ? helperText : JSON.stringify(helperText)}
                         </Typography>}
-                        <Box sx={{
-                            display: "flex",
-                            gap: 2,
-                            ...(isLeftHanded ?
-                                { marginRight: "auto", flexDirection: "row-reverse" } :
-                                { marginLeft: "auto", flexDirection: "row" }),
-                        }}>
+                        <Box sx={actionsBoxStyle}>
                             {/* On desktop, allow users to set the behavior of the "Enter" key. 
                                 On mobile, the virtual keyboard will (hopefully) display a "Return" 
                                 button - so this isn't needed */}
                             {
                                 typeof enterWillSubmit === "boolean" && !getDeviceInfo().isMobile &&
-                                <IconButton
+                                <ActionButton
                                     size="medium"
                                     onClick={toggleEnterWillSubmit}
-                                    sx={{
-                                        background: palette.primary.dark,
-                                        color: palette.primary.contrastText,
-                                        borderRadius: 2,
-                                    }}
                                 >
-                                    <Typography variant="body2" mt="auto" mb="auto" sx={{ fontSize: "0.5em" }}>
+                                    <Typography variant="body2" mt="auto" mb="auto" sx={newLineTextStyle}>
                                         &apos;{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}&apos; for new line
                                     </Typography>
-                                </IconButton>
+                                </ActionButton>
                             }
                             {/* Characters remaining indicator */}
                             {
@@ -276,18 +290,13 @@ export function RichInputBase({
                             {
                                 actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }) => (
                                     <Tooltip key={tooltip} title={tooltip} placement="top">
-                                        <IconButton
+                                        <ActionButton
                                             disabled={disabled || buttonDisabled}
                                             size="medium"
                                             onClick={onClick}
-                                            sx={{
-                                                background: palette.primary.dark,
-                                                color: palette.primary.contrastText,
-                                                borderRadius: 2,
-                                            }}
                                         >
                                             <Icon fill={palette.primary.contrastText} />
-                                        </IconButton>
+                                        </ActionButton>
                                     </Tooltip>
                                 ))
                             }

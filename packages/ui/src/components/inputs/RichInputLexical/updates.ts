@@ -23,82 +23,90 @@ const observerOptions = {
     subtree: true,
 };
 
-export const isCurrentlyReadOnlyMode = (): boolean => {
+export function isCurrentlyReadOnlyMode(): boolean {
     return (
         isReadOnlyMode ||
         (activeEditorState !== null && activeEditorState._readOnly)
     );
-};
+}
 
-export const getActiveEditorState = (): EditorState => {
+export function getActiveEditorState(): EditorState {
     if (activeEditorState === null) {
         throw new Error("Unable to find an active editor state. State helpers or node methods can only be used synchronously during the callback of editor.update() or editorState.read().");
     }
 
     return activeEditorState;
-};
+}
 
-export const getActiveEditor = (): LexicalEditor => {
+export function getActiveEditor(): LexicalEditor {
     if (activeEditor === null) {
         throw new Error("Unable to find an active editor. This method can only be used synchronously during the callback of editor.update().");
     }
 
     return activeEditor;
-};
+}
 
-export const internalGetActiveEditor = (): LexicalEditor | null => {
+export function internalGetActiveEditor(): LexicalEditor | null {
     return activeEditor;
-};
+}
 
-export const setActiveEditor = (editor: LexicalEditor): void => {
+export function setActiveEditor(editor: LexicalEditor): void {
     activeEditor = editor;
-};
+}
 
-export const triggerCommandListeners = <
+/**
+ * Triggers the command listeners for the given command type.
+ * @param editor The editor to trigger the command listeners on.
+ * @param type The command type to trigger.
+ * @param payload The payload to pass to the command listeners.
+ * @returns True if the command was handled by a listener (meaning no 
+ * further listeners should be called), false otherwise.
+ */
+export function dispatchCommand<
     TCommand extends LexicalCommand<unknown>,
 >(
     editor: LexicalEditor,
     type: TCommand,
     payload: CommandPayloadType<TCommand>,
-): boolean => {
+): boolean {
     if (editor._updating === false || activeEditor !== editor) {
         let returnVal = false;
         editor.update(() => {
-            returnVal = triggerCommandListeners(editor, type, payload);
+            returnVal = dispatchCommand(editor, type, payload);
         });
         return returnVal;
     }
 
-    for (let i = 4; i >= 0; i--) {
-        const commandListeners = editor._commands;
-        const listenerInPriorityOrder = commandListeners.get(type);
+    const commandListeners = editor._commands;
+    const listenersInPriorityOrder = commandListeners.get(type);
+    if (listenersInPriorityOrder === undefined) {
+        return false;
+    }
 
-        if (listenerInPriorityOrder !== undefined) {
-            const listenersSet = listenerInPriorityOrder[i];
+    // Loop backwards through the listeners, since it goes from least to most important
+    for (let i = listenersInPriorityOrder.length - 1; i >= 0; i--) {
+        const listeners = listenersInPriorityOrder[i];
+        if (listeners === undefined) {
+            continue;
+        }
 
-            if (listenersSet !== undefined) {
-                const listeners = Array.from(listenersSet);
-                const listenersLength = listeners.length;
-
-                for (let j = 0; j < listenersLength; j++) {
-                    if (listeners[j](payload, editor) === true) {
-                        return true;
-                    }
-                }
+        for (const listener of listeners) {
+            if (listener(payload, editor) === true) {
+                return true;
             }
         }
     }
 
     return false;
-};
+}
 
-const triggerMutationListeners = (
+function triggerMutationListeners(
     editor: LexicalEditor,
     mutatedNodes: MutatedNodes,
     updateTags: Set<string>,
     dirtyLeaves: Set<string>,
     prevEditorState: EditorState,
-) => {
+) {
     // Loop through every mutated node type
     for (const [nodeType, mutatedNodesByType] of Object.entries(mutatedNodes)) {
         // Check if there are any listeners for this node type
@@ -116,14 +124,14 @@ const triggerMutationListeners = (
             });
         }
     }
-};
+}
 
-export const triggerListeners = <T extends keyof EditorListenerPayload>(
+export function triggerListeners<T extends keyof EditorListenerPayload>(
     type: T,
     editor: LexicalEditor,
     isCurrentlyEnqueuingUpdates: boolean,
     payload: EditorListenerPayload[T],
-) => {
+) {
     const previouslyUpdating = editor._updating;
     editor._updating = isCurrentlyEnqueuingUpdates;
 
@@ -138,17 +146,17 @@ export const triggerListeners = <T extends keyof EditorListenerPayload>(
     } finally {
         editor._updating = previouslyUpdating;
     }
-};
+}
 
 /**
  * Triggers the text content listeners if the markdown content has changed. 
  * This includes text changes and formatting changes
  */
-const triggerTextContentListeners = (
+function triggerTextContentListeners(
     editor: LexicalEditor,
     currentEditorState: EditorState,
     pendingEditorState: EditorState,
-) => {
+) {
     const currentMarkdownContent = currentEditorState.read(() => $getRoot().getMarkdownContent());
     const latestMarkdownContent = pendingEditorState.read(() => $getRoot().getMarkdownContent());
     console.log("in triggerTextContentListeners💗 - markdown comparison", currentMarkdownContent.length, latestMarkdownContent.length);
@@ -156,12 +164,12 @@ const triggerTextContentListeners = (
     if (currentMarkdownContent !== latestMarkdownContent) {
         triggerListeners("textcontent", editor, true, latestMarkdownContent);
     }
-};
+}
 
-export const readEditorState = <V>(
+export function readEditorState<V>(
     editorState: EditorState,
     callbackFn: () => V,
-): V => {
+): V {
     const previousActiveEditorState = activeEditorState;
     const previousReadOnlyMode = isReadOnlyMode;
     const previousActiveEditor = activeEditor;
@@ -177,17 +185,17 @@ export const readEditorState = <V>(
         isReadOnlyMode = previousReadOnlyMode;
         activeEditor = previousActiveEditor;
     }
-};
+}
 
 /**
  * Gets the TextNode's style object and adds the styles to the CSS.
  * @param node - The TextNode to add styles to.
  */
-export const $addNodeStyle = (node: TextNode): void => {
+export function $addNodeStyle(node: TextNode): void {
     const CSSText = node.getStyle();
     const styles = getStyleObjectFromRawCSS(CSSText);
     CSS_TO_STYLES.set(CSSText, styles);
-};
+}
 
 type InternalSerializedNode = {
     children?: Array<InternalSerializedNode>;
@@ -195,22 +203,22 @@ type InternalSerializedNode = {
     version: number;
 };
 
-export const $parseSerializedNode = (
+export function $parseSerializedNode(
     serializedNode: SerializedLexicalNode,
-): LexicalNode => {
+): LexicalNode {
     const internalSerializedNode: InternalSerializedNode = serializedNode;
     return $parseSerializedNodeImpl(
         internalSerializedNode,
         getActiveEditor()._nodes,
     );
-};
+}
 
-const $parseSerializedNodeImpl = <
+function $parseSerializedNodeImpl<
     SerializedNode extends InternalSerializedNode,
 >(
     serializedNode: SerializedNode,
     registeredNodes: RegisteredNodes,
-): LexicalNode => {
+): LexicalNode {
     const type = serializedNode.__type;
     const registeredNode = registeredNodes[type];
 
@@ -235,13 +243,13 @@ const $parseSerializedNodeImpl = <
     }
 
     return node;
-};
+}
 
-export const parseEditorState = (
+export function parseEditorState(
     serializedEditorState: SerializedEditorState,
     editor: LexicalEditor,
     updateFn: void | (() => void),
-): EditorState => {
+): EditorState {
     const editorState = createEmptyEditorState();
     const previousActiveEditorState = activeEditorState;
     const previousReadOnlyMode = isReadOnlyMode;
@@ -284,12 +292,12 @@ export const parseEditorState = (
     }
 
     return editorState;
-};
+}
 
-const triggerDeferredUpdateCallbacks = (
+function triggerDeferredUpdateCallbacks(
     editor: LexicalEditor,
     deferred: Array<() => void>,
-) => {
+) {
     editor._deferred = [];
 
     if (deferred.length !== 0) {
@@ -304,9 +312,9 @@ const triggerDeferredUpdateCallbacks = (
             editor._updating = previouslyUpdating;
         }
     }
-};
+}
 
-const triggerEnqueuedUpdates = (editor: LexicalEditor): void => {
+function triggerEnqueuedUpdates(editor: LexicalEditor): void {
     const queuedUpdates = editor._updates;
 
     if (queuedUpdates.length !== 0) {
@@ -316,12 +324,12 @@ const triggerEnqueuedUpdates = (editor: LexicalEditor): void => {
             beginUpdate(editor, updateFn, options);
         }
     }
-};
+}
 
-export const commitPendingUpdates = (
+export function commitPendingUpdates(
     editor: LexicalEditor,
     recoveryEditorState?: EditorState | null,
-) => {
+) {
     const pendingEditorState = editor._pendingEditorState;
     const rootElement = editor._rootElement;
     const shouldSkipDOM = rootElement === null;
@@ -518,12 +526,12 @@ export const commitPendingUpdates = (
     });
     triggerDeferredUpdateCallbacks(editor, deferred);
     triggerEnqueuedUpdates(editor);
-};
+}
 
-const processNestedUpdates = (
+function processNestedUpdates(
     editor: LexicalEditor,
     initialSkipTransforms?: boolean,
-): boolean => {
+): boolean {
     const queuedUpdates = editor._updates;
     let skipTransforms = initialSkipTransforms || false;
 
@@ -560,24 +568,24 @@ const processNestedUpdates = (
     }
 
     return skipTransforms;
-};
+}
 
-export const getRegisteredNodeOrThrow = (
+export function getRegisteredNodeOrThrow(
     editor: LexicalEditor,
     nodeType: NodeType,
-): RegisteredNode => {
+): RegisteredNode {
     const registeredNode = editor._nodes[nodeType];
     if (registeredNode === undefined) {
         throw new Error("registeredNode: Type not found");
     }
     return registeredNode;
-};
+}
 
-export const $applyTransforms = (
+export function $applyTransforms(
     editor: LexicalEditor,
     node: LexicalNode,
     transformsCache: Map<string, Array<Transform<LexicalNode>>>,
-) => {
+) {
     const type = node.getType();
     const registeredNode = getRegisteredNodeOrThrow(editor, type);
     let transformsArr = transformsCache.get(type);
@@ -596,19 +604,19 @@ export const $applyTransforms = (
             break;
         }
     }
-};
+}
 
-const $isNodeValidForTransform = (
+function $isNodeValidForTransform(
     node: LexicalNode,
     compositionKey: null | string,
-): boolean => {
+): boolean {
     return (
         node !== undefined &&
         // We don't want to transform nodes being composed
         node.__key !== compositionKey &&
         isAttachedToRoot(node)
     );
-};
+}
 
 /**
  * Transform heuristic:
@@ -620,10 +628,10 @@ const $isNodeValidForTransform = (
  * Note that to keep track of newly dirty nodes and subtrees we leverage the editor._dirtyNodes and
  * editor._subtrees which we reset in every loop.
  */
-const $applyAllTransforms = (
+function $applyAllTransforms(
     editorState: EditorState,
     editor: LexicalEditor,
-) => {
+) {
     const dirtyLeaves = editor._dirtyLeaves;
     const dirtyElements = editor._dirtyElements;
     const nodeMap = editorState._nodeMap;
@@ -709,12 +717,12 @@ const $applyAllTransforms = (
 
     editor._dirtyLeaves = dirtyLeaves;
     editor._dirtyElements = dirtyElements;
-};
+}
 
-const $canSimpleTextNodesBeMerged = (
+function $canSimpleTextNodesBeMerged(
     node1: TextNode,
     node2: TextNode,
-): boolean => {
+): boolean {
     const node1Mode = node1.__mode;
     const node1Format = node1.__format;
     const node1Style = node1.__style;
@@ -726,9 +734,9 @@ const $canSimpleTextNodesBeMerged = (
         (node1Format === null || node1Format === node2Format) &&
         (node1Style === null || node1Style === node2Style)
     );
-};
+}
 
-const $mergeTextNodes = (node1: TextNode, node2: TextNode): TextNode => {
+function $mergeTextNodes(node1: TextNode, node2: TextNode): TextNode {
     const writableNode1 = node1.mergeWithSibling(node2);
 
     const normalizedNodes = getActiveEditor()._normalizedNodes;
@@ -736,9 +744,9 @@ const $mergeTextNodes = (node1: TextNode, node2: TextNode): TextNode => {
     normalizedNodes.add(node1.__key);
     normalizedNodes.add(node2.__key);
     return writableNode1;
-};
+}
 
-export const $normalizeTextNode = (textNode: TextNode) => {
+export function $normalizeTextNode(textNode: TextNode) {
     let node = textNode;
 
     if (node.__text === "" && node.isSimpleText() && !node.isUnmergeable()) {
@@ -783,12 +791,12 @@ export const $normalizeTextNode = (textNode: TextNode) => {
             break;
         }
     }
-};
+}
 
-const $normalizeAllDirtyTextNodes = (
+function $normalizeAllDirtyTextNodes(
     editorState: EditorState,
     editor: LexicalEditor,
-) => {
+) {
     const dirtyLeaves = editor._dirtyLeaves;
     const nodeMap = editorState._nodeMap;
 
@@ -804,13 +812,13 @@ const $normalizeAllDirtyTextNodes = (
             $normalizeTextNode(node);
         }
     }
-};
+}
 
-const beginUpdate = (
+function beginUpdate(
     editor: LexicalEditor,
     updateFn: () => void,
     options?: EditorUpdateOptions,
-) => {
+) {
     const updateTags = editor._updateTags;
     let onUpdate: (() => void) | null = null;
     let tag: string | null = null;
@@ -958,28 +966,30 @@ const beginUpdate = (
             editor._pendingEditorState = null;
         }
     }
-};
+}
 
-export const updateEditor = (
+export function updateEditor(
     editor: LexicalEditor,
     updateFn: () => void,
     options?: EditorUpdateOptions,
-) => {
+) {
     if (editor._updating) {
         editor._updates.push([updateFn, options]);
     } else {
         beginUpdate(editor, updateFn, options);
     }
-};
+}
 
-export const errorOnReadOnly = (): void => {
+export function errorOnReadOnly(): void {
     if (isReadOnlyMode) {
         throw new Error("Cannot use method in read-only mode.");
     }
-};
+}
 
-export const errorOnInfiniteTransforms = (): void => {
-    if (infiniteTransformCount > 99) {
+const TRANSFORMS_BEFORE_INFINITE_LOOP = 100;
+
+export function errorOnInfiniteTransforms(): void {
+    if (infiniteTransformCount > TRANSFORMS_BEFORE_INFINITE_LOOP) {
         throw new Error("One or more transforms are endlessly triggering additional transforms. May have encountered infinite recursion caused by transforms that have their preconditions too lose and/or conflict with each other.");
     }
-};
+}

@@ -1,13 +1,14 @@
 import { ListObject } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
-import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { Box, styled, useTheme } from "@mui/material";
+import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_MIN_ROWS } from "utils/consts";
 import { Headers } from "utils/display/stringTools";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
 import { RichInputAction, RichInputActiveStates, RichInputLexicalProps } from "../types";
 import { $convertFromMarkdownString, registerMarkdownShortcuts } from "./builder";
-import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands";
+import { CODE_BLOCK_COMMAND, FORMAT_TEXT_COMMAND, INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_TABLE_COMMAND, INSERT_UNORDERED_LIST_COMMAND, KEY_ENTER_COMMAND, SELECTION_CHANGE_COMMAND, TOGGLE_LINK_COMMAND } from "./commands";
 import { COMMAND_PRIORITY_CRITICAL } from "./consts";
 import { LexicalComposerContext, useLexicalComposerContext } from "./context";
 import { LexicalEditor, createEditor } from "./editor";
@@ -197,6 +198,7 @@ export function ContentEditable({
     }, [editor]);
 
     return (
+        // eslint-disable-next-line jsx-a11y/aria-activedescendant-has-tabindex
         <div
             {...rest}
             aria-activedescendant={(!isEditable || tabIndex === undefined) ? undefined : ariaActiveDescendant}
@@ -231,33 +233,44 @@ export function ContentEditable({
     );
 }
 
-const DEFAULT_MIN_ROWS = 4;
+const LoadingPlaceholderBox = styled(Box)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    position: "absolute",
+    padding: "16.5px 14px",
+    pointerEvents: "none",
+    top: 0,
+    left: 0,
+}));
 
 /** TextInput for entering WYSIWYG text */
 export function RichInputLexicalComponents({
     autoFocus = false,
-    error = false,
+    enterWillSubmit,
     getTaggableItems,
     id,
     maxRows,
     minRows = DEFAULT_MIN_ROWS,
-    name,
     onActiveStatesChange,
     onBlur,
     onFocus,
     onChange,
+    onSubmit,
     openAssistantDialog,
     placeholder = "",
     redo,
     setHandleAction,
     tabIndex,
-    toggleMarkdown,
     undo,
     value,
     sxs,
 }: RichInputLexicalProps) {
     const { palette, typography } = useTheme();
     const editor = useLexicalComposerContext();
+
+    const valueRef = useRef(value);
+    useEffect(function updateValueRefEffect() {
+        valueRef.current = value;
+    }, [value]);
 
     const tagData = useTagDropdown({ getTaggableItems });
     const selectDropdownItem = useCallback((item: ListObject) => {
@@ -332,10 +345,12 @@ export function RichInputLexicalComponents({
             onActiveStatesChange({ ...updatedStates });
         }
     }, [activeEditor, onActiveStatesChange]);
+
     useEffect(function registerSelectionChangeEffect() {
-        return editor?.registerCommand(
+        if (!editor) return;
+        return editor.registerCommand(
             SELECTION_CHANGE_COMMAND,
-            (_payload, newEditor) => {
+            function selectionChangeListener(_, newEditor) {
                 $updateToolbar();
                 setActiveEditor(newEditor);
                 return false;
@@ -344,17 +359,40 @@ export function RichInputLexicalComponents({
         );
     }, [editor, $updateToolbar]);
 
+    useEffect(function registerKeyEnterEffect() {
+        if (!editor) return;
+        return editor.registerCommand(
+            KEY_ENTER_COMMAND,
+            function enterKeyListener(event, newEditor) {
+                console.log("in enterKeyListener", event);
+                // Check if any other modifier keys are pressed
+                if (!event || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+                    return false;
+                }
+                if (enterWillSubmit) {
+                    console.log("enter will submit");
+                    event.preventDefault();
+                    onSubmit?.(valueRef.current);
+                    // Clear the editor
+                    newEditor.update(() => { $convertFromMarkdownString("", []); }, HISTORY_MERGE_OPTIONS);
+                    return true;
+                }
+                return false;
+            },
+            COMMAND_PRIORITY_CRITICAL, // Critical so we can cancel the default behavior
+        );
+    }, [editor, enterWillSubmit, onSubmit]);
+
     const triggerEditorChange = useCallback(() => {
-        console.log("updating editor value", value);
-        editor?.update(() => {
-            console.log("calling convertfrommarkdownstring in triggereditrochange");
+        if (!editor) return;
+        editor.update(() => {
             $convertFromMarkdownString(value, ALL_TRANSFORMERS);
         }, HISTORY_MERGE_OPTIONS);
     }, [editor, value]);
 
     useLayoutEffect(() => {
         if (!editor) return;
-        return editor.registerListener("textcontent", (updatedMarkdown) => {
+        return editor.registerListener("textcontent", function handleTextContentChanged(updatedMarkdown) {
             console.log("textcontent listener triggered😽", updatedMarkdown);
             onChange(updatedMarkdown);
         });
@@ -459,37 +497,41 @@ export function RichInputLexicalComponents({
 
     const lineHeight = useMemo(() => Math.round(typography.fontSize * LINE_HEIGHT_MULTIPLIER), [typography.fontSize]);
 
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
+            position: "relative",
+            display: "grid",
+            padding: "16.5px 14px",
+            minWidth: "-webkit-fill-available",
+            maxWidth: "-webkit-fill-available",
+            borderRadius: "0 0 4px 4px",
+            borderTop: "none",
+            fontFamily: typography.fontFamily,
+            fontSize: typography.fontSize + 2,
+            lineHeight: `${lineHeight}px`,
+            minHeight: lineHeight * minRows + 16.5,
+            maxHeight: maxRows ? (lineHeight * (maxRows ?? DEFAULT_MIN_ROWS) + 16.5) : "none",
+            overflow: "auto",
+            backgroundColor: "transparent",
+            color: palette.text.primary,
+            border: `1px solid ${palette.divider}`,
+            "&:hover": {
+                border: `1px solid ${palette.background.textPrimary}`,
+            },
+            "&:focus-within": {
+                border: `2px solid ${palette.primary.main}`,
+            },
+            ...sxs?.inputRoot,
+        } as const;
+    }, [lineHeight, maxRows, minRows, palette.background.textPrimary, palette.divider, palette.primary.main, palette.text.primary, sxs?.inputRoot, typography.fontFamily, typography.fontSize]);
+
     return (
         <Box
             id={id}
             component="div"
             onBlur={onBlur}
             onFocus={onFocus}
-            sx={{
-                position: "relative",
-                display: "grid",
-                padding: "16.5px 14px",
-                minWidth: "-webkit-fill-available",
-                maxWidth: "-webkit-fill-available",
-                borderRadius: "0 0 4px 4px",
-                borderTop: "none",
-                fontFamily: typography.fontFamily,
-                fontSize: typography.fontSize + 2,
-                lineHeight: `${lineHeight}px`,
-                minHeight: lineHeight * minRows + 16.5,
-                maxHeight: maxRows ? (lineHeight * (maxRows ?? DEFAULT_MIN_ROWS) + 16.5) : "none",
-                overflow: "auto",
-                backgroundColor: "transparent",
-                color: palette.text.primary,
-                border: `1px solid ${palette.divider}`,
-                "&:hover": {
-                    border: `1px solid ${palette.background.textPrimary}`,
-                },
-                "&:focus-within": {
-                    border: `2px solid ${palette.primary.main}`,
-                },
-                ...sxs?.inputRoot,
-            }}>
+            sx={outerBoxStyle}>
             <RichTextPlugin
                 contentEditable={<ContentEditable
                     id={`${id}-contenteditable`}
@@ -503,17 +545,9 @@ export function RichInputLexicalComponents({
                     } as CSSProperties}
                 />}
             />
-            {(!editor || (typeof value === "string" && value.length === 0)) && <div style={{
-                color: palette.background.textSecondary,
-                position: "absolute",
-                padding: "16.5px 14px",
-                pointerEvents: "none",
-                top: 0,
-                left: 0,
-            }}
-            >
+            {(!editor || (typeof value === "string" && value.length === 0)) && <LoadingPlaceholderBox>
                 {!editor ? "Loading..." : (placeholder ?? "Enter some text...")}
-            </div>}
+            </LoadingPlaceholderBox>}
             <CheckListPlugin />
             <LinkPlugin />
             <ListPlugin />

@@ -1,6 +1,6 @@
 import { TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { RefObject } from "react";
+import { RefObject, useMemo } from "react";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
 import { TextInputProps, TranslatedTextInputProps } from "../types";
 
@@ -33,9 +33,13 @@ export function TextInput({
         }
     }
 
+    const inputLabelProps = useMemo(function inputLabelPropsMemo() {
+        return (label && placeholder) ? { shrink: true } : {};
+    }, [label, placeholder]);
+
     return <TextField
         helperText={helperText ? typeof helperText === "string" ? helperText : JSON.stringify(helperText) : undefined}
-        InputLabelProps={(label && placeholder) ? { shrink: true } : {}}
+        InputLabelProps={inputLabelProps}
         label={label ? <StyledLabel /> : ""}
         onKeyDown={onKeyDown}
         placeholder={placeholder}

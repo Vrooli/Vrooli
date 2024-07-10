@@ -5,8 +5,8 @@ import { LexicalEditor } from "./editor";
 import { flushRootMutations } from "./mutations";
 import { $getPreviousSelection, RangeSelection, internalCreateRangeSelection } from "./selection";
 import { CustomDomElement, CustomLexicalEvent, NodeKey, RootElementEvents, RootElementRemoveHandles } from "./types";
-import { errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
-import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, dispatchCommand, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
+import { dispatchCommand, errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
+import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
 
 let lastKeyDownTimeStamp = 0;
 const lastBeforeInputInsertTextTimeStamp = 0;
@@ -32,7 +32,6 @@ function onKeyDown(event: KeyboardEvent, editor: LexicalEditor): void {
     }
 
     const { key } = event;
-    console.log("in onKeyDown", key, isBold(event));
 
     if (isMoveForward(event)) {
         dispatchCommand(editor, KEY_ARROW_RIGHT_COMMAND, event);

@@ -12,7 +12,7 @@ import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockEle
 
 //TODO this file is a good place to store markdown string and selection positions. Then we can edit this in real-time instead of exporting everything to markdown on every change
 
-const registerRichText = (editor: LexicalEditor): () => void => {
+function registerRichText(editor: LexicalEditor): (() => void) {
     const removeListener = mergeRegister(
         editor.registerCommand(
             CLICK_COMMAND,
@@ -537,7 +537,7 @@ const registerRichText = (editor: LexicalEditor): () => void => {
         ),
     );
     return removeListener;
-};
+}
 
 /**
  * Adds support for Dragon, which is an extension that allows users to dictate text.

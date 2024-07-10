@@ -9,16 +9,16 @@ import { flushRootMutations, initMutationObserver } from "./mutations";
 import { LexicalNodes } from "./nodes";
 import { type LexicalNode } from "./nodes/LexicalNode";
 import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, EditorConfig, EditorFocusOptions, EditorListener, EditorListeners, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, NodeKey, NodeMap, NodeType, RegisteredNodes, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, Transform } from "./types";
-import { commitPendingUpdates, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
-import { $createNode, $getRoot, $getSelection, $isNode, dispatchCommand, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
+import { commitPendingUpdates, dispatchCommand, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
+import { $createNode, $getRoot, $getSelection, $isNode, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
 
-export const cloneEditorState = (current: EditorState): EditorState => {
+export function cloneEditorState(current: EditorState): EditorState {
     return new EditorState(new Map(current._nodeMap));
-};
+}
 
-const exportNodeToJSON = <SerializedNode extends SerializedLexicalNode>(
+function exportNodeToJSON<SerializedNode extends SerializedLexicalNode>(
     node: LexicalNode,
-): SerializedNode => {
+): SerializedNode {
     const serializedNode = node.exportJSON();
 
     if (serializedNode.__type !== node.getType()) {
@@ -41,7 +41,7 @@ const exportNodeToJSON = <SerializedNode extends SerializedLexicalNode>(
     }
 
     return serializedNode as SerializedNode;
-};
+}
 
 export class EditorState {
     _nodeMap: NodeMap;
@@ -83,17 +83,17 @@ export class EditorState {
 /**
  * Creates a new EditorState with a single root node.
  */
-export const createEmptyEditorState = (): EditorState => {
+export function createEmptyEditorState(): EditorState {
     const rootKey = "root" as const;
     return new EditorState(new Map([[rootKey, $createNode("Root", { key: rootKey })]]));
-};
+}
 
-export const resetEditor = (
+export function resetEditor(
     editor: LexicalEditor,
     prevRootElement: null | HTMLElement,
     nextRootElement: null | HTMLElement,
     pendingEditorState: EditorState,
-): void => {
+): void {
     const keyNodeMap = editor._keyToDOMMap;
     keyNodeMap.clear();
     editor._editorState = createEmptyEditorState();
@@ -124,7 +124,7 @@ export const resetEditor = (
         nextRootElement.textContent = "";
         keyNodeMap.set("root", nextRootElement);
     }
-};
+}
 
 /**
  * Creates a new LexicalEditor attached to a single contentEditable (provided in the config). This is
@@ -133,7 +133,7 @@ export const resetEditor = (
  * @param editorConfig - the editor configuration.
  * @returns a LexicalEditor instance
  */
-export const createEditor = async (editorConfig?: CreateEditorArgs): Promise<LexicalEditor> => {
+export async function createEditor(editorConfig?: CreateEditorArgs): Promise<LexicalEditor> {
     // Make sure node information is loaded before creating the editor
     await LexicalNodes.init();
 
@@ -150,7 +150,7 @@ export const createEditor = async (editorConfig?: CreateEditorArgs): Promise<Lex
     editor.setEditorState(editorState);
 
     return editor;
-};
+}
 
 export class LexicalEditor {
     /**
@@ -614,10 +614,10 @@ export class LexicalEditor {
     }
 }
 
-export const editorStateHasDirtySelection = (
+export function editorStateHasDirtySelection(
     editorState: EditorState,
     editor: LexicalEditor,
-): boolean => {
+): boolean {
     const currentSelection = editor.getEditorState()?._selection;
 
     const pendingSelection = editorState._selection;
@@ -632,4 +632,4 @@ export const editorStateHasDirtySelection = (
     }
 
     return false;
-};
+}

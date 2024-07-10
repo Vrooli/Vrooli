@@ -1,5 +1,6 @@
 import { ListObject, getObjectUrl } from "@local/shared";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { DEFAULT_MIN_ROWS } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "utils/display/stringTools";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
@@ -35,11 +36,10 @@ export function RichInputMarkdown({
     autoFocus = false,
     disabled = false,
     enterWillSubmit,
-    error = false,
     getTaggableItems,
     id,
     maxRows,
-    minRows = 4,
+    minRows = DEFAULT_MIN_ROWS,
     name,
     onBlur,
     onFocus,
@@ -289,6 +289,34 @@ export function RichInputMarkdown({
         };
     }, [getTaggableItems, onChange, insertStyle, name, redo, toggleMarkdown, undo, id, tagData, selectDropdownItem, value]);
 
+    const inputStyle = useMemo(function inputStyleMemo() {
+        return {
+            minWidth: "-webkit-fill-available",
+            maxWidth: "-webkit-fill-available",
+            outline: "none",
+            resize: "none",
+            "& .MuiOutlinedInput-notchedOutline": {
+                borderRadius: "0 0 4px 4px",
+                borderTop: "none",
+            },
+            "& .MuiInputBase-root": {
+                "& > textarea": {
+                    ...sxs?.inputRoot?.["& > textarea"],
+                    ...sxs?.textArea,
+                },
+            },
+            ...sxs?.inputRoot,
+        } as const;
+    }, [sxs]);
+
+    const handleChange = useCallback(function handleChangeCallback(event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+        onChange(event.target.value);
+    }, [onChange]);
+
+    const handleSubmit = useCallback(function handleSubmitCallback() {
+        onSubmit?.(value);
+    }, [onSubmit, value]);
+
     return (
         <>
             <RichInputTagDropdown {...tagData} selectDropdownItem={selectDropdownItem} />
@@ -306,27 +334,11 @@ export function RichInputMarkdown({
                 value={value}
                 onBlur={onBlur}
                 onFocus={onFocus}
-                onChange={(e) => { onChange(e.target.value); }}
-                onSubmit={() => { onSubmit?.(value); }}
+                onChange={handleChange}
+                onSubmit={handleSubmit}
                 tabIndex={tabIndex}
                 spellCheck
-                sx={{
-                    minWidth: "-webkit-fill-available",
-                    maxWidth: "-webkit-fill-available",
-                    outline: "none",
-                    resize: "none",
-                    "& .MuiOutlinedInput-notchedOutline": {
-                        borderRadius: "0 0 4px 4px",
-                        borderTop: "none",
-                    },
-                    "& .MuiInputBase-root": {
-                        "& > textarea": {
-                            ...sxs?.inputRoot?.["& > textarea"],
-                            ...sxs?.textArea,
-                        },
-                    },
-                    ...sxs?.inputRoot,
-                }}
+                sx={inputStyle}
             />
         </>
     );
