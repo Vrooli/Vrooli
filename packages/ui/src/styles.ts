@@ -1,7 +1,8 @@
 /* eslint-disable no-magic-numbers */
 import { Avatar, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
-export const pagePaddingBottom = "calc(56px + env(safe-area-inset-bottom))";
+export const bottomNavHeight = "56px";
+export const pagePaddingBottom = `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`;
 
 export const centeredDiv = {
     display: "flex",
@@ -85,58 +86,66 @@ export const SlideIconButton = styled(IconButton)(({ theme }) => ({
     ...slideIconButton,
 }));
 
-export const slideText = (theme: Theme) => ({
-    zIndex: 10,
-    textAlign: "center",
-    textWrap: "balance",
-    [theme.breakpoints.up("md")]: {
-        fontSize: "1.5rem",
-    },
-    [theme.breakpoints.down("md")]: {
-        fontSize: "1.25rem",
-    },
-} as const);
+export function slideText(theme: Theme) {
+    return {
+        zIndex: 10,
+        textAlign: "center",
+        textWrap: "balance",
+        [theme.breakpoints.up("md")]: {
+            fontSize: "1.5rem",
+        },
+        [theme.breakpoints.down("md")]: {
+            fontSize: "1.25rem",
+        },
+    } as const;
+}
 export const SlideText = styled("h3")(({ theme }) => ({
     ...slideText(theme),
 }));
 
-export const slideTitle = (theme: Theme) => ({
-    letterSpacing: "-0.05em",
-    textAlign: "center",
-    wordBreak: "break-word",
-    zIndex: 10,
-    [theme.breakpoints.up("md")]: {
-        fontSize: "3.75rem",
-    },
-    [theme.breakpoints.up("sm")]: {
-        fontSize: "3rem",
-    },
-    [theme.breakpoints.up("xs")]: {
-        fontSize: "2.4rem",
-    },
-} as const);
+export function slideTitle(theme: Theme) {
+    return {
+        letterSpacing: "-0.05em",
+        textAlign: "center",
+        wordBreak: "break-word",
+        zIndex: 10,
+        [theme.breakpoints.up("md")]: {
+            fontSize: "3.75rem",
+        },
+        [theme.breakpoints.up("sm")]: {
+            fontSize: "3rem",
+        },
+        [theme.breakpoints.up("xs")]: {
+            fontSize: "2.4rem",
+        },
+    } as const;
+}
 export const SlideTitle = styled(Typography)(({ theme }) => ({
     ...slideTitle(theme),
 }));
 
-export const slideImageContainer = (theme: Theme) => ({
-    justifyContent: "center",
-    height: "100%",
-    display: "flex",
-    "& > img": {
-        maxWidth: "min(500px, 100%)",
-        maxHeight: "100%",
-        zIndex: "3",
-    },
-} as const);
+export function slideImageContainer(theme: Theme) {
+    return {
+        justifyContent: "center",
+        height: "100%",
+        display: "flex",
+        "& > img": {
+            maxWidth: "min(500px, 100%)",
+            maxHeight: "100%",
+            zIndex: "3",
+        },
+    } as const;
+}
 export const SlideImageContainer = styled(Box)(({ theme }) => ({
     ...slideImageContainer(theme),
 }));
 
-export const slideImage = (theme: Theme) => ({
-    borderRadius: theme.spacing(4),
-    objectFit: "cover",
-} as const);
+export function slideImage(theme: Theme) {
+    return {
+        borderRadius: theme.spacing(4),
+        objectFit: "cover",
+    } as const;
+}
 export const SlideImage = styled("img")(({ theme }) => ({
     ...slideImage(theme),
 }));

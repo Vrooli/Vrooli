@@ -1,21 +1,21 @@
 import { calculateOccurrences, CalendarEvent, Schedule } from "@local/shared";
-import { Box, IconButton, styled, Tooltip, useTheme } from "@mui/material";
+import { Box, BoxProps, IconButton, styled, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts/SessionContext";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
-import { useDimensions } from "hooks/useDimensions";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
 import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
+import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
-import { SideActionsButton } from "styles";
+import { bottomNavHeight, SideActionsButton } from "styles";
+import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
@@ -193,21 +193,47 @@ const dayColumnHeaderBoxStyle = {
     fontWeight: "bold",
 } as const;
 
+type DayColumnHeaderProps = {
+    isBottomNavVisible: boolean;
+    label: string;
+}
+
 /**
  * Day header for Month view. Use
  */
-function DayColumnHeader({ label }) {
-    const { breakpoints } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
-
+function DayColumnHeader({
+    isBottomNavVisible,
+    label,
+}: DayColumnHeaderProps) {
     return (
         <Box sx={dayColumnHeaderBoxStyle}>
-            {isMobile ? getShortenedLabel(label) : label}
+            {isBottomNavVisible ? getShortenedLabel(label) : label}
         </Box>
     );
 }
 
-const outerBoxStyle = { maxHeight: "100vh", overflow: "hidden" } as const;
+interface FlexContainerProps extends BoxProps {
+    isBottomNavVisible: boolean;
+}
+
+const FlexContainer = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isBottomNavVisible",
+})<FlexContainerProps>(({ isBottomNavVisible }) => ({
+    display: "flex",
+    flexDirection: "column",
+    height: `calc(100vh - ${isBottomNavVisible ? bottomNavHeight : "0px"} - env(safe-area-inset-bottom))`,
+
+}));
+
+const outerBoxStyle = {
+    maxHeight: "100vh",
+    overflow: "hidden",
+} as const;
+
+const navbarStyle = {
+    root: { paddingTop: 0, flexGrow: 0 },
+    appBar: { position: "relative" },
+} as const;
 
 export function CalendarView({
     display,
@@ -215,9 +241,11 @@ export function CalendarView({
 }: CalendarViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
+    const isBottomNavVisible = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const { t } = useTranslation();
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
+
     // Defaults to current month
     const [dateRange, setDateRange] = useState<{ start: Date, end: Date }>({
         start: startOfMonth(new Date()),
@@ -230,6 +258,7 @@ export function CalendarView({
 
     const [selectedDateTime, setSelectedDateTime] = useState<Date | null>(null);
     const handleSelectSlot = useCallback((slot: SlotInfo) => {
+        console.log("Slot selected:", slot);
         setSelectedDateTime(slot.start);
     }, []);
     const handleSelectDate = useCallback((date: Date) => {
@@ -258,15 +287,6 @@ export function CalendarView({
 
         localeLoader();
     }, [locale]);
-
-    // Data for calculating calendar height
-    const { dimensions, ref, refreshDimensions } = useDimensions();
-    // Refresh dimensions once after the component is mounted
-    useEffect(() => {
-        setTimeout(refreshDimensions, 1000);
-    }, [refreshDimensions]);
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const calendarHeight = useMemo(() => `calc(100vh - ${dimensions.height}px - ${isMobile ? 56 : 0}px - env(safe-area-inset-bottom))`, [dimensions, isMobile]);
 
     const handleDateRangeChange = useCallback((range: Date[] | { start: Date, end: Date }) => {
         if (Array.isArray(range)) {
@@ -438,24 +458,23 @@ export function CalendarView({
         return {
             toolbar: (props: CalendarToolbarProps) => <CustomToolbar {...props} onSelectDate={handleSelectDate} />,
             month: {
-                header: DayColumnHeader,
+                header: (props: CalendarHeaderProps) => <DayColumnHeader isBottomNavVisible={isBottomNavVisible} {...props} />,
             },
         };
-    }, [handleSelectDate]);
+    }, [handleSelectDate, isBottomNavVisible]);
 
     const calendarStyle = useMemo(function calendarStyleMemo() {
         return {
-            height: calendarHeight,
-            maxHeight: calendarHeight,
             background: palette.background.paper,
+            flexGrow: 1,
         } as const;
-    }, [calendarHeight, palette.background.paper]);
+    }, [palette.background.paper]);
 
     const scheduleOverrideObject = useMemo(function scheduleOverrideObjectMemo() {
         if (editingSchedule) {
             return editingSchedule;
         }
-        const defaultSchedule: Partial<Schedule> = { __typename: "Schedule" } as const;
+        const defaultSchedule: PartialWithType<Schedule> = { __typename: "Schedule" } as const;
         if (selectedDateTime) {
             const startDate = new Date(selectedDateTime);
             const endDate = new Date(selectedDateTime);
@@ -478,50 +497,54 @@ export function CalendarView({
     if (!localizer) return <FullPageSpinner />;
     return (
         <Box sx={outerBoxStyle}>
-            <ScheduleUpsert
-                canSetScheduleFor={true}
-                defaultScheduleFor={currTab.key === "All" ? "Meeting" : currTab.key as ScheduleForType}
-                display="dialog"
-                isCreate={editingSchedule === null}
-                isMutate={true}
-                isOpen={isScheduleDialogOpen}
-                onCancel={handleCloseScheduleDialog}
-                onClose={handleCloseScheduleDialog}
-                onCompleted={handleScheduleCompleted}
-                onDeleted={handleScheduleDeleted}
-                overrideObject={scheduleOverrideObject}
-            />
-            <TopBar
-                ref={ref}
-                display={display}
-                hideTitleOnDesktop
-                onClose={onClose}
-                title={t("Schedule", { count: 1 })}
-                below={<PageTabs
-                    ariaLabel="calendar-tabs"
-                    currTab={currTab}
-                    fullWidth
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
-            />
-            <Calendar
-                localizer={localizer}
-                events={events}
-                onRangeChange={handleDateRangeChange}
-                onSelectEvent={openEvent}
-                onSelectSlot={handleSelectSlot}
-                onView={handleViewChange}
-                startAccessor="start"
-                endAccessor="end"
-                components={calendarComponents}
-                dayPropGetter={dayPropGetter}
-                selectable={true}
-                slotPropGetter={slotPropGetter}
-                style={calendarStyle}
-                view={view}
-                views={views}
-            />
+            <FlexContainer isBottomNavVisible={isBottomNavVisible}>
+                <ScheduleUpsert
+                    canSetScheduleFor={true}
+                    defaultScheduleFor={currTab.key === "All" ? "Meeting" : currTab.key as ScheduleForType}
+                    display="dialog"
+                    isCreate={editingSchedule === null}
+                    isMutate={true}
+                    isOpen={isScheduleDialogOpen}
+                    onCancel={handleCloseScheduleDialog}
+                    onClose={handleCloseScheduleDialog}
+                    onCompleted={handleScheduleCompleted}
+                    onDeleted={handleScheduleDeleted}
+                    overrideObject={scheduleOverrideObject}
+                />
+                <TopBar
+                    // ref={ref}
+                    display={display}
+                    hideTitleOnDesktop
+                    onClose={onClose}
+                    title={t("Schedule", { count: 1 })}
+                    below={<PageTabs
+                        ariaLabel="calendar-tabs"
+                        currTab={currTab}
+                        fullWidth
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />}
+                    sxsNavbar={navbarStyle}
+                />
+                <Calendar
+                    localizer={localizer}
+                    longPressThreshold={20}
+                    events={events}
+                    onRangeChange={handleDateRangeChange}
+                    onSelectEvent={openEvent}
+                    onSelectSlot={handleSelectSlot}
+                    onView={handleViewChange}
+                    startAccessor="start"
+                    endAccessor="end"
+                    components={calendarComponents}
+                    dayPropGetter={dayPropGetter}
+                    selectable={true}
+                    slotPropGetter={slotPropGetter}
+                    style={calendarStyle}
+                    view={view}
+                    views={views}
+                />
+            </FlexContainer>
             {/* Add event button */}
             <SideActionsButtons display={display}>
                 <SideActionsButton

@@ -9,6 +9,7 @@ import { TopBarProps } from "../types";
 export const TopBar = forwardRef(({
     display,
     hideTitleOnDesktop,
+    sxsNavbar,
     ...titleData
 }: TopBarProps, ref) => {
 
@@ -23,6 +24,7 @@ export const TopBar = forwardRef(({
         <Navbar
             ref={ref}
             shouldHideTitle={hideTitleOnDesktop}
+            sxs={sxsNavbar}
             {...titleData}
         />
     );

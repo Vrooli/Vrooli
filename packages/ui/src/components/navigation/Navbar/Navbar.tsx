@@ -153,6 +153,7 @@ export const Navbar = forwardRef(({
     options,
     shouldHideTitle = false,
     startComponent,
+    sxs,
     tabTitle,
     title,
     titleComponent,
@@ -179,28 +180,38 @@ export const Navbar = forwardRef(({
         document.title = tabTitle || title ? `${tabTitle ?? title} | ${BUSINESS_NAME}` : BUSINESS_NAME;
     }, [tabTitle, title]);
 
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
+            paddingTop: `${Math.max(dimensions.height, 64)}px`,
+            "@media print": {
+                display: "none",
+            },
+            ...sxs?.root,
+        } as const;
+    }, [dimensions.height, sxs]);
+
+    const appBarStyle = useMemo(function appBarStyleMemo() {
+        return {
+            ...noSelect,
+            background: palette.primary.dark,
+            minHeight: "64px!important",
+            position: "fixed", // Allows items to be displayed below the navbar
+            justifyContent: "center",
+            zIndex,
+            ...sxs?.appBar,
+        } as const;
+    }, []);
+
     return (
         <Box
             id='navbar'
             ref={ref}
-            sx={{
-                paddingTop: `${Math.max(dimensions.height, 64)}px`,
-                "@media print": {
-                    display: "none",
-                },
-            }}>
+            sx={outerBoxStyle}>
             <HideOnScroll forceVisible={keepVisible || !isMobile}>
                 <AppBar
                     onClick={scrollToTop}
                     ref={dimRef}
-                    sx={{
-                        ...noSelect,
-                        background: palette.primary.dark,
-                        minHeight: "64px!important",
-                        position: "fixed", // Allows items to be displayed below the navbar
-                        justifyContent: "center",
-                        zIndex,
-                    }}>
+                    sx={appBarStyle}>
                     <Stack direction="row" spacing={0} alignItems="center" sx={{
                         paddingLeft: 1,
                         paddingRight: 1,

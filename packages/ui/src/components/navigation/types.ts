@@ -22,6 +22,10 @@ export type NavbarProps = {
     title?: string | undefined;
     /** Replaces title if provided */
     titleComponent?: JSX.Element;
+    sxs?: {
+        appBar?: SxType,
+        root?: SxType,
+    }
 }
 
 export type SettingsTopBarProps = TopBarProps
@@ -35,4 +39,5 @@ export interface TopBarProps extends TitleProps {
     startComponent?: JSX.Element;
     tabTitle?: string;
     titleId?: string;
+    sxsNavbar?: NavbarProps["sxs"];
 }
