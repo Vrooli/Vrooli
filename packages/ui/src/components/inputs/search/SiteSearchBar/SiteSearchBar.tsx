@@ -9,6 +9,7 @@ import { ChangeEvent, FormEvent, HTMLAttributes, useCallback, useContext, useEff
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { randomString } from "utils/codes";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getLocalStorageKeys } from "utils/localStorage";
 import { performAction } from "utils/navigation/quickActions";
@@ -97,6 +98,14 @@ function updateHistoryItems(searchBarId: string, userId: string, options: Autoco
     });
 }
 
+/**
+ * Stop default onSubmit, since when the search bar is a form this causes the page to reload
+ */
+function stopDefaultSubmit(event: FormEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+}
+
 const IconMap = {
     Action: ActionIcon,
     Api: ApiIcon,
@@ -181,7 +190,9 @@ const inputStyle = {
  * Supports search history and starring items.
  */
 export function SiteSearchBar({
+    enterKeyHint,
     id = "search-bar",
+    isNested,
     placeholder,
     options,
     value,
@@ -220,7 +231,7 @@ export function SiteSearchBar({
     }, [handleChange]);
 
     const [optionsWithHistory, setOptionsWithHistory] = useState<readonly AutocompleteOption[]>(options ?? []);
-    useEffect(() => {
+    useEffect(function getOptionsWithHistoryEffect() {
         if (!options) {
             return;
         }
@@ -242,6 +253,17 @@ export function SiteSearchBar({
         let combinedOptions = [...historyOptions, ...filteredOptions];
         // In case there are bad options, filter out anything with: an empty or whitespace-only label, or no id
         combinedOptions = combinedOptions.filter(option => option.label && option.label.trim() !== "" && option.id);
+        // Create unique keys for each option
+        const keySet = new Set<string>();
+        combinedOptions = combinedOptions.map(option => {
+            let key = `${option.id}-${option.label}-${option.__typename}-${option.isFromHistory ? "history" : "regular"}`;
+            while (keySet.has(key)) {
+                console.warn("Duplicate key found in search bar", key, option);
+                key += `-${randomString()}`;
+            }
+            keySet.add(key);
+            return { ...option, key };
+        });
         // Update state
         setOptionsWithHistory(combinedOptions);
     }, [options, internalValue, id, userId]);
@@ -254,7 +276,7 @@ export function SiteSearchBar({
         // Save the new history
         localStorage.setItem(`search-history-${id}-${userId ?? ""}`, JSON.stringify(existingHistory));
         // Update options with history
-        setOptionsWithHistory(optionsWithHistory.filter(o => o.id !== option.id));
+        setOptionsWithHistory(optionsWithHistory.filter(o => o.key !== option.key));
     }, [id, optionsWithHistory, userId]);
 
     /**
@@ -332,7 +354,7 @@ export function SiteSearchBar({
         const updatedOption = { ...option, isBookmarked, bookmarks: isBookmarked ? (option.bookmarks ?? 0) + 1 : (option.bookmarks ?? 1) - 1 };
         // Update history and state
         updateHistoryItems(id, userId ?? "", [updatedOption]);
-        setOptionsWithHistory(optionsWithHistory.map(o => o.id === option.id ? updatedOption : o));
+        setOptionsWithHistory(optionsWithHistory.map(o => o.key && option.key && o.key === option.key ? updatedOption : o));
     }, [id, optionsWithHistory, userId]);
 
     // On key down, fill search input with highlighted option if right arrow is pressed
@@ -344,12 +366,6 @@ export function SiteSearchBar({
             onChangeDebounced("");
         }
     }, [highlightedOption, onChangeDebounced]);
-
-    // Stop default onSubmit, since this reloads the page for some reason
-    const stopDefaultSubmit = useCallback(function stopDefaultSubmitHandler(event: FormEvent<HTMLDivElement>) {
-        event.preventDefault();
-        event.stopPropagation();
-    }, []);
 
     const autocompleteSx = useMemo(function autocompleteSxMemo() {
         return {
@@ -374,7 +390,10 @@ export function SiteSearchBar({
         };
     }, [sxs?.paper]);
 
-    const renderOption = useCallback(function renderOptionCallback(props: HTMLAttributes<HTMLLIElement>, option: AutocompleteOption) {
+    const renderOption = useCallback(function renderOptionCallback(
+        props: HTMLAttributes<HTMLLIElement>,
+        option: AutocompleteOption,
+    ) {
         function onOptionClick() {
             const label = option.label ?? "";
             setInternalValue(label);
@@ -393,7 +412,7 @@ export function SiteSearchBar({
         return (
             <MenuItem
                 {...props}
-                key={option.id}
+                key={option.key}
                 onClick={onOptionClick}
                 sx={optionStyle}
             >
@@ -432,9 +451,16 @@ export function SiteSearchBar({
     }, [handleBookmark, handleSelect, onChangeDebounced, optionColor, removeFromHistory]);
 
     const renderInput = useCallback(function renderInputCallback(params: AutocompleteRenderInputParams) {
+        function getInputProps() {
+            return {
+                ...params.inputProps,
+                enterKeyHint: enterKeyHint || "search",
+            };
+        }
         return (
             <Paper
-                component="form"
+                action="#" // Needed for iOS to accept enterKeyHint: https://stackoverflow.com/a/39485162/406725
+                component={isNested ? "div" : "form"}
                 sx={paperSx}
             >
                 <Input
@@ -444,10 +470,10 @@ export function SiteSearchBar({
                     fullWidth={true}
                     value={internalValue}
                     onChange={handleChangeEvent}
-                    placeholder={t(`${placeholder ?? "Search"}`) + "..."}
+                    placeholder={t(`${placeholder || "Search"}`) + "..."}
                     autoFocus={props.autoFocus ?? false}
-                    // {...params.InputLabelProps}
-                    inputProps={params.inputProps}
+                    inputProps={getInputProps()}
+                    // inputProps={params.inputProps}
                     ref={params.InputProps.ref}
                     size={params.size}
                     sx={inputStyle}
@@ -458,7 +484,7 @@ export function SiteSearchBar({
                 </IconButton>
             </Paper>
         );
-    }, [handleChange, handleChangeEvent, internalValue, palette.background.textSecondary, paperSx, placeholder, props.autoFocus, t]);
+    }, [enterKeyHint, handleChange, handleChangeEvent, internalValue, isNested, palette.background.textSecondary, paperSx, placeholder, props.autoFocus, t]);
 
     // If no options were passed (not even an empty array), then we probably don't want to see it
     const PopperComponent = useMemo(() => options !== undefined ? FullWidthPopper : NoPopper, [options]);

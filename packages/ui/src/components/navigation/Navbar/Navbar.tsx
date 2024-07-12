@@ -200,7 +200,7 @@ export const Navbar = forwardRef(({
             zIndex,
             ...sxs?.appBar,
         } as const;
-    }, []);
+    }, [palette.primary.dark, sxs?.appBar]);
 
     return (
         <Box

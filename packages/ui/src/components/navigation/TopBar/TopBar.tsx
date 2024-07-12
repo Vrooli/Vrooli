@@ -1,5 +1,6 @@
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { forwardRef } from "react";
+import { randomString } from "utils/codes";
 import { Navbar } from "../Navbar/Navbar";
 import { TopBarProps } from "../types";
 
@@ -16,7 +17,7 @@ export const TopBar = forwardRef(({
     if (display === "dialog") return (
         <DialogTitle
             ref={ref}
-            id={titleData?.titleId ?? Math.random().toString(36).substring(2, 15)}
+            id={titleData?.titleId ?? randomString()}
             {...titleData}
         />
     );
