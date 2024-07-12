@@ -9,12 +9,13 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
 import { Testimonials } from "components/Testimonials/Testimonials";
-import { Field, Formik } from "formik";
+import { Field, Formik, FormikHelpers } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { formNavLink, formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useWindowSize } from "hooks/useWindowSize";
 import { EmailIcon, UserIcon } from "icons";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
@@ -23,78 +24,116 @@ import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
 import { SignupViewProps } from "views/types";
 
-const SignupForm = () => {
+type FormInput = EmailSignUpInput & {
+    agreeToTerms: boolean;
+}
+
+const initialValues: FormInput = {
+    agreeToTerms: false,
+    marketingEmails: true,
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    theme: "",
+};
+
+const baseFormStyle = {
+    ...formPaper,
+    paddingBottom: "unset",
+} as const;
+
+const logInLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+} as const;
+
+const forgotPasswordLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+    flexDirection: "row-reverse",
+} as const;
+
+const nameInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <UserIcon />
+        </InputAdornment>
+    ),
+} as const;
+
+const emailInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <EmailIcon />
+        </InputAdornment>
+    ),
+} as const;
+
+function SignupForm() {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointPostAuthEmailSignup);
 
+    const handleSubmit = useCallback(function handleSubmitCallback(values: FormInput, helpers: FormikHelpers<FormInput>) {
+        if (values.password !== values.confirmPassword) {
+            PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
+            helpers.setSubmitting(false);
+            return;
+        }
+        fetchLazyWrapper<EmailSignUpInput, Session>({
+            fetch: emailSignUp,
+            inputs: {
+                name: values.name,
+                email: values.email,
+                password: values.password,
+                confirmPassword: values.confirmPassword,
+                marketingEmails: Boolean(values.marketingEmails),
+                theme: palette.mode ?? "light",
+            },
+            onSuccess: (data) => {
+                removeCookie("FormData"); // Clear old form data cache
+                setupPush(false);
+                PubSub.get().publish("session", data);
+                PubSub.get().publish("celebration", { targetId: "sign-up-button" });
+                PubSub.get().publish("alertDialog", {
+                    messageKey: "WelcomeVerifyEmail",
+                    messageVariables: { appName: BUSINESS_NAME },
+                    buttons: [{
+                        labelKey: "Ok", onClick: () => {
+                            setLocation(LINKS.Home);
+                            PubSub.get().publish("tutorial");
+                        },
+                    }],
+                });
+            },
+            onError: (response) => {
+                if (hasErrorCode(response, "EmailInUse")) {
+                    PubSub.get().publish("alertDialog", {
+                        messageKey: "EmailInUseWrongPassword",
+                        buttons: [
+                            { labelKey: "Yes", onClick: () => { setLocation(LINKS.ForgotPassword); } },
+                            { labelKey: "No" },
+                        ],
+                    });
+                }
+                helpers.setSubmitting(false);
+            },
+        });
+    }, [emailSignUp, palette.mode, setLocation]);
+
     return (
         <>
             <Formik
-                initialValues={{
-                    agreeToTerms: false,
-                    marketingEmails: true,
-                    name: "",
-                    email: "",
-                    password: "",
-                    confirmPassword: "",
-                }}
-                onSubmit={(values, helpers) => {
-                    if (values.password !== values.confirmPassword) {
-                        PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
-                        helpers.setSubmitting(false);
-                        return;
-                    }
-                    fetchLazyWrapper<EmailSignUpInput, Session>({
-                        fetch: emailSignUp,
-                        inputs: {
-                            name: values.name,
-                            email: values.email,
-                            password: values.password,
-                            confirmPassword: values.confirmPassword,
-                            marketingEmails: Boolean(values.marketingEmails),
-                            theme: palette.mode ?? "light",
-                        },
-                        onSuccess: (data) => {
-                            removeCookie("FormData"); // Clear old form data cache
-                            setupPush(false);
-                            PubSub.get().publish("session", data);
-                            PubSub.get().publish("celebration", { targetId: "sign-up-button" });
-                            PubSub.get().publish("alertDialog", {
-                                messageKey: "WelcomeVerifyEmail",
-                                messageVariables: { appName: BUSINESS_NAME },
-                                buttons: [{
-                                    labelKey: "Ok", onClick: () => {
-                                        setLocation(LINKS.Home);
-                                        PubSub.get().publish("tutorial");
-                                    },
-                                }],
-                            });
-                        },
-                        onError: (response) => {
-                            if (hasErrorCode(response, "EmailInUse")) {
-                                PubSub.get().publish("alertDialog", {
-                                    messageKey: "EmailInUseWrongPassword",
-                                    buttons: [
-                                        { labelKey: "Yes", onClick: () => { setLocation(LINKS.ForgotPassword); } },
-                                        { labelKey: "No" },
-                                    ],
-                                });
-                            }
-                            helpers.setSubmitting(false);
-                        },
-                    });
-                }}
+                initialValues={initialValues}
+                onSubmit={handleSubmit}
                 validationSchema={emailSignUpFormValidation}
             >
                 {(formik) => <BaseForm
                     display={"dialog"}
                     isLoading={loading}
-                    style={{
-                        ...formPaper,
-                        paddingBottom: "unset",
-                    }}
+                    style={baseFormStyle}
                 >
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
@@ -106,13 +145,7 @@ const SignupForm = () => {
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <UserIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={nameInputProps}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -123,13 +156,7 @@ const SignupForm = () => {
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <EmailIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={emailInputProps}
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
@@ -194,7 +221,7 @@ const SignupForm = () => {
                                     }
                                 />
                                 <FormHelperText>
-                                    {formik.touched.agreeToTerms && !formik.values.agreeToTerms && "You must agree to the terms and conditions"}
+                                    {formik.touched.agreeToTerms !== true && "You must agree to the terms and conditions"}
                                 </FormHelperText>
                             </FormControl>
                         </Grid>
@@ -218,21 +245,14 @@ const SignupForm = () => {
                     }}>
                         <Link href={LINKS.Login}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                }}
+                                sx={logInLinkStyle}
                             >
                                 {t("LogIn")}
                             </Typography>
                         </Link>
                         <Link href={LINKS.ForgotPassword}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                    flexDirection: "row-reverse",
-                                }}
+                                sx={forgotPasswordLinkStyle}
                             >
                                 {t("ForgotPassword")}
                             </Typography>
@@ -242,23 +262,25 @@ const SignupForm = () => {
             </Formik>
         </>
     );
-};
+}
 
 const blueRadial = "radial-gradient(circle, rgb(6 46 46) 12%, rgb(1 36 36) 52%, rgb(3 20 20) 80%)";
 
-const ImageWithCaption = ({ src, alt, caption }) => (
-    <Box sx={{
-        flex: "0 0 auto",
-        margin: "0 10px",
-        minWidth: { xs: "250px", lg: "300px" },
-        maxWidth: { xs: "250px", lg: "300px" },
-    }}>
-        <img src={src} alt={alt} style={{ width: "100%", borderRadius: "8px" }} />
-        <Typography variant="caption" align="center" sx={{ whiteSpace: "nowrap" }}>{caption}</Typography>
-    </Box>
-);
+function ImageWithCaption({ src, alt, caption }) {
+    return (
+        <Box sx={{
+            flex: "0 0 auto",
+            margin: "0 10px",
+            minWidth: { xs: "250px", lg: "300px" },
+            maxWidth: { xs: "250px", lg: "300px" },
+        }}>
+            <img src={src} alt={alt} style={{ width: "100%", borderRadius: "8px" }} />
+            <Typography variant="caption" align="center" sx={{ whiteSpace: "nowrap" }}>{caption}</Typography>
+        </Box>
+    );
+}
 
-const Promo = () => {
+function Promo() {
     return (
         <>
             <RandomBlobs numberOfBlobs={5} />
@@ -316,12 +338,12 @@ const Promo = () => {
             </Box>
         </>
     );
-};
+}
 
-export const SignupView = ({
+export function SignupView({
     display,
     onClose,
-}: SignupViewProps) => {
+}: SignupViewProps) {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
     const isXs = useWindowSize(({ width }) => width <= breakpoints.values.sm);
@@ -364,7 +386,7 @@ export const SignupView = ({
             </Box>
         </Box>
     );
-};
+}
 
 
 // // Wallet provider popups

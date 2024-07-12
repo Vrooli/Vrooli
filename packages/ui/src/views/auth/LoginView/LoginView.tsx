@@ -30,6 +30,22 @@ const initialValues = {
     password: "",
 };
 
+const baseFormStyle = {
+    ...formPaper,
+    paddingBottom: "unset",
+} as const;
+
+const forgotPasswordLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+} as const;
+
+const signUpLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+    flexDirection: "row-reverse",
+} as const;
+
 const emailStartAdornment = {
     startAdornment: (
         <InputAdornment position="start">
@@ -138,10 +154,7 @@ function LoginForm({
                 {(formik) => <BaseForm
                     display={"dialog"}
                     isLoading={loading}
-                    style={{
-                        ...formPaper,
-                        paddingBottom: "unset",
-                    }}
+                    style={baseFormStyle}
                 >
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
@@ -172,7 +185,7 @@ function LoginForm({
                         type="submit"
                         color="secondary"
                         variant='contained'
-                        sx={{ ...formSubmit }}
+                        sx={formSubmit}
                     >
                         {t("LogIn")}
                     </Button>
@@ -184,21 +197,14 @@ function LoginForm({
                     >
                         <Link href={LINKS.ForgotPassword}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                }}
+                                sx={forgotPasswordLinkStyle}
                             >
                                 {t("ForgotPassword")}
                             </Typography>
                         </Link>
                         <Link href={LINKS.Signup}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                    flexDirection: "row-reverse",
-                                }}
+                                sx={signUpLinkStyle}
                             >
                                 {t("SignUp")}
                             </Typography>
