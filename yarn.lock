@@ -12306,7 +12306,7 @@ react-beautiful-dnd@^13.1.1:
     redux "^4.0.4"
     use-memo-one "^1.1.1"
 
-react-big-calendar@^1.6.8:
+react-big-calendar@^1.13.0:
   version "1.13.0"
   resolved "https://registry.yarnpkg.com/react-big-calendar/-/react-big-calendar-1.13.0.tgz#94de6559071a7f7ebb869de0d23025d22eef7750"
   integrity sha512-3ewolEKeBC5CjuxxDbo+IfQXjcd6jIBLSOoMzn1/lVMf+BYhPneifuOjMseXCIIaA4UlGZcy625BIdYgtAx+cA==

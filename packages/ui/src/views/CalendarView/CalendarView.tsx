@@ -1,5 +1,5 @@
 import { calculateOccurrences, CalendarEvent, Schedule } from "@local/shared";
-import { Box, Breakpoints, IconButton, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, styled, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -11,95 +11,187 @@ import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
 import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Calendar, dateFnsLocalizer, DateLocalizer, Navigate, Views } from "react-big-calendar";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Calendar, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
+import { SideActionsButton } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
-import { CalendarPageTabOption, calendarTabParams } from "utils/search/objectToSearch";
+import { calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleUpsert } from "views/objects/schedule";
+import { ScheduleForType } from "views/objects/schedule/types";
 import { CalendarViewProps } from "views/types";
 
-const sectionStyle = (breakpoints: Breakpoints, spacing: any) => ({
+const views = {
+    month: true,
+    week: true,
+    day: true,
+} as const;
+
+const DEFAULT_START_HOUR = 9;
+const DEFAULT_DURATION_HOURS = 1;
+
+const ToolbarBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0 16px",
+    [theme.breakpoints.down(400)]: {
+        flexDirection: "column",
+    },
+}));
+
+const ToolbarSection = styled(Box)(({ theme }) => ({
     display: "flex",
     alignItems: "center",
-    [breakpoints.down("sm")]: {
+    [theme.breakpoints.down("sm")]: {
         width: "100%",
         justifyContent: "space-evenly",
-        marginBottom: spacing(1),
+        marginBottom: theme.spacing(1),
     },
-});
+}));
+
+const dateLabelBoxStyle = {
+    cursor: "pointer",
+    position: "relative",
+    display: "inline-block",
+} as const;
+
+const dateInputStyle = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0,
+    cursor: "pointer",
+} as const;
+
+type CustomToolbarProps = CalendarToolbarProps & {
+    onSelectDate: (date: Date) => unknown;
+}
 
 /**
  * Toolbar for changing calendar view and navigating between dates
  */
-function CustomToolbar(props) {
-    const { breakpoints, palette, spacing } = useTheme();
+function CustomToolbar({
+    date,
+    label,
+    onNavigate,
+    onSelectDate,
+    onView,
+}: CustomToolbarProps) {
+    const { palette } = useTheme();
     const { t } = useTranslation();
-    const { label, onView, view, onNavigate } = props;
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
-    const navigate = (action) => {
+    const handleDateChange = useCallback(function handleDateChangeCallback(event: React.ChangeEvent<HTMLInputElement>) {
+        const inputDate = event.target.value; // This is in YYYY-MM-DD format
+        const [year, month, day] = inputDate.split("-").map(Number);
+        const newDate = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+
+        if (!isNaN(newDate.getTime())) {
+            onNavigate(Navigate.DATE, newDate);
+            onSelectDate(newDate);
+        }
+    }, [onNavigate, onSelectDate]);
+
+    const openDatePicker = useCallback(function openDatePickerCallback() {
+        if (dateInputRef.current) {
+            dateInputRef.current.showPicker();
+        }
+    }, []);
+
+    const navigate = useCallback(function navigateCallback(action) {
         onNavigate(action);
-    };
+    }, [onNavigate]);
 
-    const changeView = (nextView) => {
+    const changeView = useCallback(function changeViewCallback(nextView) {
         onView(nextView);
-    };
+    }, [onView]);
+
+    function toToday() {
+        navigate(Navigate.TODAY);
+    }
+    function toPrevious() {
+        navigate(Navigate.PREVIOUS);
+    }
+    function toNext() {
+        navigate(Navigate.NEXT);
+    }
+
+    function toMonth() {
+        changeView(Views.MONTH);
+    }
+    function toWeek() {
+        changeView(Views.WEEK);
+    }
+    function toDay() {
+        changeView(Views.DAY);
+    }
 
     return (
-        <Box sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "0 16px",
-            [breakpoints.down(400)]: {
-                flexDirection: "column",
-            },
-        }}>
-            <Box sx={sectionStyle(breakpoints, spacing)}>
+        <ToolbarBox>
+            <ToolbarSection>
                 <Tooltip title={t("Today")}>
-                    <IconButton onClick={() => navigate(Navigate.TODAY)}>
+                    <IconButton onClick={toToday}>
                         <TodayIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Previous")}>
-                    <IconButton onClick={() => navigate(Navigate.PREVIOUS)}>
+                    <IconButton onClick={toPrevious}>
                         <ArrowLeftIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Next")}>
-                    <IconButton onClick={() => navigate(Navigate.NEXT)}>
+                    <IconButton onClick={toNext}>
                         <ArrowRightIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
-            </Box>
+            </ToolbarSection>
 
-            <Box sx={sectionStyle(breakpoints, spacing)}>
-                <span>{label}</span>
-            </Box>
-
-            <Box sx={sectionStyle(breakpoints, spacing)}>
+            <ToolbarSection>
+                <Box
+                    onClick={openDatePicker}
+                    sx={dateLabelBoxStyle}
+                >
+                    {label}
+                    <input
+                        ref={dateInputRef}
+                        type="date"
+                        value={date.toISOString().split("T")[0]}
+                        onChange={handleDateChange}
+                        style={dateInputStyle}
+                    />
+                </Box>
+            </ToolbarSection>
+            <ToolbarSection>
                 <Tooltip title={t("Month")}>
-                    <IconButton onClick={() => changeView(Views.MONTH)}>
+                    <IconButton onClick={toMonth}>
                         <MonthIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Week")}>
-                    <IconButton onClick={() => changeView(Views.WEEK)}>
+                    <IconButton onClick={toWeek}>
                         <WeekIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Day")}>
-                    <IconButton onClick={() => changeView(Views.DAY)}>
+                    <IconButton onClick={toDay}>
                         <DayIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
-            </Box>
-        </Box >
+            </ToolbarSection>
+        </ToolbarBox>
     );
 }
+
+const dayColumnHeaderBoxStyle = {
+    textAlign: "center",
+    fontWeight: "bold",
+} as const;
 
 /**
  * Day header for Month view. Use
@@ -109,14 +201,13 @@ function DayColumnHeader({ label }) {
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
 
     return (
-        <Box sx={{
-            textAlign: "center",
-            fontWeight: "bold",
-        }}>
+        <Box sx={dayColumnHeaderBoxStyle}>
             {isMobile ? getShortenedLabel(label) : label}
         </Box>
     );
 }
+
+const outerBoxStyle = { maxHeight: "100vh", overflow: "hidden" } as const;
 
 export function CalendarView({
     display,
@@ -132,6 +223,18 @@ export function CalendarView({
         start: startOfMonth(new Date()),
         end: endOfMonth(new Date()),
     });
+    const [view, setView] = useState<View>(Views.MONTH);
+    const handleViewChange = useCallback((nextView: View) => {
+        setView(nextView);
+    }, []);
+
+    const [selectedDateTime, setSelectedDateTime] = useState<Date | null>(null);
+    const handleSelectSlot = useCallback((slot: SlotInfo) => {
+        setSelectedDateTime(slot.start);
+    }, []);
+    const handleSelectDate = useCallback((date: Date) => {
+        setSelectedDateTime(date);
+    }, []);
 
     useEffect(() => {
         async function localeLoader() {
@@ -216,7 +319,7 @@ export function CalendarView({
     useEffect(() => {
         let isCancelled = false;
 
-        const fetchEvents = async () => {
+        async function fetchEvents() {
             if (!dateRange.start || !dateRange.end) {
                 setEvents([]);
                 return;
@@ -241,7 +344,7 @@ export function CalendarView({
             if (!isCancelled) {
                 setEvents(result);
             }
-        };
+        }
 
         fetchEvents();
 
@@ -250,7 +353,6 @@ export function CalendarView({
         };
     }, [dateRange.end, dateRange.start, schedules, session]);
 
-
     const openEvent = useCallback((event: any) => {
         console.log("CalendarEvent clicked:", event);
     }, []);
@@ -258,58 +360,127 @@ export function CalendarView({
     // Handle scheduling
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-    const handleAddSchedule = () => { setIsScheduleDialogOpen(true); };
-    const handleUpdateSchedule = (schedule: Schedule) => {
+    const handleAddSchedule = useCallback(function handleAddScheduleCallback() {
+        setIsScheduleDialogOpen(true);
+    }, []);
+    const handleUpdateSchedule = useCallback(function handleUpdateScheduleCallback(schedule: Schedule) {
         setEditingSchedule(schedule);
         setIsScheduleDialogOpen(true);
-    };
-    const handleCloseScheduleDialog = () => { setIsScheduleDialogOpen(false); };
-    const handleScheduleCompleted = (created: Schedule) => {
+    }, []);
+    const handleCloseScheduleDialog = useCallback(function handleCloseScheduleDialogCallback() {
+        setIsScheduleDialogOpen(false);
+    }, []);
+    const handleScheduleCompleted = useCallback(function handleScheduleCompletedCallback(created: Schedule) {
         //TODO update schedule
         setIsScheduleDialogOpen(false);
-    };
-    const handleScheduleDeleted = (deleted: Schedule) => {
+    }, []);
+    const handleScheduleDeleted = useCallback(function handleScheduleDeletedCallback(deleted: Schedule) {
         //TODO delete schedule
         setIsScheduleDialogOpen(false);
-    };
+    }, []);
 
-    const activeDayStyle = {
-        background: palette.mode === "dark" ? palette.primary.main : undefined,
-        color: palette.mode === "dark" ? palette.primary.contrastText : undefined,
-    };
-    const outOfRangeDayStyle = {
-        background: palette.mode === "dark" ? palette.background.default : palette.grey[400],
-    };
+    const activeDayStyle = useMemo(function activeDayStyleMemo() {
+        return {
+            background: palette.mode === "dark" ? palette.primary.main : undefined,
+            color: palette.mode === "dark" ? palette.primary.contrastText : undefined,
+        } as const;
+    }, [palette.mode, palette.primary.contrastText, palette.primary.main]);
+    const outOfRangeDayStyle = useMemo(function outOfRangeDayStyleMemo() {
+        return {
+            background: palette.mode === "dark" ? palette.background.default : palette.grey[400],
+        } as const;
+    }, [palette.background.default, palette.grey, palette.mode]);
 
-    const dayPropGetter = (date) => {
+    const dayPropGetter = useCallback(function dayPropGetterCallback(date: Date) {
         const now = new Date();
-        // Check if the date is the current day
-        if (date.getDate() === now.getDate() &&
-            date.getMonth() === now.getMonth() &&
-            date.getFullYear() === now.getFullYear()) {
-            return {
-                style: activeDayStyle,
-            };
+        let style: React.CSSProperties = { cursor: "pointer " };
+        // Handle styling for the current date
+        const isCurrentDate = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        if (isCurrentDate) {
+            style = { ...style, ...activeDayStyle };
         }
-        // If the date is not in the current month, apply the outOfRangeDayStyle
+        // Handle styling for selected date. This only applies for the "month" view
+        const isSelectedDate = selectedDateTime && date.toDateString() === selectedDateTime.toDateString();
+        if (isSelectedDate && view === "month") {
+            style = { ...style, border: `2px solid ${palette.secondary.main}` };
+        }
+        // Handle styling for dates outside of the current month
         if (dateRange.start && dateRange.end) {
             const midRange = new Date((dateRange.start.getTime() + dateRange.end.getTime()) / 2);
             if (date.getMonth() !== midRange.getMonth()) {
-                return {
-                    style: outOfRangeDayStyle,
+                style = { ...style, ...outOfRangeDayStyle };
+            }
+        }
+        return { style };
+    }, [activeDayStyle, dateRange.end, dateRange.start, outOfRangeDayStyle, palette.secondary.main, selectedDateTime, view]);
+
+    const slotPropGetter = useCallback((date: Date) => {
+        let style: React.CSSProperties = {};
+        // Handle selected hour styling for the day and week views
+        if (selectedDateTime && view !== "month") {
+            const selectedHour = selectedDateTime.getHours();
+            const slotHour = date.getHours();
+            const isSameDay = date.toDateString() === selectedDateTime.toDateString();
+
+            if (isSameDay && slotHour === selectedHour) {
+                style = {
+                    ...style,
+                    backgroundColor: palette.secondary.light,
+                    borderLeft: `4px solid ${palette.secondary.main}`,
                 };
             }
         }
-        return {};
-    };
+
+        return { style };
+    }, [selectedDateTime, view, palette.secondary]);
+
+    const calendarComponents = useMemo(function calendarComponentsMemo() {
+        return {
+            toolbar: (props: CalendarToolbarProps) => <CustomToolbar {...props} onSelectDate={handleSelectDate} />,
+            month: {
+                header: DayColumnHeader,
+            },
+        };
+    }, [handleSelectDate]);
+
+    const calendarStyle = useMemo(function calendarStyleMemo() {
+        return {
+            height: calendarHeight,
+            maxHeight: calendarHeight,
+            background: palette.background.paper,
+        } as const;
+    }, [calendarHeight, palette.background.paper]);
+
+    const scheduleOverrideObject = useMemo(function scheduleOverrideObjectMemo() {
+        if (editingSchedule) {
+            return editingSchedule;
+        }
+        const defaultSchedule: Partial<Schedule> = { __typename: "Schedule" } as const;
+        if (selectedDateTime) {
+            const startDate = new Date(selectedDateTime);
+            const endDate = new Date(selectedDateTime);
+
+            if (view === "month") {
+                startDate.setHours(DEFAULT_START_HOUR, 0, 0, 0);
+                endDate.setHours(DEFAULT_START_HOUR + DEFAULT_DURATION_HOURS, 0, 0, 0);
+            } else if (view === "week") {
+                endDate.setHours(startDate.getHours() + DEFAULT_DURATION_HOURS);
+            } else {
+                endDate.setHours(startDate.getHours() + DEFAULT_DURATION_HOURS);
+            }
+
+            defaultSchedule.startTime = startDate.toISOString();
+            defaultSchedule.endTime = endDate.toISOString();
+        }
+        return defaultSchedule;
+    }, [editingSchedule, selectedDateTime, view]);
 
     if (!localizer) return <FullPageSpinner />;
     return (
-        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+        <Box sx={outerBoxStyle}>
             <ScheduleUpsert
-                canChangeTab
-                canSetScheduleFor
-                defaultTab={currTab.key === "All" ? CalendarPageTabOption.Meeting : currTab.key}
+                canSetScheduleFor={true}
+                defaultScheduleFor={currTab.key === "All" ? "Meeting" : currTab.key as ScheduleForType}
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={true}
@@ -318,7 +489,7 @@ export function CalendarView({
                 onClose={handleCloseScheduleDialog}
                 onCompleted={handleScheduleCompleted}
                 onDeleted={handleScheduleDeleted}
-                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+                overrideObject={scheduleOverrideObject}
             />
             <TopBar
                 ref={ref}
@@ -339,35 +510,26 @@ export function CalendarView({
                 events={events}
                 onRangeChange={handleDateRangeChange}
                 onSelectEvent={openEvent}
+                onSelectSlot={handleSelectSlot}
+                onView={handleViewChange}
                 startAccessor="start"
                 endAccessor="end"
-                components={{
-                    toolbar: CustomToolbar,
-                    month: {
-                        header: DayColumnHeader,
-                    },
-                }}
+                components={calendarComponents}
                 dayPropGetter={dayPropGetter}
-                style={{
-                    height: calendarHeight,
-                    maxHeight: calendarHeight,
-                    background: palette.background.paper,
-                }}
+                selectable={true}
+                slotPropGetter={slotPropGetter}
+                style={calendarStyle}
+                view={view}
+                views={views}
             />
             {/* Add event button */}
             <SideActionsButtons display={display}>
-                <IconButton
+                <SideActionsButton
                     aria-label={t("CreateEvent")}
                     onClick={handleAddSchedule}
-                    sx={{
-                        background: palette.secondary.main,
-                        padding: 0,
-                        width: "54px",
-                        height: "54px",
-                    }}
                 >
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons>
         </Box>
     );
