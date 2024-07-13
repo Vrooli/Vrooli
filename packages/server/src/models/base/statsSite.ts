@@ -37,8 +37,12 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
             id: true,
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: () => ({}),
         },
     }),

@@ -40,8 +40,16 @@ export const StatsUserModel: StatsUserModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["PrismaSelect"]>([["user", "User"]], ...rest),
         visibility: {
-            private: { user: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
-            public: { user: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    user: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    user: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ user: ModelMap.get<UserModelLogic>("User").validate().visibility.owner(userId) }),
         },
     }),

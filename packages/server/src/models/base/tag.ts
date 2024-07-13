@@ -97,8 +97,12 @@ export const TagModel: TagModelLogic = ({
         isPublic: () => true,
         profanityFields: ["tag"],
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: () => ({}),
         },
     }),

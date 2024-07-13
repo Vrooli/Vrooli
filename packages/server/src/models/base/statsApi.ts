@@ -40,8 +40,16 @@ export const StatsApiModel: StatsApiModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsApiModelInfo["PrismaSelect"]>([["api", "Api"]], ...rest),
         visibility: {
-            private: { api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.private },
-            public: { api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId) }),
         },
     }),

@@ -59,8 +59,16 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<RunRoutineStepModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
-            private: { runRoutine: { isPrivate: true } },
-            public: { runRoutine: { isPrivate: false } },
+            private: function getVisibilityPrivate() {
+                return {
+                    runRoutine: { isPrivate: true },
+                };
+            },
+            public: function getVisibilityPublic() {
+                return {
+                    runRoutine: { isPrivate: false },
+                };
+            },
             owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().visibility.owner(userId) }),
         },
     }),

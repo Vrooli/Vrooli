@@ -71,7 +71,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
                     // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), //TODO needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ProjectVersionPre;
@@ -83,7 +83,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Project", parentRelationshipName: "versions", data, ...rest }),
                     // ...(await shapeHelper({ relation: "suggestedNextByProject", relTypes: ['Connect', 'Disconnect'], isOneToOne: false,   objectType: 'ProjectVersionEndNext', parentRelationshipName: 'fromProjectVersion', data, ...rest })), needs join table
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -296,21 +296,25 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                OR: [
-                    { isPrivate: true },
-                    { root: { isPrivate: true } },
-                ],
+            private: function getVisibilityPrivate() {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    OR: [
+                        { isPrivate: true },
+                        { root: { isPrivate: true } },
+                    ],
+                };
             },
-            public: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                AND: [
-                    { isPrivate: false },
-                    { root: { isPrivate: false } },
-                ],
+            public: function getVisibilityPublic() {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    AND: [
+                        { isPrivate: false },
+                        { root: { isPrivate: false } },
+                    ],
+                };
             },
             owner: (userId) => ({
                 root: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId),

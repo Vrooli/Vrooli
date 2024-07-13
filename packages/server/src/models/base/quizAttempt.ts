@@ -81,8 +81,12 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
             }),

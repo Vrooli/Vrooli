@@ -82,8 +82,12 @@ export const FocusModeModel: FocusModeModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 user: { id: userId },
             }),

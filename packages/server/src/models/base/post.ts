@@ -118,8 +118,18 @@ export const PostModel: PostModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: { isPrivate: true, isDeleted: false },
-            public: { isPrivate: false, isDeleted: false },
+            private: function getVisibilityPrivate() {
+                return {
+                    isDeleted: false,
+                    isPrivate: true,
+                };
+            },
+            public: function getVisibilityPublic() {
+                return {
+                    isDeleted: false,
+                    isPrivate: false,
+                };
+            },
             owner: (userId) => ({
                 OR: [
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

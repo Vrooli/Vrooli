@@ -251,8 +251,12 @@ export const BookmarkModel: BookmarkModelLogic = ({
             ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 list: ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate().visibility.owner(userId),
             }),

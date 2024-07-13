@@ -60,8 +60,12 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 OR: [
                     { user: { id: userId } },

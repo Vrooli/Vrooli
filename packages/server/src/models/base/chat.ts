@@ -449,8 +449,12 @@ export const ChatModel: ChatModelLogic = ({
             } : {}),
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 creator: { id: userId },
             }),

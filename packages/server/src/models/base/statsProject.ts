@@ -40,8 +40,16 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["PrismaSelect"]>([["project", "Project"]], ...rest),
         visibility: {
-            private: { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private },
-            public: { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId) }),
         },
     }),

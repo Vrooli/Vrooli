@@ -56,8 +56,16 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<ScheduleRecurrenceModelInfo["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
-            private: { schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.private },
-            public: { schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.owner(userId) }),
         },
     }),

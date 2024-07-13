@@ -8,7 +8,7 @@ import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { labelShapeHelper } from "../../utils/shapes";
 import { ScheduleFormat } from "../formats";
-import { ScheduleModelInfo, ScheduleModelLogic } from "./types";
+import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
     FocusMode: "focusModes",
@@ -112,16 +112,26 @@ export const ScheduleModel: ScheduleModelLogic = ({
             ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: {
-                OR: [
-                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private })),
-                ],
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private(...params) })),
+                    ],
+                };
             },
-            public: {
-                // Can use OR because only one relation will be present
-                OR: [
-                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.public })),
-                ],
+            public: function getVisibilityPublic(...params) {
+                return {
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({
+                            // Custom validation for meetings
+                            // [value]: ModelMap.get(key as GqlModelType).validate().visibility.public 
+                            [value]: key === "Meeting"
+                                ? (ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility as any).attendingOrInvited(...params)
+                                : ModelMap.get(key as GqlModelType).validate().visibility.public(...params),
+                        })),
+                    ],
+                };
             },
             owner: (userId) => ({
                 OR: [

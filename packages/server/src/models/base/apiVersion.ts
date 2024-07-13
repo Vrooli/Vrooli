@@ -157,21 +157,25 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                OR: [
-                    { isPrivate: true },
-                    { root: { isPrivate: true } },
-                ],
+            private: function getVisibilityPrivate() {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    OR: [
+                        { isPrivate: true },
+                        { root: { isPrivate: true } },
+                    ],
+                };
             },
-            public: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                AND: [
-                    { isPrivate: false },
-                    { root: { isPrivate: false } },
-                ],
+            public: function getVisibilityPublic() {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    AND: [
+                        { isPrivate: false },
+                        { root: { isPrivate: false } },
+                    ],
+                };
             },
             owner: (userId) => ({
                 root: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId),

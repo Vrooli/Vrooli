@@ -44,8 +44,16 @@ export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeRoutineListModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: { node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.private },
-            public: { node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.owner(userId) }),
         },
     }),

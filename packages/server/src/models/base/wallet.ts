@@ -58,8 +58,12 @@ export const WalletModel: WalletModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false, // Can make public in the future for donations, but for now keep private for security
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 OR: [
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

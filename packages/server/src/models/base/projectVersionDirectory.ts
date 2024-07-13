@@ -67,8 +67,12 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
             projectVersion: "ProjectVersion",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().visibility.owner(userId),
             }),

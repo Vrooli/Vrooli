@@ -50,8 +50,12 @@ export const PaymentModel: PaymentModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 OR: [
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

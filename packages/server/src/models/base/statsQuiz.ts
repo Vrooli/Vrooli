@@ -40,8 +40,16 @@ export const StatsQuizModel: StatsQuizModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsQuizModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         visibility: {
-            private: { quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.private },
-            public: { quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId) }),
         },
     }),

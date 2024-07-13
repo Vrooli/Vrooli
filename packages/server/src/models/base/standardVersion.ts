@@ -265,21 +265,25 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                OR: [
-                    { isPrivate: true },
-                    { root: { isPrivate: true } },
-                ],
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    OR: [
+                        { isPrivate: true },
+                        { root: { isPrivate: true } },
+                    ],
+                };
             },
-            public: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                AND: [
-                    { isPrivate: false },
-                    { root: { isPrivate: false } },
-                ],
+            public: function getVisibilityPublic(...params) {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    AND: [
+                        { isPrivate: false },
+                        { root: { isPrivate: false } },
+                    ],
+                };
             },
             owner: (userId) => ({
                 root: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId),

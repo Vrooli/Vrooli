@@ -73,8 +73,16 @@ export const RoleModel: RoleModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
-            public: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
         },
     }),

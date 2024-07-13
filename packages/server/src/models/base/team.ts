@@ -299,8 +299,16 @@ export const TeamModel: TeamModelLogic = ({
             } : {}),
         }),
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: function getVisibilityPrivate() {
+                return {
+                    isPrivate: true,
+                };
+            },
+            public: function getVisibilityPublic() {
+                return {
+                    isPrivate: false,
+                };
+            },
             owner: (userId) => ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
         },
     }),

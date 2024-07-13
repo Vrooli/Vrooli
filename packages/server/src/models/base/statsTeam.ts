@@ -40,8 +40,16 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsTeamModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
-            public: { team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
         },
     }),

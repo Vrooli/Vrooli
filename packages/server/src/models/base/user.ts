@@ -190,8 +190,16 @@ export const UserModel: UserModelLogic = ({
         isPublic: (data) => data.isPrivate === false,
         profanityFields: ["name", "handle"],
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: function getVisibilityPrivate() {
+                return {
+                    isPrivate: true,
+                };
+            },
+            public: function getVisibilityPublic() {
+                return {
+                    isPrivate: false,
+                };
+            },
             owner: (userId) => ({
                 OR: [
                     { id: userId },

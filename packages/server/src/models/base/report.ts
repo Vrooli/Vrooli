@@ -153,8 +153,12 @@ export const ReportModel: ReportModelLogic = ({
         isPublic: () => true,
         profanityFields: ["reason", "details"],
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({ createdBy: { id: userId } }),
         },
     }),

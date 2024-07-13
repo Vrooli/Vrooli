@@ -74,8 +74,12 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             quizAttempt: "QuizAttempt",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 quizAttempt: ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate().visibility.owner(userId),
             }),

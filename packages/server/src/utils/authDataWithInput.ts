@@ -12,7 +12,12 @@ import { InputsById } from "./types";
  * default handle it), then unexpected results may occur. This means it's safer to provide as much 
  * data as possible when creating an object.
  */
-export const authDataWithInput = (input: string | object, existingData: object, inputsById: InputsById, authDataById: AuthDataById): object => {
+export function authDataWithInput(
+    input: string | object,
+    existingData: object,
+    inputsById: InputsById,
+    authDataById: AuthDataById,
+): object {
     // If input is a string, it's an ID, so get the input object
     if (typeof input === "string") {
         input = inputsById[input]?.input ?? {};
@@ -78,4 +83,4 @@ export const authDataWithInput = (input: string | object, existingData: object, 
         }
     }
     return combined;
-};
+}

@@ -323,8 +323,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             ),
         profanityFields: ["name"],
         visibility: {
-            private: { isPrivate: true },
-            public: { isPrivate: false },
+            private: function getVisibilityPrivate() {
+                return {
+                    isPrivate: true,
+                };
+            },
+            public: function getVisibilityPublic() {
+                return {
+                    isPrivate: false,
+                };
+            },
             owner: (userId) => ({
                 OR: [
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

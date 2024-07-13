@@ -46,8 +46,16 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().isDeleted(data.link as NodeLinkModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLinkWhenModelInfo["PrismaSelect"]>([["link", "NodeLink"]], ...rest),
         visibility: {
-            private: { link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.private },
-            public: { link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.owner(userId) }),
         },
     }),

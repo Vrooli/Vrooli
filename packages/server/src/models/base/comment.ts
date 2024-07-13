@@ -192,21 +192,21 @@ export const CommentModel: CommentModelLogic = ({
                 sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
             }, info, nestLimit) : [];
             // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
-            const flattenThreads = (threads: CommentThread[]) => {
+            function flattenThreads(threads: CommentThread[]) {
                 const result: Comment[] = [];
                 for (const thread of threads) {
                     result.push(thread.comment);
                     result.push(...flattenThreads(thread.childThreads));
                 }
                 return result;
-            };
+            }
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
             comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
             comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
-            const shapeThreads = (threads: CommentThread[]) => {
+            function shapeThreads(threads: CommentThread[]) {
                 const result: CommentThread[] = [];
                 for (const thread of threads) {
                     // Find current-level comment
@@ -223,7 +223,7 @@ export const CommentModel: CommentModelLogic = ({
                     });
                 }
                 return result;
-            };
+            }
             const threads = shapeThreads(childThreads);
             // Return result
             return {
@@ -311,8 +311,12 @@ export const CommentModel: CommentModelLogic = ({
             ["standardVersion", "StandardVersion"],
         ], ...rest),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({ ownedByUser: { id: userId } }),
         },
     }),
