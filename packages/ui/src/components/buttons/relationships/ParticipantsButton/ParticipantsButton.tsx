@@ -1,7 +1,6 @@
 import { ChatParticipant } from "@local/shared";
 import { Avatar, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { RelationshipItemUser } from "components/lists/types";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField, useFormikContext } from "formik";
 import { AddIcon, BotIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
@@ -10,15 +9,15 @@ import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { ParticipantManageView } from "views/ParticipantManageView/ParticipantManageView";
 import { ParticipantManageViewProps } from "views/types";
-import { commonLabelProps, smallButtonProps } from "../styles";
+import { smallButtonProps } from "../styles";
 import { ParticipantsButtonProps } from "../types";
 
 const maxIconsDisplayed = 4;
 
-export const ParticipantsButton = ({
+export function ParticipantsButton({
     isEditing,
     objectType,
-}: ParticipantsButtonProps) => {
+}: ParticipantsButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -93,7 +92,7 @@ export const ParticipantsButton = ({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="participants" sx={{ ...commonLabelProps() }}>{t("Participant", { count: 2 })}</TextShrink>
+                {/* <TextShrink id="participants" sx={{ ...commonLabelProps() }}>{t("Participant", { count: 2 })}</TextShrink> */}
                 <IconButton
                     sx={{
                         ...smallButtonProps(isEditing, true),
@@ -119,4 +118,4 @@ export const ParticipantsButton = ({
             </Stack>
         </>
     );
-};
+}

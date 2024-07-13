@@ -1,5 +1,5 @@
 import { exists, noop } from "@local/shared";
-import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemMeeting } from "components/lists/types";
@@ -9,30 +9,25 @@ import { AddIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { highlightStyle } from "styles";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { largeButtonProps } from "../styles";
+import { RelationshipButton, RelationshipChip } from "../styles";
 import { MeetingButtonProps } from "../types";
 
-export const MeetingButton = ({
+export function MeetingButton({
     isEditing,
-    objectType,
-}: MeetingButtonProps) => {
+}: MeetingButtonProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [field, , helpers] = useField("meeting");
 
-    const isAvailable = useMemo(() => ["Schedule"].includes(objectType) && ["boolean", "object"].includes(typeof field.value), [objectType, field.value]);
-
     // Meeting dialog
-    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
-        if (!isAvailable) return;
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
+    const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         ev.stopPropagation();
         const meeting = field?.value;
         // If not editing, navigate to meeting
@@ -47,7 +42,7 @@ export const MeetingButton = ({
             // Otherwise, open select dialog
             else setDialogOpen(true);
         }
-    }, [isAvailable, field?.value, isEditing, setLocation, helpers]);
+    }, [field?.value, isEditing, setLocation, helpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((meeting: RelationshipItemMeeting) => {
         const meetingId = field?.value?.id;
@@ -61,65 +56,67 @@ export const MeetingButton = ({
         if (isDialogOpen) return ["Meeting", handleSelect, closeDialog];
         return [null, noop, noop];
     }, [isDialogOpen, handleSelect, closeDialog]);
+    const limitTo = useMemo(function limitToMemo() {
+        return findType ? [findType] : [];
+    }, [findType]);
 
-    const { Icon, tooltip } = useMemo(() => {
+    const { Icon, label, tooltip } = useMemo(() => {
         const meeting = field?.value;
-        // If no data, marked as unset
-        if (!meeting) return {
-            Icon: AddIcon,
-            tooltip: t(`MeetingTogglePress${isEditing ? "Editable" : ""}`),
-        };
+        // If no data,
+        if (!meeting) {
+            // If not editing, don't show anything
+            if (!isEditing) return {
+                Icon: undefined,
+                label: null,
+                tooltip: null,
+            };
+            // Otherwise, mark as unset
+            return {
+                Icon: AddIcon,
+                label: "Add meeting",
+                tooltip: t(`MeetingTogglePress${isEditing ? "Editable" : ""}`),
+            };
+        }
         const meetingName = firstString(getTranslation(meeting as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 }));
         return {
             Icon: TeamIcon,
+            label: firstString(getTranslation(field?.value as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 })),
             tooltip: t(`MeetingTogglePress${isEditing ? "Editable" : ""}`, { meeting: meetingName }),
         };
     }, [field?.value, isEditing, languages, t]);
 
-    // If not available, return null
-    if (!isAvailable || (!isEditing && !Icon)) return null;
-    return (
-        <>
-            {/* Popup for selecting focus mode */}
-            {findType && <FindObjectDialog
-                find="List"
-                isOpen={Boolean(findType)}
-                handleCancel={findHandleClose}
-                handleComplete={findHandleAdd}
-                limitTo={[findType]}
-            />}
-            <Stack
-                direction="column"
-                alignItems="center"
-                justifyContent="center"
-                sx={{
-                    marginTop: "auto",
-                }}
-            >
+    // If not editing and no focus mode, return null
+    if (!isEditing && !Icon) return null;
+    // If editing, return button and popups for choosing owner type and owner
+    if (isEditing) {
+        return (
+            <>
+                {/* Popup for selecting focus mode */}
+                {findType && <FindObjectDialog
+                    find="List"
+                    isOpen={Boolean(findType)}
+                    handleCancel={findHandleClose}
+                    handleComplete={findHandleAdd}
+                    limitTo={limitTo}
+                />}
                 <Tooltip title={tooltip}>
-                    <Stack
-                        direction="row"
-                        justifyContent="center"
-                        alignItems="center"
+                    <RelationshipButton
                         onClick={handleClick}
-                        sx={{
-                            borderRadius: 8,
-                            paddingRight: 2,
-                            ...largeButtonProps(isEditing, true),
-                            ...highlightStyle(palette.primary.light, !isEditing),
-                        }}
+                        startIcon={Icon && <Icon />}
+                        variant="outlined"
                     >
-                        {Icon && (
-                            <IconButton>
-                                <Icon width={"48px"} height={"48px"} fill="white" />
-                            </IconButton>
-                        )}
-                        <Typography variant="body1" sx={{ color: "white" }}>
-                            {firstString(getTranslation(field?.value as RelationshipItemMeeting, languages, true).name, t("Meeting", { count: 1 }))}
-                        </Typography>
-                    </Stack>
+                        {label}
+                    </RelationshipButton>
                 </Tooltip>
-            </Stack>
-        </>
+            </>
+        );
+    }
+    // Otherwise, return chip
+    return (
+        <RelationshipChip
+            icon={Icon && <Icon />}
+            label={label}
+            onClick={handleClick}
+        />
     );
-};
+}

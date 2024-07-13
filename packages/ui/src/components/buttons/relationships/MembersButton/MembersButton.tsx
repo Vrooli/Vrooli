@@ -1,7 +1,6 @@
 import { User } from "@local/shared";
 import { Avatar, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { RelationshipItemUser } from "components/lists/types";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { useField, useFormikContext } from "formik";
 import { AddIcon, BotIcon, LockIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
@@ -10,15 +9,15 @@ import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { MemberManageView } from "views/MemberManageView/MemberManageView";
 import { MemberManageViewProps } from "views/types";
-import { commonLabelProps, smallButtonProps } from "../styles";
+import { smallButtonProps } from "../styles";
 import { MembersButtonProps } from "../types";
 
 const maxIconsDisplayed = 4;
 
-export const MembersButton = ({
+export function MembersButton({
     isEditing,
     objectType,
-}: MembersButtonProps) => {
+}: MembersButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -98,7 +97,7 @@ export const MembersButton = ({
                 alignItems="center"
                 justifyContent="center"
             >
-                <TextShrink id="members" sx={{ ...commonLabelProps() }}>{t("Member", { count: 2 })}</TextShrink>
+                {/* <TextShrink id="members" sx={{ ...commonLabelProps() }}>{t("Member", { count: 2 })}</TextShrink> */}
                 <IconButton
                     sx={{
                         ...smallButtonProps(isEditing, true),
@@ -124,4 +123,4 @@ export const MembersButton = ({
             </Stack>
         </>
     );
-};
+}

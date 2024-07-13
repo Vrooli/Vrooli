@@ -1,5 +1,5 @@
 import { LINKS, noop } from "@local/shared";
-import { IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemFocusMode } from "components/lists/types";
@@ -9,17 +9,14 @@ import { AddIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { highlightStyle } from "styles";
 import { getFocusModeInfo } from "utils/authentication/session";
-import { largeButtonProps } from "../styles";
+import { RelationshipButton, RelationshipChip } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
-export const FocusModeButton = ({
+export function FocusModeButton({
     isEditing,
-    objectType,
-}: FocusModeButtonProps) => {
+}: FocusModeButtonProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -29,14 +26,9 @@ export const FocusModeButton = ({
     const [focusModeField, , focusModeHelpers] = useField("focusMode");
     const [reminderListField, , reminderListHelpers] = useField("reminderList");
 
-    const isAvailable = useMemo(() =>
-        (objectType === "Reminder" && reminderListField.value !== undefined) ||
-        (objectType === "Schedule" && focusModeField.value !== undefined)
-        , [objectType, reminderListField.value, focusModeField.value]);
-
     // Focus mode dialog
-    const [isDialogOpen, setDialogOpen] = useState<boolean>(false); const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
-        if (!isAvailable) return;
+    const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
+    const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
         ev.stopPropagation();
         // Find current focus mode, either from focusModeField or by finding the correct focus mode in allFocusModes that has the reminder list
         const focusMode = focusModeField?.value ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
@@ -53,7 +45,7 @@ export const FocusModeButton = ({
             // Otherwise, open select dialog
             else setDialogOpen(true);
         }
-    }, [isAvailable, focusModeField.value, allFocusModes, isEditing, reminderListField?.value, setLocation, focusModeHelpers]);
+    }, [focusModeField.value, allFocusModes, isEditing, reminderListField?.value, setLocation, focusModeHelpers]);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, [setDialogOpen]);
     const handleSelect = useCallback((focusMode: RelationshipItemFocusMode) => {
         if (focusModeField.value !== undefined && focusModeHelpers) focusModeHelpers.setValue(focusMode);
@@ -70,66 +62,67 @@ export const FocusModeButton = ({
         if (isDialogOpen) return ["FocusMode", handleSelect, closeDialog];
         return [null, noop, noop];
     }, [isDialogOpen, handleSelect, closeDialog]);
+    const limitTo = useMemo(function limitToMemo() {
+        return findType ? [findType] : [];
+    }, [findType]);
 
-    const { Icon, tooltip } = useMemo(() => {
+    const { Icon, label, tooltip } = useMemo(() => {
         const focusMode = focusModeField?.value ?? reminderListField?.value?.focusMode ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
-        // If no data, marked as unset
-        if (!focusMode) return {
-            Icon: AddIcon,
-            tooltip: t(`FocusModeNoneTogglePress${isEditing ? "Editable" : ""}`),
-        };
+        // If no data,
+        if (!focusMode) {
+            // If not editing, don't show anything
+            if (!isEditing) return {
+                Icon: undefined,
+                label: null,
+                tooltip: null,
+            };
+            // Otherwise, mark as unset
+            return {
+                Icon: AddIcon,
+                label: "Add focus mode",
+                tooltip: t(`FocusModeNoneTogglePress${isEditing ? "Editable" : ""}`),
+            };
+        }
         const focusModeName = focusMode?.name ?? "";
         return {
             Icon: FocusModeIcon,
+            label: focusModeField?.value?.name ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id)?.name ?? t("FocusMode", { count: 1 }),
             tooltip: t(`FocusModeTogglePress${isEditing ? "Editable" : ""}`, { focusMode: focusModeName }),
         };
     }, [focusModeField?.value, reminderListField?.value?.focusMode, reminderListField?.value?.id, allFocusModes, t, isEditing]);
 
-    // If not available, return null
-    if (!isAvailable || (!isEditing && !Icon)) return null;
-    return (
-        <>
-            {/* Popup for selecting focus mode */}
-            {findType && <FindObjectDialog
-                find="List"
-                isOpen={Boolean(findType)}
-                handleCancel={findHandleClose}
-                handleComplete={findHandleAdd}
-                limitTo={[findType]}
-            />}
-            <Stack
-                direction="column"
-                alignItems="center"
-                justifyContent="center"
-                sx={{
-                    marginTop: "auto",
-                    cursor: "pointer",
-                }}
-            >
+    // If not editing and no focus mode, return null
+    if (!isEditing && !Icon) return null;
+    // If editing, return button and popups for choosing owner type and owner
+    if (isEditing) {
+        return (
+            <>
+                {/* Popup for selecting focus mode */}
+                {findType && <FindObjectDialog
+                    find="List"
+                    isOpen={Boolean(findType)}
+                    handleCancel={findHandleClose}
+                    handleComplete={findHandleAdd}
+                    limitTo={limitTo}
+                />}
                 <Tooltip title={tooltip}>
-                    <Stack
-                        direction="row"
-                        justifyContent="center"
-                        alignItems="center"
+                    <RelationshipButton
                         onClick={handleClick}
-                        sx={{
-                            borderRadius: 8,
-                            paddingRight: 2,
-                            ...largeButtonProps(isEditing, true),
-                            ...highlightStyle(palette.primary.light, !isEditing),
-                        }}
+                        startIcon={Icon && <Icon />}
+                        variant="outlined"
                     >
-                        {Icon && (
-                            <IconButton>
-                                <Icon width={"48px"} height={"48px"} fill="white" />
-                            </IconButton>
-                        )}
-                        <Typography variant="body1" sx={{ color: "white" }}>
-                            {focusModeField?.value?.name ?? allFocusModes.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id)?.name ?? t("FocusMode", { count: 1 })}
-                        </Typography>
-                    </Stack>
+                        {label}
+                    </RelationshipButton>
                 </Tooltip>
-            </Stack>
-        </>
+            </>
+        );
+    }
+    // Otherwise, return chip
+    return (
+        <RelationshipChip
+            icon={Icon && <Icon />}
+            label={label}
+            onClick={handleClick}
+        />
     );
-};
+}
