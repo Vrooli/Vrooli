@@ -17,9 +17,9 @@ interface ResetPasswordFormProps {
     onClose?: () => unknown;
 }
 
-const ResetPasswordForm = ({
+function ResetPasswordForm({
     onClose,
-}: ResetPasswordFormProps) => {
+}: ResetPasswordFormProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailResetPassword, { loading }] = useLazyFetch<EmailResetPasswordInput, Session>(endpointPostAuthEmailResetPassword);
@@ -105,7 +105,7 @@ const ResetPasswordForm = ({
             </Formik>
         </>
     );
-};
+}
 
 export const ResetPasswordView = ({
     display,

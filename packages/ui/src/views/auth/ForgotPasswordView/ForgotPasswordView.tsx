@@ -17,9 +17,9 @@ interface ForgotPasswordFormProps {
     onClose?: () => unknown;
 }
 
-const ForgotPasswordForm = ({
+function ForgotPasswordForm({
     onClose,
-}: ForgotPasswordFormProps) => {
+}: ForgotPasswordFormProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailRequestPasswordChange, { loading }] = useLazyFetch<EmailRequestPasswordChangeInput, Success>(endpointPostAuthEmailRequestPasswordChange);
@@ -119,7 +119,7 @@ const ForgotPasswordForm = ({
             </Formik>
         </>
     );
-};
+}
 
 export const ForgotPasswordView = ({
     display,
