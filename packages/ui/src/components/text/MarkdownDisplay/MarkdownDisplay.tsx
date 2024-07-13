@@ -1,5 +1,5 @@
 import { endpointGetApi, endpointGetChat, endpointGetCode, endpointGetComment, endpointGetNote, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetStandard, endpointGetTag, endpointGetTeam, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, Typography, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
@@ -11,6 +11,19 @@ import { getDisplay } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 
+function Heading({ children, level, ...props }) {
+    return (
+        <Typography
+            variant={`h${Math.min(level + 2, 6)}` as TypographyProps["variant"]}
+            component={`h${level}` as TypographyProps["component"]}
+            marginTop={level === 1 ? 0 : 4}
+            {...props}
+        >
+            {children}
+        </Typography>
+    );
+}
+
 /** Pretty code block with copy button */
 function CodeBlock({ children }) {
     const textRef = useRef<HTMLElement | null>(null);
@@ -18,14 +31,14 @@ function CodeBlock({ children }) {
     useEffect(() => {
         let isMounted = true;
 
-        const loadHighlightJs = async () => {
+        async function loadHighlightJs() {
             const hljs = (await import("highlight.js")).default;
             await import("highlight.js/styles/monokai-sublime.css");
 
             if (textRef.current && isMounted) {
                 hljs.highlightBlock(textRef.current);
             }
-        };
+        }
 
         loadHighlightJs();
 
@@ -344,58 +357,66 @@ export function MarkdownDisplay({
     const id = useMemo(() => uuid(), []);
 
     // Add overrides for custom components
-    const options = {
-        overrides: {
-            code: CodeBlock,
-            blockquote: Blockquote,
-            a: withCustomLinkProps({}),
-            spoiler: {
-                component: Spoiler,
-            },
-            input: withCustomCheckboxProps({
-                onChange: (checkboxId: string, updatedState: boolean) => {
-                    if (!content || !onChange) return;
-                    // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
-                    const markdownComponent = document.getElementById(id);
-                    if (!markdownComponent) return;
-                    // Use a tree walker to find all checkboxes
-                    const treeWalker = document.createTreeWalker(
-                        markdownComponent,
-                        NodeFilter.SHOW_ELEMENT,
-                        {
-                            acceptNode: (node: Node) => {
-                                // Check if the node is an input element before checking its type
-                                if ((node as HTMLInputElement).nodeName === "INPUT" && (node as HTMLInputElement).type === "checkbox") {
-                                    return NodeFilter.FILTER_ACCEPT;
-                                } else {
-                                    return NodeFilter.FILTER_SKIP;
-                                }
-                            },
-                        },
-                    );
-                    const checkboxes: Node[] = [];
-                    while (treeWalker.nextNode()) {
-                        checkboxes.push(treeWalker.currentNode);
-                    }
-                    // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
-                    const checkboxIds = checkboxes.map(checkbox => checkbox.id);
-                    // Find the index of the checkbox that was clicked
-                    const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
-                    // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
-                    const checkboxLocations = parseMarkdownCheckboxes(content);
-                    if (checkboxIndex >= checkboxLocations.length) {
-                        console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
-                        return;
-                    }
-                    // Replace the checkbox in the content with the updated checkbox
-                    const checkboxStart = checkboxLocations[checkboxIndex];
-                    const newCheckbox = updatedState ? "[x]" : "[ ]";
-                    const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
-                    onChange(newContent);
+    const options = useMemo(function optionsMemo() {
+        return {
+            overrides: {
+                code: CodeBlock,
+                blockquote: Blockquote,
+                a: withCustomLinkProps({}),
+                spoiler: {
+                    component: Spoiler,
                 },
-            }),
-        },
-    };
+                input: withCustomCheckboxProps({
+                    onChange: (checkboxId: string, updatedState: boolean) => {
+                        if (!content || !onChange) return;
+                        // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
+                        const markdownComponent = document.getElementById(id);
+                        if (!markdownComponent) return;
+                        // Use a tree walker to find all checkboxes
+                        const treeWalker = document.createTreeWalker(
+                            markdownComponent,
+                            NodeFilter.SHOW_ELEMENT,
+                            {
+                                acceptNode: (node: Node) => {
+                                    // Check if the node is an input element before checking its type
+                                    if ((node as HTMLInputElement).nodeName === "INPUT" && (node as HTMLInputElement).type === "checkbox") {
+                                        return NodeFilter.FILTER_ACCEPT;
+                                    } else {
+                                        return NodeFilter.FILTER_SKIP;
+                                    }
+                                },
+                            },
+                        );
+                        const checkboxes: Node[] = [];
+                        while (treeWalker.nextNode()) {
+                            checkboxes.push(treeWalker.currentNode);
+                        }
+                        // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
+                        const checkboxIds = checkboxes.map(checkbox => checkbox.id);
+                        // Find the index of the checkbox that was clicked
+                        const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
+                        // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
+                        const checkboxLocations = parseMarkdownCheckboxes(content);
+                        if (checkboxIndex >= checkboxLocations.length) {
+                            console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
+                            return;
+                        }
+                        // Replace the checkbox in the content with the updated checkbox
+                        const checkboxStart = checkboxLocations[checkboxIndex];
+                        const newCheckbox = updatedState ? "[x]" : "[ ]";
+                        const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
+                        onChange(newContent);
+                    },
+                }),
+                h1: { component: Heading, props: { level: 1 } },
+                h2: { component: Heading, props: { level: 2 } },
+                h3: { component: Heading, props: { level: 3 } },
+                h4: { component: Heading, props: { level: 4 } },
+                h5: { component: Heading, props: { level: 5 } },
+                h6: { component: Heading, props: { level: 6 } },
+            },
+        };
+    }, [content, id, onChange]);
 
     // Preprocess the Markdown content
     const processedContent = processMarkdown(content ?? "");

@@ -1,4 +1,4 @@
-import { Box, useTheme } from "@mui/material";
+import { Box, styled } from "@mui/material";
 import termsMarkdown from "assets/policy/terms.md";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -14,15 +14,28 @@ import { BUSINESS_DATA } from "..";
 import { PolicyTabOption } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";
 
-export const TermsView = ({
+const OuterBox = styled(Box)(({ theme }) => ({
+    // eslint-disable-next-line no-magic-numbers
+    padding: theme.spacing(4),
+    borderRadius: "12px",
+    overflow: "overlay",
+    background: theme.palette.background.paper,
+    color: theme.palette.background.textPrimary,
+    marginTop: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        marginTop: 0,
+        borderRadius: 0,
+    },
+}));
+
+export function TermsView({
     display,
     onClose,
-}: TermsViewProps) => {
-    const { palette } = useTheme();
+}: TermsViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
-    const terms = useMarkdown(termsMarkdown, (markdown) => {
+    const content = useMarkdown(termsMarkdown, (markdown) => {
         const business_fields = Object.keys(convertToDot(BUSINESS_DATA));
         business_fields.forEach(f => {
             const regex = new RegExp(`<${f}>`, "g");
@@ -43,6 +56,8 @@ export const TermsView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Terms")}
+                titleBehaviorDesktop="Hide"
+                titleBehaviorMobile="Hide"
                 below={<PageTabs
                     ariaLabel="privacy policy and terms tabs"
                     currTab={currTab}
@@ -51,9 +66,9 @@ export const TermsView = ({
                     tabs={tabs}
                 />}
             />
-            <Box p={2} sx={{ background: palette.background.paper }}>
-                <MarkdownDisplay content={terms} />
-            </Box>
+            <OuterBox>
+                <MarkdownDisplay content={content} />
+            </OuterBox>
         </>
     );
-};
+}
