@@ -14,20 +14,24 @@ export type PageTab<TabList extends TabsInfo> = Omit<TabParam<TabList>, "color" 
     searchPlaceholder: string,
 };
 
+type UseTabsProps<TabList extends TabsInfo = TabsInfo> = {
+    defaultTab?: TabList["Key"] | `${TabList["Key"]}`,
+    disableHistory?: boolean,
+    display: ViewDisplayType,
+    id: string,
+    tabParams: readonly TabParam<TabList>[],
+}
+
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
 export const useTabs = <TabList extends TabsInfo>({
     defaultTab,
+    disableHistory,
     display,
     id,
     tabParams,
-}: {
-    defaultTab?: TabList["Key"] | `${TabList["Key"]}`,
-    display: ViewDisplayType,
-    id: string,
-    tabParams: readonly TabParam<TabList>[],
-}) => {
+}: UseTabsProps<TabList>) => {
     const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -43,7 +47,7 @@ export const useTabs = <TabList extends TabsInfo>({
     }, [palette, t, tabParams]);
 
     const [currTab, setCurrTab] = useState<PageTab<TabList>>(() => {
-        const storedKey = getCookie("LastTab", id);
+        const storedKey = disableHistory ? undefined : getCookie("LastTab", id);
         if (display !== "page") {
             const defaultIndex = tabs.findIndex(tab => tab.key === (storedKey || defaultTab));
             return tabs[defaultIndex !== -1 ? defaultIndex : 0];
@@ -66,7 +70,9 @@ export const useTabs = <TabList extends TabsInfo>({
     const handleTabChange = useCallback((e: ChangeEvent<unknown> | undefined, tab: PageTab<TabList>) => {
         e?.preventDefault();
         if (display === "page") addSearchParams(setLocation, { type: tab.key });
-        setCookie("LastTab", tab.key, id);
+        if (!disableHistory) {
+            setCookie("LastTab", tab.key, id);
+        }
         setCurrTab(tab);
     }, [display, setLocation, id]);
 

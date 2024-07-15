@@ -409,7 +409,7 @@ export function SignupView({
         currTab,
         handleTabChange,
         tabs,
-    } = useTabs({ id: "sign-up-tabs", tabParams: signUpTabParams, display });
+    } = useTabs({ id: "sign-up-tabs", tabParams: signUpTabParams, disableHistory: true, display });
 
     const innerBoxStyle = useMemo(function innerBoxStyleMemo() {
         if (isMobile) {
