@@ -42,18 +42,28 @@ export function useEditableLabel({
         }
     }, [isEditable, submitLabelChange, label]);
 
-    const startEditingLabel = useCallback(() => {
+    const startEditingLabel = useCallback((event: React.MouseEvent<HTMLElement>) => {
         if (!isEditable) return;
         setIsEditingLabel(true);
-        // Focus the input field
+
+        // Calculate click position relative to the label
+        const labelElement = event.currentTarget;
+        const clickX = event.clientX - labelElement.getBoundingClientRect().left;
+        const textWidth = labelElement.offsetWidth;
+        const textLength = label.length;
+        const estimatedIndex = Math.round((clickX / textWidth) * textLength);
+
+        // Focus the input field and set cursor position
         setTimeout(() => {
-            if (!labelEditRef.current) {
-                console.error("labelEditRef.current is null - unable to focus");
+            const inputElement = labelEditRef.current?.querySelector("input");
+            if (!inputElement) {
+                console.error("inputElement is null - unable to focus");
                 return;
             }
-            labelEditRef.current.focus();
+            inputElement.focus();
+            inputElement.setSelectionRange(estimatedIndex, estimatedIndex);
         });
-    }, [isEditable]);
+    }, [isEditable, label]);
 
     return {
         editedLabel,
