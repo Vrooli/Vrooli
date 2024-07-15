@@ -1,4 +1,4 @@
-import { Button, FormControl, FormControlLabel, FormHelperText, IconButton, Radio, RadioGroup, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, FormControl, FormControlLabel, FormHelperText, IconButton, Radio, RadioGroup, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { RadioFormInput, RadioFormInputProps } from "forms/types";
 import { AddIcon, CloseIcon, DragIcon } from "icons";
@@ -7,6 +7,14 @@ import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautif
 import { randomString } from "utils/codes";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
+
+const DefaultWarningLabel = styled(Typography)(({ theme }) => ({
+    marginLeft: "12px",
+    marginBottom: "8px",
+    display: "block",
+    fontStyle: "italic",
+    color: theme.palette.background.textSecondary,
+}));
 
 const formControlStyle = { m: "12px" } as const;
 const optionTextFieldStyle = {
@@ -156,7 +164,9 @@ export function FormInputRadio({
                                                         ...providedDrag.draggableProps.style,
                                                         display: "flex",
                                                         alignItems: "center",
-                                                        marginBottom: "8px", // Add some spacing between items
+                                                        // Add some spacing between items
+                                                        marginBottom: props.row ? 0 : "8px",
+                                                        marginRight: props.row ? "8px" : 0,
                                                     }}
                                                 >
                                                     <FormControlLabel
@@ -243,17 +253,9 @@ export function FormInputRadio({
     return (
         <div>
             {RadioElement}
-            {isEditing && typeof props.defaultValue === "string" && props.defaultValue.length > 0 && <Typography
-                variant="caption"
-                style={{
-                    marginLeft: "12px",
-                    marginBottom: "8px",
-                    display: "block",
-                    fontStyle: "italic",
-                    color: palette.background.textSecondary,
-                }}>
+            {isEditing && typeof props.defaultValue === "string" && props.defaultValue.length > 0 && <DefaultWarningLabel variant="caption">
                 &quot;{props.options.find((option) => option.value === props.defaultValue)?.label ?? "Option"}&quot; will be selected by default when the form is used.
-            </Typography>}
+            </DefaultWarningLabel>}
             <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}

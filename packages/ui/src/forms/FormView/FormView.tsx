@@ -1,13 +1,13 @@
 import { InputType, mergeDeep, noop, noopSubmit } from "@local/shared";
-import { Box, BoxProps, Divider, Grid, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { FormInput, GeneratedGridItem, NormalizedGridContainer, normalizeFormContainers } from "components/inputs/form";
+import { FormInput } from "components/inputs/form";
 import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
 import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
 import { CreateFormInputProps, createFormInput, generateInitialValues, generateYupSchema } from "forms/generators";
-import { FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormViewProps } from "forms/types";
+import { FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormViewProps, GridContainer } from "forms/types";
 import { usePopover } from "hooks/usePopover";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CaseSensitiveIcon, DragIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, HeaderIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
@@ -16,23 +16,86 @@ import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } 
 import { randomString } from "utils/codes";
 import { FormStructureType } from "utils/consts";
 
-type FormCategoryType = {
-    category: string,
-    items: { type: never }[],
+/**
+ * Function to convert a FormSchema into an array of containers with start and end indices for rendering.
+ * @param formSchema The schema defining the form layout, containers, and elements.
+ * @returns An array of containers with start and end indices for the elements in each container. 
+ * If no containers are provided, returns one container covering all elements. 
+ * Ensures valid ranges for each container.
+ */
+export function normalizeFormContainers(
+    formSchema: Partial<Pick<FormSchema, "containers" | "elements">>,
+): GridContainer[] {
+    if (typeof formSchema !== "object" || formSchema === null) {
+        // If the schema is not an object, return an empty array
+        return [];
+    }
+
+    const { elements, containers } = formSchema;
+
+    if (!Array.isArray(elements) || elements.length === 0) {
+        // If there are no elements, return an empty array
+        return [];
+    }
+
+    if (!Array.isArray(containers) || containers.length === 0) {
+        // If no containers are provided, return one container for all elements
+        return [{
+            totalItems: elements.length,
+        }];
+    }
+
+    const gridContainers: GridContainer[] = [];
+    let currentIndex = 0;
+
+    containers.forEach(container => {
+        if (currentIndex >= elements.length) {
+            // If the current index is beyond the elements length, break the loop
+            return;
+        }
+
+        const endIndex = Math.min(currentIndex + container.totalItems - 1, elements.length - 1);
+
+        gridContainers.push({
+            ...container,
+            totalItems: endIndex - currentIndex + 1,
+        });
+
+        currentIndex = endIndex + 1;
+    });
+
+    // Ensure all elements are covered in case totalItems were more than elements length
+    if (currentIndex < elements.length) {
+        gridContainers.push({
+            totalItems: elements.length - currentIndex,
+        });
+    }
+
+    return gridContainers;
 }
+
+type PopoverListInput = {
+    category: string;
+    items: readonly { type: InputType; icon: React.ReactNode; label: string }[];
+}[]
+
+type PopoverListStructure = {
+    category: string;
+    items: readonly { type: FormStructureType; icon: React.ReactNode; label: string; tag?: FormHeaderType["tag"] }[];
+}[]
 
 /**
  * Applies restrictions to the available form element types in 
  * one of the form builder popover categories
  */
-function filterCategory<T extends FormCategoryType[]>(
+function filterCategory<T extends PopoverListInput | PopoverListStructure>(
     category: T[0],
     limits: FormBuildViewProps["limits"],
     popover: "inputs" | "structures",
 ) {
     if (limits?.[popover]?.types) {
         // Filter items based on the limits.input array
-        const filteredItems = category.items.filter(item => limits?.[popover]?.types?.includes(item.type));
+        const filteredItems = category.items.filter(item => limits?.[popover]?.types?.includes(item.type as never));
 
         // If filteredItems is not empty, return category with filtered items
         if (filteredItems.length > 0) {
@@ -105,6 +168,7 @@ const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as cons
 
 interface PopoverListItemProps {
     icon: React.ReactNode;
+    key: string;
     label: string;
     tag?: FormHeaderType["tag"];
     type: FormElement["type"];
@@ -115,6 +179,7 @@ interface PopoverListItemProps {
 
 const PopoverListItem = memo(function PopoverListItemMemo({
     icon,
+    key,
     label,
     onAddDivider,
     onAddHeader,
@@ -122,6 +187,7 @@ const PopoverListItem = memo(function PopoverListItemMemo({
     tag,
     type,
 }: PopoverListItemProps) {
+    console.log("routinegenerateform popoverkey", key);
     const handleClick = useCallback(() => {
         if (type === "Divider") {
             onAddDivider();
@@ -139,6 +205,7 @@ const PopoverListItem = memo(function PopoverListItemMemo({
     return (
         <ListItem
             button
+            key={key}
             onClick={handleClick}
         >
             <ListItemIcon>{icon}</ListItemIcon>
@@ -156,13 +223,12 @@ const FormHelperText = styled(Typography)(({ theme }) => ({
 const formDividerStyle = { marginBottom: 2 } as const;
 
 //TODO: Allow titles to collapse sections below them. Need to update the way inputs are rendered so that they're nested within the header using a collapsibetext component
-//TODO pass in state as props and add callback to update
-//TODO create FormView component which switches between build and run mode, and hook to handle creating and passing in form state
 export function FormBuildView({
     limits,
     onSchemaChange,
     schema,
 }: FormBuildViewProps) {
+    console.log("rendering FormBuildView", schema);
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
@@ -191,20 +257,28 @@ export function FormBuildView({
             ...element,
             id: Date.now().toString(),
         } as unknown as FormElement;
-        const newElements = [...schema.elements];
+        const newElements = [...schema.elements ?? []];
         if (selectedElementIndex !== null) {
             newElements.splice(selectedElementIndex + 1, 0, newElement);
         } else {
             newElements.push(newElement);
         }
-        onSchemaChange({ ...schema, elements: newElements });
+        onSchemaChange({
+            ...schema,
+            containers: normalizeFormContainers(schema),
+            elements: newElements,
+        });
         setSelectedElementIndex(newElements.length - 1);
     }, [onSchemaChange, schema, selectedElementIndex]);
 
     const handleDeleteElement = useCallback(function handleDeleteElementCallback(index: number) {
-        const newElements = [...schema.elements];
+        const newElements = [...schema.elements ?? []];
         newElements.splice(index, 1);
-        onSchemaChange({ ...schema, elements: newElements });
+        onSchemaChange({
+            ...schema,
+            containers: normalizeFormContainers(schema),
+            elements: newElements,
+        });
         // Set the selection to the next element if there is one
         if (index < newElements.length) {
             setSelectedElementIndex(index);
@@ -258,12 +332,12 @@ export function FormBuildView({
                 ],
             },
         ] as const).reduce((acc, category) => {
-            const filteredCategory = filterCategory<typeof inputItems>(category, limits, "inputs");
+            const filteredCategory = filterCategory<PopoverListInput>(category, limits, "inputs");
             if (filteredCategory) {
                 acc.push(filteredCategory);
             }
             return acc;
-        }, [] as typeof inputItems);
+        }, [] as PopoverListInput);
     }, [limits]);
 
     const structureItems = useMemo(function structureItemsMemo() {
@@ -271,24 +345,24 @@ export function FormBuildView({
             {
                 category: "Headers",
                 items: [
-                    { type: "Header", tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
-                    { type: "Header", tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
-                    { type: "Header", tag: "h3", icon: <Header3Icon />, label: "Header (Medium)" },
-                    { type: "Header", tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
+                    { type: FormStructureType.Header, tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
+                    { type: FormStructureType.Header, tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
+                    { type: FormStructureType.Header, tag: "h3", icon: <Header3Icon />, label: "Header (Medium)" },
+                    { type: FormStructureType.Header, tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
                 ],
             }, {
                 category: "Page Elements",
                 items: [
-                    { type: "Divider", icon: <MinusIcon />, label: "Divider" },
+                    { type: FormStructureType.Divider, icon: <MinusIcon />, label: "Divider" },
                 ],
             },
         ] as const).reduce((acc, category) => {
-            const filteredCategory = filterCategory<typeof inputItems>(category, limits, "structures");
+            const filteredCategory = filterCategory<PopoverListStructure>(category, limits, "structures");
             if (filteredCategory) {
                 acc.push(filteredCategory);
             }
             return acc;
-        }, [] as typeof inputItems);
+        }, [] as PopoverListStructure);
     }, [limits]);
 
     const handleAddInput = useCallback(function handleAddInputCallback(data: Omit<Partial<FormInputType>, "type"> & { type: InputType }) {
@@ -308,7 +382,11 @@ export function FormBuildView({
     const handleUpdateInput = useCallback(function handleUpdateInputCallback(index: number, data: Partial<FormInputType>) {
         const element = mergeDeep(data, schema.elements[index] as FormInputType);
         const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)] as FormElement[];
-        onSchemaChange({ ...schema, elements: newElements });
+        onSchemaChange({
+            ...schema,
+            containers: normalizeFormContainers(schema),
+            elements: newElements,
+        });
     }, [onSchemaChange, schema]);
 
     const handleAddHeader = useCallback(function handleAddHeaderCallback(data: Partial<FormHeaderType>) {
@@ -328,7 +406,11 @@ export function FormBuildView({
             ...data,
         };
         const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)] as FormElement[];
-        onSchemaChange({ ...schema, elements: newElements });
+        onSchemaChange({
+            ...schema,
+            containers: normalizeFormContainers(schema),
+            elements: newElements,
+        });
     }, [onSchemaChange, schema]);
 
     const handleAddDivider = useCallback(function handleAddDividerCallback() {
@@ -345,7 +427,11 @@ export function FormBuildView({
         const newElements = [...schema.elements];
         const [removed] = newElements.splice(source.index, 1);
         newElements.splice(destination.index, 0, removed);
-        onSchemaChange({ ...schema, elements: newElements });
+        onSchemaChange({
+            ...schema,
+            containers: normalizeFormContainers(schema),
+            elements: newElements,
+        });
         setSelectedElementIndex(destination.index);
     }, [onSchemaChange, schema]);
 
@@ -359,7 +445,7 @@ export function FormBuildView({
             selectElement(index);
         }
         function onElementButtonKeyDown(e: React.KeyboardEvent) {
-            if (e.key === "Enter" || e.key === " ") {
+            if (!isSelected && (e.key === "Enter" || e.key === " ")) {
                 e.preventDefault();
                 selectElement(index);
             }
@@ -443,7 +529,7 @@ export function FormBuildView({
             }
         }
 
-        const numStructureItems = structureItems.length;
+        const numStructureItems = structureItems.reduce((acc, { items }) => acc + items.length, 0);
         const firstStructureItem = numStructureItems === 1 ? structureItems[0].items[0] : null;
         const DisplayedStructureIcon = firstStructureItem ? (() => firstStructureItem.icon) : HeaderIcon;
         function structureOnClick(event: React.MouseEvent<HTMLElement>) {
@@ -464,22 +550,23 @@ export function FormBuildView({
                     {isMobile ? <IconButton onClick={inputOnClick}>
                         <DisplayedInputIcon width={24} height={24} />
                     </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={inputOnClick}>
-                        {numInputItems === 1 ? `Add ${inputItems[0].items[0].label.toLowerCase()}` : "Add input"}
+                        {numInputItems === 1 && firstInputItem ? `Add ${firstInputItem.label.toLowerCase()}` : "Add input"}
                     </Typography>}
                 </>}
                 {numStructureItems > 0 && <>
                     {isMobile ? <IconButton onClick={structureOnClick}>
                         <DisplayedStructureIcon width={24} height={24} />
                     </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={structureOnClick}>
-                        {numStructureItems === 1 ? `Add ${structureItems[0].label.toLowerCase()}` : "Add structure"}
+                        {numStructureItems === 1 && firstStructureItem ? `Add ${firstStructureItem.label.toLowerCase()}` : "Add structure"}
                     </Typography>}
                 </>}
             </ToolbarBox>
         );
     }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
 
-    //TODO calculate using defaultValues
-    const formInitialValues = useMemo(() => ({}) as Record<string, unknown>, []);
+    const initialValues = useMemo(function initialValuesMemo() {
+        return generateInitialValues(schema.elements);
+    }, [schema]);
 
     return (
         <div>
@@ -495,11 +582,10 @@ export function FormBuildView({
                         <ListSubheader>{category}</ListSubheader>
                         {items.map((item) => (
                             <PopoverListItem
-                                key={item.tag}
+                                key={item.type}
                                 icon={item.icon}
                                 label={item.label}
-                                tag={item.tag}
-                                type={item.type}
+                                type={item.type as PopoverListItemProps["type"]}
                                 onAddDivider={handleAddDivider}
                                 onAddHeader={handleAddHeader}
                                 onAddInput={handleAddInput}
@@ -521,7 +607,7 @@ export function FormBuildView({
                             <ListSubheader>{category}</ListSubheader>
                             {items.map((item) => (
                                 <PopoverListItem
-                                    key={item.tag}
+                                    key={item.type}
                                     icon={item.icon}
                                     label={item.label}
                                     tag={item.tag}
@@ -537,12 +623,11 @@ export function FormBuildView({
                 </List>
             </Popover>
             {schema.elements.length === 0 && <FormHelperText variant="body1">Use the options below to populate the form.</FormHelperText>}
-            {schema.elements.length === 0 ? Toolbar : null}
             {schema.elements.length > 0 && <Divider sx={formDividerStyle} />}
-            {/* Formik to handle form state. Even though we're not entering data, we need to make sure we aren't using a formik context higher up in the tree */}
+            {/* Formik defined here to cancel out any formik context higher-up in the tree */}
             <Formik
                 enableReinitialize={true}
-                initialValues={formInitialValues}
+                initialValues={initialValues}
                 onSubmit={noopSubmit}
             >
                 {() => (
@@ -565,8 +650,52 @@ export function FormBuildView({
                     </FormErrorBoundary>
                 )}
             </Formik>
+            {schema.elements.length === 0 || selectedElementIndex === null ? Toolbar : null}
         </div>
     );
+}
+
+/**
+ * Calculates size of grid item based on the number of items in the grid. 
+ * 1 item is { xs: 12 }, 
+ * 2 items is { xs: 12, sm: 6 },
+ * 3 items is { xs: 12, sm: 6, md: 4 },
+ * 4+ items is { xs: 12, sm: 6, md: 4, lg: 3 }
+ * @returns Size of grid item
+ */
+export function calculateGridItemSize(numItems: number): { [key: string]: GridSpacing } {
+    switch (numItems) {
+        case 1:
+            return { xs: 12 };
+        // eslint-disable-next-line no-magic-numbers
+        case 2:
+            return { xs: 12, sm: 6 };
+        // eslint-disable-next-line no-magic-numbers
+        case 3:
+            return { xs: 12, sm: 6, md: 4 };
+        default:
+            return { xs: 12, sm: 6, md: 4, lg: 3 };
+    }
+}
+
+type GeneratedFormItemProps = {
+    /** The child form input or form structure element */
+    children: JSX.Element | null | undefined;
+    /** The number of fields in the grid, for calculating grid item size */
+    fieldsInGrid: number;
+    /** Whether to wrap the child in a grid item */
+    isInGrid: boolean;
+}
+
+/**
+ * A wrapper for a form item that can be wrapped in a grid item
+ */
+export function GeneratedGridItem({
+    children,
+    fieldsInGrid,
+    isInGrid,
+}: GeneratedFormItemProps) {
+    return isInGrid ? <Grid item {...calculateGridItemSize(fieldsInGrid)}>{children}</Grid> : children;
 }
 
 const ElementRunOuterBox = styled("button")(() => ({
@@ -579,6 +708,11 @@ const ElementRunOuterBox = styled("button")(() => ({
     textAlign: "left",
     cursor: "pointer",
 }));
+
+const sectionsStackStyle = { width: "100%" } as const;
+const formViewDividerStyle = {
+    paddingTop: 2,
+} as const;
 
 export function FormRunView({
     disabled,
@@ -617,13 +751,16 @@ export function FormRunView({
         );
     }, [disabled]);
 
+    // TODO build view should also group into sections, where sections are created automatically based on headers and page dividers, or manually somehow (when you want to display inputs on the same line, for example). Can possibly update normalizeFormContainers to handle this
     const sections = useMemo(() => {
         // Normalize/heal containers to ensure they cover all elements
-        const normalizedContainers = normalizeFormContainers(schema);
+        const gridContainers = normalizeFormContainers(schema);
         // Render each container as a stack or grid, depending on configuration
         const sections: JSX.Element[] = [];
-        for (let i = 0; i < normalizedContainers.length; i++) {
-            const currContainer: NormalizedGridContainer = normalizedContainers[i];
+        let currentIndex = 0;
+
+        for (let i = 0; i < gridContainers.length; i++) {
+            const currContainer: GridContainer = gridContainers[i];
             const containerProps = {
                 direction: currContainer?.direction ?? "column",
                 key: `form-section-container-${i}`,
@@ -633,35 +770,56 @@ export function FormRunView({
             const useGrid = containerProps.direction === "row";
             // Generate component for each field in the grid
             const gridItems: JSX.Element[] = [];
-            for (let j = currContainer.startIndex; j <= currContainer.endIndex; j++) {
+            const endIndex = currentIndex + currContainer.totalItems - 1;
+
+            for (let j = currentIndex; j <= endIndex; j++) {
                 const fieldData = schema.elements[j] as FormInputType;
-                gridItems.push(<GeneratedGridItem
-                    key={`grid-item-${fieldData.id}`}
-                    fieldsInGrid={currContainer.endIndex - currContainer.startIndex + 1}
-                    isInGrid={useGrid}
-                >
-                    {renderElement(fieldData, j)}
-                </GeneratedGridItem>);
+                gridItems.push(
+                    <GeneratedGridItem
+                        key={`grid-item-${fieldData.id}`}
+                        fieldsInGrid={currContainer.totalItems}
+                        isInGrid={useGrid}
+                    >
+                        {renderElement(fieldData, j)}
+                    </GeneratedGridItem>,
+                );
             }
-            const itemsContainer = useGrid ? <Grid container {...containerProps}>
-                {gridItems}
-            </Grid> : <Stack {...containerProps}>
-                {gridItems}
-            </Stack>;
-            // Each section is represented using a fieldset
-            sections.push(
-                <fieldset key={`grid-container-${i}`} style={{ border: "none" }}>
-                    {/* If a title is provided, the items are wrapped in a collapsible container */}
-                    {currContainer?.title ? <ContentCollapse
+
+            const itemsContainer = useGrid ? (
+                <Grid container {...containerProps}>
+                    {gridItems}
+                </Grid>
+            ) : (
+                <Stack {...containerProps}>
+                    {gridItems}
+                </Stack>
+            );
+
+            // If a title is provided, the items are wrapped in a collapsible container
+            if (currContainer?.title) {
+                sections.push(
+                    <ContentCollapse
                         disableCollapse={currContainer.disableCollapse}
                         helpText={currContainer.description ?? undefined}
                         title={currContainer.title}
                         titleComponent="legend"
                     >
                         {itemsContainer}
-                    </ContentCollapse> : itemsContainer}
-                </fieldset>,
-            );
+                        {i < gridContainers.length - 1 && <Divider sx={formViewDividerStyle} />}
+                    </ContentCollapse>,
+                );
+            } else {
+                if (i < gridContainers.length - 1) {
+                    sections.push(<div>
+                        {itemsContainer}
+                        <Divider sx={formViewDividerStyle} />
+                    </div>);
+                } else {
+                    sections.push(itemsContainer);
+                }
+            }
+
+            currentIndex = endIndex + 1;
         }
         return sections;
     }, [renderElement, schema]);
@@ -676,27 +834,17 @@ export function FormRunView({
     return (
         <div>
             {schema.elements.length === 0 && <FormHelperText variant="body1">The form is empty.</FormHelperText>}
-            {schema.elements.length > 0 && <Divider sx={formDividerStyle} />}
-            {/* Formik to handle form state. Even though we're not entering data, we need to make sure we aren't using a formik context higher up in the tree */}
-            <Formik
-                enableReinitialize={true}
-                initialValues={initialValues}
-                onSubmit={noopSubmit} //TODO
-                validationSchema={validationSchema}
-            >
-                {() => (
-                    <FormErrorBoundary> {/* Error boundary to catch elements that fail to render */}
-                        <Stack
-                            direction={"column"}
-                            key={"form-container"}
-                            spacing={4}
-                            sx={{ width: "100%" }}
-                        >
-                            {sections}
-                        </Stack>
-                    </FormErrorBoundary>
-                )}
-            </Formik>
+            {/* Don't use formik here, since it should be provided by parent */}
+            <FormErrorBoundary> {/* Error boundary to catch elements that fail to render */}
+                <Stack
+                    direction={"column"}
+                    key={"form-container"}
+                    spacing={4}
+                    sx={sectionsStackStyle}
+                >
+                    {sections}
+                </Stack>
+            </FormErrorBoundary>
         </div>
     );
 }

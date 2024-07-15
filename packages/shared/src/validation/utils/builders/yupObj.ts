@@ -11,7 +11,7 @@ import { RelationshipType, rel } from "./rel";
  * @param requireOneGroups Groups of fields which exactly one field must be present
  * @param data Parameters for YupModel create and update
  */
-export const yupObj = <AllFields extends { [key: string]: yup.AnySchema }>(
+export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
     primFields: Partial<AllFields>,
     rels: [
         string, // Relationship name
@@ -23,7 +23,7 @@ export const yupObj = <AllFields extends { [key: string]: yup.AnySchema }>(
     ][],
     requireOneGroups: [string, string, boolean][], // NOTE: All of these fields must be marked as optional, since we can't override individual field required validations
     data: YupMutateParams,
-) => {
+) {
     // Find fields which should be omitted from the top level object
     const [topFields] = splitDotNotation(data.omitFields ?? []);
     // Convert every relationship into yup fields
@@ -60,19 +60,21 @@ export const yupObj = <AllFields extends { [key: string]: yup.AnySchema }>(
         schema = schema.test(
             `exclude-${field1}-${field2}`,
             `Only one of the following fields can be present: ${field1}, ${field2}`,
-            function (value) {
+            function requireTest(value) {
+                // If the value (meaning the value of the full object, not the fields being tested) is null or undefined, 
+                // we shouldn't be here. So we'll return true to pass the test
+                if (value === null || value === undefined) return true;
                 // Count the number of fields which are present
-                const fieldCounts = [field1, field2].filter((field) => value[field] !== undefined).length;
+                const fieldCounts = typeof value === "object" ? [field1, field2].filter((field) => value[field] !== undefined).length : 0;
                 // While we're here, we'll check if any of the fields were marked as required.  
                 // If so, it will always fail. So we'll give a warning
                 const anyRequired = [field1, field2].some((field) => this.schema.fields[field].tests.some((test) => test.OPTIONS.name === "required"));
                 if (anyRequired) {
                     console.warn(`One of the following fields is marked as required, so this require-one test will always fail: ${field1}, ${field2}`);
                 }
-                // Allow exactly one if isOneRequired is true, otherwise allow 0 or 1
                 return isOneRequired ? fieldCounts === 1 : fieldCounts <= 1;
             },
         );
     });
     return schema;
-};
+}

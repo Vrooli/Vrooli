@@ -1,13 +1,12 @@
-import { CommentFor, ResourceList as ResourceListType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, parseSearchParams, setDotNotationValue } from "@local/shared";
-import { Box, Button, Divider, IconButton, Stack, useTheme } from "@mui/material";
+import { CommentFor, ResourceList as ResourceListType, RoutineType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, parseSearchParams, setDotNotationValue } from "@local/shared";
+import { Box, Button, Divider, Stack, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
+import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { FormInput } from "components/inputs/form";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TagList } from "components/lists/TagList/TagList";
@@ -15,37 +14,123 @@ import { ResourceList } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
-import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik, useFormik } from "formik";
-import { createFormInput } from "forms/generators";
-import { FormInputType } from "forms/types";
+import { Formik } from "formik";
+import { generateInitialValues, generateYupSchema } from "forms/generators";
+import { useErrorPopover } from "hooks/useErrorPopover";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
-import { EditIcon, RoutineIcon, SuccessIcon } from "icons";
+import { EditIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setSearchParams, useLocation } from "route";
+import { FormSection, SideActionsButton } from "styles";
+import { FormErrors } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { defaultSchemaInput, defaultSchemaOutput, parseConfigCallData, parseSchemaInputOutput } from "utils/routineUtils";
 import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
+import { routineTypes } from "utils/search/schemas/routine";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
-import { BuildView } from "views/objects/routine/BuildView/BuildView";
+import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
 import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
 import { RoutineViewProps } from "../types";
+
+type RoutineTypeViewProps = {
+    errors: FormErrors;
+    isComplete: boolean | undefined;
+    isLoading: boolean;
+    onSetSubmitting: ((isSubmitting: boolean) => unknown);
+    onSubmit: (() => unknown);
+    routineType: RoutineType | undefined;
+    routineTypeComponents: JSX.Element | null;
+}
+
+const IncompleteWarningLabel = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    fontStyle: "italic",
+}));
+
+const formSubmitButtonStyle = { marginTop: 2 } as const;
+
+function RoutineTypeView({
+    errors,
+    isComplete,
+    isLoading,
+    onSetSubmitting,
+    onSubmit,
+    routineType,
+    routineTypeComponents,
+}: RoutineTypeViewProps) {
+    const session = useContext(SessionContext);
+    const { t } = useTranslation();
+
+    const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
+
+    const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
+    const isSubmitDisabled = useMemo(() => isLoading || hasErrors, [hasErrors, isLoading]);
+
+    const handleSubmit = useCallback(function handleSubmitCallback(event: React.MouseEvent | React.TouchEvent) {
+        if (hasErrors) {
+            openPopover(event);
+        } else {
+            onSubmit();
+        }
+    }, [hasErrors, onSubmit, openPopover]);
+
+    const routineTypeOption = useMemo(function routineTypeMemo() {
+        return routineTypes.find((option) => option.type === routineType);
+    }, [routineType]);
+
+    return (
+        <>
+            <Popover />
+            <FormSection>
+                <ContentCollapse
+                    title={`Type: ${routineTypeOption?.label ?? "Unknown"}`}
+                    helpText={routineTypeOption?.description ?? ""}
+                >
+                    {/* warning label when routine is marked as incomplete */}
+                    {isComplete !== true && <IncompleteWarningLabel variant="caption" >
+                        This routine is marked as incomplete. It may change in the future.
+                    </IncompleteWarningLabel>}
+                    <br />
+                    <br />
+                    {routineTypeComponents}
+                    {routineType === RoutineType.Informational && getCurrentUser(session).id && <Button
+                        disabled={isSubmitDisabled}
+                        startIcon={<SuccessIcon />}
+                        fullWidth
+                        onClick={handleSubmit}
+                        color="secondary"
+                        variant="outlined"
+                        sx={formSubmitButtonStyle}
+                    >{t("MarkAsComplete")}</Button>}
+                </ContentCollapse>
+            </FormSection>
+        </>
+    );
+}
 
 const statsHelpText =
     "Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.";
 
 const excludedActionRowActions = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
+const basicInfoStackStyle = {
+    marginLeft: "auto",
+    marginRight: "auto",
+    width: "min(100%, 700px)",
+    padding: 2,
+} as const;
+const tagListStyle = { marginTop: 4 } as const;
 
 export function RoutineView({
     display,
@@ -74,19 +159,21 @@ export function RoutineView({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { name, description, instructions } = useMemo(() => {
+    const {
+        description,
+        instructions,
+        name,
+    } = useMemo(() => {
         const { description, instructions, name } = getTranslation(existing, [language]);
         return { name, description, instructions };
     }, [existing, language]);
 
-    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
-    const viewGraph = useCallback(() => {
+    const [isGraphOpen, setIsGraphOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
+    const openGraph = useCallback(() => {
         setSearchParams(setLocation, { build: true });
-        setIsBuildOpen(true);
+        setIsGraphOpen(true);
     }, [setLocation]);
-    const stopBuild = useCallback(() => {
-        setIsBuildOpen(false);
-    }, []);
+    const closeGraph = useCallback(() => { setIsGraphOpen(false); }, []);
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!existing) return;
@@ -109,59 +196,9 @@ export function RoutineView({
         setLocation,
         setObject: setRoutineVersion,
     });
-
-    // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FormInputType } | null>(() => {
-        if (!existing.inputs || !Array.isArray(existing.inputs)) return null;
-        const schemas: { [fieldName: string]: FormInputType } = {};
-        for (let i = 0; i < existing.inputs?.length; i++) {
-            const currInput = existing.inputs[i];
-            if (!currInput.standardVersion) continue;
-            const currSchema = createFormInput({
-                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).description,
-                fieldName: `inputs-${currInput.id}`,
-                helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
-                props: currInput.standardVersion.props,
-                label: currInput.name ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).name ?? "",
-                type: currInput.standardVersion.standardType as FormInputType["type"],
-                yup: currInput.standardVersion.yup,
-            });
-            if (currSchema) {
-                schemas[currSchema.fieldName] = currSchema;
-            }
-        }
-        return schemas;
-    }, [existing, session]);
-    const formik = useFormik({
-        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
-            acc[key] = value.props.defaultValue ?? "";
-            return acc;
-        }, {}),
-        enableReinitialize: true,
-        onSubmit: noopSubmit,
-    });
-
-    const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
-    const markAsComplete = useCallback(() => {
-        if (!existing.id) return;
-        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
-            fetch: runComplete,
-            inputs: {
-                id: existing.id,
-                exists: false,
-                name: name ?? "Unnamed Routine",
-                ...runInputsCreate(formikToRunInputs(formik.values), existing.id),
-            },
-            successMessage: (data) => ({
-                messageKey: "RoutineCompleted",
-                buttonKey: "View",
-                buttonClicked: () => { openObject(data, setLocation); },
-            }),
-            onSuccess: (data) => {
-                PubSub.get().publish("celebration");
-            },
-        });
-    }, [formik.values, existing, runComplete, setLocation, name]);
+    const handleEditStart = useCallback(function handleEditStartCallback() {
+        actionData.onActionStart(ObjectAction.Edit);
+    }, [actionData]);
 
     const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
@@ -174,6 +211,93 @@ export function RoutineView({
         handleAddLanguage: noop,
         handleDeleteLanguage: noop,
     }), [availableLanguages, language, setLanguage]);
+
+    const configCallData = useMemo(function configCallDataMemo() {
+        return parseConfigCallData(existing.configCallData, existing.routineType);
+    }, [existing.configCallData, existing.routineType]);
+    const schemaInput = useMemo(() => parseSchemaInputOutput(existing.configFormInput, defaultSchemaInput), [existing.configFormInput]);
+    const schemaOutput = useMemo(() => parseSchemaInputOutput(existing.configFormOutput, defaultSchemaOutput), [existing.configFormOutput]);
+
+    const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
+        return {
+            configCallData,
+            disabled: false,
+            isEditing: false,
+            onConfigCallDataChange: noop,
+            onSchemaInputChange: noop,
+            onSchemaOutputChange: noop,
+            schemaInput,
+            schemaOutput,
+        };
+    }, [configCallData, schemaInput, schemaOutput]);
+
+    // Type-specific components
+    const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
+        switch (existing.routineType) {
+            case RoutineType.Api:
+                return <RoutineApiForm {...routineTypeBaseProps} />;
+            case RoutineType.Code:
+                return <RoutineCodeForm {...routineTypeBaseProps} />;
+            case RoutineType.Data:
+                return <RoutineDataForm {...routineTypeBaseProps} />;
+            case RoutineType.Generate:
+                return <RoutineGenerateForm {...routineTypeBaseProps} />;
+            case RoutineType.Informational:
+                return <RoutineInformationalForm {...routineTypeBaseProps} />;
+            case RoutineType.MultiStep:
+                return <RoutineMultiStepForm
+                    {...routineTypeBaseProps}
+                    isGraphOpen={isGraphOpen}
+                    handleGraphClose={closeGraph}
+                    handleGraphOpen={openGraph}
+                    handleGraphSubmit={noop}
+                    nodeLinks={existing.nodeLinks}
+                    nodes={existing.nodes}
+                    routineId={existing.id}
+                    translations={existing.translations}
+                    translationData={translationData}
+                />;
+            case RoutineType.SmartContract:
+                return <RoutineSmartContractForm {...routineTypeBaseProps} />;
+            default:
+                return null;
+        }
+    }, [closeGraph, existing.id, existing.nodeLinks, existing.nodes, existing.routineType, existing.translations, isGraphOpen, openGraph, routineTypeBaseProps, translationData]);
+
+    //TODO when run is in url, we may be viewing run that is in progress/completed. If so, 
+    // should load run data and override default form values with run data
+    const inputInitialValues = useMemo(function inputInitialValuesMemo() {
+        return generateInitialValues(schemaInput.elements);
+    }, [schemaInput]);
+    const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
+        return schemaInput ? generateYupSchema(schemaInput) : undefined;
+    }, [schemaInput]);
+
+    const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
+    const markAsComplete = useCallback((values: unknown) => {
+        if (!existing.id) return;
+        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
+            fetch: runComplete,
+            inputs: {
+                id: existing.id,
+                exists: false,
+                name: name ?? "Unnamed Routine",
+                ...runInputsCreate(formikToRunInputs(values as Record<string, string>), existing.id),
+            },
+            successMessage: (data) => ({
+                messageKey: "RoutineCompleted",
+                buttonKey: "View",
+                buttonClicked: () => { openObject(data, setLocation); },
+            }),
+            onSuccess: (data) => {
+                PubSub.get().publish("celebration");
+            },
+        });
+    }, [existing, runComplete, setLocation, name]);
+
+    const resourceListParent = useMemo(function resourceListParent() {
+        return { __typename: "RoutineVersion", id: existing?.id ?? "" } as const;
+    }, [existing?.id]);
 
     return (
         <>
@@ -192,23 +316,7 @@ export function RoutineView({
                 initialValues={initialValues}
                 onSubmit={noopSubmit}
             >
-                {() => <Stack direction="column" spacing={4} sx={{
-                    marginLeft: "auto",
-                    marginRight: "auto",
-                    width: "min(100%, 700px)",
-                    padding: 2,
-                }}>
-                    <BuildView
-                        display="dialog"
-                        handleCancel={stopBuild}
-                        onClose={stopBuild}
-                        handleSubmit={noop}
-                        isEditing={false}
-                        isOpen={isBuildOpen}
-                        loading={isLoading}
-                        routineVersion={existing as RoutineVersion}
-                        translationData={translationData}
-                    />
+                {() => <Stack direction="column" spacing={4} sx={basicInfoStackStyle}>
                     {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
@@ -219,13 +327,12 @@ export function RoutineView({
                         horizontal
                         list={resourceList as unknown as ResourceListType}
                         canUpdate={false}
-                        // eslint-disable-next-line @typescript-eslint/no-empty-function
-                        handleUpdate={() => { }}
+                        handleUpdate={noop}
                         loading={isLoading}
-                        parent={{ __typename: "RoutineVersion", id: existing?.id ?? "" }}
+                        parent={resourceListParent}
                     />}
                     {/* Box with description and instructions */}
-                    {(!!description || !!instructions) && <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    {(!!description || !!instructions) && <FormSection>
                         {/* Description */}
                         <TextCollapse
                             title="Description"
@@ -240,57 +347,33 @@ export function RoutineView({
                             loading={isLoading}
                             loadingLines={4}
                         />
-                    </Stack>}
-                    {/* Box with inputs, if this is a single-step routine */}
-                    {existing.nodes?.length === 0 && existing.nodeLinks?.length === 0 && <Box sx={containerProps(palette)}>
-                        <ContentCollapse
-                            isOpen={Object.keys(formValueMap ?? {}).length <= 1} // Default to open if there is one or less inputs
-                            title="Inputs"
+                    </FormSection>}
+                    {Boolean(routineTypeComponents) && (
+                        <Formik
+                            enableReinitialize={true}
+                            initialValues={inputInitialValues}
+                            onSubmit={markAsComplete}
+                            validationSchema={inputValidationSchema}
                         >
-                            {Object.values(formValueMap ?? {}).map((fieldData: FormInputType, index: number) => (
-                                <FormInput
-                                    key={fieldData.fieldName}
-                                    fieldData={fieldData}
-                                    index={index}
-                                    isEditing={false}
-                                    onConfigUpdate={noop}
-                                    onDelete={noop}
-                                    textPrimary={palette.background.textPrimary}
+                            {(formik) => (
+                                <RoutineTypeView
+                                    errors={formik.errors}
+                                    isComplete={existing.isComplete}
+                                    isLoading={isLoading || formik.isSubmitting || formik.isValidating}
+                                    onSetSubmitting={formik.setSubmitting}
+                                    onSubmit={formik.submitForm}
+                                    routineType={existing.routineType}
+                                    routineTypeComponents={routineTypeComponents}
                                 />
-                            ))}
-                            {getCurrentUser(session).id && <Button
-                                startIcon={<SuccessIcon />}
-                                fullWidth
-                                onClick={markAsComplete}
-                                color="secondary"
-                                variant="outlined"
-                                sx={{ marginTop: 2 }}
-                            >{t("MarkAsComplete")}</Button>}
-                        </ContentCollapse>
-                    </Box>}
-                    {/* "View Graph" button if this is a multi-step routine */}
-                    {
-                        existing?.nodes?.length ? <Box>
-                            <Title
-                                title={t("ThisIsMultiStep")}
-                                help={"ThisIsMultiStepHelp"}
-                                variant="subheader"
-                            />
-                            <Button
-                                startIcon={<RoutineIcon />}
-                                fullWidth
-                                onClick={viewGraph}
-                                color="secondary"
-                                variant="outlined"
-                            >{t("ViewGraph")}</Button>
-                        </Box> : null
-                    }
+                            )}
+                        </Formik>
+                    )}
                     {/* Tags */}
                     {exists(tags) && tags.length > 0 && <TagList
                         maxCharacters={30}
                         parentId={existing?.id ?? ""}
                         tags={tags as Tag[]}
-                        sx={{ marginTop: 4 }}
+                        sx={tagListStyle}
                     />}
                     <Box>
                         {/* Date and version labels */}
@@ -332,20 +415,20 @@ export function RoutineView({
             {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
             <SideActionsButtons
                 // Treat as a dialog when build view is open
-                display={isBuildOpen ? "dialog" : display}
+                display={isGraphOpen ? "dialog" : display}
             >
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <IconButton aria-label={t("UpdateRoutine")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("UpdateRoutine")} onClick={handleEditStart}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {existing?.nodes?.length ? <RunButton
                     canUpdate={permissions.canUpdate}
                     handleRunAdd={handleRunAdd as any}
                     handleRunDelete={handleRunDelete as any}
-                    isBuildGraphOpen={isBuildOpen}
+                    isBuildGraphOpen={isGraphOpen}
                     isEditing={false}
                     runnableObject={existing}
                 /> : null}

@@ -1,4 +1,4 @@
-import { Button, Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, IconButton, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, IconButton, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { useField } from "formik";
 import { CheckboxFormInput, CheckboxFormInputProps } from "forms/types";
@@ -9,6 +9,14 @@ import { randomString } from "utils/codes";
 import { updateArray } from "utils/shape/general";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
+
+const DefaultWarningLabel = styled(Typography)(({ theme }) => ({
+    marginLeft: "12px",
+    marginBottom: "8px",
+    display: "block",
+    fontStyle: "italic",
+    color: theme.palette.background.textSecondary,
+}));
 
 const formControlStyle = { m: "12px" } as const;
 const optionTextFieldStyle = {
@@ -143,9 +151,6 @@ export function FormInputCheckbox({
     }, [submitOptionLabelChange]);
 
     const CheckboxElement = useMemo(function checkboxElementMemo() {
-        function onCheckboxChange(_, checked: boolean) {
-            handleChange(0, checked);
-        }
 
         return (
             <FormControl
@@ -167,83 +172,91 @@ export function FormInputCheckbox({
                                 aria-labelledby={`label-${fieldData.fieldName}`}
                                 row={props.row === true}
                             >
-                                {props.options.map((option, index) => (
-                                    <Draggable key={option.value} draggableId={option.value} index={index} isDragDisabled={!isEditing}>
-                                        {(providedDrag) => (
-                                            <div
-                                                ref={providedDrag.innerRef}
-                                                {...providedDrag.draggableProps}
-                                                style={{
-                                                    ...providedDrag.draggableProps.style,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    marginBottom: "8px", // Add some spacing between items
-                                                }}
-                                            >
-                                                <FormControlLabel
-                                                    key={option.value}
-                                                    control={
-                                                        <Checkbox
-                                                            checked={isEditing ? (props.defaultValue?.[index] === true) : (field.value?.[index] === true)}
-                                                            onChange={onCheckboxChange}
-                                                            name={`${fieldData.fieldName}-${index}`}
-                                                            id={`${fieldData.fieldName}-${index}`}
-                                                            value={option.value}
-                                                        />
-                                                    }
-                                                    label={(
-                                                        <>
-                                                            {isEditing && editingOptionIndex === index ? (
-                                                                <TextField
-                                                                    autoFocus
-                                                                    InputProps={{ style: (typography["body1"] as object || {}) }}
-                                                                    onBlur={submitOptionLabelChange}
-                                                                    onChange={(e) => { setEditedOptionLabel(e.target.value); }}
-                                                                    onKeyDown={handleOptionLabelKeyDown}
-                                                                    size="small"
-                                                                    value={editedOptionLabel}
-                                                                    sx={optionTextFieldStyle}
-                                                                />
-                                                            ) : (
-                                                                <Typography
-                                                                    onClick={(e) => {
-                                                                        if (isEditing) {
-                                                                            e.preventDefault();
-                                                                            startEditingOption(index);
-                                                                        }
-                                                                    }}
-                                                                    style={{ cursor: isEditing ? "pointer" : "default" }}
-                                                                    variant="body1"
-                                                                >
-                                                                    {option.label}
-                                                                </Typography>
-                                                            )}
-                                                            {isEditing && (
-                                                                <>
-                                                                    <Tooltip title="Drag to reorder" placement={props.row === true ? "top" : "right"}>
-                                                                        <div {...providedDrag.dragHandleProps} style={{ cursor: "move", display: "flex", alignItems: "center", paddingLeft: "8px" }}>
-                                                                            <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
-                                                                        </div>
-                                                                    </Tooltip>
-                                                                    <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
-                                                                        <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
-                                                                            <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
-                                                                        </IconButton>
-                                                                    </Tooltip>
-                                                                </>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    sx={{
-                                                        "& .MuiFormControlLabel-label": {
-                                                            display: "flex",
-                                                        },
+                                {props.options.map((option, index) => {
+                                    function onCheckboxChange(_, checked: boolean) {
+                                        handleChange(index, checked);
+                                    }
+
+                                    return (
+                                        <Draggable key={option.value} draggableId={option.value} index={index} isDragDisabled={!isEditing}>
+                                            {(providedDrag) => (
+                                                <div
+                                                    ref={providedDrag.innerRef}
+                                                    {...providedDrag.draggableProps}
+                                                    style={{
+                                                        ...providedDrag.draggableProps.style,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        // Add some spacing between items
+                                                        marginBottom: props.row ? 0 : "8px",
+                                                        marginRight: props.row ? "8px" : 0,
                                                     }}
-                                                />
-                                            </div>
-                                        )}
-                                    </Draggable>
-                                ))}
+                                                >
+                                                    <FormControlLabel
+                                                        key={option.value}
+                                                        control={
+                                                            <Checkbox
+                                                                checked={isEditing ? (props.defaultValue?.[index] === true) : (field.value?.[index] === true)}
+                                                                onChange={onCheckboxChange}
+                                                                name={`${fieldData.fieldName}-${index}`}
+                                                                id={`${fieldData.fieldName}-${index}`}
+                                                                value={option.value}
+                                                            />
+                                                        }
+                                                        label={(
+                                                            <>
+                                                                {isEditing && editingOptionIndex === index ? (
+                                                                    <TextField
+                                                                        autoFocus
+                                                                        InputProps={{ style: (typography["body1"] as object || {}) }}
+                                                                        onBlur={submitOptionLabelChange}
+                                                                        onChange={(e) => { setEditedOptionLabel(e.target.value); }}
+                                                                        onKeyDown={handleOptionLabelKeyDown}
+                                                                        size="small"
+                                                                        value={editedOptionLabel}
+                                                                        sx={optionTextFieldStyle}
+                                                                    />
+                                                                ) : (
+                                                                    <Typography
+                                                                        onClick={(e) => {
+                                                                            if (isEditing) {
+                                                                                e.preventDefault();
+                                                                                startEditingOption(index);
+                                                                            }
+                                                                        }}
+                                                                        style={{ cursor: isEditing ? "pointer" : "default" }}
+                                                                        variant="body1"
+                                                                    >
+                                                                        {option.label}
+                                                                    </Typography>
+                                                                )}
+                                                                {isEditing && (
+                                                                    <>
+                                                                        <Tooltip title="Drag to reorder" placement={props.row === true ? "top" : "right"}>
+                                                                            <div {...providedDrag.dragHandleProps} style={{ cursor: "move", display: "flex", alignItems: "center", paddingLeft: "8px" }}>
+                                                                                <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                            </div>
+                                                                        </Tooltip>
+                                                                        <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
+                                                                            <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
+                                                                                <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                        sx={{
+                                                            "& .MuiFormControlLabel-label": {
+                                                                display: "flex",
+                                                            },
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    );
+                                })}
                                 {/* "Add Option" button when editing */}
                                 {isEditing && (
                                     <Button
@@ -275,17 +288,9 @@ export function FormInputCheckbox({
     return (
         <div>
             {CheckboxElement}
-            {isEditing && props.defaultValue?.some(Boolean) && <Typography
-                variant="caption"
-                style={{
-                    marginLeft: "12px",
-                    marginBottom: "8px",
-                    display: "block",
-                    fontStyle: "italic",
-                    color: palette.background.textSecondary,
-                }}>
+            {isEditing && props.defaultValue?.some(Boolean) && <DefaultWarningLabel variant="caption">
                 Checked options will be selected by default when the form is used.
-            </Typography>}
+            </DefaultWarningLabel>}
             <FormSettingsButtonRow>
                 <Button variant="text" sx={propButtonStyle} onClick={() => updateFieldData({ isRequired: !fieldData.isRequired })}>
                     {fieldData.isRequired ? "Optional" : "Required"}

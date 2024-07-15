@@ -1,5 +1,5 @@
-import { FormSchema } from "../../../../forms/types";
-import { NormalizedGridContainer, normalizeFormContainers } from "./GeneratedGrid";
+import { FormSchema, GridContainer } from "../types";
+import { normalizeFormContainers } from "./FormView";
 
 describe("normalizeFormContainers", () => {
     it("should return one container covering all elements when no containers are provided", () => {
@@ -7,10 +7,8 @@ describe("normalizeFormContainers", () => {
             elements: [{}, {}, {}],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = [{
-            startIndex: 0,
-            endIndex: 2,
-            disableCollapse: false,
+        const expected: GridContainer[] = [{
+            totalItems: 3,
         }];
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
@@ -25,9 +23,9 @@ describe("normalizeFormContainers", () => {
             ],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = [
-            { startIndex: 0, endIndex: 2, disableCollapse: true },
-            { startIndex: 3, endIndex: 4, disableCollapse: undefined },
+        const expected: GridContainer[] = [
+            { totalItems: 3, disableCollapse: true },
+            { totalItems: 2, disableCollapse: undefined },
         ];
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
@@ -42,8 +40,8 @@ describe("normalizeFormContainers", () => {
             ],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = [
-            { startIndex: 0, endIndex: 3, disableCollapse: undefined },
+        const expected: GridContainer[] = [
+            { totalItems: 4, disableCollapse: undefined },
         ];
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
@@ -58,10 +56,10 @@ describe("normalizeFormContainers", () => {
             ],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = [
-            { startIndex: 0, endIndex: 1, disableCollapse: undefined },
-            { startIndex: 2, endIndex: 3, disableCollapse: undefined },
-            { startIndex: 4, endIndex: 4, disableCollapse: false },
+        const expected: GridContainer[] = [
+            { totalItems: 2 },
+            { totalItems: 2 },
+            { totalItems: 1 },
         ];
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
@@ -76,7 +74,7 @@ describe("normalizeFormContainers", () => {
             ],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = []; // No containers
+        const expected: GridContainer[] = []; // No containers
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
     });
@@ -87,10 +85,8 @@ describe("normalizeFormContainers", () => {
             containers: [],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = [{
-            startIndex: 0,
-            endIndex: 4,
-            disableCollapse: false,
+        const expected: GridContainer[] = [{
+            totalItems: 5,
         }];
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
@@ -105,9 +101,9 @@ describe("normalizeFormContainers", () => {
             ],
         } as unknown as FormSchema;
 
-        const expected: NormalizedGridContainer[] = [
-            { startIndex: 0, endIndex: 1, disableCollapse: true },
-            { startIndex: 2, endIndex: 4, disableCollapse: false },
+        const expected: GridContainer[] = [
+            { totalItems: 2, disableCollapse: true },
+            { totalItems: 3, disableCollapse: false },
         ];
 
         expect(normalizeFormContainers(formSchema)).toEqual(expected);
