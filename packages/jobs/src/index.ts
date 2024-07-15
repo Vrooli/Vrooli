@@ -1,4 +1,4 @@
-import { logger } from "@local/server";
+import { initSingletons, logger } from "@local/server";
 import cron from "node-cron";
 import { generateEmbeddings } from "./schedules";
 import { countBookmarks } from "./schedules/countBookmarks";
@@ -10,7 +10,7 @@ import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium";
 import { paymentsFail } from "./schedules/paymentsFail";
 import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits";
 import { scheduleNotify } from "./schedules/scheduleNotify";
-import { initStatsPeriod } from "./schedules/stats";
+import { initStatsPeriod, statsPeriodCron } from "./schedules/stats";
 
 const MAX_JOB_CONCURRENCY = 5;
 
@@ -74,28 +74,28 @@ const cronJobs: Record<string, CronJobDefinition> = {
         runRightAway: isSitemapMissing,
     },
     statsHourly: {
-        schedule: "3 * * * *", // Every hour at the 3rd minute
-        jobFunction: (schedule) => { initStatsPeriod(schedule); },
+        schedule: statsPeriodCron.Hourly,
+        jobFunction: initStatsPeriod,
         description: "generate hourly stats",
     },
     statsDaily: {
-        schedule: "7 5 * * *", // Every day at 5:07am (UTC)
-        jobFunction: (schedule) => { initStatsPeriod(schedule); },
+        schedule: statsPeriodCron.Daily,
+        jobFunction: initStatsPeriod,
         description: "generate hourly stats",
     },
     statsWeekly: {
-        schedule: "11 5 * * 0", // Every Sunday at 5:11am (UTC)
-        jobFunction: (schedule) => { initStatsPeriod(schedule); },
+        schedule: statsPeriodCron.Weekly,
+        jobFunction: initStatsPeriod,
         description: "generate hourly stats",
     },
     statsMonthly: {
-        schedule: "17 5 1 * *", // Every month on the 1st at 5:17am (UTC)
-        jobFunction: (schedule) => { initStatsPeriod(schedule); },
+        schedule: statsPeriodCron.Monthly,
+        jobFunction: initStatsPeriod,
         description: "generate hourly stats",
     },
     statsYearly: {
-        schedule: "21 5 1 1 *", // Every year on January 1st at 5:21am (UTC)
-        jobFunction: (schedule) => { initStatsPeriod(schedule); },
+        schedule: statsPeriodCron.Yearly,
+        jobFunction: initStatsPeriod,
         description: "generate hourly stats",
     },
 };
@@ -179,4 +179,7 @@ export function initializeAllCronJobs() {
     logger.info("🚀 Jobs running");
 }
 
-initializeAllCronJobs();
+if (process.env.npm_package_name === "@local/jobs") {
+    await initSingletons();
+    initializeAllCronJobs();
+}

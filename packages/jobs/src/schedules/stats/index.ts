@@ -9,6 +9,10 @@ import { logStandardStats } from "./standard";
 import { logTeamStats } from "./team";
 import { logUserStats } from "./user";
 
+const HOURS_IN_DAY = 24;
+const DAYS_IN_WEEK = 7;
+const DAYS_IN_MONTH = 30;
+const DAYS_IN_YEAR = 365;
 
 /**
  * Calculates the unix timestamp of periodStart (earliest data to include) 
@@ -27,13 +31,13 @@ function getPeriodStart(period: PeriodType) {
         case PeriodType.Hourly:
             return now.setHours(now.getHours() - 1);
         case PeriodType.Daily:
-            return now.setHours(now.getHours() - 24);
+            return now.setHours(now.getHours() - HOURS_IN_DAY);
         case PeriodType.Weekly:
-            return now.setDate(now.getDate() - 7);
+            return now.setDate(now.getDate() - DAYS_IN_WEEK);
         case PeriodType.Monthly:
-            return now.setDate(now.getDate() - 30);
+            return now.setDate(now.getDate() - DAYS_IN_MONTH);
         case PeriodType.Yearly:
-            return now.setDate(now.getDate() - 365);
+            return now.setDate(now.getDate() - DAYS_IN_YEAR);
     }
 }
 
@@ -46,7 +50,7 @@ function getPeriodStart(period: PeriodType) {
 /**
  * Maps PeriodTypes to their corresponding cron jobs
  */
-export const periodCron = {
+export const statsPeriodCron = {
     /**
      * Hourly, at minute 3
      */
@@ -77,10 +81,11 @@ export const periodCron = {
  * by combining all matching period rows within a periodStart and periodEnd.
  */
 
-export const initStatsPeriod = (period: string) => {
-    const periodStart = new Date(getPeriodStart(period as PeriodType)).toISOString();
+export function initStatsPeriod(cron: string) {
+    const period = Object.keys(statsPeriodCron).find(key => statsPeriodCron[key as PeriodType] === cron) as PeriodType;
+    const periodStart = new Date(getPeriodStart(period)).toISOString();
     const periodEnd = new Date().toISOString();
-    const params = [period as PeriodType, periodStart, periodEnd] as const;
+    const params = [period, periodStart, periodEnd] as const;
     // Trigger each stat group
     Promise.all([
         logSiteStats(...params),
@@ -93,4 +98,4 @@ export const initStatsPeriod = (period: string) => {
         logStandardStats(...params),
         logUserStats(...params),
     ]);
-};
+}

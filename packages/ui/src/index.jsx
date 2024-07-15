@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary";
 import ReactDOM from "react-dom/client";
 import { Router } from "route";
@@ -5,6 +6,7 @@ import { App } from "./App";
 import "./i18n"; // Must import for translations to work
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { getDeviceInfo } from "./utils/display/device";
+import { PubSub } from "./utils/pubsub";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -21,9 +23,13 @@ if (process.env.PROD) {
         onUpdate: (registration) => {
             if (registration && registration.waiting) {
                 registration.waiting.postMessage({ type: "SKIP_WAITING" });
-                if (window.confirm("New version available! The site will now update. Press \"Cancel\" if you need to save any unsaved data.")) {
-                    window.location.reload();
-                }
+                PubSub.get().publish("snack", {
+                    message: "New version available!",
+                    buttonKey: "Reload",
+                    buttonClicked: function updateVersionButtonClicked() {
+                        window.location.reload();
+                    },
+                });
             }
         },
     });
