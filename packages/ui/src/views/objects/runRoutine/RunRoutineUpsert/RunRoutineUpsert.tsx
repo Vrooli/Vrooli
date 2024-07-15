@@ -22,27 +22,30 @@ import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { RunRoutineFormProps, RunRoutineUpsertProps } from "../types";
 
-export const runRoutineInitialValues = (
+export function runRoutineInitialValues(
     session: Session | undefined,
     existing?: Partial<RunRoutine> | null | undefined,
-): RunRoutineShape => ({
-    __typename: "RunRoutine" as const,
-    id: DUMMY_ID,
-    completedComplexity: 0,
-    contextSwitches: 0,
-    isPrivate: true,
-    name: existing?.name ?? getDisplay(existing?.routineVersion, getUserLanguages(session)).title ?? "Run",
-    schedule: null,
-    status: RunStatus.Scheduled,
-    steps: [],
-    timeElapsed: 0,
-    ...existing,
-});
+): RunRoutineShape {
+    return {
+        __typename: "RunRoutine" as const,
+        id: DUMMY_ID,
+        completedComplexity: 0,
+        contextSwitches: 0,
+        isPrivate: true,
+        name: existing?.name ?? getDisplay(existing?.routineVersion, getUserLanguages(session)).title ?? "Run",
+        schedule: null,
+        status: RunStatus.Scheduled,
+        steps: [],
+        timeElapsed: 0,
+        ...existing,
+    };
+}
 
-export const transformRunRoutineValues = (values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) =>
-    isCreate ? shapeRunRoutine.create(values) : shapeRunRoutine.update(existing, values);
+export function transformRunRoutineValues(values: RunRoutineShape, existing: RunRoutineShape, isCreate: boolean) {
+    return isCreate ? shapeRunRoutine.create(values) : shapeRunRoutine.update(existing, values);
+}
 
-const RunRoutineForm = ({
+function RunRoutineForm({
     disabled,
     dirty,
     display,
@@ -57,7 +60,7 @@ const RunRoutineForm = ({
     onDeleted,
     values,
     ...props
-}: RunRoutineFormProps) => {
+}: RunRoutineFormProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -124,9 +127,8 @@ const RunRoutineForm = ({
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
             />
             <ScheduleUpsert
-                canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab="RunRoutine"
+                defaultScheduleFor="RunRoutine"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -229,14 +231,14 @@ const RunRoutineForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const RunRoutineUpsert = ({
+export function RunRoutineUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: RunRoutineUpsertProps) => {
+}: RunRoutineUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
@@ -247,12 +249,16 @@ export const RunRoutineUpsert = ({
         transform: (existing) => runRoutineInitialValues(session, existing),
     });
 
+    async function validateValues(values: RunRoutineShape) {
+        return await validateFormValues(values, existing, isCreate, transformRunRoutineValues, runRoutineValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRunRoutineValues, runRoutineValidation)}
+            validate={validateValues}
         >
             {(formik) => <RunRoutineForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -266,4 +272,4 @@ export const RunRoutineUpsert = ({
             />}
         </Formik>
     );
-};
+}

@@ -5,11 +5,11 @@
  * @param size Target size of the image.
  * @returns The best image URL to use for the given field and target size, or undefined if no URL is found.
  */
-export const extractImageUrl = (
+export function extractImageUrl(
     imageData: string | File | { preview: string } | null | undefined,
     lastUpdated: string | null | undefined,
     targetSize: number,
-): string | undefined => {
+): string | undefined {
     if (!imageData) return undefined;
     if (typeof imageData === "object" && Object.prototype.hasOwnProperty.call(imageData, "preview")) return (imageData as { preview: string }).preview;
     // Image data can either be a URL or a stringified JSON object containing the filename base and available sizes
@@ -35,4 +35,4 @@ export const extractImageUrl = (
         }
     }
     return undefined;
-};
+}

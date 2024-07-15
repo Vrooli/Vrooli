@@ -222,6 +222,11 @@ export enum InboxPageTabOption {
     Notification = "Notification",
 }
 
+export enum SignUpPageTabOption {
+    SignUp = "SignUp",
+    MoreInfo = "MoreInfo",
+}
+
 export enum ChatPageTabOption {
     Chat = "Chat",
     Favorite = "Favorite",
@@ -536,6 +541,21 @@ export const inboxTabParams: TabParam<InboxTabsInfo>[] = [{
     titleKey: "Notification",
     searchType: "Notification",
     where: () => ({ visibility: VisibilityType.Own }),
+}];
+
+export type SignUpTabsInfo = {
+    IsSearchable: false;
+    Key: SignUpPageTabOption;
+    Payload: undefined;
+    WhereParams: undefined;
+}
+
+export const signUpTabParams: TabParam<SignUpTabsInfo>[] = [{
+    key: "SignUp",
+    titleKey: "SignUp",
+}, {
+    key: "MoreInfo",
+    titleKey: "MoreInfo",
 }];
 
 export type MyStuffTabsInfo = {

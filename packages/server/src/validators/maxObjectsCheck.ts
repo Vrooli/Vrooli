@@ -25,96 +25,102 @@ import { InputsById, QueryAction } from "../utils/types";
 /**
  * Helper function to check if a count exceeds a number
  */
-const checkObjectLimitNumber = (
+function checkObjectLimitNumber(
     count: number,
     limit: number,
     languages: string[],
-): void => {
+): void {
     if (count > limit) {
         throw new CustomError("0352", "MaxObjectsReached", languages);
     }
-};
+}
 
 
 /**
  * Helper function to check if a count exceeds a premium/noPremium limit
  */
-const checkObjectLimitPremium = (
+function checkObjectLimitPremium(
     count: number,
     hasPremium: boolean,
     limit: ObjectLimitPremium,
     languages: string[],
-): void => {
+): void {
     if (hasPremium) checkObjectLimitNumber(count, limit.premium, languages);
     else checkObjectLimitNumber(count, limit.noPremium, languages);
-};
+}
 
 /**
  * Helper function to check if a count exceeds a public/private limit
  */
-const checkObjectLimitPrivacy = (
+function checkObjectLimitPrivacy(
     count: number,
     hasPremium: boolean,
-    isPrivate: boolean,
+    isPublic: boolean,
     limit: ObjectLimitPrivacy,
     languages: string[],
-): void => {
-    if (isPrivate) {
-        if (typeof limit.private === "number") checkObjectLimitNumber(count, limit.private, languages);
-        else checkObjectLimitPremium(count, hasPremium, limit.private as ObjectLimitPremium, languages);
-    }
-    else {
+): void {
+    if (isPublic) {
         if (typeof limit.public === "number") checkObjectLimitNumber(count, limit.public, languages);
         else checkObjectLimitPremium(count, hasPremium, limit.public as ObjectLimitPremium, languages);
     }
-};
+    else {
+        if (typeof limit.private === "number") checkObjectLimitNumber(count, limit.private, languages);
+        else checkObjectLimitPremium(count, hasPremium, limit.private as ObjectLimitPremium, languages);
+    }
+}
 
 /**
  * Helper function to check if a count exceeds an Team/User limit
  */
-const checkObjectLimitOwner = (
+function checkObjectLimitOwner(
     count: number,
     ownerType: "User" | "Team",
     hasPremium: boolean,
-    isPrivate: boolean,
+    isPublic: boolean,
     limit: ObjectLimitOwner,
     languages: string[],
-): void => {
+): void {
     if (ownerType === "User") {
         if (typeof limit.User === "number") checkObjectLimitNumber(count, limit.User, languages);
         else if (typeof (limit.User as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.User as ObjectLimitPremium, languages);
-        else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.User as ObjectLimitPrivacy, languages);
+        else checkObjectLimitPrivacy(count, hasPremium, isPublic, limit.User as ObjectLimitPrivacy, languages);
     }
     else {
         if (typeof limit.Team === "number") checkObjectLimitNumber(count, limit.Team, languages);
         else if (typeof (limit.Team as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit.Team as ObjectLimitPremium, languages);
-        else checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit.Team as ObjectLimitPrivacy, languages);
+        else checkObjectLimitPrivacy(count, hasPremium, isPublic, limit.Team as ObjectLimitPrivacy, languages);
     }
-};
+}
 
 /**
  * Helper function to check if a count exceeds the limit
- * @param count The count
- * @param ownerType User or Team
- * @param hasPremium Whether the user has a premium subscription
- * @param isPrivate Whether to check limit for private or public objects
- * @param limit The limit object. Can be a number, or object with different 
- * @param languages The languages to use for error messages
- * limits depending on premium status, owner type, etc.
  */
-const checkObjectLimit = (
+function checkObjectLimit({
+    count,
+    ownerType,
+    hasPremium,
+    isPublic,
+    limit,
+    languages,
+}: {
+    /** The Count */
     count: number,
+    /** The owner type (i.e. "User" or "Team") */
     ownerType: "User" | "Team",
+    /** Whether the user has a premium subscription */
     hasPremium: boolean,
-    isPrivate: boolean,
-    limit: ObjectLimit,
+    /** Whether the object is public */
+    isPublic: boolean,
+    /** The languages to use for error messages */
     languages: string[],
-): void => {
+    /** The limit object. Can be a number, or object with different limits depending on premium status, owner type, etc. */
+    limit: ObjectLimit,
+}): void {
     if (typeof limit === "number") checkObjectLimitNumber(count, limit, languages);
     else if (typeof (limit as ObjectLimitPremium).premium !== undefined) checkObjectLimitPremium(count, hasPremium, limit as ObjectLimitPremium, languages);
-    else if (typeof (limit as ObjectLimitPrivacy).private !== undefined) checkObjectLimitPrivacy(count, hasPremium, isPrivate, limit as ObjectLimitPrivacy, languages);
-    else checkObjectLimitOwner(count, ownerType, hasPremium, isPrivate, limit as ObjectLimitOwner, languages);
-};
+    else if (typeof (limit as ObjectLimitPrivacy).private !== undefined) checkObjectLimitPrivacy(count, hasPremium, isPublic, limit as ObjectLimitPrivacy, languages);
+    else checkObjectLimitOwner(count, ownerType, hasPremium, isPublic, limit as ObjectLimitOwner, languages);
+}
 
 // TODO Would be nice if we could check max number of relations for an object, not just the absolute number of the object. 
 // For example, we could limit the versions on a root object
@@ -188,8 +194,8 @@ export async function maxObjectsCheck(
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
-            let currCountPrivate = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.private] } });
-            let currCountPublic = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.public] } });
+            let currCountPrivate = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.private(ownerId)] } });
+            let currCountPublic = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.public(ownerId)] } });
             // Add count obtained from add and deletes to the current counts
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;
@@ -197,8 +203,22 @@ export async function maxObjectsCheck(
             const maxObjects = validator.maxObjects;
             const ownerType = userData.id === ownerId ? "User" : "Team";
             const hasPremium = userData.hasPremium;
-            checkObjectLimit(currCountPrivate, ownerType, hasPremium, true, maxObjects, userData.languages);
-            checkObjectLimit(currCountPublic, ownerType, hasPremium, false, maxObjects, userData.languages);
+            checkObjectLimit({
+                count: currCountPrivate,
+                hasPremium,
+                isPublic: false,
+                languages: userData.languages,
+                limit: maxObjects,
+                ownerType,
+            });
+            checkObjectLimit({
+                count: currCountPublic,
+                hasPremium,
+                isPublic: true,
+                languages: userData.languages,
+                limit: maxObjects,
+                ownerType,
+            });
         }
     }
 }

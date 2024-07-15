@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Dimensions = { width: number, height: number };
 type UseDimensionsReturn<T extends HTMLElement> = {
     dimensions: Dimensions;
-    /** Uses Material UI spacing syntax to style based on the dimensions, rather than the page's dimensions */
+    /** 
+     * Uses Material UI spacing syntax to style based on the dimensions of the ref object, 
+     * rather than the page's dimensions 
+     */
     fromDims: (spacingObj: { [key in Breakpoint]?: unknown }) => any;
     ref: React.RefObject<T>;
     refreshDimensions: () => unknown;
@@ -16,7 +19,7 @@ type UseDimensionsReturn<T extends HTMLElement> = {
  * @returns an object containing the element's dimensions, a reference to the element,
  * and a function to manually refresh the dimensions.
  */
-export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> => {
+export function useDimensions<T extends HTMLElement>(): UseDimensionsReturn<T> {
     const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
     const ref = useRef<T>(null);
     const { breakpoints } = useTheme();
@@ -45,8 +48,12 @@ export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> =
         calculateDimensions();
     }, [calculateDimensions]);
 
-    useEffect(() => {
+    useEffect(function resizeListenerEffect() {
         let cleanup: () => void;
+
+        function handleResize() {
+            refreshDimensions();
+        }
 
         if (typeof ResizeObserver === "function") {
             const observer = new ResizeObserver(() => {
@@ -65,9 +72,6 @@ export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> =
         } else {
             console.warn("Browser doesn't support ResizeObserver. Falling back to window resize listener.");
 
-            const handleResize = () => {
-                refreshDimensions();
-            };
 
             window.addEventListener("resize", handleResize);
             cleanup = () => {
@@ -79,4 +83,4 @@ export const useDimensions = <T extends HTMLElement>(): UseDimensionsReturn<T> =
     }, [refreshDimensions]);
 
     return { dimensions, fromDims, ref, refreshDimensions };
-};
+}

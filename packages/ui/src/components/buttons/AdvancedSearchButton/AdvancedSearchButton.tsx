@@ -1,9 +1,9 @@
 import { parseSearchParams, ParseSearchParamsResult } from "@local/shared";
 import { Box, Button, Grid, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { GeneratedGrid } from "components/inputs/form";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
+import { FormRunView } from "forms/FormView/FormView";
 import { generateInitialValues, generateYupSchema } from "forms/generators";
 import { FormInputBase, FormSchema } from "forms/types";
 import { TFunction } from "i18next";
@@ -29,11 +29,12 @@ function createTopBarOptions(resetForm: (() => unknown), t: TFunction<"common", 
     ];
 }
 
-const FormContainer = styled(Box)(() => ({
+const FormContainer = styled(Box)(({ theme }) => ({
     margin: "auto",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    padding: theme.spacing(2),
     paddingBottom: "64px",
 }));
 
@@ -50,6 +51,7 @@ function AdvancedSearchDialog({
 }) {
     const { t } = useTranslation();
 
+    const [searchParams, setSearchParams] = useState<ParseSearchParamsResult>(parseSearchParams());
     // Search schema to use
     const [schema, setSchema] = useState<FormSchema | null>(null);
     useEffect(() => {
@@ -57,18 +59,17 @@ function AdvancedSearchDialog({
     }, [searchType]);
 
     const initialValues = useMemo(function initialValuesMemo() {
-        console.log("calculating initial values...");
         // Calculate initial values from schema, to use for values not in URL
         const initialValues = generateInitialValues(schema?.elements);
         // Parse search params from URL
-        const urlValues = convertSearchForFormik(parseSearchParams(), schema);
+        const urlValues = convertSearchForFormik(searchParams, schema);
         // Replace default values with URL values
         for (const key in urlValues) {
             if (urlValues[key] === undefined) continue;
             initialValues[key] = urlValues[key] as never;
         }
         return initialValues;
-    }, [schema]);
+    }, [schema, searchParams]);
     const validationSchema = useMemo(function validationSchemaMemo() {
         return schema ? generateYupSchema(schema) : undefined;
     }, [schema]);
@@ -79,6 +80,7 @@ function AdvancedSearchDialog({
             handleSearch(searchValue);
         }
         handleClose();
+        setSearchParams(parseSearchParams());
     }, [handleSearch, schema, handleClose]);
 
     return (
@@ -95,7 +97,6 @@ function AdvancedSearchDialog({
                 validationSchema={validationSchema}
             >
                 {(formik) => {
-                    console.log("formik here", formik);
                     function onSubmit() {
                         formik.handleSubmit();
                     }
@@ -115,7 +116,10 @@ function AdvancedSearchDialog({
                             />
                             <FormContainer>
                                 {/* Search options */}
-                                {schema && <GeneratedGrid  {...schema} />}
+                                {schema && <FormRunView
+                                    disabled={false}
+                                    schema={schema}
+                                />}
                             </FormContainer>
                             {/* Search/Cancel buttons */}
                             <BottomActionsGrid display="dialog">
@@ -144,6 +148,8 @@ function AdvancedSearchDialog({
         </LargeDialog>
     );
 }
+
+const filterCountLabelStyle = { marginLeft: 0.5 } as const;
 
 export function AdvancedSearchButton({
     advancedSearchParams,
@@ -208,7 +214,7 @@ export function AdvancedSearchButton({
                     sx={searchButtonStyle(palette)}
                 >
                     <BuildIcon fill={palette.secondary.main} />
-                    {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={{ marginLeft: 0.5 }}>
+                    {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={filterCountLabelStyle}>
                         *{Object.keys(advancedSearchParams).length}
                     </Typography>}
                 </Box>

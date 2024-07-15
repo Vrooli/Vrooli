@@ -1,5 +1,5 @@
 import { CommentFor, exists, noop, ResourceList as ResourceListType, RoutineVersion, Tag } from "@local/shared";
-import { Box, Button, LinearProgress, Palette, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Button, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -21,6 +21,7 @@ import { SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormSection } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -30,18 +31,6 @@ import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { routineInitialValues } from "views/objects/routine";
 import { SubroutineViewProps } from "../types";
-
-function containerProps(palette: Palette) {
-    return {
-        boxShadow: 1,
-        background: palette.background.paper,
-        borderRadius: 1,
-        overflow: "overlay",
-        marginTop: 4,
-        marginBottom: 4,
-        padding: 2,
-    };
-}
 
 //TODO update to latest from RoutineView
 export function SubroutineView({
@@ -247,7 +236,7 @@ export function SubroutineView({
                     parent={{ __typename: "RoutineVersion", id: routineVersion?.id ?? "" }}
                 />}
                 {/* Box with description and instructions */}
-                <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                <FormSection>
                     {/* Description */}
                     <TextCollapse
                         title="Description"
@@ -262,8 +251,8 @@ export function SubroutineView({
                         loading={loading}
                         loadingLines={4}
                     />
-                </Stack>
-                <Box sx={containerProps(palette)}>
+                </FormSection>
+                <FormSection>
                     <ContentCollapse title="Inputs">
                         {inputComponents}
                         <Button
@@ -275,14 +264,14 @@ export function SubroutineView({
                             variant="contained"
                         >{t("Submit")}</Button>
                     </ContentCollapse>
-                </Box>
+                </FormSection>
                 {/* Action buttons */}
                 <ObjectActionsRow
                     actionData={actionData}
                     exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                     object={internalRoutineVersion}
                 />
-                <Box sx={containerProps(palette)}>
+                <FormSection>
                     <ContentCollapse
                         isOpen={false}
                         title="Additional Information"
@@ -319,9 +308,9 @@ export function SubroutineView({
                         object={internalRoutineVersion ?? null}
                     /> */}
                     </ContentCollapse>
-                </Box>
+                </FormSection>
                 {/* Comments */}
-                <Box sx={containerProps(palette)}>
+                <FormSection>
                     <CommentContainer
                         forceAddCommentOpen={isAddCommentOpen}
                         isOpen={false}
@@ -330,7 +319,7 @@ export function SubroutineView({
                         objectType={CommentFor.RoutineVersion}
                         onAddCommentClose={closeAddCommentDialog}
                     />
-                </Box>
+                </FormSection>
             </Box>
         </>
     );

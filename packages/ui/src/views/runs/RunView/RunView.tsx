@@ -1,5 +1,5 @@
 import { base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointPutRunRoutine, endpointPutRunRoutineComplete, exists, Node, NodeLink, NodeRoutineListItem, NodeType, ProjectVersion, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, uuid, uuidValidate } from "@local/shared";
-import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Button, Grid, IconButton, LinearProgress, Stack, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -39,8 +39,11 @@ const MAX_NESTING = 20;
  * @param {RoutineListStep | DirectoryStep} steps - ProjectStep to check in.
  * @returns {RoutineListStep | DirectoryStep} - Updated step. Returns the original step if the step was not found.
  */
-const insertStep = (stepData: RoutineListStep | DirectoryStep, steps: RoutineListStep | DirectoryStep): RoutineListStep | DirectoryStep => {
-    const recursiveInsert = (stepData: RoutineListStep | DirectoryStep, steps: ProjectStep): ProjectStep => {
+function insertStep(
+    stepData: RoutineListStep | DirectoryStep,
+    steps: RoutineListStep | DirectoryStep,
+): RoutineListStep | DirectoryStep {
+    function recursiveInsert(stepData: RoutineListStep | DirectoryStep, steps: ProjectStep): ProjectStep {
         if (steps.type === RoutineStepType.Subroutine && "routineVersionId" in stepData && stepData.routineVersionId) {
             if ((steps as SubroutineStep).routineVersion.id === stepData.routineVersionId) {
                 return stepData;
@@ -51,14 +54,14 @@ const insertStep = (stepData: RoutineListStep | DirectoryStep, steps: RoutineLis
             }
         }
         return steps;
-    };
+    }
 
     if (steps.type === RoutineStepType.RoutineList || steps.type === ProjectStepType.Directory) {
         return recursiveInsert(stepData, steps) as RoutineListStep | DirectoryStep;
     } else {
         return steps; // if steps is neither a RoutineListStep nor a DirectoryStep, return it as is.
     }
-};
+}
 
 /**
  * Find the step array of a given nodeId
@@ -67,7 +70,11 @@ const insertStep = (stepData: RoutineListStep | DirectoryStep, steps: RoutineLis
  * @param location The current location array, since this is recursive
  * @return The step array of the given step
  */
-const locationFromNodeId = (nodeId: string, step: ProjectStep | null, location: number[] = []): number[] | null => {
+function locationFromNodeId(
+    nodeId: string,
+    step: ProjectStep | null,
+    location: number[] = [],
+): number[] | null {
     if (!step) return null;
     // Only routine lists and subroutines can be linked to a node
     if ((step.type === RoutineStepType.RoutineList || step.type === RoutineStepType.Subroutine) && step.nodeId === nodeId) {
@@ -90,7 +97,7 @@ const locationFromNodeId = (nodeId: string, step: ProjectStep | null, location: 
         }
     }
     return null;
-};
+}
 
 /**
  * Find the step array of a given routineVersionId
@@ -99,7 +106,11 @@ const locationFromNodeId = (nodeId: string, step: ProjectStep | null, location: 
  * @param location The current location array. Only used when recursed.
  * @return The step array of the given step
  */
-const locationFromRoutineVersionId = (routineVersionId: string, step: ProjectStep | null, location: number[] = []): number[] | null => {
+function locationFromRoutineVersionId(
+    routineVersionId: string,
+    step: ProjectStep | null,
+    location: number[] = [],
+): number[] | null {
     if (!step) return null;
     // If step is a subroutine, it's either a single-step routine, or it is not fully-loaded. 
     // Either way, we check its routineVersion.id for a match.
@@ -125,7 +136,7 @@ const locationFromRoutineVersionId = (routineVersionId: string, step: ProjectSte
         }
     }
     return null;
-};
+}
 
 /**
  * Uses a location array to find the step at a given location 
@@ -134,7 +145,10 @@ const locationFromRoutineVersionId = (routineVersionId: string, step: ProjectSte
  * @param steps ProjectStep for the overall project or routine being run
  * @returns ProjectStep for the requested step, or null if not found
  */
-const stepFromLocation = (locationArray: number[], steps: ProjectStep | null): ProjectStep | null => {
+function stepFromLocation(
+    locationArray: number[],
+    steps: ProjectStep | null,
+): ProjectStep | null {
     if (!steps) return null;
     let currNestedSteps: ProjectStep | null = steps;
     // If array too large, probably an error
@@ -156,7 +170,7 @@ const stepFromLocation = (locationArray: number[], steps: ProjectStep | null): P
         }
     }
     return currNestedSteps;
-};
+}
 
 /**
  * Determines if a step (either subroutine or directory) needs additional queries, or if it already 
@@ -164,7 +178,9 @@ const stepFromLocation = (locationArray: number[], steps: ProjectStep | null): P
  * @param step The step to check
  * @returns True if the step needs additional queries, false otherwise
  */
-const stepNeedsQuerying = (step: ProjectStep | null | undefined): boolean => {
+function stepNeedsQuerying(
+    step: ProjectStep | null | undefined,
+): boolean {
     if (!step) return false;
     // Handle SubroutineStep
     if (step.type === RoutineStepType.Subroutine) {
@@ -178,14 +194,14 @@ const stepNeedsQuerying = (step: ProjectStep | null | undefined): boolean => {
         return Boolean(currDirectory.steps && currDirectory.steps.length > 0);
     }
     return false;
-};
+}
 
 /**
  * Calculates the complexity of a step
  * @param step The step to calculate the complexity of
  * @returns The complexity of the step
  */
-const getStepComplexity = (step: ProjectStep): number => {
+function getStepComplexity(step: ProjectStep): number {
     switch (step.type) {
         // One decision, so one complexity
         case RoutineStepType.Decision:
@@ -198,7 +214,7 @@ const getStepComplexity = (step: ProjectStep): number => {
         case ProjectStepType.Directory:
             return (step as RoutineListStep).steps.reduce((acc, curr) => acc + getStepComplexity(curr), 0);
     }
-};
+}
 
 /**
  * Converts a routine version (can be the main routine or a subroutine) into a RoutineStep
@@ -206,10 +222,10 @@ const getStepComplexity = (step: ProjectStep): number => {
  * @param languages Preferred languages to display step data in
  * @returns RoutineStep for the given routine, or null if invalid
  */
-const convertRoutineVersionToStep = (
+function convertRoutineVersionToStep(
     routineVersion: RoutineVersion | null | undefined,
     languages: string[],
-): RoutineListStep | null => {
+): RoutineListStep | null {
     // Check for required data to calculate steps
     if (!routineVersion || !routineVersion.nodes || !routineVersion.nodeLinks) {
         console.log("routineVersion does not have enough data to calculate steps");
@@ -300,14 +316,14 @@ const convertRoutineVersionToStep = (
         steps,
         endSteps,
     };
-};
+}
 
 /**
  * Parses the childOrder string of a project version directory into an ordered array of child IDs
  * @param childOrder Child order string (e.g. "123,456,555,222" or "l(333,222,555),r(888,123,321)")
  * @returns Ordered array of child IDs
  */
-const parseChildOrder = (childOrder: string): string[] => {
+function parseChildOrder(childOrder: string): string[] {
     // If it's the root format, get the left and right orders and combine them
     const match = childOrder.match(/^l\((.*?)\),r\((.*?)\)$/);
     if (match) {
@@ -319,7 +335,7 @@ const parseChildOrder = (childOrder: string): string[] => {
     else {
         return childOrder.split(",");
     }
-};
+}
 
 /**
  * Converts a project version into a ProjectStep
@@ -327,10 +343,10 @@ const parseChildOrder = (childOrder: string): string[] => {
  * @param languages Preferred languages to display step data in
  * @returns ProjectStep for the given project, or null if invalid
  */
-const convertProjectVersionToStep = (
+function convertProjectVersionToStep(
     projectVersion: Pick<ProjectVersion, "directories" | "translations"> | null | undefined,
     languages: string[],
-): DirectoryStep | null => {
+): DirectoryStep | null {
     // Check if the projectVersion object and its directories array are not null or undefined
     if (!projectVersion || !projectVersion.directories) {
         console.log("projectVersion does not have enough data to calculate steps");
@@ -375,14 +391,54 @@ const convertProjectVersionToStep = (
         description: getTranslation(projectVersion, languages, true).description ?? "Description not found matching selected language",
         steps: resultSteps,
     };
-};
+}
 
-export const RunView = ({
+const TopBar = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0.5rem",
+    width: "100%",
+    backgroundColor: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+}));
+
+const TitleStepsStack = styled(Stack)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+}));
+
+const ContentBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "auto",
+    marginBottom: "72px + env(safe-area-inset-bottom)",
+    overflowY: "auto",
+    minHeight: "100vh",
+}));
+
+const ActionBar = styled(Box)(({ theme }) => ({
+    position: "fixed",
+    bottom: "0",
+    paddingBottom: "env(safe-area-inset-bottom)",
+    height: pagePaddingBottom,
+    width: "-webkit-fill-available",
+    zIndex: 4,
+    background: theme.palette.primary.dark,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+}));
+
+export function RunView({
     display,
     isOpen,
     onClose,
     runnableObject,
-}: RunViewProps) => {
+}: RunViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -546,12 +602,12 @@ export const RunView = ({
     /**
      * On tab change, add to contextSwitches
      */
-    useEffect(() => {
-        const handleTabChange = (event: any) => {
+    useEffect(function contextSwitchesMemo() {
+        function handleTabChange() {
             if (currStepRunData) {
                 contextSwitches.current += 1;
             }
-        };
+        }
         window.addEventListener("focus", handleTabChange);
         return () => {
             window.removeEventListener("focus", handleTabChange);
@@ -693,7 +749,7 @@ export const RunView = ({
      * of its own subroutines is found.
      * Examples: [2] => [3] OR [2, 1] if at end of list
      */
-    const nextStep = useMemo<number[] | null>(() => {
+    const nextStep = useMemo<number[] | null>(function nextStepMemo() {
         // If current step is a decision, return null. 
         // This is because the next step is determined by the decision, not automatically
         if (currentStep?.type === RoutineStepType.Decision || currentStep?.type === ProjectStepType.Directory) return null;
@@ -757,7 +813,7 @@ export const RunView = ({
     /**
       * Navigate to the previous subroutine
       */
-    const toPrevious = useCallback(() => {
+    const toPrevious = useCallback(function toPreviousCallback() {
         if (!previousStep) return;
         // Update current step
         setCurrStepLocation(previousStep);
@@ -769,7 +825,7 @@ export const RunView = ({
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
      */
-    const toNext = useCallback(() => {
+    const toNext = useCallback(function toNextCallback() {
         // Find step data
         const currStep = stepFromLocation(currStepLocation, steps);
         // Calculate new progress and percent complete
@@ -856,7 +912,7 @@ export const RunView = ({
      * End run after reaching an EndStep
      * TODO if run is a project, this is not the end. Just the end of a routine in the project
      */
-    const reachedEndStep = useCallback((step: EndStep) => {
+    const reachedEndStep = useCallback(function reachedEndStepCallback(step: EndStep) {
         // Check if end was successfully reached
         const success = step.wasSuccessful ?? true;
         // Don't actually do it if in test mode
@@ -889,7 +945,7 @@ export const RunView = ({
     /**
      * Stores current progress, both for overall routine and the current subroutine
      */
-    const saveProgress = useCallback(() => {
+    const saveProgress = useCallback(function saveProgressCallback() {
         // Dont do this in test mode, or if there's no run data
         if (testMode || !run) return;
         // Find current step in run data
@@ -916,7 +972,7 @@ export const RunView = ({
     /**
      * End routine early
      */
-    const toFinishNotComplete = useCallback(() => {
+    const toFinishNotComplete = useCallback(function toFinishNotCompleteCallback() {
         saveProgress();
         removeSearchParams(setLocation, ["run", "step"]);
         tryOnClose(onClose, setLocation);
@@ -925,7 +981,7 @@ export const RunView = ({
     /**
      * Navigate to selected decision
      */
-    const toDecision = useCallback((step: RoutineStep | EndStep) => {
+    const toDecision = useCallback(function toDecisionCallback(step: RoutineStep | EndStep) {
         // If end node, finish
         if (step.type === "End") {
             reachedEndStep(step);
@@ -940,10 +996,14 @@ export const RunView = ({
         setCurrStepLocation(locationArray);
     }, [reachedEndStep, setCurrStepLocation, steps]);
 
+    const handleLoadSubroutine = useCallback(function handleLoadSubroutineCallback(id: string) {
+        getSubroutines({ ids: [id] });
+    }, [getSubroutines]);
+
     /**
      * Displays either a subroutine view or decision view
      */
-    const childView = useMemo(() => {
+    const childView = useMemo(function childViewMemo() {
         console.log("calculating childview", currentStep, run);
         if (!currentStep) return null;
         switch (currentStep.type) {
@@ -980,22 +1040,11 @@ export const RunView = ({
             isOpen={isOpen}
             onClose={onClose}
         >
-            <Box sx={{ minHeight: "100vh" }}>
-                <Box sx={{
-                    margin: "auto",
-                }}>
+            <Box minHeight="100vh">
+                <Box margin="auto">
                     {/* Contains name bar and progress bar */}
                     <Stack direction="column" spacing={0}>
-                        {/* Top bar */}
-                        <Box sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "0.5rem",
-                            width: "100%",
-                            backgroundColor: palette.primary.dark,
-                            color: palette.primary.contrastText,
-                        }}>
+                        <TopBar>
                             {/* Close Icon */}
                             <IconButton
                                 edge="end"
@@ -1006,57 +1055,31 @@ export const RunView = ({
                                 <CloseIcon width='32px' height='32px' />
                             </IconButton>
                             {/* Title and steps */}
-                            <Stack direction="row" spacing={1} sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            }}>
+                            <TitleStepsStack direction="row" spacing={1}>
                                 <Typography variant="h5" component="h2">{name}</Typography>
                                 {(currentStepNumber >= 0 && stepsInCurrentNode >= 0) ?
                                     <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                     : null}
                                 {/* Help icon */}
                                 {instructions && <HelpButton markdown={instructions} />}
-                            </Stack>
+                            </TitleStepsStack>
                             {/* Steps explorer drawer */}
                             <RunStepsDialog
                                 currStep={currStepLocation}
-                                handleLoadSubroutine={(id: string) => { getSubroutines({ ids: [id] }); }}
+                                handleLoadSubroutine={handleLoadSubroutine}
                                 handleCurrStepLocationUpdate={setCurrStepLocation}
                                 history={progress}
                                 percentComplete={progressPercentage}
                                 rootStep={steps}
                             />
-                        </Box>
+                        </TopBar>
                         {/* Progress bar */}
                         <LinearProgress color="secondary" variant="determinate" value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * 100} sx={{ height: "15px" }} />
                     </Stack>
-                    {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
-                    <Box sx={{
-                        background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        margin: "auto",
-                        marginBottom: "72px + env(safe-area-inset-bottom)",
-                        overflowY: "auto",
-                        minHeight: "100vh",
-                    }}>
+                    <ContentBox>
                         {childView}
-                    </Box>
-                    {/* Action bar */}
-                    <Box sx={{
-                        position: "fixed",
-                        bottom: "0",
-                        paddingBottom: "env(safe-area-inset-bottom)",
-                        height: pagePaddingBottom,
-                        width: "-webkit-fill-available",
-                        zIndex: 4,
-                        background: palette.primary.dark,
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}>
+                    </ContentBox>
+                    <ActionBar>
                         <Grid container spacing={2} sx={{
                             width: "min(100%, 700px)",
                             margin: 0,
@@ -1095,19 +1118,9 @@ export const RunView = ({
                                 </Button>)}
                             </Grid>
                         </Grid>
-                    </Box>
-                    <Box p={2} sx={{
-                        background: palette.primary.dark,
-                        position: "fixed",
-                        bottom: 0,
-                        width: "100vw",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}>
-                    </Box>
+                    </ActionBar>
                 </Box>
             </Box>
         </MaybeLargeDialog>
     );
-};
+}

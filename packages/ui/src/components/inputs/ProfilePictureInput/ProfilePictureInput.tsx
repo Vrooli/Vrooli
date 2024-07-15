@@ -1,8 +1,9 @@
-import { Avatar, Box, IconButton, Stack, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import { BotIcon, DeleteIcon, EditIcon, TeamIcon, UserIcon } from "icons";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { ProfilePictureInputAvatar } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
@@ -15,7 +16,7 @@ const PROFILE_TARGET_SIZE = 100;
 /**
  * Processes an image file and returns an object URL for it
  */
-const handleImagePreview = async (file: File): Promise<string | undefined> => {
+async function handleImagePreview(file: File): Promise<string | undefined> {
     // Extract extension from file name or path
     const ext = (file.name ?? (file as { path?: string }).path ?? "").split(".").pop()?.toLowerCase() ?? "";
     // .heic and .heif files are not supported by browsers, 
@@ -53,14 +54,14 @@ const handleImagePreview = async (file: File): Promise<string | undefined> => {
         return URL.createObjectURL(file);
     }
     return undefined;
-};
+}
 
-export const ProfilePictureInput = ({
+export function ProfilePictureInput({
     name,
     onBannerImageChange,
     onProfileImageChange,
     profile,
-}: ProfilePictureInputProps) => {
+}: ProfilePictureInputProps) {
     const { palette } = useTheme();
     const zIndex = useZIndex();
 
@@ -71,7 +72,7 @@ export const ProfilePictureInput = ({
         setProfileImageUrl(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));
     }, [profile]);
     // Colorful placeholder if no image, or white if there is an image (in case there's transparency)
-    const profileColors = useMemo(() => profileImageUrl ? ["#fff", "#fff"] : placeholderColor(), [profileImageUrl]);
+    const profileColors = useMemo<[string, string]>(() => profileImageUrl ? ["#fff", "#fff"] : placeholderColor(), [profileImageUrl]);
 
     const { getRootProps: getBannerRootProps, getInputProps: getBannerInputProps } = useDropzone({
         accept: ["image/*", ".heic", ".heif"],
@@ -108,16 +109,16 @@ export const ProfilePictureInput = ({
         },
     });
 
-    const removeBannerImage = (event: React.MouseEvent) => {
+    const removeBannerImage = useCallback(function removeBannerImageCallback(event: React.MouseEvent) {
         event.stopPropagation();
         setBannerImageUrl(undefined);
         onBannerImageChange(null);
-    };
-    const removeProfileImage = (event: React.MouseEvent) => {
+    }, [onBannerImageChange]);
+    const removeProfileImage = useCallback(function removeProfileImageCallback(event: React.MouseEvent) {
         event.stopPropagation();
         setProfileImageUrl(undefined);
         onProfileImageChange(null);
-    };
+    }, [onProfileImageChange]);
 
     /** Fallback icon displayed when profile image is not available */
     const ProfileIcon = useMemo(() => {
@@ -171,24 +172,16 @@ export const ProfilePictureInput = ({
                 bottom: "-25px",
             }} {...getProfileRootProps()}>
                 <input name={name ?? "picture"} {...getProfileInputProps()} />
-                <Avatar
+                <ProfilePictureInputAvatar
+                    isBot={profile?.isBot ?? false}
+                    profileColors={profileColors}
                     src={profileImageUrl}
-                    sx={{
-                        backgroundColor: profileColors[0],
-                        color: profileColors[1],
-                        boxShadow: 4,
-                        width: "100px",
-                        height: "100px",
-                        cursor: "pointer",
-                        // Bots show up as squares, to distinguish them from users
-                        ...(profile?.isBot ? { borderRadius: "8px" } : {}),
-                    }}
                 >
                     <ProfileIcon
                         width="75%"
                         height="75%"
                     />
-                </Avatar>
+                </ProfilePictureInputAvatar>
                 <Stack direction="row" spacing={0.5} sx={{
                     position: "absolute",
                     top: "-16px",
@@ -210,4 +203,4 @@ export const ProfilePictureInput = ({
             </Box>
         </Box>
     );
-};
+}

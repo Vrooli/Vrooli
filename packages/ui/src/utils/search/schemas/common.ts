@@ -9,8 +9,6 @@ export const searchFormLayout = (title: CommonKey): FormSchema["layout"] => ({
 
 // Containers
 export const languagesContainer = (): GridContainer => ({
-    title: i18next.t("Language", { count: 2 }),
-    description: i18next.t("LanguagesHelp"),
     direction: "column",
     disableCollapse: true,
     totalItems: 1,
@@ -25,8 +23,6 @@ export const bookmarksContainer = (): GridContainer => ({
 });
 export const bookmarksRootContainer = bookmarksContainer;
 export const tagsContainer = (): GridContainer => ({
-    title: i18next.t("Tag", { count: 2 }),
-    description: i18next.t("TagsHelp"),
     direction: "column",
     disableCollapse: true,
     totalItems: 1,

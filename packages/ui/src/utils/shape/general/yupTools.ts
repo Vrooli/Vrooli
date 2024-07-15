@@ -45,7 +45,7 @@ type YupField = YupArrayField | YupBooleanField | YupDateField | YupMixedField |
  * @param recurseBase String to prepend to each field name 
  * @returns array of fields in dot notation, where every optional field ends with a "?"
  */
-export const yupFields = (schema: YupField, recurseBase = ""): string[] => {
+export function yupFields(schema: YupField, recurseBase = ""): string[] {
     // Determine if field is required
     const isRequired = recurseBase.length === 0 || Boolean(schema.tests.find(test => test.OPTIONS.name === "required"));
     // Prepend results with recurseBase + '.', or nothing if no recurseBase
@@ -69,7 +69,7 @@ export const yupFields = (schema: YupField, recurseBase = ""): string[] => {
         console.log("in else", recurseBase, isRequired);
         return isRequired ? [recurseBase] : [recurseBase + "?"];
     }
-};
+}
 
 // TODO haven't checked if this works, so it probably does not
 /**
@@ -80,7 +80,7 @@ export const yupFields = (schema: YupField, recurseBase = ""): string[] => {
  * @param fields Array of fields in dot notation
  * @returns true if object contains all required fields, false otherwise
  */
-export const yupObjectContainsRequiredFields = (object: { [key: string]: any }, fields: string[]): boolean => {
+export function yupObjectContainsRequiredFields(object: { [key: string]: any }, fields: string[]): boolean {
     // If object is not an object type, return false
     if (object === undefined || object === null || typeof object !== "object") return false;
     // Filter top-Level fields for required, and remove '?'
@@ -99,7 +99,7 @@ export const yupObjectContainsRequiredFields = (object: { [key: string]: any }, 
         }
     }
     return true;
-};
+}
 
 /**
  * Finds all top-level fields in object that are part of the yup schema.
@@ -107,7 +107,7 @@ export const yupObjectContainsRequiredFields = (object: { [key: string]: any }, 
  * @param fields Array of fields in dot notation
  * @returns Object including all valid top-level fields
  */
-export const grabValidTopLevelFields = (object: { [key: string]: any }, fields: string[]): { [key: string]: any } => {
+export function grabValidTopLevelFields(object: { [key: string]: any }, fields: string[]): { [key: string]: any } {
     console.log("grabValidTopLevelFields", object, fields);
     // If object is not an object type, return empty object
     if (object === undefined || object === null || typeof object !== "object") return {};
@@ -121,24 +121,24 @@ export const grabValidTopLevelFields = (object: { [key: string]: any }, fields: 
         if (object[field] !== undefined) returnObject[field] = object[field];
     }
     return returnObject;
-};
+}
 
-export const isYupValidationError = (error: any): error is ValidationError => {
+export function isYupValidationError(error: any): error is ValidationError {
     return error.name === "ValidationError";
-};
+}
 
 /**
  * Validate a schema against a values object and return an object with the
  * error messages. If validation succeeds, return an empty object.
- * @param schema A Yup schema
+ * @param yupSchema A Yup schema
  * @param values An object of values to validate
  */
-export const validateAndGetYupErrors = async (
-    schema: ObjectSchema<any>,
+export async function validateAndGetYupErrors(
+    yupSchema: ObjectSchema<any>,
     values: any,
-): Promise<{} | Record<string, string>> => {
+): Promise<{} | Record<string, string>> {
     try {
-        await schema.validate(values);
+        await yupSchema.validate(values);
         return {}; // Return an empty object if validation succeeds
     } catch (error) {
         if (isYupValidationError(error)) {
@@ -159,4 +159,4 @@ export const validateAndGetYupErrors = async (
         // If it's not a Yup ValidationError, re-throw the error
         throw error;
     }
-};
+}

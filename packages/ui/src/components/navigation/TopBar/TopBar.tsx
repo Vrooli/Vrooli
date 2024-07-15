@@ -9,8 +9,9 @@ import { TopBarProps } from "../types";
  */
 export const TopBar = forwardRef(({
     display,
-    hideTitleOnDesktop,
     sxsNavbar,
+    titleBehaviorDesktop,
+    titleBehaviorMobile,
     ...titleData
 }: TopBarProps, ref) => {
 
@@ -24,8 +25,9 @@ export const TopBar = forwardRef(({
     return (
         <Navbar
             ref={ref}
-            shouldHideTitle={hideTitleOnDesktop}
-            sxs={sxsNavbar}
+            sxs={sxsNavbar as any}
+            titleBehaviorDesktop={titleBehaviorDesktop}
+            titleBehaviorMobile={titleBehaviorMobile}
             {...titleData}
         />
     );

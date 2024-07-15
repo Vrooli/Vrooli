@@ -34,54 +34,57 @@ import { ProjectVersionDirectoryShape } from "utils/shape/models/projectVersionD
 import { validateFormValues } from "utils/validateFormValues";
 import { ProjectCrudProps, ProjectFormProps } from "../types";
 
-const projectInitialValues = (
+function projectInitialValues(
     session: Session | undefined,
     existing?: Partial<ProjectVersion> | null | undefined,
-): ProjectVersionShape => ({
-    __typename: "ProjectVersion" as const,
-    id: DUMMY_ID,
-    isComplete: false,
-    isPrivate: true,
-    resourceList: {
-        __typename: "ResourceList" as const,
+): ProjectVersionShape {
+    return {
+        __typename: "ProjectVersion" as const,
         id: DUMMY_ID,
-    },
-    versionLabel: "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Project" as const,
-        id: DUMMY_ID,
-        isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-        parent: null,
-        tags: [],
-        ...existing?.root,
-    },
-    directories: orDefault<ProjectVersionDirectoryShape[]>(existing?.directories, [{
-        __typename: "ProjectVersionDirectory" as const,
-        id: DUMMY_ID,
-        isRoot: true,
-        childApiVersions: [],
-        childCodeVersions: [],
-        childNoteVersions: [],
-        childProjectVersions: [],
-        childRoutineVersions: [],
-        childStandardVersions: [],
-        childTeams: [],
-    }]),
-    translations: orDefault(existing?.translations, [{
-        __typename: "ProjectVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        name: "",
-        description: "",
-    }]),
-});
+        isComplete: false,
+        isPrivate: true,
+        resourceList: {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+        },
+        versionLabel: "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Project" as const,
+            id: DUMMY_ID,
+            isPrivate: false,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+            parent: null,
+            tags: [],
+            ...existing?.root,
+        },
+        directories: orDefault<ProjectVersionDirectoryShape[]>(existing?.directories, [{
+            __typename: "ProjectVersionDirectory" as const,
+            id: DUMMY_ID,
+            isRoot: true,
+            childApiVersions: [],
+            childCodeVersions: [],
+            childNoteVersions: [],
+            childProjectVersions: [],
+            childRoutineVersions: [],
+            childStandardVersions: [],
+            childTeams: [],
+        }]),
+        translations: orDefault(existing?.translations, [{
+            __typename: "ProjectVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            name: "",
+            description: "",
+        }]),
+    };
+}
 
-const transformProjectVersionValues = (values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) =>
-    isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
+function transformProjectVersionValues(values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) {
+    return isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
+}
 
-const ProjectForm = ({
+function ProjectForm({
     disabled,
     dirty,
     display,
@@ -97,7 +100,7 @@ const ProjectForm = ({
     values,
     versions,
     ...props
-}: ProjectFormProps) => {
+}: ProjectFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
@@ -124,6 +127,7 @@ const ProjectForm = ({
         isCreate,
         objectId: values.id,
         objectType: "ProjectVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -288,14 +292,14 @@ const ProjectForm = ({
             </Box>
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ProjectCrud = ({
+export function ProjectCrud({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: ProjectCrudProps) => {
+}: ProjectCrudProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
@@ -306,12 +310,16 @@ export const ProjectCrud = ({
         transform: (existing) => projectInitialValues(session, existing),
     });
 
+    async function validateValues(values: ProjectVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformProjectVersionValues, projectVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformProjectVersionValues, projectVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <ProjectForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -326,4 +334,4 @@ export const ProjectCrud = ({
             />}
         </Formik>
     );
-};
+}

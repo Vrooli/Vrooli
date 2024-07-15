@@ -30,27 +30,30 @@ import { TeamShape, shapeTeam } from "utils/shape/models/team";
 import { validateFormValues } from "utils/validateFormValues";
 import { TeamFormProps, TeamUpsertProps } from "../types";
 
-const teamInitialValues = (
+function teamInitialValues(
     session: Session | undefined,
     existing?: Partial<Team> | null | undefined,
-): TeamShape => ({
-    __typename: "Team" as const,
-    id: DUMMY_ID,
-    isOpenToNewMembers: false,
-    isPrivate: false,
-    tags: [],
-    ...existing,
-    translations: orDefault(existing?.translations, [{
-        __typename: "TeamTranslation" as const,
+): TeamShape {
+    return {
+        __typename: "Team" as const,
         id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        name: "",
-        bio: "",
-    }]),
-});
+        isOpenToNewMembers: false,
+        isPrivate: false,
+        tags: [],
+        ...existing,
+        translations: orDefault(existing?.translations, [{
+            __typename: "TeamTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            name: "",
+            bio: "",
+        }]),
+    };
+}
 
-const transformTeamValues = (values: TeamShape, existing: TeamShape, isCreate: boolean) =>
-    isCreate ? shapeTeam.create(values) : shapeTeam.update(existing, values);
+function transformTeamValues(values: TeamShape, existing: TeamShape, isCreate: boolean) {
+    return isCreate ? shapeTeam.create(values) : shapeTeam.update(existing, values);
+}
 
 function TeamForm({
     disabled,
@@ -215,12 +218,16 @@ export function TeamUpsert({
         transform: (existing) => teamInitialValues(session, existing),
     });
 
+    async function validateValues(values: TeamShape) {
+        return await validateFormValues(values, existing, isCreate, transformTeamValues, teamValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformTeamValues, teamValidation)}
+            validate={validateValues}
         >
             {(formik) => <TeamForm
                 disabled={!(isCreate || permissions.canUpdate)}

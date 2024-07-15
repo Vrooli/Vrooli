@@ -124,6 +124,7 @@ function StandardForm({
         isCreate,
         objectId: values.id,
         objectType: "StandardVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -299,12 +300,16 @@ export function StandardUpsert({
         transform: (existing) => standardInitialValues(session, existing),
     });
 
+    async function validateValues(values: StandardVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformStandardVersionValues, standardVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformStandardVersionValues, standardVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <StandardForm
                 disabled={!(isCreate || permissions.canUpdate)}

@@ -11,11 +11,18 @@ import { getDisplay } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 
-function Heading({ children, level, ...props }) {
+type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+
+type HeadingProps = {
+    children: string;
+    level: 1 | 2 | 3 | 4 | 5 | 6;
+};
+
+function Heading({ children, level, ...props }: HeadingProps) {
     return (
         <Typography
-            variant={`h${Math.min(level + 2, 6)}` as TypographyProps["variant"]}
-            component={`h${level}` as TypographyProps["component"]}
+            variant={`h${Math.min(level + 2, 6)}` as HeadingLevel}
+            component={`h${level}` as HeadingLevel}
             marginTop={level === 1 ? 0 : 4}
             {...props}
         >
@@ -421,15 +428,19 @@ export function MarkdownDisplay({
     // Preprocess the Markdown content
     const processedContent = processMarkdown(content ?? "");
 
-    return (
-        <Markdown id={id} options={options} style={{
+    const markdownStyle = useMemo(function markdownStyleMemo() {
+        return {
             fontFamily: typography.fontFamily,
             fontSize: typography.fontSize + 2,
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
             color: palette.background.textPrimary,
             display: "block",
             ...sx,
-        }}>
+        } as const;
+    }, [palette.background.textPrimary, sx, typography.fontSize, typography.fontFamily]);
+
+    return (
+        <Markdown id={id} options={options} style={markdownStyle}>
             {processedContent}
         </Markdown>
     );

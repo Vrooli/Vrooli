@@ -1,5 +1,5 @@
 import { Chat, endpointPutNotificationsMarkAllAsRead, getObjectUrlBase, ListObject, Notification, Success } from "@local/shared";
-import { IconButton, Tooltip, useTheme } from "@mui/material";
+import { Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -16,7 +16,7 @@ import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
+import { pagePaddingBottom, SideActionsButton } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
@@ -161,19 +161,19 @@ export function InboxView({
             </ListContainer>
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
                         <DeleteIcon {...actionIconProps} />
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip> : null}
                 <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
                         {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip>
                 {!isSelecting ? <Tooltip title={t(actionTooltip)}>
-                    <IconButton aria-label={t(actionTooltip)} onClick={onActionButtonPress} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t(actionTooltip)} onClick={onActionButtonPress}>
                         <ActionButtonIcon {...actionIconProps} />
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip> : null}
             </SideActionsButtons>
         </>

@@ -1,5 +1,5 @@
 import { GqlModelType, ListObject, getObjectUrlBase } from "@local/shared";
-import { IconButton, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -9,6 +9,7 @@ import { useTabs } from "hooks/useTabs";
 import { AddIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { SearchType, historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
 
@@ -61,13 +62,12 @@ export function HistoryView({
             }
             {
                 searchType === SearchType.BookmarkList && <SideActionsButtons display={display}>
-                    <IconButton
+                    <SideActionsButton
                         aria-label={t("Add")}
                         onClick={() => { setLocation(`${getObjectUrlBase({ __typename: GqlModelType.BookmarkList })}/add`); }}
-                        sx={{ background: palette.secondary.main }}
                     >
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 </SideActionsButtons>
             }
         </>

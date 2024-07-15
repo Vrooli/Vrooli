@@ -58,7 +58,7 @@ export function nonEmptyString(value: unknown): string | undefined {
 /**
  * Similar to `nonEmptyString`, but supports stringified and unstringified boolean and undefined values.
  * @param value The value to check
- * @returns The value if it is a non-empty string, or undefined otherwise
+ * @returns The value if it is a non-empty string/boolean, or undefined otherwise
  */
 export function nonEmptyParsedString(value: unknown): string | boolean | undefined {
     if (typeof value === "string") {
@@ -71,6 +71,16 @@ export function nonEmptyParsedString(value: unknown): string | boolean | undefin
     }
     if (typeof value === "boolean") return value;
     return undefined;
+}
+
+/**
+ * Similar to `nonEmptyParsedString`, but result is stringified
+ * @param value The value to check
+ * @returns The value if it is a non-empty string/boolean, or undefined otherwise
+ */
+export function nonEmptyParsedStringToString(value: unknown): string | undefined {
+    const parsed = nonEmptyParsedString(value);
+    return parsed !== undefined ? parsed.toString() : undefined;
 }
 
 /**
@@ -158,7 +168,7 @@ export const searchToInputType: { [key in InputType]: (value: OrArray<UrlPrimiti
     [InputType.LanguageInput]: (value) => searchToArray(value, nonEmptyString),
     [InputType.LinkItem]: (value) => nonEmptyString(value),
     [InputType.LinkUrl]: (value) => nonEmptyString(value),
-    [InputType.Radio]: (value) => nonEmptyParsedString(value),
+    [InputType.Radio]: (value) => nonEmptyParsedStringToString(value),
     [InputType.Selector]: (value) => validPrimitive(value),
     [InputType.Slider]: (value) => nonZeroNumber(value),
     [InputType.Switch]: (value) => validBoolean(value),
@@ -181,6 +191,19 @@ export const searchToInputType: { [key in InputType]: (value: OrArray<UrlPrimiti
  *          format ready to be encoded into a URL query string.
  */
 export function convertFormikForSearch(values: Record<string, unknown>, schema: FormSchema): ParseSearchParamsResult {
+    // Check inputs
+    if (typeof values !== "object" || values === null) {
+        console.error("Values must be an object.");
+        return {};
+    }
+    if (typeof schema !== "object" || schema === null) {
+        console.error("Schema must be an object.");
+        return {};
+    }
+    if (!Array.isArray(schema.elements)) {
+        console.error("Schema elements must be an array.");
+        return {};
+    }
     // Initialize result
     const result: Record<string, never> = {};
     // Loop through all elements in the schema
@@ -215,8 +238,19 @@ export function convertSearchForFormik(
     values: ParseSearchParamsResult,
     schema: FormSchema | null | undefined,
 ): Record<string, unknown> {
-    // If schema is not provided, return empty object
-    if (!schema) return {};
+    // Check inputs
+    if (typeof values !== "object" || values === null) {
+        console.error("Values must be an object.");
+        return {};
+    }
+    if (typeof schema !== "object" || schema === null) {
+        // Not an error in this case, but still return an empty object
+        return {};
+    }
+    if (!Array.isArray(schema.elements)) {
+        console.error("Schema elements must be an array.");
+        return {};
+    }
     // Initialize result
     const result: Record<string, never> = {};
     // Loop through all elements in the schema

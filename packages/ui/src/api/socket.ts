@@ -1,4 +1,4 @@
-import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventCallbackData, SocketEventPayloads } from "@local/shared";
+import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventCallbackPayloads, SocketEventPayloads } from "@local/shared";
 import { io } from "socket.io-client";
 import { webSocketUrlBase } from "./fetchData";
 
@@ -14,17 +14,17 @@ type OnSocketEvent = Exclude<SocketEvent, ReservedSocketEvents | RoomSocketEvent
  * @param payload - The payload data to send along with the event.
  * @param callback - An optional callback function to handle the response.
  */
-export const emitSocketEvent = <T extends EmitSocketEvent>(
+export function emitSocketEvent<T extends EmitSocketEvent>(
     event: T,
     payload: SocketEventPayloads[T],
-    callback?: (response: SocketEventCallbackData) => void,
-) => {
+    callback?: (response: SocketEventCallbackPayloads[T]) => void,
+) {
     if (callback) {
         socket.emit(event, payload, callback);
     } else {
         socket.emit(event, payload);
     }
-};
+}
 
 /**
  * Registers a socket event listener.
@@ -33,13 +33,13 @@ export const emitSocketEvent = <T extends EmitSocketEvent>(
  * @param event - The socket event to listen for.
  * @param handler - The event handler function.
  */
-export const onSocketEvent = <T extends OnSocketEvent>(
+export function onSocketEvent<T extends OnSocketEvent>(
     event: T,
     handler: (payload: SocketEventPayloads[T]) => unknown,
-) => {
+) {
     socket.on(event, handler as never);
 
     return () => {
         socket.off(event, handler as never);
     };
-};
+}

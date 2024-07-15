@@ -68,6 +68,10 @@ const NoResultsText = styled(Typography)(({ theme }) => ({
     textAlign: "center",
 }));
 
+const TabsBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.primary.main,
+}));
+
 const searchBarStyle = {
     root: {
         width: "100%",
@@ -242,7 +246,7 @@ export function ChatSideMenu({
     const handleSearchStringChange = useCallback(function handleSearchCallback(newString: string) {
         setSearchString1(newString);
         setSearchString2(newString);
-    }, []);
+    }, [setSearchString1, setSearchString2]);
 
     return (
         <>
@@ -283,6 +287,7 @@ export function ChatSideMenu({
                     </IconButton>
                     <SiteSearchBar
                         id={"search-bar-chat-side-menu"}
+                        isNested={true}
                         placeholder={"Search"}
                         value={searchString}
                         onChange={handleSearchStringChange}
@@ -290,7 +295,7 @@ export function ChatSideMenu({
                         sxs={searchBarStyle}
                     />
                 </Box>
-                <Box>
+                <TabsBox>
                     <PageTabs
                         ariaLabel="chat-side-menu-tabs"
                         currTab={currTab}
@@ -298,7 +303,7 @@ export function ChatSideMenu({
                         onChange={handleTabChange}
                         tabs={tabs}
                     />
-                </Box>
+                </TabsBox>
                 <Divider />
                 <Box overflow="auto" display="flex" flexDirection="column">
                     <Box>

@@ -39,59 +39,58 @@ import { validateFormValues } from "utils/validateFormValues";
 import { NoteCrudProps } from "views/objects/note/types";
 import { NoteFormProps } from "../types";
 
-const noteInitialValues = (
+function noteInitialValues(
     session: Session | undefined,
     existing?: Partial<NoteVersion> | null | undefined,
-): NoteVersionShape => ({
-    __typename: "NoteVersion" as const,
-    id: DUMMY_ID,
-    directoryListings: [],
-    isPrivate: true,
-    versionLabel: existing?.versionLabel ?? "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Note" as const,
+): NoteVersionShape {
+    return {
+        __typename: "NoteVersion" as const,
         id: DUMMY_ID,
+        directoryListings: [],
         isPrivate: true,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
-        parent: null,
-        tags: [],
-        ...existing?.root,
-    },
-    translations: orDefault(existing?.translations, [{
-        __typename: "NoteVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        name: "New Note",
-        pages: [{
-            __typename: "NotePage" as const,
+        versionLabel: existing?.versionLabel ?? "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Note" as const,
             id: DUMMY_ID,
-            pageIndex: 0,
-            text: "",
-        }],
-    }]),
-});
+            isPrivate: true,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
+            parent: null,
+            tags: [],
+            ...existing?.root,
+        },
+        translations: orDefault(existing?.translations, [{
+            __typename: "NoteVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            name: "New Note",
+            pages: [{
+                __typename: "NotePage" as const,
+                id: DUMMY_ID,
+                pageIndex: 0,
+                text: "",
+            }],
+        }]),
+    };
+}
 
-const transformNoteVersionValues = (values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) =>
-    isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
+function transformNoteVersionValues(values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) {
+    return isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
+}
 
-const NoteForm = ({
+function NoteForm({
     disabled,
-    dirty,
     display,
     existing,
     handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
     values,
     ...props
-}: NoteFormProps) => {
+}: NoteFormProps) {
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
     const { t } = useTranslation();
@@ -104,6 +103,7 @@ const NoteForm = ({
         isCreate,
         objectId: values.id,
         objectType: "NoteVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -150,7 +150,7 @@ const NoteForm = ({
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback(() => {
-        const performDelete = () => {
+        function performDelete() {
             fetchLazyWrapper<DeleteOneInput, Success>({
                 fetch: deleteMutation,
                 inputs: { id: values.id, objectType: DeleteType.Note },
@@ -159,7 +159,7 @@ const NoteForm = ({
                 onSuccess: () => { handleDeleted(values as NoteVersion); },
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
-        };
+        }
         PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [{
@@ -190,11 +190,7 @@ const NoteForm = ({
         }
         if (disabled && languages.length > 1) {
             buttons.push(
-                <Box sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                }}>
+                <Box display="flex" justifyContent="center" alignItems="center">
                     <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}
@@ -375,14 +371,14 @@ const NoteForm = ({
             </MaybeLargeDialog>
         </>
     );
-};
+}
 
-export const NoteCrud = ({
+export function NoteCrud({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: NoteCrudProps) => {
+}: NoteCrudProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
@@ -393,12 +389,16 @@ export const NoteCrud = ({
         transform: (data) => noteInitialValues(session, data),
     });
 
+    async function validateValues(values: NoteVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformNoteVersionValues, noteVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformNoteVersionValues, noteVersionValidation)}
+            validate={validateValues}
         >
             {(formik) =>
                 <>
@@ -416,4 +416,4 @@ export const NoteCrud = ({
             }
         </Formik>
     );
-};
+}

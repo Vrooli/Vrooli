@@ -50,6 +50,8 @@ const AsteriskLabel = styled(Typography)(({ theme }) => ({
 const formInputOuterBoxStyle = {
     paddingTop: 1,
     paddingBottom: 1,
+    paddingLeft: 0,
+    paddingRight: 0,
     border: 0,
     borderRadius: 1,
 };
@@ -97,7 +99,19 @@ export function FormInput({
         return { style: (typography["h6"] as object || {}) };
     }, [typography]);
     const labelStyle = useMemo(function typographyStyleMemo() {
-        return { color: textPrimary, cursor: isEditing ? "pointer" : "default" };
+        return {
+            color: textPrimary,
+            cursor: isEditing ? "pointer" : "default",
+            // Ensure there's a clickable area, even if the text is empty
+            minWidth: "20px",
+            minHeight: "24px",
+            "&:empty::before": {
+                content: "\"\"",
+                display: "inline-block",
+                width: "100%",
+                height: "100%",
+            },
+        };
     }, [textPrimary, isEditing]);
 
     const titleStack = useMemo(() => (
@@ -116,10 +130,12 @@ export function FormInput({
                     <TextField
                         ref={labelEditRef}
                         autoFocus
+                        inputMode="text"
                         InputProps={textFieldInputProps}
                         onBlur={submitLabelChange}
                         onChange={handleLabelChange}
                         onKeyDown={handleLabelKeyDown}
+                        placeholder={"Enter label..."}
                         size="small"
                         value={editedLabel}
                         sx={textFieldStyle}

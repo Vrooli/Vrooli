@@ -356,12 +356,16 @@ export function BookmarkListUpsert({
         transform: (data) => bookmarkListInitialValues(session, data),
     });
 
+    async function validateValues(values: BookmarkListShape) {
+        return await validateFormValues(values, existing, isCreate, transformBookmarkListValues, bookmarkListValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformBookmarkListValues, bookmarkListValidation)}
+            validate={validateValues}
         >
             {(formik) => <BookmarkListForm
                 disabled={false}

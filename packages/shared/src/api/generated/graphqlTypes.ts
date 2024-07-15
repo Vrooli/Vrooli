@@ -7812,7 +7812,7 @@ export type RoutineVersionTranslation = {
   __typename: 'RoutineVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  instructions: Scalars['String'];
+  instructions?: Maybe<Scalars['String']>;
   language: Scalars['String'];
   name: Scalars['String'];
 };
@@ -7820,7 +7820,7 @@ export type RoutineVersionTranslation = {
 export type RoutineVersionTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  instructions: Scalars['String'];
+  instructions?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
   name: Scalars['String'];
 };
@@ -14165,7 +14165,7 @@ export type RoutineVersionSearchResultResolvers<ContextType = any, ParentType ex
 export type RoutineVersionTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionTranslation'] = ResolversParentTypes['RoutineVersionTranslation']> = {
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  instructions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  instructions?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

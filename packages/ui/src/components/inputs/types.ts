@@ -325,6 +325,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
+    getDisplayIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
     getOptionDescription?: (option: T) => string | null | undefined;
     getOptionIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
     getOptionLabel: (option: T) => string | null | undefined;
@@ -336,7 +337,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     noneOption?: boolean;
     noneText?: string;
     onChange?: (value: T | null) => unknown;
-    options: T[];
+    options: readonly T[];
     sx?: SxType;
     tabIndex?: number;
 }

@@ -350,12 +350,17 @@ export function SubroutineInfoDialog({
     const initialValues = useMemo(() => subroutineInitialValues(session, subroutine), [subroutine, session]);
     const canUpdate = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canUpdate === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canUpdate, userId]);
 
+    async function validateValues(values: NodeRoutineListItemShape) {
+        if (!subroutine) return;
+        return await validateFormValues(values, subroutine, false, transformSubroutineValues, nodeRoutineListItemValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={initialValues}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, subroutine!, false, transformSubroutineValues, nodeRoutineListItemValidation)}
+            validate={validateValues}
         >
             {(formik) => <SubroutineForm
                 canUpdateRoutineVersion={canUpdate}

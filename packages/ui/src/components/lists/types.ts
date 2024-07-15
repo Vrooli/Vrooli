@@ -5,6 +5,7 @@ import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
 import { SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { RelationshipButtonType } from "utils/consts";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -123,21 +124,6 @@ export type RelationshipItemRunRoutine = Pick<RunRoutine, "id" | "name"> &
     __typename: "RunRoutine";
     routineVersion: RelationshipItemRoutineVersion;
 }
-
-export type RelationshipButtonType =
-    "Owner" |
-    "Parent" |
-    "IsPrivate" |
-    "IsComplete" |
-    "FocusMode" |
-    "Meeting" |
-    "RunProject" |
-    "RunRoutine" |
-    "QuestionFor" |
-    "Members" |
-    "Participants" |
-    "Team" |
-    "User";
 
 export interface RelationshipListProps {
     limitTo?: RelationshipButtonType[];

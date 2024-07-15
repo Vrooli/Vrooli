@@ -1,5 +1,5 @@
 import { GqlModelType, ListObject, getObjectUrlBase, uuidValidate } from "@local/shared";
-import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
+import { ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -14,6 +14,7 @@ import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
@@ -162,22 +163,22 @@ export function MyStuffView({
             />}
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
                         <DeleteIcon {...actionIconProps} />
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip> : null}
                 <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <IconButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
                         {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip>
-                {!isSelecting ? <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                {!isSelecting ? <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
+                </SideActionsButton> : null}
                 {userId ? (
-                    <IconButton aria-label={t("Add")} onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
         </>

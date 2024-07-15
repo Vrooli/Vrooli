@@ -22,7 +22,7 @@ import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons"
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
+import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -158,11 +158,9 @@ export function TeamView({
             <OverviewContainer>
                 <OverviewProfileStack>
                     <OverviewProfileAvatar
+                        isBot={false}
+                        profileColors={profileColors}
                         src={extractImageUrl(team?.profileImage, team?.updated_at, 100)}
-                        sx={{
-                            backgroundColor: profileColors[0],
-                            color: profileColors[1],
-                        }}
                     >
                         <TeamIcon width="75%" height="75%" />
                     </OverviewProfileAvatar>
@@ -281,15 +279,15 @@ export function TeamView({
             </Box>
             <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
-                {currTab.key !== TeamPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                {currTab.key !== TeamPageTabOption.Resource ? <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
-                {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton> : null}
+                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }}>
                     <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
-                <IconButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }} sx={{ background: palette.secondary.main, width: "52px", height: "52px" }}>
+                </SideActionsButton> : null}
+                <SideActionsButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }}>
                     <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons>
         </>
     );

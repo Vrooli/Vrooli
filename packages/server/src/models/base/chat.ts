@@ -31,10 +31,10 @@ type ChatPre = PreShapeEmbeddableTranslatableResult & {
  * link the final parent in the nested create to an existing message.
  * @returns Nested chat message structure for Prisma
  */
-export const chatCreateNestedMessages = (
+export function chatCreateNestedMessages(
     messages: any[],
     branchInfo: ChatPreBranchInfo,
-) => {
+) {
     if (messages.length === 0) {
         return undefined;
     }
@@ -52,11 +52,15 @@ export const chatCreateNestedMessages = (
     // Store current message index
     let currMessageIndex = messages.length - 1; // Start at the end of the array, as we'll be working backwards
 
-    const canVisitMore = () => allVisited.size + currVisited.length < messages.length;
-    const hasBeenVisited = (id: string | undefined) => id !== undefined && (allVisited.has(id) || currVisited.includes(id));
+    function canVisitMore() {
+        return allVisited.size + currVisited.length < messages.length;
+    }
+    function hasBeenVisited(id: string | undefined) {
+        return id !== undefined && (allVisited.has(id) || currVisited.includes(id));
+    }
 
     // Recursive helper function to create nested message structure
-    const createNested = () => {
+    function createNested() {
         const message = messages[currMessageIndex];
         // Add message to visited set
         if (hasBeenVisited(message.id)) {
@@ -146,7 +150,7 @@ export const chatCreateNestedMessages = (
             // Recursive
             createNested();
         }
-    };
+    }
 
     // Call the recursive function until all messages have been visited
     while (canVisitMore()) {
@@ -163,7 +167,7 @@ export const chatCreateNestedMessages = (
     }
     // Otherwise, return the array of create objects
     return { create: createObjects };
-};
+}
 
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({

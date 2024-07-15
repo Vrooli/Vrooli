@@ -15,7 +15,7 @@ type RoutineTypeOption = {
 export const routineTypes = [
     {
         type: RoutineType.Informational,
-        label: "Informational/Placeholder",
+        label: "Basic",
         description: "Contains no additional data. Used to provide instructions, a way to prompt users for information, or as a placeholder.",
         Icon: HelpIcon,
     }, {
@@ -66,7 +66,6 @@ export function routineSearchSchema(): FormSchema {
             {
                 direction: "column",
                 disableCollapse: true,
-                title: "Routine Type",
                 totalItems: 1,
             },
             hasCompleteVersionContainer,

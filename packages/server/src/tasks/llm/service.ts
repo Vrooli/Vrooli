@@ -345,7 +345,7 @@ type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, 
  * Attempts to generate a response using a preferred LLM service, falling back to 
  * other services if the preferred one is unavailable.
  */
-export const generateResponseWithFallback = async ({
+export async function generateResponseWithFallback({
     chatId,
     force,
     latestMessage,
@@ -356,7 +356,7 @@ export const generateResponseWithFallback = async ({
     task,
     taskMessage,
     userData,
-}: GenerateResponseWithFallbackParams): Promise<GenerateResponseResult> => {
+}: GenerateResponseWithFallbackParams): Promise<GenerateResponseResult> {
     const retryLimit = 3; // Set a limit to prevent infinite loops
     let attempts = 0;
 
@@ -441,7 +441,7 @@ export const generateResponseWithFallback = async ({
     }
 
     throw new CustomError("0253", "InternalError", userData.languages, { respondingBotConfig });
-};
+}
 
 export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" | "latestMessage" | "taskMessage"> & {
     commandToTask: CommandToTask,

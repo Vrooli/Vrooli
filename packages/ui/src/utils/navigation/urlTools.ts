@@ -21,7 +21,7 @@ export type UrlInfo = {
  * NOTE: This function may sometimes be used for deeper navigation within a single item, 
  * such as site.com/reports/id or site.com/comments/id. In this case, the logic is still the same.
  */
-export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname?: string }) => {
+export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname?: string }) {
     // Initialize the return object
     const returnObject: UrlInfo = {};
     // Get the pathname from the href if it's not provided
@@ -35,11 +35,11 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
     // If no pathname provided, return empty object
     if (!pathname) return returnObject;
     // Helper for checking if a string is a handle
-    const isHandle = (text: string) => {
+    function isHandle(text: string) {
         if (text.startsWith("@")) text = text.slice(1);
         // Test using handle regex, and make sure it's not a word used for other purposes
         return handleRegex.test(text) && !Object.values(LINKS).includes("/" + text as LINKS) && ["add", "edit", "update"].every(word => !text.includes(word));
-    };
+    }
     // Get the last 2 parts of the URL
     const lastPart = getLastPathnamePart({ pathname });
     const secondLastPart = getLastPathnamePart({ pathname, offset: 1 });
@@ -84,7 +84,7 @@ export const parseSingleItemUrl = ({ href, pathname }: { href?: string, pathname
     }
     // Return the object
     return returnObject;
-};
+}
 
 /**
  * If onClose is a function, call it. Otherwise, 

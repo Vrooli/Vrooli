@@ -5,7 +5,7 @@ import { UserIcon } from "icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { placeholderColor } from "utils/display/listTools";
 
-const useOnScreen = () => {
+function useOnScreen() {
     const ref = useRef(null);
     const [isIntersecting, setIntersecting] = useState(false);
 
@@ -33,9 +33,9 @@ const useOnScreen = () => {
     }, []);
 
     return [ref, isIntersecting] as const;
-};
+}
 
-const Testimonial = ({
+function Testimonial({
     author,
     text,
     src,
@@ -47,7 +47,7 @@ const Testimonial = ({
     src: string;
     alt: string;
     sx?: SxProps;
-}) => {
+}) {
     const { palette } = useTheme();
     const [ref, isVisible] = useOnScreen();
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -91,11 +91,11 @@ const Testimonial = ({
             </Box>
         </Box>
     );
-};
+}
 
-export const Testimonials = () => {
+export function Testimonials() {
     return (
-        <>
+        <Box>
             <Testimonial
                 text="I used to do things... manually! Can you imagine? Thanks to Vrooli, I've now forgotten how to use a pen."
                 author="Jeremy P., former pen enthusiast"
@@ -112,6 +112,6 @@ export const Testimonials = () => {
             <Typography variant="body2" align="center" sx={{ marginBottom: 2, color: "grey" }}>
                 *Testimonials are satirical in nature and are for illustrative purposes only.
             </Typography>
-        </>
+        </Box>
     );
-};
+}

@@ -1,7 +1,8 @@
-import { Chat, ChatCreateInput, ChatParticipant, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "@local/shared";
+import { Chat, ChatCreateInput, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "@local/shared";
 import { CanConnect, ShapeModel } from "types";
 import { ChatInviteShape, shapeChatInvite } from "./chatInvite";
 import { ChatMessageShape, shapeChatMessage } from "./chatMessage";
+import { ChatParticipantShape } from "./chatParticipant";
 import { LabelShape, shapeLabel } from "./label";
 import { TeamShape } from "./team";
 import { createPrims, createRel, shapeUpdate, updatePrims, updateRel, updateTranslationPrims } from "./tools";
@@ -12,10 +13,13 @@ export type ChatTranslationShape = Pick<ChatTranslation, "id" | "language" | "de
 
 export type ChatShape = Pick<Chat, "id" | "openToAnyoneWithInvite"> & {
     __typename: "Chat";
+    /** Invites for new participants */
     invites: ChatInviteShape[];
     labels?: CanConnect<LabelShape>[] | null;
     messages: ChatMessageShape[];
-    participants: ChatParticipant[]; // Ignored, but needed for ChatCrud
+    /** Potentially non-exhaustive list of current participants. Ignored by shapers */
+    participants?: ChatParticipantShape[];
+    /** Participants being removed from the chst */
     participantsDelete?: { id: string }[] | null;
     team?: CanConnect<TeamShape> | null;
     translations?: ChatTranslationShape[] | null;

@@ -12,14 +12,14 @@ import { updateRel } from "./shape/models/tools";
  * @param totalComplexity The total number of steps.
  * @returns The percentage of the run that has been completed, 0-100.
  */
-export const getRunPercentComplete = (
+export function getRunPercentComplete(
     completedComplexity: number | null | undefined,
     totalComplexity: number | null | undefined,
-) => {
+) {
     if (!completedComplexity || !totalComplexity || totalComplexity === 0) return 0;
     const percentage = Math.round(completedComplexity as number / totalComplexity * 100);
     return Math.min(percentage, 100);
-};
+}
 
 /**
  * Determines if two location arrays match, where a location array is an array of step indices
@@ -27,13 +27,13 @@ export const getRunPercentComplete = (
  * @param locationB The second location array
  * @return True if the location arrays match, false otherwise
  */
-export const locationArraysMatch = (locationA: number[], locationB: number[]): boolean => {
+export function locationArraysMatch(locationA: number[], locationB: number[]): boolean {
     if (locationA.length !== locationB.length) return false;
     for (let i = 0; i < locationA.length; i++) {
         if (locationA[i] !== locationB[i]) return false;
     }
     return true;
-};
+}
 
 /**
  * Determines if a routine version has subroutines. This may be simple, depending on 
@@ -41,21 +41,21 @@ export const locationArraysMatch = (locationA: number[], locationB: number[]): b
  * @param routine The routine version to check
  * @return True if the routine version has subroutines, false otherwise
  */
-export const routineVersionHasSubroutines = (routineVersion: Partial<RoutineVersion>): boolean => {
+export function routineVersionHasSubroutines(routineVersion: Partial<RoutineVersion>): boolean {
     if (!routineVersion) return false;
     // If routineVersion has nodes or links, we know it has subroutines
     if (routineVersion.nodes && routineVersion.nodes.length > 0) return true;
     if (routineVersion.nodeLinks && routineVersion.nodeLinks.length > 0) return true;
     if (routineVersion.nodesCount && routineVersion.nodesCount > 0) return true;
     return false;
-};
+}
 
 /**
  * Converts formik into object with run input data
  * @param values The formik values object
  * @returns object where keys are inputIds, and values are the run input data
  */
-export const formikToRunInputs = (values: { [x: string]: string }): { [x: string]: string } => {
+export function formikToRunInputs(values: { [x: string]: string }): { [x: string]: string } {
     const result: { [x: string]: string } = {};
     // Get user inputs, and ignore empty values and blank strings.
     const inputValues = Object.entries(values).filter(([key, value]) =>
@@ -68,27 +68,30 @@ export const formikToRunInputs = (values: { [x: string]: string }): { [x: string
         result[inputId] = JSON.stringify(value);
     }
     return result;
-};
+}
 
 /**
  * Updates formik values with run input data
  * @param runInputs The run input data
  * @returns Object to pass into formik setValues function
  */
-export const runInputsToFormik = (runInputs: { input: { id: string }, data: string }[]): { [x: string]: string } => {
+export function runInputsToFormik(runInputs: { input: { id: string }, data: string }[]): { [x: string]: string } {
     const result: { [x: string]: string } = {};
     for (const runInput of runInputs) {
         result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
     }
     return result;
-};
+}
 
 /**
  * Converts a run inputs object to a run input create object
  * @param runInputs The run inputs object
  * @returns The run input create input object
  */
-export const runInputsCreate = (runInputs: { [x: string]: string }, runRoutineId: string): { inputsCreate: RunRoutineInputCreateInput[] } => {
+export function runInputsCreate(
+    runInputs: { [x: string]: string },
+    runRoutineId: string,
+): { inputsCreate: RunRoutineInputCreateInput[] } {
     return {
         inputsCreate: Object.entries(runInputs).map(([inputId, data]) => ({
             id: uuid(),
@@ -97,7 +100,7 @@ export const runInputsCreate = (runInputs: { [x: string]: string }, runRoutineId
             runRoutineConnect: runRoutineId,
         })),
     };
-};
+}
 
 /**
  * Converts a run inputs object to a run input update object
@@ -105,14 +108,14 @@ export const runInputsCreate = (runInputs: { [x: string]: string }, runRoutineId
  * @param updated Run input object with updated data
  * @returns The run input update input object
  */
-export const runInputsUpdate = (
+export function runInputsUpdate(
     original: RunRoutineInput[],
     updated: { [x: string]: string },
 ): {
     inputsCreate?: RunRoutineInputCreateInput[],
     inputsUpdate?: RunRoutineInputUpdateInput[],
     inputsDelete?: string[],
-} => {
+} {
     // Convert user inputs object to RunInput[]
     const updatedInputs = Object.entries(updated).map(([inputId, data]) => ({
         id: uuid(),
@@ -127,7 +130,7 @@ export const runInputsUpdate = (
         }
     }
     return updateRel({ inputs: original }, { inputs: updatedInputs }, "inputs", ["Create", "Update", "Delete"], "many", shapeRunRoutineInput);
-};
+}
 
 type GetRoutineVersionStatusResult = {
     status: Status;
@@ -142,7 +145,9 @@ type GetRoutineVersionStatusResult = {
  * Also returns some other information which is useful for displaying routines
  * @param routine The routine to check
  */
-export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion> | null): GetRoutineVersionStatusResult => {
+export function getRoutineVersionStatus(
+    routineVersion?: Partial<RoutineVersion> | null,
+): GetRoutineVersionStatusResult {
     if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) {
         return { status: Status.Invalid, messages: ["No node or link data found"], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
     }
@@ -227,7 +232,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     } else {
         return { status: Status.Valid, messages: ["Routine is fully connected"], nodesById, nodesOffGraph, nodesOnGraph };
     }
-};
+}
 
 type GetProjectVersionStatusResult = {
     status: Status;
@@ -239,16 +244,19 @@ type GetProjectVersionStatusResult = {
  * Also returns some other information which is useful for displaying projects
  * @param project The project to check
  */
-export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion> | null): GetProjectVersionStatusResult => {
+export function getProjectVersionStatus(projectVersion?: Partial<ProjectVersion> | null): GetProjectVersionStatusResult {
     return {} as any;//TODO
-};
+}
 
 /**
  * Multi-step routine initial data, if creating from scratch
  * @param language The language of the routine
  * @returns Initial data for a new routine
  */
-export const initializeRoutineGraph = (language: string, routineVersionId: string): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } => {
+export function initializeRoutineGraph(
+    language: string,
+    routineVersionId: string,
+): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } {
     const startNode: NodeShape = {
         __typename: "Node" as const,
         id: uuid(),
@@ -319,4 +327,4 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         nodes: [startNode, routineListNode, endNode],
         nodeLinks: [link1, link2],
     };
-};
+}

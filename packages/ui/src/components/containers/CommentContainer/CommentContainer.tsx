@@ -2,7 +2,7 @@
  * Contains new comment input, and list of Reddit-style comments.
  */
 import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
-import { Button, Palette, Stack, useTheme } from "@mui/material";
+import { Button, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { CommentThread } from "components/lists/comment";
 import { useFindMany } from "hooks/useFindMany";
@@ -14,20 +14,6 @@ import { scrollIntoFocusedView } from "utils/display/scroll";
 import { CommentUpsert } from "views/objects/comment";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { CommentContainerProps } from "../types";
-
-/**
- * Common style applied when displaying this component 
- * on an object's page
- */
-export const containerProps = (palette: Palette) => ({
-    boxShadow: 1,
-    background: palette.background.paper,
-    borderRadius: 1,
-    overflow: "overlay",
-    marginTop: 4,
-    marginBottom: 4,
-    padding: 2,
-});
 
 export function CommentContainer({
     forceAddCommentOpen,

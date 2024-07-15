@@ -141,6 +141,7 @@ function CodeForm({
         isCreate,
         objectId: values.id,
         objectType: "CodeVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -306,12 +307,16 @@ export function CodeUpsert({
         transform: (existing) => codeInitialValues(session, existing),
     });
 
+    async function validateValues(values: CodeVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <CodeForm
                 disabled={!(isCreate || permissions.canUpdate)}

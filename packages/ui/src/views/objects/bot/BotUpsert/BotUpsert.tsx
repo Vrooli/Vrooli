@@ -56,15 +56,16 @@ function botInitialValues(
     };
 }
 
-const transformBotValues = (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) =>
-    isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
+function transformBotValues(session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) {
+    return isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
+}
 
-const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
+async function validateBotValues(session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) {
     const transformedValues = transformBotValues(session, values, existing, isCreate);
     const validationSchema = botValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-};
+}
 
 export function FeatureSlider({
     disabled,
@@ -557,12 +558,16 @@ export function BotUpsert({
         transform: (data) => botInitialValues(session, data),
     });
 
+    async function validateValues(values: BotShape) {
+        return await validateBotValues(session, values, existing, isCreate);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateBotValues(session, values, existing, isCreate)}
+            validate={validateValues}
         >
             {(formik) =>
                 <BotForm

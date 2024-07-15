@@ -121,6 +121,7 @@ function ApiForm({
         isCreate,
         objectId: values.id,
         objectType: "ApiVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -321,12 +322,16 @@ export function ApiUpsert({
         transform: (data) => apiInitialValues(session, data),
     });
 
+    async function validateValues(values: ApiVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <ApiForm
                 disabled={!(isCreate || permissions.canUpdate)}

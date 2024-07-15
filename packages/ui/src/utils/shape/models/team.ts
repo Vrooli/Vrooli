@@ -1,5 +1,6 @@
 import { Team, TeamCreateInput, TeamTranslation, TeamTranslationCreateInput, TeamTranslationUpdateInput, TeamUpdateInput } from "@local/shared";
 import { CanConnect, ShapeModel } from "types";
+import { MemberShape } from "./member";
 import { MemberInviteShape, shapeMemberInvite } from "./memberInvite";
 import { ResourceListShape, shapeResourceList } from "./resourceList";
 import { RoleShape, shapeRole } from "./role";
@@ -13,7 +14,11 @@ export type TeamTranslationShape = Pick<TeamTranslation, "id" | "language" | "bi
 export type TeamShape = Pick<Team, "id" | "handle" | "isOpenToNewMembers" | "isPrivate"> & {
     __typename: "Team";
     bannerImage?: string | File | null;
+    /** Invites for new members */
     memberInvites?: MemberInviteShape[] | null;
+    /** Potentially non-exhaustive list of current members. Ignored by shapers */
+    members?: MemberShape[];
+    /** Members being removed from the team */
     membersDelete?: { id: string }[] | null;
     profileImage?: string | File | null;
     resourceList?: Omit<ResourceListShape, "listFor"> | null;

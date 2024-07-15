@@ -33,9 +33,19 @@ import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
+const QUERY_DEPTH_LIMIT = 13;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+export async function initSingletons() {
+    // Initialize translations
+    await i18next.init(i18nConfig(debug));
+
+    // Initialize singletons
+    await ModelMap.init();
+    await LlmServiceRegistry.init();
+}
 
 async function main() {
     logger.info("Starting server...");
@@ -49,12 +59,8 @@ async function main() {
         }
     }
 
-    // Initialize translations
-    await i18next.init(i18nConfig(debug));
-
     // Initialize singletons
-    await ModelMap.init();
-    await LlmServiceRegistry.init();
+    await initSingletons();
 
     // Setup queues
     await setupLlmTaskQueue();
@@ -142,7 +148,7 @@ async function main() {
             introspection: debug,
             schema,
             context: (c) => context(c), // Allows request and response to be included in the context
-            validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
+            validationRules: [depthLimit(QUERY_DEPTH_LIMIT)], // Prevents DoS attack from arbitrarily-nested query
         });
         // Start server
         await apollo_options_latest.start();

@@ -22,36 +22,39 @@ import { ScheduleUpsert } from "views/objects/schedule";
 import { MeetingFormProps, MeetingUpsertProps } from "../types";
 
 
-export const meetingInitialValues = (
+export function meetingInitialValues(
     session: Session | undefined,
     existing?: Partial<Meeting> | null | undefined,
-): MeetingShape => ({
-    __typename: "Meeting" as const,
-    id: DUMMY_ID,
-    openToAnyoneWithInvite: false,
-    showOnTeamProfile: true,
-    team: {
-        __typename: "Team" as const,
+): MeetingShape {
+    return {
+        __typename: "Meeting" as const,
         id: DUMMY_ID,
-    },
-    restrictedToRoles: [],
-    labels: [],
-    schedule: null,
-    ...existing,
-    translations: orDefault(existing?.translations, [{
-        __typename: "MeetingTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        link: "",
-        name: "",
-    }]),
-});
+        openToAnyoneWithInvite: false,
+        showOnTeamProfile: true,
+        team: {
+            __typename: "Team" as const,
+            id: DUMMY_ID,
+        },
+        restrictedToRoles: [],
+        labels: [],
+        schedule: null,
+        ...existing,
+        translations: orDefault(existing?.translations, [{
+            __typename: "MeetingTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            link: "",
+            name: "",
+        }]),
+    };
+}
 
-export const transformMeetingValues = (values: MeetingShape, existing: MeetingShape, isCreate: boolean) =>
-    isCreate ? shapeMeeting.create(values) : shapeMeeting.update(existing, values);
+export function transformMeetingValues(values: MeetingShape, existing: MeetingShape, isCreate: boolean) {
+    return isCreate ? shapeMeeting.create(values) : shapeMeeting.update(existing, values);
+}
 
-const MeetingForm = ({
+function MeetingForm({
     disabled,
     dirty,
     display,
@@ -66,7 +69,7 @@ const MeetingForm = ({
     onDeleted,
     values,
     ...props
-}: MeetingFormProps) => {
+}: MeetingFormProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -133,9 +136,8 @@ const MeetingForm = ({
                 title={t(isCreate ? "CreateMeeting" : "UpdateMeeting")}
             />
             <ScheduleUpsert
-                canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab="Meeting"
+                defaultScheduleFor="Meeting"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -238,14 +240,14 @@ const MeetingForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const MeetingUpsert = ({
+export function MeetingUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: MeetingUpsertProps) => {
+}: MeetingUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
@@ -256,12 +258,16 @@ export const MeetingUpsert = ({
         transform: (data) => meetingInitialValues(session, data),
     });
 
+    async function validateValues(values: MeetingShape) {
+        return await validateFormValues(values, existing, isCreate, transformMeetingValues, meetingValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformMeetingValues, meetingValidation)}
+            validate={validateValues}
         >
             {(formik) => <MeetingForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -275,4 +281,4 @@ export const MeetingUpsert = ({
             />}
         </Formik>
     );
-};
+}

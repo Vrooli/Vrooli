@@ -38,6 +38,16 @@ export function MemberManageView({
         where: where({ teamId: team.id }),
     });
 
+    // const handleMemberSelect = useCallback((member: RelationshipItemUser) => {
+    //     membersFieldHelpers.setValue([...(membersField.value ?? []), member]);
+    //     closeDialog();
+    // }, [membersFieldHelpers, membersField.value, closeDialog]);
+
+    // const searchData = useMemo(() => ({
+    //     searchType: "User" as const,
+    //     where: { memberInTeamId: membersField?.value?.id },
+    // }), [membersField?.value?.id]);
+
     //    // Handle add/update invite dialog
     //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
     //    const handleInvitesUpdate = useCallback(() => {
@@ -130,12 +140,12 @@ export function MemberManageView({
                 }}
             />}
             {/* <SideActionsButtons display={display}>
-                <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-                <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton>
+                <SideActionsButton aria-label={t("CreateInvite")} onClick={onInviteStart}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons> */}
         </MaybeLargeDialog>
     );

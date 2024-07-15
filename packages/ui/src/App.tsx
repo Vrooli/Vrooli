@@ -1,5 +1,5 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
-import { Box, createTheme, CssBaseline, GlobalStyles, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
+import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
@@ -127,6 +127,55 @@ function findThemeWithoutSession(): Theme {
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 }
 
+const MainBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.background.default,
+    color: theme.palette.background.textPrimary,
+    // Style visited, active, and hovered links
+    "& span, p": {
+        "& a": {
+            color: theme.palette.mode === "light" ? "#001cd3" : "#dd86db",
+            "&:visited": {
+                color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+            },
+            "&:active": {
+                color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
+            },
+            "&:hover": {
+                color: theme.palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
+            },
+            // Remove underline on links
+            textDecoration: "none",
+        },
+    },
+}));
+
+type ContentMargins = { marginLeft?: string, marginRight?: string };
+
+interface ContentWrapProps extends BoxProps {
+    contentMargins: ContentMargins;
+}
+
+const ContentWrap = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "contentMargins",
+})<ContentWrapProps>(({ contentMargins, theme }) => ({
+    position: "relative",
+    background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+    minHeight: "100vh",
+    ...contentMargins,
+    transition: "margin 0.225s cubic-bezier(0, 0, 0.2, 1) 0s",
+    [theme.breakpoints.down("md")]: {
+        minHeight: "calc(100vh - 56px - env(safe-area-inset-bottom))",
+    },
+}));
+
+const LoaderBox = styled(Box)(() => ({
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 100000,
+}));
+
 const menusDisplayData: { [key in SideMenuPub["id"]]: { persistentOnDesktop: boolean, sideForRightHanded: "left" | "right" } } = {
     "side-menu": sideMenuDisplayData,
     "chat-side-menu": chatSideMenuDisplayData,
@@ -146,8 +195,12 @@ export function App() {
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
-    const [contentMargins, setContentMargins] = useState<{ marginLeft?: string, marginRight?: string }>({}); // Adds margins to content when a persistent drawer is open
+    const [contentMargins, setContentMargins] = useState<ContentMargins>({}); // Adds margins to content when a persistent drawer is open
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
+
+    const closeTutorial = useCallback(function closeTutorialCallback() {
+        setIsTutorialOpen(false);
+    }, []);
 
     // Applies language change
     useEffect(() => {
@@ -445,32 +498,10 @@ export function App() {
             <StyledEngineProvider injectFirst>
                 <CssBaseline />
                 <ThemeProvider theme={theme}>
-                    <GlobalStyles
-                        styles={getGlobalStyles}
-                    />
+                    <GlobalStyles styles={getGlobalStyles} />
                     <SessionContext.Provider value={session}>
                         <ZIndexProvider>
-                            <Box id="App" component="main" sx={{
-                                background: theme.palette.background.default,
-                                color: theme.palette.background.textPrimary,
-                                // Style visited, active, and hovered links
-                                "& span, p": {
-                                    "& a": {
-                                        color: theme.palette.mode === "light" ? "#001cd3" : "#dd86db",
-                                        "&:visited": {
-                                            color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
-                                        },
-                                        "&:active": {
-                                            color: theme.palette.mode === "light" ? "#001cd3" : "#f551ef",
-                                        },
-                                        "&:hover": {
-                                            color: theme.palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
-                                        },
-                                        // Remove underline on links
-                                        textDecoration: "none",
-                                    },
-                                },
-                            }}>
+                            <MainBox id="App" component="main">
                                 {/* Pull-to-refresh for PWAs */}
                                 <PullToRefresh />
                                 <CommandPalette />
@@ -478,34 +509,20 @@ export function App() {
                                 <Celebration />
                                 <AlertDialog />
                                 <SnackStack />
-                                <TutorialDialog isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
+                                <TutorialDialog isOpen={isTutorialOpen} onClose={closeTutorial} />
                                 <SideMenu />
-                                <Box id="content-wrap" sx={{
-                                    position: "relative",
-                                    background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
-                                    minHeight: { xs: "calc(100vh - 56px - env(safe-area-inset-bottom))", md: "100vh" },
-                                    ...(contentMargins),
-                                    transition: "margin 0.225s cubic-bezier(0, 0, 0.2, 1) 0s",
-                                }}>
-
-                                    {/* Progress bar */}
+                                <ContentWrap id="content-wrap" contentMargins={contentMargins}>
                                     {
-                                        isLoading && <Box sx={{
-                                            position: "absolute",
-                                            top: "50%",
-                                            left: "50%",
-                                            transform: "translate(-50%, -50%)",
-                                            zIndex: 100000,
-                                        }}>
+                                        isLoading && <LoaderBox>
                                             <DiagonalWaveLoader size={100} />
-                                        </Box>
+                                        </LoaderBox>
                                     }
                                     <Routes sessionChecked={session !== undefined} />
-                                </Box>
+                                </ContentWrap>
                                 <BannerChicken />
                                 <BottomNav />
                                 <Footer />
-                            </Box>
+                            </MainBox>
                         </ZIndexProvider>
                     </SessionContext.Provider>
                 </ThemeProvider>

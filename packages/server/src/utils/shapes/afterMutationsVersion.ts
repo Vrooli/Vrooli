@@ -7,7 +7,7 @@ type Version = {
     id: string;
     isLatest: boolean;
     isLatestPublic: boolean,
-    isPublic: boolean;
+    isPrivate: boolean;
     versionIndex: number;
     versionLabel: string;
 }
@@ -15,7 +15,7 @@ type Version = {
 /**
  * Sorts versions from lowest to highest
  */
-export const sortVersions = <T extends { versionLabel: string }>(versions: T[]): T[] => {
+export function sortVersions<T extends { versionLabel: string }>(versions: T[]): T[] {
     if (!Array.isArray(versions)) return [];
     return versions.sort((a, b) => {
         const { major: majorA, moderate: moderateA, minor: minorA } = calculateVersionsFromString(a.versionLabel);
@@ -28,7 +28,7 @@ export const sortVersions = <T extends { versionLabel: string }>(versions: T[]):
         if (minorA < minorB) return -1;
         return 0;
     });
-};
+}
 
 /**
  * Finds the index of the latest public version in a sorted list of versions.
@@ -37,14 +37,14 @@ export const sortVersions = <T extends { versionLabel: string }>(versions: T[]):
  * @param {Array} versions - The sorted array of version objects.
  * @return {number} - The index of the latest public version, or -1 if no public version exists.
  */
-export const findLatestPublicVersionIndex = (versions: Pick<Version, "isPublic">[]) => {
+export function findLatestPublicVersionIndex(versions: Pick<Version, "isPrivate">[]) {
     for (let i = versions.length - 1; i >= 0; i--) {
-        if (versions[i].isPublic) {
+        if (!versions[i].isPrivate) {
             return i; // Return the index as soon as the first public version is found from the end
         }
     }
     return -1; // Return -1 if no public version is found
-};
+}
 
 /**
  * Identifies which versions have changed between the original and updated lists.
@@ -52,7 +52,7 @@ export const findLatestPublicVersionIndex = (versions: Pick<Version, "isPublic">
  * @param updatedVersions - The updated list of versions.
  * @returns An array of versions that have changed.
  */
-export const getChangedVersions = (originalVersions: Version[], updatedVersions: Version[]) => {
+export function getChangedVersions(originalVersions: Version[], updatedVersions: Version[]) {
     const changedVersions: Version[] = [];
 
     // Create a map of original versions for quick lookup
@@ -78,14 +78,14 @@ export const getChangedVersions = (originalVersions: Version[], updatedVersions:
     });
 
     return changedVersions;
-};
+}
 
 /**
  * Processes versions for a single root object
  * @param root The root object containing versions to be updated.
  * @returns Data to be updated in a Prisma transaction.
  */
-export const prepareVersionUpdates = (root: { id: string, versions: Version[] }) => {
+export function prepareVersionUpdates(root: { id: string, versions: Version[] }) {
     // Sort versions by versionLabel (using copy to avoid mutation of original array)
     const versionsUpdated = sortVersions(JSON.parse(JSON.stringify(root.versions))) as Version[];
     // Set version index for each version and reset flags
@@ -109,19 +109,19 @@ export const prepareVersionUpdates = (root: { id: string, versions: Version[] })
         where: { id },
         data: { isLatest, isLatestPublic, versionIndex },
     }));
-};
+}
 
 /**
  * Used in mutate.shape.post of version objects. Updates  
  * versionIndex, isLatest, and isLatestPublic flags. Cannot be done in pre 
  * because we might need to update additional versions not specified in the mutation
  */
-export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType, updatedIds }: {
+export async function afterMutationsVersion({ createdIds, deletedIds, objectType, updatedIds }: {
     createdIds: string[],
     deletedIds: string[],
     objectType: GqlModelType | `${GqlModelType}`,
     updatedIds: string[]
-}) => {
+}) {
     // Get db table for root object
     const { dbTable: dbTableRoot } = ModelMap.getLogic(["dbTable"], objectType.replace("Version", "") as GqlModelType);
     // Get ids from created, updated, and deletedIds
@@ -136,7 +136,7 @@ export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType
                     id: true,
                     isLatest: true,
                     isLatestPublic: true,
-                    isPublic: true,
+                    isPrivate: true,
                     versionIndex: true,
                     versionLabel: true,
                 },
@@ -150,4 +150,4 @@ export const afterMutationsVersion = async ({ createdIds, deletedIds, objectType
     // Update versions in a Prisma transaction
     const promises = updatedVersions.map(({ where, data }) => prismaInstance[dbTableVersion].update({ where, data }));
     await prismaInstance.$transaction(promises);
-};
+}

@@ -191,6 +191,7 @@ function SmartContractForm({
         isCreate,
         objectId: values.id,
         objectType: "CodeVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -356,12 +357,16 @@ export function SmartContractUpsert({
         transform: (existing) => smartContractInitialValues(session, existing),
     });
 
+    async function validateValues(values: CodeVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <SmartContractForm
                 disabled={!(isCreate || permissions.canUpdate)}

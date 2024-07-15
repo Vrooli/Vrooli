@@ -1,7 +1,7 @@
 import { DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { FormProps } from "forms/types";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/cookies";
@@ -13,6 +13,7 @@ type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>,
     isCreate: boolean,
     objectId?: string,
     objectType: ListObject["__typename"],
+    rootObjectId?: string,
 }
 
 /**
@@ -22,7 +23,7 @@ type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>,
  * When done in a dialog, triggers the appropriate callback.
  * Also handles snack messages.
  */
-export const useUpsertActions = <T extends TType>({
+export function useUpsertActions<T extends TType>({
     display,
     isCreate,
     objectId,
@@ -30,7 +31,8 @@ export const useUpsertActions = <T extends TType>({
     onCancel,
     onCompleted,
     onDeleted,
-}: UseUpsertActionsProps<T>) => {
+    rootObjectId,
+}: UseUpsertActionsProps<T>) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -73,7 +75,7 @@ export const useUpsertActions = <T extends TType>({
             }
         }
 
-        const handleAddOrUpdate = (messageType: "Created" | "Updated") => {
+        function handleAddOrUpdate(messageType: "Created" | "Updated") {
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
                 removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`); // Remove form backup data from cache
@@ -86,7 +88,7 @@ export const useUpsertActions = <T extends TType>({
             if ((isCreate && messageType === "Created") || (!isCreate && messageType === "Updated")) {
                 publishSnack(messageType, Array.isArray(item) ? item.length : 1);
             }
-        };
+        }
 
         switch (action) {
             case ObjectDialogAction.Add:
@@ -123,7 +125,15 @@ export const useUpsertActions = <T extends TType>({
         }
     }, [display, isCreate, objectType, setLocation, onCompleted, publishSnack, goBack, onCancel, onDeleted]);
 
-    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel, { __typename: objectType, id: objectId } as unknown as T), [objectId, objectType, onAction]);
+    const asObject = useMemo(function asObjectMemo() {
+        return {
+            __typename: objectType,
+            id: objectId,
+            ...(rootObjectId ? { root: { __typename: objectType.replace("Version", ""), id: rootObjectId } } : {}),
+        };
+    }, [objectId, objectType, rootObjectId]);
+
+    const handleCancel = useCallback(() => onAction(ObjectDialogAction.Cancel, asObject as unknown as T), [objectId, objectType, onAction]);
     const handleCreated = useCallback((data: T) => { onAction(ObjectDialogAction.Add, data); }, [onAction]);
     const handleUpdated = useCallback((data: T) => { onAction(ObjectDialogAction.Save, data); }, [onAction]);
     const handleCompleted = useCallback((data: T) => { onAction(isCreate ? ObjectDialogAction.Add : ObjectDialogAction.Save, data); }, [isCreate, onAction]);
@@ -136,4 +146,4 @@ export const useUpsertActions = <T extends TType>({
         handleUpdated,
         handleCompleted,
     };
-};
+}

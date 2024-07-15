@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Avatar, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
+import { Avatar, AvatarProps, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
 export const bottomNavHeight = "56px";
 export const pagePaddingBottom = `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`;
@@ -185,7 +185,6 @@ export const slideBox = (theme: Theme) => ({
     ...slideContent(theme),
     background: "#2c2d2fd1",
     borderRadius: theme.spacing(4),
-    boxShadow: theme.shadows[2],
     minHeight: "unset",
     zIndex: 2,
     gap: theme.spacing(6),
@@ -206,22 +205,24 @@ export const textPop = {
                 1px 1px 0 black`,
 } as const;
 
-export const baseSection = (theme: Theme) => ({
-    background: theme.palette.mode === "dark" ?
-        theme.palette.background.paper :
-        theme.palette.background.default,
-    borderRadius: theme.spacing(1),
-    flexDirection: "column",
-    padding: theme.spacing(2),
-    "@media print": {
-        border: `1px solid ${theme.palette.divider}`,
-    },
-} as const);
+export function baseSection(theme: Pick<Theme, "palette" | "spacing">) {
+    return {
+        background: theme.palette.mode === "dark" ?
+            theme.palette.background.paper :
+            theme.palette.background.default,
+        borderRadius: theme.spacing(1),
+        flexDirection: "column",
+        padding: theme.spacing(2),
+        "@media print": {
+            border: `1px solid ${theme.palette.divider}`,
+        },
+    } as const;
+}
 export const BaseSection = styled(Box)(({ theme }) => ({
     ...baseSection(theme),
 }));
 
-export function formSection(theme: Theme) {
+export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">) {
     return {
         ...baseSection(theme),
         overflowX: "auto",
@@ -286,12 +287,45 @@ export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
     },
 }));
 
-export const OverviewProfileAvatar = styled(Avatar)(({ theme }) => ({
+interface ProfileAvatarProps extends AvatarProps {
+    isBot: boolean;
+    profileColors: [string, string];
+}
+
+export const ProfileAvatar = styled(Avatar, {
+    shouldForwardProp: (prop) => prop !== "isBot" && prop !== "profileColors",
+})<ProfileAvatarProps>(({ isBot, profileColors }) => ({
+    backgroundColor: profileColors[0],
+    color: profileColors[1],
+    borderRadius: isBot ? "8px" : "50%",
+}));
+
+
+export const OverviewProfileAvatar = styled(ProfileAvatar)(() => ({
     width: "max(min(100px, 40vw), 75px)",
     height: "max(min(100px, 40vw), 75px)",
     top: "-100%",
     fontSize: "min(50px, 10vw)",
     marginRight: "auto",
+}));
+
+export const ProfilePictureInputAvatar = styled(ProfileAvatar)(({ theme }) => ({
+    boxShadow: theme.shadows[4],
+    width: "100px",
+    height: "100px",
+    cursor: "pointer",
+}));
+
+interface ObjectListProfileAvatarProps extends ProfileAvatarProps {
+    isMobile: boolean;
+}
+
+export const ObjectListProfileAvatar = styled(ProfileAvatar, {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<ObjectListProfileAvatarProps>(({ isMobile }) => ({
+    width: isMobile ? "40px" : "50px",
+    height: isMobile ? "40px" : "50px",
+    pointerEvents: "none",
 }));
 
 export const highlightStyle = (background: string, disabled: boolean | undefined) => ({
@@ -323,3 +357,10 @@ export const CardBox = styled(Box)(({ theme }) => ({
         transition: "filter 0.2s",
     },
 })) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
+
+export const SideActionsButton = styled(IconButton)(({ theme }) => ({
+    background: theme.palette.secondary.main,
+    width: "54px",
+    height: "54px",
+    padding: 0,
+}));

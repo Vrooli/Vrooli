@@ -1,5 +1,5 @@
 import { AutocompleteOption, FindByIdInput, FindVersionInput, ListObject, getObjectUrl } from "@local/shared";
-import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { CalendarPageTabOption, SearchPageTabOption, SearchType, findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
@@ -375,9 +376,9 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
             >
                 <TopBar
                     display="dialog"
-                    hideTitleOnDesktop={true}
                     onClose={() => { handleCancel(); }}
                     title={t("SearchVrooli")}
+                    titleBehaviorDesktop="ShowIn"
                     below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
                         currTab={currTab}
@@ -430,12 +431,12 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
                     )}
                 </Box>
                 <SideActionsButtons display="dialog">
-                    <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
                         <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                    <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                    </SideActionsButton>
+                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 </SideActionsButtons>
             </LargeDialog>
         </>

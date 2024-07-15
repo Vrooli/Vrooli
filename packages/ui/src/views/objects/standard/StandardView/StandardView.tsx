@@ -1,5 +1,5 @@
 import { CommentFor, endpointGetStandardVersion, exists, noop, noopSubmit, StandardVersion } from "@local/shared";
-import { Box, IconButton, Palette, Stack, useTheme } from "@mui/material";
+import { Box, Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -19,6 +19,7 @@ import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormSection, SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -27,18 +28,6 @@ import { StandardShape } from "utils/shape/models/standard";
 import { TagShape } from "utils/shape/models/tag";
 import { standardInitialValues } from "../StandardUpsert/StandardUpsert";
 import { StandardViewProps } from "../types";
-
-function containerProps(palette: Palette) {
-    return {
-        boxShadow: 1,
-        background: palette.background.paper,
-        borderRadius: 1,
-        overflow: "overlay",
-        marginTop: 4,
-        marginBottom: 4,
-        padding: 2,
-    };
-}
 
 export function StandardView({
     display,
@@ -121,22 +110,22 @@ export function StandardView({
                         parent={{ __typename: "StandardVersion", id: existing?.id ?? "" }}
                     />}
                     {/* Box with description */}
-                    <Box sx={containerProps(palette)}>
+                    <FormSection>
                         <TextCollapse
                             title="Description"
                             text={description}
                             loading={isLoading}
                             loadingLines={2}
                         />
-                    </Box>
+                    </FormSection>
                     {/* Box with standard */}
-                    <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                    <FormSection>
                         {/* <StandardInput
                             disabled={true}
                             fieldName="preview"
                         /> */}
                         TODO
-                    </Stack>
+                    </FormSection>
                     {/* Tags */}
                     {Array.isArray(tags) && tags!.length > 0 && <TagList
                         maxCharacters={30}
@@ -170,7 +159,7 @@ export function StandardView({
                         object={existing}
                     />
                     {/* Comments */}
-                    <Box sx={containerProps(palette)}>
+                    <FormSection>
                         <CommentContainer
                             forceAddCommentOpen={isAddCommentOpen}
                             language={language}
@@ -178,15 +167,15 @@ export function StandardView({
                             objectType={CommentFor.StandardVersion}
                             onAddCommentClose={closeAddCommentDialog}
                         />
-                    </Box>
+                    </FormSection>
                 </Box>}
             </Formik>
             <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <IconButton aria-label={t("UpdateStandard")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("UpdateStandard")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
         </>

@@ -127,6 +127,17 @@ export const InputTypeOptions: InputTypeOption[] = [
     // },
 ];
 
+export enum RelationshipButtonType {
+    Owner = "Owner",
+    // Parent = "Parent",
+    IsPrivate = "IsPrivate",
+    IsComplete = "IsComplete",
+    FocusMode = "FocusMode",
+    QuestionFor = "QuestionFor",
+    Members = "Members",
+    Participants = "Participants",
+}
+
 /** Number of dummy items in a list for full page, typically */
 export const DUMMY_LIST_LENGTH = 5;
 /** Number of dummy items on mobile or shorter components */
@@ -138,3 +149,6 @@ export function getDummyListLength(display: "dialog" | "page" | "partial") {
 
 /** Limit for chips displayed in multi selector components */
 export const CHIP_LIST_LIMIT = 3;
+
+/** Default minimum rows for rich inputs */
+export const DEFAULT_MIN_ROWS = 4;

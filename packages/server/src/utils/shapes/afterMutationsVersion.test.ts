@@ -56,8 +56,8 @@ describe("findLatestPublicVersionIndex", () => {
 
     it("returns -1 if all versions are private", () => {
         const versions = [
-            { id: "1", isPublic: false },
-            { id: "2", isPublic: false },
+            { id: "1", isPrivate: true },
+            { id: "2", isPrivate: true },
         ];
         // @ts-ignore: Testing runtime scenario
         expect(findLatestPublicVersionIndex(versions)).toBe(-1);
@@ -65,7 +65,7 @@ describe("findLatestPublicVersionIndex", () => {
 
     it("returns the correct index for a single public version", () => {
         const versions = [
-            { id: "1", isPublic: true },
+            { id: "1", isPrivate: false },
         ];
         // @ts-ignore: Testing runtime scenario
         expect(findLatestPublicVersionIndex(versions)).toBe(0);
@@ -73,9 +73,9 @@ describe("findLatestPublicVersionIndex", () => {
 
     it("returns the index of the last public version when multiple are public", () => {
         const versions = [
-            { id: "1", isPublic: false },
-            { id: "2", isPublic: true },
-            { id: "3", isPublic: true },
+            { id: "1", isPrivate: true },
+            { id: "2", isPrivate: false },
+            { id: "3", isPrivate: false },
         ];
         // @ts-ignore: Testing runtime scenario
         expect(findLatestPublicVersionIndex(versions)).toBe(2);
@@ -83,9 +83,9 @@ describe("findLatestPublicVersionIndex", () => {
 
     it("correctly identifies the public version at the boundaries", () => {
         const versions = [
-            { id: "1", isPublic: true },
-            { id: "2", isPublic: false },
-            { id: "3", isPublic: false },
+            { id: "1", isPrivate: false },
+            { id: "2", isPrivate: true },
+            { id: "3", isPrivate: true },
         ];
         // @ts-ignore: Testing runtime scenario
         expect(findLatestPublicVersionIndex(versions)).toBe(0);
@@ -139,9 +139,9 @@ describe("prepareVersionUpdates", () => {
         const root = {
             id: "root1",
             versions: [
-                { id: "v1", isPublic: true, versionLabel: "1.0", versionIndex: 0, isLatest: false, isLatestPublic: false },
-                { id: "v2", isPublic: true, versionLabel: "1.1", versionIndex: 1, isLatest: false, isLatestPublic: true },
-                { id: "v3", isPublic: false, versionLabel: "1.2", versionIndex: 2, isLatest: true, isLatestPublic: false },
+                { id: "v1", isPrivate: false, versionLabel: "1.0", versionIndex: 0, isLatest: false, isLatestPublic: false },
+                { id: "v2", isPrivate: false, versionLabel: "1.1", versionIndex: 1, isLatest: false, isLatestPublic: true },
+                { id: "v3", isPrivate: true, versionLabel: "1.2", versionIndex: 2, isLatest: true, isLatestPublic: false },
             ],
         };
 
@@ -153,9 +153,9 @@ describe("prepareVersionUpdates", () => {
         const root = {
             id: "root1",
             versions: [
-                { id: "v1", isPublic: true, versionLabel: "1.0", versionIndex: 3, isLatest: false, isLatestPublic: false }, // Index incorrect
-                { id: "v2", isPublic: true, versionLabel: "1.1", versionIndex: 4, isLatest: false, isLatestPublic: true }, // Index incorrect
-                { id: "v3", isPublic: false, versionLabel: "1.2", versionIndex: 4, isLatest: true, isLatestPublic: false }, // Index incorrect
+                { id: "v1", isPrivate: false, versionLabel: "1.0", versionIndex: 3, isLatest: false, isLatestPublic: false }, // Index incorrect
+                { id: "v2", isPrivate: false, versionLabel: "1.1", versionIndex: 4, isLatest: false, isLatestPublic: true }, // Index incorrect
+                { id: "v3", isPrivate: true, versionLabel: "1.2", versionIndex: 4, isLatest: true, isLatestPublic: false }, // Index incorrect
             ],
         };
 
@@ -170,9 +170,9 @@ describe("prepareVersionUpdates", () => {
         const root = {
             id: "root1",
             versions: [
-                { id: "v1", isPublic: true, versionLabel: "1.0", versionIndex: 0, isLatest: true, isLatestPublic: false }, // Is not latest
-                { id: "v2", isPublic: true, versionLabel: "1.1", versionIndex: 1, isLatest: false, isLatestPublic: true }, // This one's fine, so it should not be updated
-                { id: "v3", isPublic: false, versionLabel: "1.2", versionIndex: 2, isLatest: false, isLatestPublic: false }, // Is latest
+                { id: "v1", isPrivate: false, versionLabel: "1.0", versionIndex: 0, isLatest: true, isLatestPublic: false }, // Is not latest
+                { id: "v2", isPrivate: false, versionLabel: "1.1", versionIndex: 1, isLatest: false, isLatestPublic: true }, // This one's fine, so it should not be updated
+                { id: "v3", isPrivate: true, versionLabel: "1.2", versionIndex: 2, isLatest: false, isLatestPublic: false }, // Is latest
             ],
         };
 
@@ -186,9 +186,9 @@ describe("prepareVersionUpdates", () => {
         const root = {
             id: "root1",
             versions: [
-                { id: "v1", isPublic: true, versionLabel: "1.0", versionIndex: 0, isLatest: false, isLatestPublic: false },
-                { id: "v2", isPublic: true, versionLabel: "1.1", versionIndex: 1, isLatest: false, isLatestPublic: false }, // Is latest public
-                { id: "v3", isPublic: false, versionLabel: "1.2", versionIndex: 2, isLatest: true, isLatestPublic: false },
+                { id: "v1", isPrivate: false, versionLabel: "1.0", versionIndex: 0, isLatest: false, isLatestPublic: false },
+                { id: "v2", isPrivate: false, versionLabel: "1.1", versionIndex: 1, isLatest: false, isLatestPublic: false }, // Is latest public
+                { id: "v3", isPrivate: true, versionLabel: "1.2", versionIndex: 2, isLatest: true, isLatestPublic: false },
             ],
         };
 
@@ -201,9 +201,9 @@ describe("prepareVersionUpdates", () => {
         const root = {
             id: "root1",
             versions: [
-                { id: "v1", isPublic: true, versionLabel: "1.0", versionIndex: 0, isLatest: true, isLatestPublic: true },
-                { id: "v2", isPublic: true, versionLabel: "1.1", versionIndex: 0, isLatest: true, isLatestPublic: true },
-                { id: "v3", isPublic: false, versionLabel: "1.2", versionIndex: 0, isLatest: true, isLatestPublic: true },
+                { id: "v1", isPrivate: false, versionLabel: "1.0", versionIndex: 0, isLatest: true, isLatestPublic: true },
+                { id: "v2", isPrivate: false, versionLabel: "1.1", versionIndex: 0, isLatest: true, isLatestPublic: true },
+                { id: "v3", isPrivate: true, versionLabel: "1.2", versionIndex: 0, isLatest: true, isLatestPublic: true },
             ],
         };
 

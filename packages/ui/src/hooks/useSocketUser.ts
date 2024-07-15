@@ -3,10 +3,10 @@ import { emitSocketEvent, onSocketEvent } from "api";
 import { useEffect } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 
-export const useSocketUser = (
+export function useSocketUser(
     session: Session | undefined,
     setSession: (session: Session) => unknown,
-) => {
+) {
     // Handle connection/disconnection
     useEffect(() => {
         const { id } = getCurrentUser(session);
@@ -47,4 +47,4 @@ export const useSocketUser = (
             cleanupApiCredits();
         };
     }, [session, setSession]);
-};
+}

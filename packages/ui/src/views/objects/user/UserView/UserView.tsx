@@ -24,7 +24,7 @@ import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, Hear
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
+import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { findBotData } from "utils/botUtils";
@@ -212,7 +212,7 @@ export function UserView({
             }
         }
         openLink(setLocation, url, initialChatData);
-    }, [session, setLocation, user]);
+    }, [language, session, setLocation, user]);
 
     return (
         <>
@@ -250,13 +250,9 @@ export function UserView({
             <OverviewContainer>
                 <OverviewProfileStack>
                     <OverviewProfileAvatar
+                        isBot={user?.isBot ?? false}
+                        profileColors={profileColors}
                         src={extractImageUrl(user?.profileImage, user?.updated_at, 100)}
-                        sx={{
-                            backgroundColor: profileColors[0],
-                            color: profileColors[1],
-                            // Bots show up as squares, to distinguish them from users
-                            ...(user?.isBot ? { borderRadius: "8px" } : {}),
-                        }}
                     >
                         {user?.isBot ?
                             <BotIcon width="75%" height="75%" /> :
@@ -497,21 +493,21 @@ export function UserView({
                 </Box>}
             </Box>
             <SideActionsButtons display={display}>
-                {currTab.key !== UserPageTabOption.Details ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                {currTab.key !== UserPageTabOption.Details ? <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
-                {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton> : null}
+                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }}>
                     <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
-                <IconButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }} sx={{ background: palette.secondary.main, width: "52px", height: "52px" }}>
+                </SideActionsButton> : null}
+                <SideActionsButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }}>
                     <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
-                </IconButton>
-                <IconButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton>
+                <SideActionsButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-                <IconButton aria-label={t("MessageSend")} onClick={handleStartChat} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton>
+                <SideActionsButton aria-label={t("MessageSend")} onClick={handleStartChat}>
                     <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons>
         </>
     );

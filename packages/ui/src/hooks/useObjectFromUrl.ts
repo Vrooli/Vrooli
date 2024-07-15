@@ -31,18 +31,18 @@ export type UseObjectFromUrlReturn<TData extends UrlObject, TFunc> = {
 }
 
 /** Either applies the transform or returns the input data directly */
-export const applyDataTransform = <
+export function applyDataTransform<
     PData extends UrlObject,
     TData extends UrlObject = PartialWithType<PData>
 >(
     data: Partial<PData>,
     transform: ((data: Partial<PData>) => TData) | undefined,
-): any => {//ObjectReturnType<TData, (data: Partial<PData>) => TData> => {
+): any {//ObjectReturnType<TData, (data: Partial<PData>) => TData> => {
     // If data is malformed, return null and pretend it's the correct type
     if (!data) return null as unknown as ObjectReturnType<TData, (data: Partial<PData>) => TData>;
     // Otherwise, apply the transform if it exists
     return (typeof transform === "function" ? transform(data) : data) as ObjectReturnType<TData, (data: Partial<PData>) => TData>;
-};
+}
 
 /**
  * Fetches data using identifiers from the url, if they exist.
@@ -52,12 +52,12 @@ export const applyDataTransform = <
  * @param displayError Boolean to indicate if error snack should be displayed
  * @returns True if "getData" was called, false otherwise
  */
-export const fetchDataUsingUrl = (
+export function fetchDataUsingUrl(
     params: UrlInfo,
     getData: ((input: FetchInput, inputOptions?: FetchInputOptions | undefined) => unknown),
     onError: FetchInputOptions["onError"],
     displayError: boolean | undefined,
-) => {
+) {
     const inputOptions = { onError, displayError };
     if (exists(params.handle)) getData({ handle: params.handle }, inputOptions);
     else if (exists(params.handleRoot)) getData({ handleRoot: params.handleRoot }, inputOptions);
@@ -65,7 +65,7 @@ export const fetchDataUsingUrl = (
     else if (exists(params.idRoot)) getData({ idRoot: params.idRoot }, inputOptions);
     else return false;
     return true;
-};
+}
 
 /**
  * Hook for finding an object from the URL and providing relevant properties and functions
@@ -160,13 +160,15 @@ export function useObjectFromUrl<
         else if (exists(onInvalidUrlParamsRef.current)) onInvalidUrlParamsRef.current(urlParams);
         // Else, show error
         else PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-    }, [getData, objectType, overrideObject, displayError, urlParams]);
+    }, [getData, objectType, overrideObject, displayError, urlParams, disabled]);
     useEffect(() => {
         // If overrideObject provided, use it
         if (typeof overrideObject === "object") {
             setObject(applyDataTransform(overrideObject, transformRef.current));
             return;
         }
+        // If disabled, don't try anything else
+        if (disabled) return;
         // If data was queried (i.e. object exists), store it in local state
         if (fetchedData) setCookiePartialData(fetchedData, "full");
         // If we didn't receive fetched data, and we received an "Unauthorized" error, 
@@ -176,11 +178,12 @@ export function useObjectFromUrl<
             setObject(applyDataTransform({}, transformRef.current));
             return;
         }
+        // If we have fetched data or cached data, set the object   
         const knownData = fetchedData ?? getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
         if (knownData && typeof knownData === "object" && uuidValidate(knownData.id)) {
             setObject(applyDataTransform(knownData, transformRef.current));
         }
-    }, [fetchedData, fetchedErrors, objectType, overrideObject, urlParams]);
+    }, [disabled, fetchedData, fetchedErrors, objectType, overrideObject, urlParams]);
 
     // If object found, get permissions
     const permissions = useMemo(() => object ? getYou(object) : defaultYou, [object]);
