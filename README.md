@@ -15,7 +15,7 @@
 [![GitHub Star](https://img.shields.io/badge/Star%20Our%20Repo-0?style=for-the-badge&logo=github&color=333)][github]
 [![X/Twitter Follow](https://img.shields.io/badge/Follow%20%40VrooliOfficial-0?style=for-the-badge&logo=x&color=111)][x]
 [![YouTube Subscribe](https://img.shields.io/badge/Subscribe%20%40Vrooli-0?style=for-the-badge&logo=youtube&color=f00)][youtube]
-[![License: GPL](https://img.shields.io/badge/License-GPL-green.svg?style=for-the-badge)](https://opensource.org/license/gpl-3-0)
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPL-green.svg?style=for-the-badge)][license]
 
 </div>
 
@@ -370,17 +370,18 @@ For more detailed information, please refer to our [Privacy Policy](https://vroo
 
 
 # 📜 License
-Vrooli is released under the [GNU General Public License v3.0](https://opensource.org/license/gpl-3-0). This license allows you to freely use, modify, and distribute the software, provided that any derivative works have the same license.
+Vrooli is released under the [GNU Affero General Public License v3.0 (AGPLv3)][license]. This license enhances the GPLv3 to address use of software over a network, and it allows you to freely use, modify, and distribute the software, provided that any derivative works or versions used over a network are also shared under the same license.
 
-## Why GPL 3.0?
-We chose the GPL 3.0 license for several key reasons:
+## Why AGPL 3.0?
+We chose the AGPL 3.0 license for several key reasons:
 
-- **Freedom and Collaboration:** The GPL 3.0 promotes freedom and collaboration, aligning with Vrooli’s mission to create an open and shared ecosystem. It ensures that the software remains free for all users and encourages a collaborative approach to development and improvement.
-- **Transparency and Security:** By requiring derivative works to also be open source, the GPL 3.0 enhances transparency and security. Users can review, audit, and contribute to the code, fostering a trustworthy and secure platform.
-- **Community Growth:** The GPL 3.0 encourages community growth and innovation. Developers can build upon Vrooli, creating new features and improvements that benefit the entire community.
-- **Preventing Proprietary Forks:** The GPL 3.0 helps prevent proprietary forks of the software, ensuring that improvements and innovations remain accessible to everyone.
+- **Network Use Transparency:** The AGPL 3.0 extends the GPLv3 by requiring that modifications made and deployed over a network are made available to the public. This ensures transparency and collaborative improvement even when the software is used as a network service.
+- **Freedom and Collaboration:** AGPL 3.0 promotes freedom and collaboration, aligning with Vrooli’s mission to create an open and shared ecosystem. It ensures that the software remains free for all users and encourages a collaborative approach to development and improvement.
+- **Security and Accountability:** By requiring that all network-deployed modifications be open source, the AGPL 3.0 enhances security and accountability. Users can review, audit, and contribute to the code, fostering a trustworthy and secure platform.
+- **Community Growth:** The AGPL 3.0 encourages community growth and innovation. Developers can build upon Vrooli, creating new features and improvements that benefit the entire community.
+- **Preventing Proprietary Lock-in:** The AGPL 3.0 helps prevent proprietary lock-in of the software, ensuring that improvements and innovations remain accessible to everyone, especially in network-based deployments.
 
-By choosing the GPL 3.0, we are committed to maintaining an open, collaborative, and secure environment for all Vrooli users and contributors.
+By choosing the AGPL 3.0, we are committed to maintaining an open, collaborative, and secure environment for all Vrooli users and contributors, regardless of how the platform is deployed or accessed.
 
 
 ### [🌍**Let's change the world together!🕊️**][website]
@@ -397,3 +398,4 @@ By choosing the GPL 3.0, we are committed to maintaining an open, collaborative,
 [youtube]: https://www.youtube.com/@vrooli
 [email]: mailto:support@vrooli.com
 [github]: https://github.com/Vrooli/Vrooli
+[license]: https://choosealicense.com/licenses/agpl-3.0/

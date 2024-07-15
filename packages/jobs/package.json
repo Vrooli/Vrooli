@@ -1,7 +1,7 @@
 {
     "name": "@local/jobs",
     "author": "Vrooli",
-    "license": "GPL-3.0",
+    "license": "AGPL-3.0-only",
     "version": "1.9.8",
     "private": true,
     "main": "dist/index.js",
