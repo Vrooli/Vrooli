@@ -1963,7 +1963,7 @@ model routine_version_translation {
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     description          String?                     @db.VarChar(2048)
-    instructions         String                      @db.VarChar(8192)
+    instructions         String?                     @db.VarChar(8192)
     name                 String                      @db.VarChar(128)
     language             String                      @db.VarChar(3)
     routineVersionId     String                      @db.Uuid
