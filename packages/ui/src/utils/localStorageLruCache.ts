@@ -67,6 +67,18 @@ export class LocalStorageLruCache<ValueType> {
         this.saveKeys();
     }
 
+    removeKeysWithValue(predicate: (key: string, value: ValueType) => boolean): void {
+        console.log("in removeKeysWithValue", this.cacheKeys);
+        this.cacheKeys.forEach((key) => {
+            const value = this.get(key);
+            console.log("key and value", key, value);
+            if (value !== undefined && predicate(key, value)) {
+                console.log("removing key:", key);
+                this.remove(key);
+            }
+        });
+    }
+
     private touchKey(key: string): void {
         this.removeKey(key);
         this.cacheKeys.push(key);

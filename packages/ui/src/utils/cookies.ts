@@ -11,6 +11,17 @@ import { getDeviceInfo } from "./display/device";
 import { LocalStorageLruCache } from "./localStorageLruCache";
 
 const MAX_CACHE_SIZE = 300;
+const KB_1 = 1024;
+// eslint-disable-next-line no-magic-numbers
+const CACHE_LIMIT_2KB = KB_1 * 2;
+// eslint-disable-next-line no-magic-numbers
+const CACHE_LIMIT_128KB = KB_1 * 128;
+// eslint-disable-next-line no-magic-numbers
+const CACHE_LIMIT_256KB = KB_1 * 256;
+// eslint-disable-next-line no-magic-numbers
+const CACHE_LIMIT_512KB = KB_1 * 512;
+// eslint-disable-next-line no-magic-numbers
+const CACHE_LIMT_1MB = KB_1 * 1024;
 
 /**
  * Preferences for the user's cookie settings
@@ -84,11 +95,11 @@ export function setStorageItem<T extends SimpleStorageType | string>(
  * Gets a cookie if it exists, otherwise sets it to the default value. 
  * Assumes that you have already checked that the cookie is allowed.
  */
-export const getOrSetCookie = <T extends SimpleStorageType | string>(
+export function getOrSetCookie<T extends SimpleStorageType | string>(
     name: T,
     check: (value: unknown) => boolean,
     fallback: T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown,
-): T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown => {
+): T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown {
     const cookie = getStorageItem(name, check);
     if (cookie !== undefined) return cookie;
     // NOTE: The only cookie we'll refuse to set is "Preferences", since 
@@ -97,7 +108,7 @@ export const getOrSetCookie = <T extends SimpleStorageType | string>(
         setStorageItem(name, fallback);
     }
     return fallback;
-};
+}
 
 export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
     CreateOrder: {
@@ -185,7 +196,7 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
  * @param callback Callback function to call if cookie is allowed
  * @param fallback Optional fallback value to use if cookie is not allowed
  */
-export const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) => {
+export function ifAllowed(cookieType: keyof CookiePreferences, callback: () => unknown, fallback?: any) {
     const preferences = getStorageItem("Preferences", cookies.Preferences.check) ?? cookies.Preferences.fallback;
     if (cookieType === "strictlyNecessary" || preferences[cookieType]) {
         return callback();
@@ -194,7 +205,7 @@ export const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => u
         console.warn(`Not allowed to get/set cookie ${cookieType}`, preferences, localStorage.getItem("Preferences"));
         return fallback;
     }
-};
+}
 
 /**
  * Retrieves data from localStorage, if allowed by the user's cookie preferences.
@@ -202,10 +213,10 @@ export const ifAllowed = (cookieType: keyof CookiePreferences, callback: () => u
  * @param id Provides unique identifier for the cookie, if needed (e.g. last tab is stored for many different tabs)
  * @returns The value of the cookie, or the fallback value if the cookie is not allowed
  */
-export const getCookie = <T extends SimpleStorageType>(
+export function getCookie<T extends SimpleStorageType>(
     name: T,
     id?: string,
-): SimpleStoragePayloads[T] => {
+): SimpleStoragePayloads[T] {
     const { __type, check, fallback, shape } = cookies[name] || {};
     return ifAllowed(
         __type,
@@ -218,7 +229,7 @@ export const getCookie = <T extends SimpleStorageType>(
         },
         fallback,
     );
-};
+}
 
 /**
  * Stroes data in localStorage only if the user has permitted the cookie's type.
@@ -248,7 +259,7 @@ export const removeCookie = <T extends SimpleStorageType | CacheStorageType>(
 type FormCacheEntry = {
     [key: string]: any; // This would be the form data
 }
-const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", 100, 1024 * 512); // 512KB limit
+const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", 100, CACHE_LIMIT_512KB);
 export const getCookieFormData = (formId: string): FormCacheEntry | undefined => ifAllowed("functional", () => {
     return formDataCache.get(formId);
 });
@@ -263,7 +274,7 @@ export const removeCookieFormData = (formId: string) => ifAllowed("functional", 
 
 /** Indicates if the form for this objectType/ID pair has disabled auto-save */
 type AllowFormCaching = boolean;
-const formCachingCache = new LocalStorageLruCache<AllowFormCaching>("allowFormCaching", 20, 1024 * 2); // 2KB limit
+const formCachingCache = new LocalStorageLruCache<AllowFormCaching>("allowFormCaching", 20, CACHE_LIMIT_2KB);
 export const getCookieAllowFormCache = (objectType: GqlModelType | `${GqlModelType}`, objectId: string): AllowFormCaching => ifAllowed("functional", () => {
     const result = formCachingCache.get(`${objectType}:${objectId}`);
     if (typeof result === "boolean") return result;
@@ -284,7 +295,7 @@ type ChatMessageTreeCookie = {
     /** The message you viewed last */
     locationId: string;
 }
-const chatMessageTreeCache = new LocalStorageLruCache<ChatMessageTreeCookie>("chatMessageTree", 100, 1024 * 256); // 256KB limit
+const chatMessageTreeCache = new LocalStorageLruCache<ChatMessageTreeCookie>("chatMessageTree", 100, CACHE_LIMIT_256KB);
 export const getCookieMessageTree = (chatId: string): ChatMessageTreeCookie | undefined => ifAllowed("functional", () => {
     return chatMessageTreeCache.get(chatId);
 });
@@ -296,21 +307,32 @@ type ChatGroupCookie = {
     /** The last chatId for the group of userIds */
     chatId: string;
 };
-const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", 100, 1024 * 128); // 128KB limit
-export const getCookieMatchingChat = (userIds: string[], task?: string): string | undefined => ifAllowed("functional", () => {
-    return chatGroupCache.get(chatMatchHash(userIds, task))?.chatId;
-});
-export const setCookieMatchingChat = (chatId: string, userIds: string[], task?: string) => ifAllowed("functional", () => {
-    chatGroupCache.set(chatMatchHash(userIds, task), { chatId });
-});
-export const removeCookieMatchingChat = (userIds: string[], task?: string) => ifAllowed("functional", () => {
-    chatGroupCache.remove(chatMatchHash(userIds, task));
-});
+const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", 100, CACHE_LIMIT_128KB);
+export function getCookieMatchingChat(userIds: string[], task?: string): string | undefined {
+    return ifAllowed("functional", function getCookieMatchingChatCallback() {
+        return chatGroupCache.get(chatMatchHash(userIds, task))?.chatId;
+    });
+}
+export function setCookieMatchingChat(chatId: string, userIds: string[], task?: string) {
+    return ifAllowed("functional", function setCookieMatchingChatCallback() {
+        chatGroupCache.set(chatMatchHash(userIds, task), { chatId });
+    });
+}
+export function removeCookieMatchingChat(userIds: string[], task?: string) {
+    return ifAllowed("functional", function removeCookieMatchingChatCallback() {
+        chatGroupCache.remove(chatMatchHash(userIds, task));
+    });
+}
+export function removeCookiesWithChatId(chatId: string) {
+    return ifAllowed("functional", function removeCookiesWithChatIdCallback() {
+        chatGroupCache.removeKeysWithValue((_, value) => value.chatId === chatId);
+    });
+}
 
 type MessageTasks = {
     tasks: LlmTaskInfo[];
 }
-const llmTasksCache = new LocalStorageLruCache<MessageTasks>("llmTasks", 100, 1024 * 1024); // 1MB limit
+const llmTasksCache = new LocalStorageLruCache<MessageTasks>("llmTasks", 100, CACHE_LIMT_1MB);
 export const getCookieTasksForMessage = (messageId: string): MessageTasks | undefined => ifAllowed("functional", () => {
     const existing = llmTasksCache.get(messageId);
     if (typeof existing === "object" && Array.isArray(existing.tasks)) {

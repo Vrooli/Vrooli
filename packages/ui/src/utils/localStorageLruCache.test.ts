@@ -158,4 +158,41 @@ describe("LocalStorageLruCache", () => {
         expect(cache2.get("keyB")).toBe("valueB");
         expect(cache2.get("keyC")).toBe("valueC");
     });
+
+    test("should remove keys with specific value using predicate", () => {
+        const cache = new LocalStorageLruCache<{ chatId: string }>("cache1", 5);
+
+        cache.set("key1", { chatId: "chat1" });
+        cache.set("key2", { chatId: "chat2" });
+        cache.set("key3", { chatId: "chat1" });
+        cache.set("key4", { chatId: "chat3" });
+
+        expect(cache.size()).toBe(4);
+
+        // Remove keys with chatId "chat1"
+        cache.removeKeysWithValue((key, value) => value.chatId === "chat1");
+
+        expect(cache.size()).toBe(2);
+        expect(cache.get("key1")).toBeUndefined();
+        expect(cache.get("key3")).toBeUndefined();
+        expect(cache.get("key2")).toEqual({ chatId: "chat2" });
+        expect(cache.get("key4")).toEqual({ chatId: "chat3" });
+    });
+
+    test("removing keys with non-matching predicate doesn't affect the cache", () => {
+        const cache = new LocalStorageLruCache<{ chatId: string }>("cache1", 5);
+
+        cache.set("key1", { chatId: "chat1" });
+        cache.set("key2", { chatId: "chat2" });
+
+        expect(cache.size()).toBe(2);
+
+        // Attempt to remove keys with chatId "chat3" which doesn't exist
+        cache.removeKeysWithValue((key, value) => value.chatId === "chat3");
+
+        expect(cache.size()).toBe(2);
+        expect(cache.get("key1")).toEqual({ chatId: "chat1" });
+        expect(cache.get("key2")).toEqual({ chatId: "chat2" });
+    });
+
 });
