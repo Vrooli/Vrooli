@@ -23,10 +23,10 @@ type RoutineVersionPre = PreShapeVersionResult & {
 /**
  * Validates node positions
  */
-const validateNodePositions = async (
+async function validateNodePositions(
     input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
     languages: string[],
-): Promise<void> => {
+): Promise<void> {
     // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
     // let combinedNodes = [];
     // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
@@ -37,7 +37,7 @@ const validateNodePositions = async (
     // const uniqueNodes = uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
     // if (uniqueNodes.length < combinedNodes.length) throw new CustomError("NodeDuplicatePosition", {});
     return;
-};
+}
 
 const __typename = "RoutineVersion" as const;
 export const RoutineVersionModel: RoutineVersionModelLogic = ({
@@ -209,7 +209,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, objects, partial, userData }) => {
-                const runs = async () => {
+                async function runs() {
                     if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
                     // can associate runs with their routine
@@ -234,7 +234,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     // Split runs by id
                     const routineRuns = ids.map((id) => runs.filter(r => r.routineVersionId === id));
                     return routineRuns;
-                };
+                }
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
@@ -260,21 +260,25 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                OR: [
-                    { isPrivate: true },
-                    { root: { isPrivate: true } },
-                ],
+            private: function getVisibilityPrivate() {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    OR: [
+                        { isPrivate: true },
+                        { root: { isPrivate: true } },
+                    ],
+                };
             },
-            public: {
-                isDeleted: false,
-                root: { isDeleted: false },
-                AND: [
-                    { isPrivate: false },
-                    { root: { isPrivate: false } },
-                ],
+            public: function getVisibilityPublic() {
+                return {
+                    isDeleted: false,
+                    root: { isDeleted: false },
+                    AND: [
+                        { isPrivate: false },
+                        { root: { isPrivate: false } },
+                    ],
+                };
             },
             owner: (userId) => ({
                 root: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId),

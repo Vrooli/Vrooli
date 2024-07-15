@@ -168,7 +168,12 @@ export async function cudHelper({
         }
     }
     // Perform all operations in transaction
-    const transactionResult = await prismaInstance.$transaction(operations as PrismaPromise<object>[]);
+    let transactionResult;
+    try {
+        transactionResult = await prismaInstance.$transaction(operations as PrismaPromise<object>[]);
+    } catch (error) {
+        throw new CustomError("0557", "InternalError", userData.languages, { error });
+    }
     // Loop again through each type to process results
     let transactionIndex = 0;
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {

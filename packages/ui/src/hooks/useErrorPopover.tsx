@@ -17,10 +17,10 @@ interface UsePopoverMenuReturn {
     Popover: () => JSX.Element;
 }
 
-export const useErrorPopover = ({
+export function useErrorPopover({
     errors,
     onSetSubmitting,
-}: UsePopoverMenuOptions): UsePopoverMenuReturn => {
+}: UsePopoverMenuOptions): UsePopoverMenuReturn {
     // Errors popup
     const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
     const openPopover = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
@@ -78,4 +78,4 @@ export const useErrorPopover = ({
     }, [closePopover, errorAnchorEl, errorMessage]);
 
     return { errorMessage, openPopover, closePopover, hasErrors, Popover };
-};
+}

@@ -14,7 +14,21 @@ export const chatParticipant_findMany = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true
+        "profileImage": true,
+        "bookmarks": true,
+        "reportsReceivedCount": true,
+        "you": {
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "isBookmarked": true,
+          "isViewed": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "bio": true
+        }
       }
     }
   },

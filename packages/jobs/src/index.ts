@@ -12,6 +12,8 @@ import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits";
 import { scheduleNotify } from "./schedules/scheduleNotify";
 import { initStatsPeriod } from "./schedules/stats";
 
+const MAX_JOB_CONCURRENCY = 5;
+
 type CronJobDefinition = {
     schedule: string;
     jobFunction: (schedule: string) => (unknown | Promise<unknown>);
@@ -120,14 +122,14 @@ class ConcurrencyLimiter {
 }
 
 // Initialize the concurrency limiter
-const limiter = new ConcurrencyLimiter(5); // Adjust the number as needed
+const limiter = new ConcurrencyLimiter(MAX_JOB_CONCURRENCY); // Adjust the number as needed
 const jobStatus = new Map<string, boolean>();
 
-export const initializeCronJob = (
+export function initializeCronJob(
     schedule: string,
     job: (schedule: string) => (unknown | Promise<unknown>),
     description: string,
-): void => {
+): void {
     try {
         cron.schedule(schedule, async () => {
             if (jobStatus.get(description) === true) {
@@ -157,9 +159,9 @@ export const initializeCronJob = (
     } catch (error) {
         logger.error(`❌ Failed to initialize ${description} cron job.`, { error, trace: "0399" });
     }
-};
+}
 
-export const initializeAllCronJobs = () => {
+export function initializeAllCronJobs() {
     Object.values(cronJobs).forEach(async cronJob => {
         if (cronJob.runRightAway) {
             try {
@@ -175,6 +177,6 @@ export const initializeAllCronJobs = () => {
     });
 
     logger.info("🚀 Jobs running");
-};
+}
 
 initializeAllCronJobs();

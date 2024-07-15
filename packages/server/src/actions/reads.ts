@@ -154,13 +154,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Search results have at least an id
     let searchResults: Record<string, any>[] = [];
     try {
-        const temp = await prismaInstance.schedule.findMany({
-            where: {
-                meetings: {
-
-                },
-            },
-        });
         searchResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
             where,
             orderBy,

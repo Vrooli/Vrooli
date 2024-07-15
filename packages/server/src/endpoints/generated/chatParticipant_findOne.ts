@@ -12,6 +12,20 @@ export const chatParticipant_findOne = {
     "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
+    "bookmarks": true,
+    "reportsReceivedCount": true,
+    "you": {
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "isBookmarked": true,
+      "isViewed": true
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "bio": true
+    },
     "__typename": "User"
   },
   "__typename": "ChatParticipant"
