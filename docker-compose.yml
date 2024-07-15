@@ -149,11 +149,8 @@ services:
       TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
       TWILIO_PHONE_NUMBER: "${TWILIO_PHONE_NUMBER}"
       UI_URL: "${UI_URL}"
-      VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: ${PORT_SERVER:-5329}
-      VIRTUAL_PATH: "/api"
-      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+    ports:
+      - "9230:9230" # For debugger
     networks:
       - app
     volumes:

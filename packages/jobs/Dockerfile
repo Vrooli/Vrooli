@@ -3,7 +3,6 @@ FROM node:18-alpine as stage0
 
 # Set working directory
 ARG PROJECT_DIR
-ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Copy main package.json, as well as packages this container will use. Doing this first helps with caching (I think).
@@ -56,5 +55,5 @@ COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config
 RUN apk update && \
     apk add --no-cache netcat-openbsd
 
-# Set port
-EXPOSE ${VIRTUAL_PORT} 9229
+# Set debugger port
+EXPOSE 9230

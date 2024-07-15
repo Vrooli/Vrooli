@@ -29,7 +29,6 @@ FROM node:18-alpine as stage1
 
 # Set working directory
 ARG PROJECT_DIR
-ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Copy entire working directory contents from stage 0
@@ -40,6 +39,3 @@ COPY --chown=node:node scripts/* scripts/
 
 # Copy global yarn packages from stage 0
 COPY --from=stage0 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
-
-# Set port
-EXPOSE ${VIRTUAL_PORT}
