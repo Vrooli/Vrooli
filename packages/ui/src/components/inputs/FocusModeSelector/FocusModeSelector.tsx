@@ -1,17 +1,29 @@
-import { FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared";
+import { FocusMode, FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik } from "formik";
-import { useContext, useMemo } from "react";
+import { FocusModeIcon } from "icons";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { Selector } from "../Selector/Selector";
+import { SelectorBase } from "../Selector/Selector";
+
+function getFocusModeOptionDescription(focusMode: FocusMode) {
+    return focusMode.description;
+}
+
+function getFocusModeOptionLabel(focusMode: FocusMode) {
+    return focusMode.name;
+}
+
+function getDisplayIcon() {
+    return <FocusModeIcon />;
+}
 
 /**
  * Sets your focus mode. Can also create new focus modes.
  */
-export const FocusModeSelector = () => {
+export function FocusModeSelector() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -24,7 +36,7 @@ export const FocusModeSelector = () => {
         return { canAdd: all.length < max, hasPremium };
     }, [all.length, session]);
 
-    const handleAddNewFocusMode = () => {
+    const handleAddNewFocusMode = useCallback(function handleAddNewFocusMode() {
         // If you can add, open settings
         if (canAdd) setLocation(LINKS.SettingsFocusModes);
         // If you can't add and don't have premium, open premium page
@@ -34,38 +46,36 @@ export const FocusModeSelector = () => {
         }
         // Otherwise, show error
         else PubSub.get().publish("snack", { message: "Max reached", severity: "Error" });
-    };
+    }, [canAdd, hasPremium, setLocation]);
+
+    const handleChangedFocusMode = useCallback(function handleChangedFocusMode(newMode: FocusMode) {
+        newMode && PubSub.get().publish("focusMode", {
+            __typename: "ActiveFocusMode" as const,
+            mode: newMode,
+            stopCondition: FocusModeStopCondition.NextBegins,
+        });
+    }, []);
+
+    const addOption = useMemo(function addOptionMemo() {
+        return {
+            label: t("AddFocusMode"),
+            onSelect: handleAddNewFocusMode,
+        };
+    }, [handleAddNewFocusMode, t]);
 
     return (
-        <>
-            {/* Selector */}
-            <Formik
-                enableReinitialize={true}
-                initialValues={{ active: active?.mode ?? "addOption" }}
-                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                onSubmit={() => { }} // no-op
-            >
-                <Selector
-                    name="active"
-                    options={all}
-                    getOptionLabel={(r) => r.name}
-                    getOptionDescription={(r) => r.description}
-                    fullWidth={true}
-                    inputAriaLabel="Focus Mode"
-                    label={t("FocusMode", { count: 1, defaultValue: "Focus Mode" })}
-                    onChange={(newMode) => {
-                        newMode && PubSub.get().publish("focusMode", {
-                            __typename: "ActiveFocusMode" as const,
-                            mode: newMode,
-                            stopCondition: FocusModeStopCondition.NextBegins,
-                        });
-                    }}
-                    addOption={{
-                        label: t("AddFocusMode"),
-                        onSelect: handleAddNewFocusMode,
-                    }}
-                />
-            </Formik>
-        </>
+        <SelectorBase
+            name="active"
+            options={all}
+            getDisplayIcon={getDisplayIcon}
+            getOptionLabel={getFocusModeOptionLabel}
+            getOptionDescription={getFocusModeOptionDescription}
+            fullWidth={true}
+            inputAriaLabel="Focus Mode"
+            label={t("FocusMode", { count: 1, defaultValue: "Focus Mode" })}
+            onChange={handleChangedFocusMode}
+            addOption={addOption}
+            value={active?.mode ?? null}
+        />
     );
-};
+}

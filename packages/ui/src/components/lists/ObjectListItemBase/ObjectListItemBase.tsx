@@ -1,6 +1,5 @@
 import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
-import { Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { ProfileGroup } from "components/ProfileGroup/ProfileGroup";
+import { AvatarGroup, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
@@ -27,6 +26,8 @@ import { ObjectListItemProps } from "../types";
 
 const LIST_PREFIX = "list-item-";
 const EDIT_PREFIX = "edit-list-item-";
+const TARGET_IMAGE_SIZE = 100;
+const MAX_AVATARS_IN_GROUP = 4;
 
 /**
  * A list item that automatically supports most object types, with props 
@@ -148,7 +149,7 @@ export function ObjectListItemBase<T extends ListObject>({
                     isBot={isBot ?? false}
                     isMobile={isMobile}
                     profileColors={profileColors}
-                    src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updated_at, 50)}
+                    src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updated_at, TARGET_IMAGE_SIZE)}
                 >
                     <Icon fill={profileColors[1]} width="75%" height="75%" />
                 </ObjectListProfileAvatar>
@@ -169,14 +170,32 @@ export function ObjectListItemBase<T extends ListObject>({
                         isBot={firstUser?.isBot ?? false}
                         isMobile={isMobile}
                         profileColors={profileColors}
-                        src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, 50)}
+                        src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, TARGET_IMAGE_SIZE)}
                     >
                         {firstUser?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
                     </ObjectListProfileAvatar>
                 );
             }
             // Otherwise, show a group
-            return <ProfileGroup users={attendeesOrParticipants.map((p: Meeting["attendees"][0] | Chat["participants"][0]) => (p as Chat["participants"][0])?.user ?? p as Meeting["attendees"][0])} />;
+            return (
+                <AvatarGroup max={4} total={attendeesOrParticipants.length}>
+                    {attendeesOrParticipants.slice(0, MAX_AVATARS_IN_GROUP).map((p: Meeting["attendees"][0] | Chat["participants"][0], index: number) => {
+                        const user = (p as Chat["participants"][0])?.user ?? p as Meeting["attendees"][0];
+                        return (
+                            <ObjectListProfileAvatar
+                                key={user.id || index}
+                                alt={`${getDisplay(user).title}'s profile picture`}
+                                isBot={user?.isBot ?? false}
+                                isMobile={isMobile}
+                                profileColors={placeholderColor(user.id)}
+                                src={extractImageUrl(user?.profileImage, user?.updated_at, TARGET_IMAGE_SIZE)}
+                            >
+                                {user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                            </ObjectListProfileAvatar>
+                        );
+                    })}
+                </AvatarGroup>
+            );
         }
         // Other custom object icons
         if (isOfType(object, "BookmarkList")) {

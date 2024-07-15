@@ -10,5 +10,4 @@ export * from "./FormInputSlider/FormInputSlider";
 export * from "./FormInputSwitch/FormInputSwitch";
 export * from "./FormInputTagSelector/FormInputTagSelector";
 export * from "./FormInputText/FormInputText";
-export * from "./GeneratedGrid/GeneratedGrid";
 
