@@ -108,10 +108,10 @@ const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
     });
 };
 
-export const CreateView = ({
+export function CreateView({
     display,
     onClose,
-}: CreateViewProps) => {
+}: CreateViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -142,6 +142,7 @@ export const CreateView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Create")}
+                titleBehaviorDesktop="ShowIn"
             />
             <CardGrid minWidth={300}>
                 {sortedCards.map(({ objectType, description, Icon, id, incomplete }, index) => (
@@ -159,4 +160,4 @@ export const CreateView = ({
             </CardGrid>
         </PageContainer>
     );
-};
+}

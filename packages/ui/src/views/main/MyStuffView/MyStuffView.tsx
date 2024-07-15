@@ -138,9 +138,9 @@ export function MyStuffView({
             </Menu>
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("MyStuff")}
+                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="my-stuff-tabs"
                     fullWidth

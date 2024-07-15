@@ -1,4 +1,4 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, styled, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -35,8 +35,11 @@ import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
+import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { chatInitialValues, transformChatValues, VALYXA_INFO, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
+
+const MAX_EVENTS_SHOWN = 10;
 
 const CHAT_DEFAULTS = {
     __typename: "Chat" as const,
@@ -85,6 +88,7 @@ const sideMenuStyle = {
     cursor: "pointer",
 } as const;
 const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
+const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 
 /** View displayed for Home page when logged in */
 export function DashboardView({
@@ -101,8 +105,8 @@ export function DashboardView({
     const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
-    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
-    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
 
     const {
@@ -149,6 +153,7 @@ export function DashboardView({
             },
         });
     }, [chat, languages, fetchCreate, session, t]);
+    const resetChat = useCallback(() => { createChat(true); }, [createChat]);
 
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
@@ -157,7 +162,7 @@ export function DashboardView({
         if (!userId) return;
         // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
         const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
-        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
+        const isChatValid = chat.id !== DUMMY_ID && chat.participants?.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getChat,
@@ -314,7 +319,7 @@ export function DashboardView({
             if (!isCancelled) {
                 // Sort events by start date, and set the first 10
                 result.sort((a, b) => a.start.getTime() - b.start.getTime());
-                setUpcomingEvents(result.slice(0, 10));
+                setUpcomingEvents(result.slice(0, MAX_EVENTS_SHOWN));
             }
         }
 
@@ -352,6 +357,10 @@ export function DashboardView({
     }, [closeSideMenu]);
 
     const [showChat, setShowChat] = useState(false);
+    const hideChat = useCallback(function hideChatCallback() {
+        setShowChat(false);
+    }, []);
+
     const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
 
     const messageTree = useMessageTree(chat.id);
@@ -469,6 +478,12 @@ export function DashboardView({
         };
     }, [display, isKeyboardOpen, isMobile, palette.background.paper, palette.primary.contrastText, palette.primary.dark]);
 
+    const handleSubmit = useCallback(function handleSubmitCallback(m) {
+        const trimmed = m.trim();
+        if (trimmed.length === 0) return;
+        messageActions.postMessage(trimmed);
+    }, [messageActions]);
+
     return (
         <DashboardBox>
             {/* Main content */}
@@ -502,16 +517,16 @@ export function DashboardView({
                     >
                         <Button
                             color="primary"
-                            onClick={() => { setShowChat(false); }}
+                            onClick={hideChat}
                             variant="contained"
-                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
+                            sx={exitChatButtonStyle}
                             startIcon={<ChevronLeftIcon />}
                         >
                             {t("Dashboard")}
                         </Button>
                         <Button
                             color="primary"
-                            onClick={() => { createChat(true); }}
+                            onClick={resetChat}
                             variant="contained"
                             sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<AddIcon />}
@@ -614,11 +629,7 @@ export function DashboardView({
                 onBlur={onBlur}
                 onChange={setMessage}
                 onFocus={onFocus}
-                onSubmit={(m) => {
-                    const trimmed = m.trim();
-                    if (trimmed.length === 0) return;
-                    messageActions.postMessage(trimmed);
-                }}
+                onSubmit={handleSubmit}
                 placeholder={t("WhatWouldYouLikeToDo")}
                 sxs={inputStyle}
                 value={message}

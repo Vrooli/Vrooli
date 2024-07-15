@@ -514,9 +514,9 @@ export function CalendarView({
                 <TopBar
                     // ref={ref}
                     display={display}
-                    hideTitleOnDesktop
                     onClose={onClose}
                     title={t("Schedule", { count: 1 })}
+                    titleBehaviorDesktop="ShowIn"
                     below={<PageTabs
                         ariaLabel="calendar-tabs"
                         currTab={currTab}

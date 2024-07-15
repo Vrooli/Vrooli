@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "route";
 import { SlideImage, SlideImageContainer } from "styles";
 
-export const NotFoundView = () => {
+export function NotFoundView() {
     const { t } = useTranslation();
     const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
 
@@ -15,8 +15,8 @@ export const NotFoundView = () => {
         <>
             <TopBar
                 display="page"
-                hideTitleOnDesktop
                 title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
+                titleBehaviorDesktop="Hide"
             />
             <Box
                 sx={{
@@ -57,4 +57,4 @@ export const NotFoundView = () => {
             </Box>
         </>
     );
-};
+}

@@ -130,9 +130,9 @@ export function InboxView({
             {BulkDeleteDialogComponent}
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={currTab.label}
+                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="inbox-tabs"
                     fullWidth

@@ -118,7 +118,7 @@ export const ResetPasswordView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                hideTitleOnDesktop
+                titleBehaviorDesktop="ShowBelow"
             />
             <Box
                 sx={{

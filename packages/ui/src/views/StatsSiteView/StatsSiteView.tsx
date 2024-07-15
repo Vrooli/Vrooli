@@ -214,9 +214,9 @@ export const StatsSiteView = ({
         <>
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("StatisticsShort")}
+                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="stats-period-tabs"
                     currTab={currTab}

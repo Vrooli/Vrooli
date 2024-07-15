@@ -132,7 +132,7 @@ export const ForgotPasswordView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                hideTitleOnDesktop
+                titleBehaviorDesktop="ShowBelow"
             />
             <Box
                 sx={{

@@ -152,6 +152,7 @@ export function LandingView({
             <TopBar
                 display={display}
                 onClose={onClose}
+                titleBehaviorMobile="ShowIn"
             />
             <SlidePage id="landing-slides" sx={{
                 background: palette.mode === "light" ? "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)" : "none",

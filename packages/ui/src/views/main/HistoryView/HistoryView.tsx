@@ -40,9 +40,9 @@ export function HistoryView({
         <>
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={currTab.label}
+                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="history-tabs"
                     currTab={currTab}

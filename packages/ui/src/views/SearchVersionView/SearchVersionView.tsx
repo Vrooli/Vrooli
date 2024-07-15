@@ -1,5 +1,5 @@
 import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared";
-import { IconButton, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -11,6 +11,7 @@ import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
@@ -63,9 +64,9 @@ export function SearchVersionView({
         <>
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("SearchVersions")}
+                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="search-version-tabs"
                     fullWidth
@@ -83,13 +84,13 @@ export function SearchVersionView({
                 sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionsButtons display={display}>
-                <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
                 {userId ? (
-                    <IconButton aria-label={t("Add")} onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
         </>

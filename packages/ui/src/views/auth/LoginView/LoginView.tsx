@@ -227,7 +227,7 @@ export function LoginView({
             <TopBar
                 display={display}
                 onClose={onClose}
-                hideTitleOnDesktop
+                titleBehaviorDesktop="ShowBelow"
             />
             <Box
                 sx={{

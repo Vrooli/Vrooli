@@ -91,9 +91,9 @@ export function PremiumView({
             <RandomBlobs numberOfBlobs={isMobile ? 3 : 5} />
             <TopBar
                 display={display}
-                hideTitleOnDesktop
                 onClose={onClose}
-                title={t("Pricing")}
+                title={t("ProGet")}
+                titleBehaviorDesktop="ShowIn"
             />
             <Box
                 sx={{
