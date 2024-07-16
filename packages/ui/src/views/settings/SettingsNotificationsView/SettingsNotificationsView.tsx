@@ -20,7 +20,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { pagePaddingBottom } from "styles";
 import { PubSub } from "utils/pubsub";
-import { SettingsNotificationFormProps } from "../types";
+import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
 
 function SettingsNotificationForm({
     display,

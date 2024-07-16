@@ -10,6 +10,7 @@ import { multiLineEllipsis } from "styles";
 import { setupPush } from "utils/push";
 import { updateArray } from "utils/shape/general";
 import { PushListItemProps, PushListProps } from "../types";
+import { PubSub } from "utils/pubsub";
 
 const InformationalColumn = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -78,7 +79,6 @@ const addButtonStyle = {
 } as const;
 
 //TODO need way to name push devices
-//TODO need button to test push device by sending a test push
 /**
  * Displays a list of push devices for the user to manage
  */
@@ -131,11 +131,11 @@ export function PushList({
     const [testPushNotification, { loading: loadingTestPush }] = useLazyFetch<PushDeviceTestInput, Success>(endpointPutPushDeviceTest);
     const onTestPush = useCallback((device: PushDevice) => {
         if (loadingTestPush) return;
-        fetchLazyWrapper<PushDevice, Success>({
+        fetchLazyWrapper<PushDeviceTestInput, Success>({
             fetch: testPushNotification,
             inputs: { id: device.id },
             onSuccess: () => {
-                //TODO show snack
+                PubSub.get().publish("snack", { message: "Test push sent", severity: "Success" });
             },
         });
     }, [loadingTestPush, testPushNotification]);
@@ -153,6 +153,7 @@ export function PushList({
                         data={device}
                         index={index}
                         handleUpdate={onUpdate}
+                        handleTestPush={onTestPush}
                         handleDelete={onDelete}
                     />
                 ))}
