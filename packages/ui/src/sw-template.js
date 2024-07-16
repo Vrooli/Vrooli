@@ -17,7 +17,7 @@ const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
 const CACHE_NAME = "vrooli-cache";
-const CURRENT_CACHE_VERSION = "2024-07-16-g"; // Change this value to force a cache update
+const CURRENT_CACHE_VERSION = "2024-07-16-i"; // Change this value to force a cache update
 
 // eslint-disable-next-line no-magic-numbers
 const DAYS_30_SECONDS = 30 * 24 * 60 * 60;

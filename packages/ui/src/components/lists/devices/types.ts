@@ -33,6 +33,7 @@ export interface PushListProps {
 
 export interface PushListItemProps {
     handleDelete: (device: PushDevice) => unknown;
+    handleTestPush: (device: PushDevice) => unknown;
     handleUpdate: (index: number, device: PushDevice) => unknown;
     index: number;
     data: PushDevice;

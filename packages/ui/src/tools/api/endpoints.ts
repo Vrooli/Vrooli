@@ -393,9 +393,11 @@ export const endpoints = {
     },
     pushDevice: async () => {
         const { pushDevice } = await import("./partial/pushDevice");
+        const { success } = await import("./partial/success");
         return {
             findMany: toQuery("pushDevices", "PushDeviceSearchInput", ...(await toSearch(pushDevice))),
             create: toMutation("pushDeviceCreate", "PushDeviceCreateInput", pushDevice, "full"),
+            test: toMutation("pushDeviceTest", "PushDeviceTestInput", success, "full"),
             update: toMutation("pushDeviceUpdate", "PushDeviceUpdateInput", pushDevice, "full"),
         };
     },

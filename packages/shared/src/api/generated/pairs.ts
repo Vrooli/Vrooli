@@ -952,6 +952,12 @@ export const endpointPutPushDevice = {
     tag: "pushDevice",
 } as const;
 
+export const endpointPutPushDeviceTest = {
+    endpoint: "/pushDeviceTest/:id",
+    method: "PUT",
+    tag: "pushDevice",
+} as const;
+
 export const endpointGetQuestion = {
     endpoint: "/question/:id",
     method: "GET",

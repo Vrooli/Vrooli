@@ -160,6 +160,7 @@ export * from "./pullRequest_accept";
 export * from "./pullRequest_reject";
 export * from "./pushDevice_findMany";
 export * from "./pushDevice_create";
+export * from "./pushDevice_test";
 export * from "./pushDevice_update";
 export * from "./question_findOne";
 export * from "./question_findMany";

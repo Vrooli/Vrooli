@@ -12,6 +12,9 @@ export const typeDef = gql`
         keys: PushDeviceKeysInput!
         name: String
     }
+    input PushDeviceTestInput {
+        id: ID!
+    }
     input PushDeviceUpdateInput {
         id: ID!
         name: String
@@ -30,6 +33,7 @@ export const typeDef = gql`
 
     extend type Mutation {
         pushDeviceCreate(input: PushDeviceCreateInput!): PushDevice!
+        pushDeviceTest(input: PushDeviceTestInput!): Success!
         pushDeviceUpdate(input: PushDeviceUpdateInput!): PushDevice!
     }
 `;
